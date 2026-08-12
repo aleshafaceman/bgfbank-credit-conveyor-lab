@@ -175,3 +175,83 @@ body { background: #f0f4f8; min-height: 100vh; }
 .app-timeline-sep { width: 14px; height: 2px; background: #e1e9f1; margin-top: 4px; flex: 0 0 auto; }
 .app-timeline-sep.done { background: #86efac; }
 .app-timeline-label { line-height: 1.2; max-width: 72px; }
+
+/* Split-view / iframe embed */
+html.embed-mode,
+html.embed-mode body,
+body.embed-mode {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #f0f4f8;
+}
+html.embed-mode .manager-layout,
+body.embed-mode .manager-layout {
+  min-height: 100vh;
+  min-height: 100dvh;
+  height: 100%;
+  overflow: auto;
+}
+html.embed-mode .m-header,
+body.embed-mode .m-header {
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  gap: 8px;
+}
+html.embed-mode .m-stats,
+body.embed-mode .m-stats {
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+  order: 3;
+}
+html.embed-mode .m-user,
+body.embed-mode .m-user {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+html.embed-mode .m-fast-scoring,
+body.embed-mode .m-fast-scoring {
+  font-size: 10px;
+}
+html.embed-mode .m-tabs,
+body.embed-mode .m-tabs {
+  padding: 0 6px;
+  overflow-x: auto;
+}
+html.embed-mode .m-tab,
+body.embed-mode .m-tab {
+  padding: 10px 12px;
+  white-space: nowrap;
+  font-size: 12px;
+}
+html.embed-mode .m-content,
+body.embed-mode .m-content {
+  padding: 12px;
+}
+html.embed-mode .m-applications-layout,
+body.embed-mode .m-applications-layout {
+  grid-template-columns: 1fr !important;
+  gap: 12px;
+}
+html.embed-mode .m-app-list,
+body.embed-mode .m-app-list {
+  max-height: 240px;
+  overflow-y: auto;
+}
+html.embed-mode .m-info-grid,
+body.embed-mode .m-info-grid {
+  grid-template-columns: 1fr;
+}
+html.embed-mode #m-tab-chat > div,
+body.embed-mode #m-tab-chat > div {
+  grid-template-columns: 1fr !important;
+  height: auto !important;
+}
+html.embed-mode .app-timeline-step,
+body.embed-mode .app-timeline-step {
+  min-width: 56px;
+  font-size: 9px;
+}
