@@ -19,15 +19,27 @@ let userCredentials = {
 };
 
 function loadSharedData() {
-    const savedApps = localStorage.getItem(STORAGE_KEY);
-    const savedClients = localStorage.getItem(CLIENTS_KEY);
-    const savedMessages = localStorage.getItem(MESSAGES_KEY);
-    const savedUser = localStorage.getItem(USER_KEY);
-    
-    if (savedApps) {
-        sharedApplications = JSON.parse(savedApps);
-    } else {
-        sharedApplications = [
+    try {
+        const savedApps = localStorage.getItem(STORAGE_KEY);
+        const savedClients = localStorage.getItem(CLIENTS_KEY);
+        const savedMessages = localStorage.getItem(MESSAGES_KEY);
+        const savedUser = localStorage.getItem(USER_KEY);
+        
+        if (savedApps) {
+            try {
+                const parsed = JSON.parse(savedApps);
+                sharedApplications = Array.isArray(parsed)
+                    ? parsed.filter(function(a) { return a && a.id && a.client; })
+                    : [];
+                if (!sharedApplications.length) throw new Error('empty apps');
+            } catch (e) {
+                sharedApplications = [];
+                try { localStorage.removeItem(STORAGE_KEY); } catch (e2) {}
+            }
+        }
+
+        if (!sharedApplications.length) {
+            sharedApplications = [
             {
                 id: '4421-И', client: 'Александр Кузнецов', phone: '+7 (999) 123-45-67',
                 product: 'Кредит под залог недвижимости', amount: 5000000, term: 15, rate: null, payment: null,
@@ -92,41 +104,50 @@ function loadSharedData() {
                     { name: 'Выписка ЕГРН', status: 'uploaded', statusLabel: 'Загружен' }
                 ],
                 history: [
-                { text: 'Документы проверены, ожидает прескоринга', date: '16.06.2026, 11:00', current: true },
-                { text: 'Заявка создана', date: '16.06.2026, 09:45', current: false }
-    ]
-}
-
-            
-        ];
-        saveSharedData();
+                    { text: 'Документы проверены, ожидает прескоринга', date: '16.06.2026, 11:00', current: true },
+                    { text: 'Заявка создана', date: '16.06.2026, 09:45', current: false }
+                ]
+            }
+            ];
+            saveSharedData();
+        }
+        
+        if (savedClients) {
+            try { sharedClients = JSON.parse(savedClients) || {}; } catch (e) { sharedClients = {}; }
+        }
+        
+        if (savedMessages) {
+            try {
+                const msgs = JSON.parse(savedMessages);
+                sharedMessages = Array.isArray(msgs) ? msgs : [];
+            } catch (e) { sharedMessages = []; }
+        } else {
+            sharedMessages = [
+                { id: 'msg1', from: 'manager', to: 'Александр Кузнецов', text: 'Александр, добрый день! Меня зовут Елена, я ваш кредитный менеджер. Нужна помощь с заявкой №4421-И?', time: '14:15', date: '15.06.2026', read: true },
+                { id: 'msg2', from: 'client', to: 'Александр Кузнецов', text: 'Здравствуйте! Да, подскажите, какой пакет документов нужен для подтверждения дохода?', time: '14:18', date: '15.06.2026', read: true },
+                { id: 'msg3', from: 'manager', to: 'Александр Кузнецов', text: 'Для подтверждения дохода подойдёт справка 2-НДФЛ за последние 6 месяцев или справка по форме банка.', time: '14:19', date: '15.06.2026', read: true },
+                { id: 'msg4', from: 'client', to: 'Александр Кузнецов', text: 'Понял, спасибо! Загружу 2-НДФЛ сегодня вечером.', time: '14:21', date: '15.06.2026', read: true },
+                { id: 'msg5', from: 'manager', to: 'Александр Кузнецов', text: 'Отлично! Как загрузите — дайте знать, я сразу проверю и запущу прескоринг.', time: '14:22', date: '15.06.2026', read: true },
+                { id: 'msg7', from: 'manager', to: 'Сергей Волков', text: 'Сергей, добрый день! Ваша заявка №4460-И принята в обработку. Все документы проверены, запускаю прескоринг.', time: '11:30', date: '16.06.2026', read: false }
+            ];
+            saveMessagesData();
+        }
+        
+        if (savedUser) {
+            try { userCredentials = Object.assign({}, userCredentials, JSON.parse(savedUser)); } catch (e) {}
+        } else {
+            saveUserData();
+        }
+        
+        buildClientsFromApplications();
+    } catch (err) {
+        console.error('loadSharedData failed', err);
+        try {
+            localStorage.removeItem(STORAGE_KEY);
+            localStorage.removeItem(CLIENTS_KEY);
+            localStorage.removeItem(MESSAGES_KEY);
+        } catch (e2) {}
     }
-    
-    if (savedClients) {
-        sharedClients = JSON.parse(savedClients);
-    }
-    
-    if (savedMessages) {
-        sharedMessages = JSON.parse(savedMessages);
-    } else {
-        sharedMessages = [
-            { id: 'msg1', from: 'manager', to: 'Александр Кузнецов', text: 'Александр, добрый день! Меня зовут Елена, я ваш кредитный менеджер. Нужна помощь с заявкой №4421-И?', time: '14:15', date: '15.06.2026', read: true },
-            { id: 'msg2', from: 'client', to: 'Александр Кузнецов', text: 'Здравствуйте! Да, подскажите, какой пакет документов нужен для подтверждения дохода?', time: '14:18', date: '15.06.2026', read: true },
-            { id: 'msg3', from: 'manager', to: 'Александр Кузнецов', text: 'Для подтверждения дохода подойдёт справка 2-НДФЛ за последние 6 месяцев или справка по форме банка.', time: '14:19', date: '15.06.2026', read: true },
-            { id: 'msg4', from: 'client', to: 'Александр Кузнецов', text: 'Понял, спасибо! Загружу 2-НДФЛ сегодня вечером.', time: '14:21', date: '15.06.2026', read: true },
-            { id: 'msg5', from: 'manager', to: 'Александр Кузнецов', text: 'Отлично! Как загрузите — дайте знать, я сразу проверю и запущу прескоринг.', time: '14:22', date: '15.06.2026', read: true },
-            { id: 'msg7', from: 'manager', to: 'Сергей Волков', text: 'Сергей, добрый день! Ваша заявка №4460-И принята в обработку. Все документы проверены, запускаю прескоринг.', time: '11:30', date: '16.06.2026', read: false }
-        ];
-        saveMessagesData();
-    }
-    
-    if (savedUser) {
-        userCredentials = JSON.parse(savedUser);
-    } else {
-        saveUserData();
-    }
-    
-    buildClientsFromApplications();
 }
 
 // ========== ПОСТРОЕНИЕ КЛИЕНТОВ ==========
@@ -134,11 +155,12 @@ function buildClientsFromApplications() {
     const newClients = {};
     
     sharedApplications.forEach(app => {
+        if (!app || !app.client) return;
         if (!newClients[app.client]) {
             newClients[app.client] = {
                 name: app.client,
                 phone: app.phone,
-                email: app.client.split(' ')[0].toLowerCase().replace('ё','e') + '@mail.ru',
+                email: String(app.client).split(' ')[0].toLowerCase().replace('ё','e') + '@mail.ru',
                 address: app.collateralAddress,
                 passport: '4510 123456',
                 passportDate: '20.03.2020',
