@@ -232,10 +232,15 @@ function renderPackageCards() {
             if (!card) return;
             const dPay = a.payment - recA.payment;
             const dRate = a.rate - recA.rate;
+            const months = (state.currentTerm || state.desiredTerm || 15) * 12;
+            const overRec = Math.max(0, Math.round(recA.payment * months - recA.limit));
+            const overA = Math.max(0, Math.round(a.payment * months - a.limit));
+            const dOver = overA - overRec;
             const delta = document.createElement('div');
             delta.className = 'pkg-delta';
-            delta.textContent = (dRate >= 0 ? '+' : '') + dRate.toFixed(1) + ' п.п. к ставке · ' +
-                (dPay >= 0 ? '+' : '') + dPay.toLocaleString('ru-RU') + ' ₽/мес vs рекомендуемый';
+            delta.textContent = (dRate >= 0 ? '+' : '') + dRate.toFixed(1) + ' п.п. · ' +
+                (dPay >= 0 ? '+' : '') + dPay.toLocaleString('ru-RU') + ' ₽/мес · переплата ' +
+                (dOver >= 0 ? '+' : '') + dOver.toLocaleString('ru-RU') + ' ₽ vs рекомендуемый';
             card.appendChild(delta);
         });
     }
@@ -342,12 +347,17 @@ function openComparePackagesModal() {
     const tbody = document.getElementById('comparePackagesBody');
     if (!tbody) return;
 
+    const termYears = state.currentTerm || state.desiredTerm || 15;
+    const months = termYears * 12;
+
     tbody.innerHTML = state.eligiblePackages.map(pkg => {
         const a = applyPackageModifiers(pkg);
+        const overpay = Math.max(0, Math.round(a.payment * months - a.limit));
         return '<tr' + (pkg.id === state.selectedPackageId ? ' class="compare-selected"' : '') + '>' +
             '<td><b>' + pkg.title + '</b></td>' +
             '<td>' + a.rate.toFixed(1) + '%</td>' +
             '<td>~' + a.payment.toLocaleString('ru-RU') + ' ₽</td>' +
+            '<td>~' + overpay.toLocaleString('ru-RU') + ' ₽</td>' +
             '<td>' + a.limit.toLocaleString('ru-RU') + ' ₽</td>' +
             '<td>' + Math.round(a.ltv * 100) + '%</td>' +
             '<td>' + pkg.insurance + '</td>' +

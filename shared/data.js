@@ -1,11 +1,12 @@
-// ========== ОБЩАЯ БАЗА ДАННЫХ ==========
-// Используется и клиентом, и менеджером
-// Данные сохраняются в localStorage для синхронизации между вкладками
+// ========== ОБЩАЯ БАЗА ДАННЫХ (LAB namespace) ==========
+// Ключи отделены от стабильного демо, чтобы кэш/данные не пересекались
 
-const STORAGE_KEY = 'bgfbank_applications';
-const CLIENTS_KEY = 'bgfbank_clients';
-const MESSAGES_KEY = 'bgfbank_messages';
-const USER_KEY = 'bgfbank_user';
+const STORAGE_KEY = 'bgfbank_lab_applications';
+const CLIENTS_KEY = 'bgfbank_lab_clients';
+const MESSAGES_KEY = 'bgfbank_lab_messages';
+const USER_KEY = 'bgfbank_lab_user';
+const SYNC_KEY = 'bgfbank_lab_sync_ping';
+const LEGACY_KEYS = ['bgfbank_applications', 'bgfbank_clients', 'bgfbank_messages', 'bgfbank_user', 'bgfbank_sync_ping'];
 
 let sharedApplications = [];
 let sharedClients = {};
@@ -194,7 +195,7 @@ function buildClientsFromApplications() {
 // ========== СОХРАНЕНИЕ ==========
 function bumpSharedSync(kind) {
     try {
-        localStorage.setItem('bgfbank_sync_ping', JSON.stringify({ t: Date.now(), kind: kind || 'data' }));
+        localStorage.setItem(SYNC_KEY, JSON.stringify({ t: Date.now(), kind: kind || 'data' }));
     } catch (e) {}
 }
 
@@ -220,7 +221,7 @@ function initSharedDataSync(handler) {
     window.__bgfSharedSyncBound = true;
     window.addEventListener('storage', function(e) {
         if (!e.key) return;
-        if (e.key !== STORAGE_KEY && e.key !== CLIENTS_KEY && e.key !== MESSAGES_KEY && e.key !== USER_KEY && e.key !== 'bgfbank_sync_ping') {
+        if (e.key !== STORAGE_KEY && e.key !== CLIENTS_KEY && e.key !== MESSAGES_KEY && e.key !== USER_KEY && e.key !== SYNC_KEY) {
             return;
         }
         try { loadSharedData(); } catch (err) {}
@@ -236,6 +237,10 @@ function resetDemoStorage(options) {
         localStorage.removeItem(CLIENTS_KEY);
         localStorage.removeItem(MESSAGES_KEY);
         if (options.includeUser) localStorage.removeItem(USER_KEY);
+        // Чистим и legacy-ключи стабильного демо, чтобы не путать показ
+        LEGACY_KEYS.forEach(function(k) {
+            try { localStorage.removeItem(k); } catch (e) {}
+        });
         bumpSharedSync('reset');
     } catch (e) {}
 }
