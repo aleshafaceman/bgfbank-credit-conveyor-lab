@@ -186,6 +186,10 @@ function renderPackageCards() {
     const container = document.getElementById('packageCards');
     if (!container) return;
 
+    const base = state.baseRate || 12.5;
+    const isEsia = state.flowType === 'esia';
+    const esiaDisc = isEsia ? 0.5 : 0;
+
     container.innerHTML = state.eligiblePackages.map(pkg => {
         const selected = pkg.id === state.selectedPackageId;
         const applied = applyPackageModifiers(pkg);
@@ -193,14 +197,21 @@ function renderPackageCards() {
         const warn = pkg.warning ? '<div class="pkg-warning"><i class="fas fa-exclamation-triangle"></i> ' + pkg.warning + '</div>' : '';
         const badge = pkg.badge ? '<span class="pkg-badge">' + pkg.badge + '</span>' : '';
         const rec = pkg.recommended ? '<span class="pkg-rec">Рекомендуем</span>' : '';
+        const recDelta = pkg.recommended
+            ? '<div class="pkg-rate-compose">Турбо 2.0 · база ' + base.toFixed(1) + '%' +
+              (esiaDisc ? ' − ЕСИА ' + esiaDisc.toFixed(1) + '%' : '') +
+              ' = <b>' + applied.rate.toFixed(1) + '%</b> · LTV ' + Math.round(applied.ltv * 100) + '%</div>'
+            : '';
 
         return '<label class="pkg-card' + (selected ? ' selected' : '') + (pkg.recommended ? ' featured' : '') + '" data-pkg="' + pkg.id + '">' +
             '<input type="radio" name="offerPackage" value="' + pkg.id + '"' + (selected ? ' checked' : '') + ' onchange="selectOfferPackage(\'' + pkg.id + '\')">' +
             '<div class="pkg-card-head">' + rec + badge + '<div class="pkg-title">' + pkg.title + '</div></div>' +
+            recDelta +
             '<div class="pkg-metrics">' +
             '<span><b>' + applied.rate.toFixed(1) + '%</b> ставка' + (pkg.rateNote ? '<small>' + pkg.rateNote + '</small>' : '') + '</span>' +
             '<span><b>~' + applied.payment.toLocaleString('ru-RU') + ' ₽</b>/мес</span>' +
             '<span>до <b>' + applied.limit.toLocaleString('ru-RU') + ' ₽</b></span>' +
+            '<span>LTV <b>' + Math.round(applied.ltv * 100) + '%</b></span>' +
             '</div>' +
             '<ul class="pkg-features">' + features + '</ul>' +
             warn +
@@ -209,6 +220,25 @@ function renderPackageCards() {
 
     const validEl = document.getElementById('offerValidUntil');
     if (validEl) validEl.textContent = state.offerValidUntil;
+
+    // Live deltas vs recommended
+    const recPkg = state.eligiblePackages.find(p => p.recommended);
+    if (recPkg) {
+        const recA = applyPackageModifiers(recPkg);
+        state.eligiblePackages.forEach(pkg => {
+            if (pkg.recommended) return;
+            const a = applyPackageModifiers(pkg);
+            const card = container.querySelector('[data-pkg="' + pkg.id + '"]');
+            if (!card) return;
+            const dPay = a.payment - recA.payment;
+            const dRate = a.rate - recA.rate;
+            const delta = document.createElement('div');
+            delta.className = 'pkg-delta';
+            delta.textContent = (dRate >= 0 ? '+' : '') + dRate.toFixed(1) + ' п.п. к ставке · ' +
+                (dPay >= 0 ? '+' : '') + dPay.toLocaleString('ru-RU') + ' ₽/мес vs рекомендуемый';
+            card.appendChild(delta);
+        });
+    }
 }
 
 function selectOfferPackage(id) {

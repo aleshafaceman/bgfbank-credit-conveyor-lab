@@ -44,7 +44,7 @@ function openFullScoring() {
     updateScoringDetail(0);
     document.getElementById('scoringResult').innerHTML = '';
     
-    var delays = [1200, 800, 2100, 1500, 2800, 3200, 1000, 800];
+    var delays = getScoringDelays([1200, 800, 2100, 1500, 2800, 3200, 1000, 800]);
     
     function runStep(idx) {
         if (idx >= scoringSteps.length) {
@@ -164,5 +164,14 @@ function closeFullScoring() {
 
 document.addEventListener('click', function(e) {
     var btn = e.target && (e.target.id === 'btnFullScoring' ? e.target : e.target.closest && e.target.closest('#btnFullScoring'));
-    if (btn) openFullScoring();
+    if (!btn) return;
+    // LAB: одобрение только у менеджера — клиентский полный скоринг отключён
+    if (window.BGF_DEMO && window.BGF_DEMO.managerOnlyApproval) {
+        if (typeof showDemoToast === 'function') {
+            showDemoToast('Полный скоринг выполняет менеджер. Напишите в чат или дождитесь решения.', { icon: 'fa-user-tie' });
+        }
+        if (typeof toggleChat === 'function') toggleChat();
+        return;
+    }
+    openFullScoring();
 });

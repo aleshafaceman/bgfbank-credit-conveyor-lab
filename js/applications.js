@@ -137,17 +137,7 @@ function continueOrStartApplication() {
 }
 
 function resetDemoData() {
-    if (!confirm('Сбросить демо-данные заявок и чата?\n\nСтатусы вернутся к исходному состоянию. Логин/пароль демо сохранятся.')) return;
-    if (typeof resetDemoStorage === 'function') {
-        resetDemoStorage({ includeUser: false });
-    } else {
-        try {
-            localStorage.removeItem('bgfbank_applications');
-            localStorage.removeItem('bgfbank_clients');
-            localStorage.removeItem('bgfbank_messages');
-        } catch (e) {}
-    }
-    location.reload();
+    resetDemoDataReady();
 }
 
 function refreshDashboard() {
@@ -302,6 +292,11 @@ function renderApplicationPackageBlock(app) {
         ? '<p class="param-hint"><i class="fas fa-clock"></i> Срок действия предложения: до <b>' + app.offerValidUntil + '</b></p>'
         : '';
 
+    const rateCompose = isAccepted && app.rate != null
+        ? '<p class="pkg-rate-compose detail-rate-compose">Турбо 2.0 → база − ЕСИА − опции = <b>' + app.rate + '%</b>' +
+          (app.collateralValue ? ' · LTV до ' + Math.round((app.amount / app.collateralValue) * 100) + '%' : '') + '</p>'
+        : '';
+
     return `<div class="detail-package-block">
         <div class="detail-package-inner">
             <div class="detail-package-head">
@@ -310,6 +305,7 @@ function renderApplicationPackageBlock(app) {
             </div>
             <h4 class="detail-package-title">${title}</h4>
             <p class="detail-package-desc">${description}</p>
+            ${rateCompose}
             <div class="detail-package-metrics">
                 <div class="detail-package-metric"><span>Ставка</span><b>${rateStr}</b></div>
                 <div class="detail-package-metric"><span>Платёж</span><b>${paymentStr}</b></div>
