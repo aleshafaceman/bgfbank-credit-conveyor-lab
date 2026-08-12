@@ -1,5 +1,5 @@
 // ========== КАРТОЧКА КЛИЕНТА ==========
-let clients = {};
+var clients = {};
 
 function buildClients() {
     clients = getAllClients();

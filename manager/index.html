@@ -38,7 +38,7 @@
             </div>
             <div class="m-user">
                 <div class="m-avatar">ЕС</div><div><div class="m-user-name">Елена Смирнова</div><div class="m-user-role">Кредитный менеджер</div></div>
-                <label class="m-fast-scoring" title="Ускорить скоринг для показа"><input type="checkbox" id="chkFastScoring" checked onchange="window.BGF_DEMO.fastScoring=this.checked"> Быстрый скоринг</label>
+                <label class="m-fast-scoring" title="Ускорить скоринг для показа"><input type="checkbox" id="chkFastScoring" checked onchange="window.BGF_DEMO=window.BGF_DEMO||{};window.BGF_DEMO.fastScoring=this.checked"> Быстрый скоринг</label>
                 <button type="button" class="m-logout" title="Сброс демо" onclick="resetManagerDemoData()"><i class="fas fa-undo"></i></button>
                 <button class="m-logout" id="logoutBtn"><i class="fas fa-sign-out-alt"></i></button>
             </div>
@@ -113,40 +113,6 @@
     <div class="s-issue-card" id="sIssueModalContent"></div>
 </div>
 
-<script>
-document.getElementById('loginBtn').addEventListener('click', function() {
-    var l = document.getElementById('loginInput').value.trim();
-    var p = document.getElementById('passInput').value;
-    var e = document.getElementById('loginError');
-    if (!l || !p) { e.style.display='block'; e.textContent='Введите логин и пароль'; return; }
-    if (l !== 'admin' || p !== 'manager123') { e.style.display='block'; e.textContent='Неверный логин или пароль'; return; }
-    document.getElementById('authScreen').style.display='none';
-    document.getElementById('mainScreen').style.display='block';
-    initApp();
-});
-document.getElementById('passInput').addEventListener('keydown', function(ev) { if (ev.key==='Enter') document.getElementById('loginBtn').click(); });
-document.getElementById('logoutBtn').addEventListener('click', function() {
-    if (confirm('Выйти из панели менеджера?')) {
-        document.getElementById('mainScreen').style.display='none';
-        document.getElementById('authScreen').style.display='flex';
-        document.getElementById('passInput').value='';
-        document.getElementById('loginError').style.display='none';
-    }
-});
-function initApp() {
-    setTimeout(function() {
-        if (typeof refreshData === 'function') refreshData();
-        if (typeof buildClients === 'function') buildClients();
-        if (typeof renderApplicationList === 'function') renderApplicationList();
-        if (typeof selectManagerApp === 'function') selectManagerApp('4421-И');
-        if (typeof updateStats === 'function') updateStats();
-        if (typeof bindEvents === 'function') bindEvents();
-    }, 300);
-}
-</script>
-
-
-
 <script src="../shared/data.js"></script>
 <script src="js/utils.js"></script>
 <script src="js/demo-lab.js"></script>
@@ -159,5 +125,72 @@ function initApp() {
 <script src="js/reports.js"></script>
 <script src="js/scoring.js"></script>
 <script src="js/manager.js"></script>
+<script>
+(function() {
+    function safeCall(name, fn) {
+        try { if (typeof fn === 'function') fn(); }
+        catch (err) { console.error(name + ' failed', err); }
+    }
+
+    function initApp() {
+        // Сначала события — иначе вкладки/фильтры «мертвые», если дальше упадёт рендер
+        safeCall('bindEvents', typeof bindEvents === 'function' ? bindEvents : null);
+        safeCall('refreshData', typeof refreshData === 'function' ? refreshData : null);
+        safeCall('buildClients', typeof buildClients === 'function' ? buildClients : null);
+        safeCall('renderApplicationList', typeof renderApplicationList === 'function' ? renderApplicationList : null);
+        safeCall('selectManagerApp', function() {
+            if (typeof selectManagerApp === 'function') selectManagerApp('4421-И');
+        });
+        safeCall('updateStats', typeof updateStats === 'function' ? updateStats : null);
+    }
+    window.initApp = initApp;
+
+    var loginBtn = document.getElementById('loginBtn');
+    if (loginBtn) {
+        loginBtn.addEventListener('click', function() {
+            var l = document.getElementById('loginInput').value.trim();
+            var p = document.getElementById('passInput').value;
+            var e = document.getElementById('loginError');
+            if (!l || !p) { e.style.display='block'; e.textContent='Введите логин и пароль'; return; }
+            if (l !== 'admin' || p !== 'manager123') { e.style.display='block'; e.textContent='Неверный логин или пароль'; return; }
+            document.getElementById('authScreen').style.display='none';
+            document.getElementById('mainScreen').style.display='block';
+            initApp();
+        });
+    }
+    var passInput = document.getElementById('passInput');
+    if (passInput) {
+        passInput.addEventListener('keydown', function(ev) {
+            if (ev.key==='Enter' && loginBtn) loginBtn.click();
+        });
+    }
+    var logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', function() {
+            if (confirm('Выйти из панели менеджера?')) {
+                document.getElementById('mainScreen').style.display='none';
+                document.getElementById('authScreen').style.display='flex';
+                document.getElementById('passInput').value='';
+                document.getElementById('loginError').style.display='none';
+            }
+        });
+    }
+
+    // Делегирование вкладок — работает даже без bindEvents
+    document.addEventListener('click', function(e) {
+        var tab = e.target.closest && e.target.closest('.m-tab');
+        if (!tab) return;
+        var tabName = '';
+        var t = tab.textContent || '';
+        if (t.indexOf('Все заявки') !== -1) tabName = 'applications';
+        else if (t.indexOf('Клиенты') !== -1) tabName = 'clients';
+        else if (t.indexOf('Чат') !== -1) tabName = 'chat';
+        else if (t.indexOf('Отчёты') !== -1) tabName = 'reports';
+        if (tabName && typeof switchManagerTab === 'function') {
+            try { switchManagerTab(tabName); } catch (err) { console.error(err); }
+        }
+    });
+})();
+</script>
 </body>
 </html>

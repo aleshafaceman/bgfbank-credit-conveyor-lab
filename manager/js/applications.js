@@ -1,7 +1,7 @@
 // ========== ЗАЯВКИ: СПИСОК И ДЕТАЛИ ==========
 
-let managerApplications = [];
-let selectedAppId = '4421-И';
+var managerApplications = [];
+var selectedAppId = '4421-И';
 
 function refreshData() {
     if (typeof getAllApplications === 'function') {
@@ -389,8 +389,8 @@ function renderDUSection(app) {
         h += '<div style="font-weight:700;font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">' + duCategories[cat] + ' (' + items.length + ')</div>';
         
         items.forEach(function(du) {
-            var src = duSources[du.source];
-            var st = duStatuses[du.status];
+            var src = duSources[du.source] || duSources.client;
+            var st = duStatuses[du.status] || duStatuses.pending;
             
             h += '<div class="m-doc-item" style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid #f1f5f9;font-size:12px;">';
             h += '<i class="fas ' + st.icon + '" style="color:' + st.color + ';margin-top:2px;font-size:14px;"></i>';
