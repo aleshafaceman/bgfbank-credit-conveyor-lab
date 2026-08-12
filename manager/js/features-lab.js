@@ -2,8 +2,25 @@
 
 window.BGF_DEMO = window.BGF_DEMO || { fastScoring: true, managerOnlyApproval: true, scoringGreen: true };
 
+function isManagerEmbedContext() {
+    try {
+        var q = new URLSearchParams(window.location.search || '');
+        if (q.get('embed') === '1') return true;
+        return window.self !== window.top;
+    } catch (e) {
+        return true;
+    }
+}
+
+function applyManagerEmbedMode() {
+    if (!isManagerEmbedContext()) return;
+    document.documentElement.classList.add('embed-mode');
+    document.body.classList.add('embed-mode');
+}
+
 function runManagerDemoBoot() {
     try {
+        applyManagerEmbedMode();
         var q = new URLSearchParams(window.location.search || '');
         var mode = q.get('demo');
         if (mode === '1' || mode === 'manager' || mode === 'reset') {
@@ -11,12 +28,14 @@ function runManagerDemoBoot() {
             var url = new URL(window.location.href);
             url.searchParams.delete('demo');
             url.searchParams.set('autologin', '1');
+            if (q.get('embed') === '1' || isManagerEmbedContext()) url.searchParams.set('embed', '1');
             window.location.replace(url.toString());
             return;
         }
         if (q.get('autologin') === '1') {
             var url2 = new URL(window.location.href);
             url2.searchParams.delete('autologin');
+            if (isManagerEmbedContext()) url2.searchParams.set('embed', '1');
             history.replaceState({}, '', url2.toString());
             setTimeout(function() {
                 var btn = document.getElementById('loginBtn');
@@ -71,6 +90,7 @@ function getManagerAppTimelineHTML(app) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    applyManagerEmbedMode();
     runManagerDemoBoot();
     var green = document.getElementById('chkScoringGreen');
     if (green) {

@@ -707,3 +707,130 @@ body.presentation-mode { background: #0f2740; }
     .app-timeline-step { min-width: 64px; font-size: 10px; }
     .offer-actions .btn { min-width: 100%; }
 }
+
+/* ===== Split-view / iframe embed ===== */
+html.embed-mode,
+html.embed-mode body,
+body.embed-mode {
+    width: 100%;
+    height: 100%;
+    min-height: 100%;
+    margin: 0;
+    padding: 0 !important;
+    align-items: stretch !important;
+    justify-content: stretch !important;
+    background: #f8fbff !important;
+    overflow: hidden;
+}
+html.embed-mode body.embed-mode,
+html.embed-mode body {
+    display: block;
+}
+html.embed-mode .desktop-wrapper,
+body.embed-mode .desktop-wrapper {
+    max-width: none !important;
+    width: 100% !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    min-height: 100% !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+}
+html.embed-mode .app-logged-in .sidebar,
+body.embed-mode .app-logged-in .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: min(280px, 82vw);
+    z-index: 1200;
+    transform: translateX(-105%);
+    transition: transform 0.25s ease;
+    box-shadow: 12px 0 40px rgba(0, 45, 80, 0.25);
+    padding: 20px 14px;
+}
+html.embed-mode .app-logged-in.sidebar-open .sidebar,
+body.embed-mode .app-logged-in.sidebar-open .sidebar {
+    transform: translateX(0);
+}
+html.embed-mode .sidebar-backdrop,
+body.embed-mode .sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+    z-index: 1100;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+}
+html.embed-mode .app-logged-in.sidebar-open .sidebar-backdrop,
+body.embed-mode .app-logged-in.sidebar-open .sidebar-backdrop {
+    display: block;
+    opacity: 1;
+    pointer-events: auto;
+}
+html.embed-mode .app-logged-in .menu-toggle-btn,
+html.embed-mode .app-logged-in .sidebar-close-btn,
+body.embed-mode .app-logged-in .menu-toggle-btn,
+body.embed-mode .app-logged-in .sidebar-close-btn {
+    display: inline-flex !important;
+}
+html.embed-mode .top-header,
+body.embed-mode .top-header { padding: 12px 14px; }
+html.embed-mode .top-header h1,
+body.embed-mode .top-header h1 { font-size: 18px !important; }
+html.embed-mode .content-body,
+body.embed-mode .content-body { padding: 14px 12px 28px; }
+html.embed-mode .applications-layout,
+body.embed-mode .applications-layout { grid-template-columns: 1fr !important; gap: 12px; }
+html.embed-mode .params-row,
+html.embed-mode .scenario-grid,
+html.embed-mode .form-row,
+body.embed-mode .params-row,
+body.embed-mode .scenario-grid,
+body.embed-mode .form-row { grid-template-columns: 1fr !important; }
+html.embed-mode .progress-bar,
+body.embed-mode .progress-bar {
+    overflow-x: auto;
+    justify-content: flex-start;
+    gap: 14px;
+    padding-bottom: 8px;
+}
+html.embed-mode .progress-bar::before,
+body.embed-mode .progress-bar::before { display: none; }
+html.embed-mode .step,
+body.embed-mode .step {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    min-width: 70px;
+}
+html.embed-mode .dashboard-grid,
+body.embed-mode .dashboard-grid { grid-template-columns: 1fr !important; }
+html.embed-mode .chat-widget,
+body.embed-mode .chat-widget {
+    width: calc(100vw - 20px);
+    right: 10px;
+    left: 10px;
+    bottom: 10px;
+}
+html.embed-mode .bgf-onboard,
+body.embed-mode .bgf-onboard { display: none !important; }
+html.embed-mode .bgf-checklist,
+body.embed-mode .bgf-checklist { display: none !important; }
+html.embed-mode .auth-wrapper,
+body.embed-mode .auth-wrapper { padding: 16px 12px; min-height: 100vh; }
+html.embed-mode .auth-card,
+body.embed-mode .auth-card { max-width: 100%; }
+html.embed-mode .pkg-card,
+body.embed-mode .pkg-card { padding-left: 40px; }
+html.embed-mode .collateral-hero-metrics,
+body.embed-mode .collateral-hero-metrics { grid-template-columns: 1fr; }
+html.embed-mode .result-grid,
+body.embed-mode .result-grid { gap: 10px; }
+html.embed-mode .result-card,
+body.embed-mode .result-card { min-width: calc(50% - 6px); flex: 1 1 120px; padding: 14px; }
+html.embed-mode .offer-actions .btn,
+body.embed-mode .offer-actions .btn { min-width: 100%; }
+html.embed-mode .app-detail-actions-row .btn,
+body.embed-mode .app-detail-actions-row .btn { min-width: 100%; }

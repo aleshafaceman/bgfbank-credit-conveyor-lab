@@ -23,8 +23,8 @@
         .pane { display: flex; flex-direction: column; min-width: 0; border-right: 1px solid rgba(255,255,255,0.08); }
         .pane:last-child { border-right: none; }
         .pane-head { padding: 8px 12px; font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #9fb4c9; background: #122a44; }
-        iframe { border: 0; width: 100%; flex: 1; background: #f8fbff; }
-        @media (max-width: 960px) {
+        iframe { border: 0; width: 100%; flex: 1; background: #f8fbff; min-width: 0; min-height: 0; }
+        @media (max-width: 1100px) {
             .frames { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
         }
     </style>
@@ -41,17 +41,18 @@
     <div class="frames">
         <section class="pane">
             <div class="pane-head">Клиент</div>
-            <iframe id="frameClient" title="Клиент" src="index.html?demo=1&checklist=1"></iframe>
+            <iframe id="frameClient" title="Клиент" src="index.html?demo=1&embed=1"></iframe>
         </section>
         <section class="pane">
             <div class="pane-head">Менеджер</div>
-            <iframe id="frameManager" title="Менеджер" src="manager/?demo=1"></iframe>
+            <iframe id="frameManager" title="Менеджер" src="manager/?demo=1&embed=1"></iframe>
         </section>
     </div>
     <script>
         document.getElementById('btnReset').onclick = function() {
-            document.getElementById('frameClient').src = 'index.html?demo=1&checklist=1&t=' + Date.now();
-            document.getElementById('frameManager').src = 'manager/?demo=1&t=' + Date.now();
+            var t = Date.now();
+            document.getElementById('frameClient').src = 'index.html?demo=1&embed=1&t=' + t;
+            document.getElementById('frameManager').src = 'manager/?demo=1&embed=1&t=' + t;
         };
     </script>
 </body>

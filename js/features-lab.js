@@ -14,7 +14,24 @@ function getDemoQuery() {
     }
 }
 
+function isEmbedContext() {
+    var q = getDemoQuery();
+    if (q.get('embed') === '1') return true;
+    try {
+        return window.self !== window.top;
+    } catch (e) {
+        return true;
+    }
+}
+
+function applyEmbedMode() {
+    if (!isEmbedContext()) return;
+    document.documentElement.classList.add('embed-mode');
+    document.body.classList.add('embed-mode');
+}
+
 function runClientDemoBoot() {
+    applyEmbedMode();
     var q = getDemoQuery();
     var mode = q.get('demo');
     var auto = q.get('autologin');
@@ -25,6 +42,7 @@ function runClientDemoBoot() {
         url.searchParams.delete('demo');
         url.searchParams.set('autologin', '1');
         if (q.get('checklist') === '1') url.searchParams.set('checklist', '1');
+        if (q.get('embed') === '1' || isEmbedContext()) url.searchParams.set('embed', '1');
         window.location.replace(url.toString());
         return;
     }
@@ -32,6 +50,7 @@ function runClientDemoBoot() {
     if (auto === '1') {
         var url2 = new URL(window.location.href);
         url2.searchParams.delete('autologin');
+        if (isEmbedContext()) url2.searchParams.set('embed', '1');
         history.replaceState({}, '', url2.toString());
         setTimeout(function() {
             if (typeof loginWithPassword === 'function') {
@@ -42,11 +61,12 @@ function runClientDemoBoot() {
                 if (typeof showDemoToast === 'function') {
                     showDemoToast('Режим показа готов', { icon: 'fa-play', duration: 2500 });
                 }
-                maybeShowOnboarding();
-                maybeShowPresenterChecklist(true);
+                // В iframe онбординг мешает и ломает восприятие — только чеклист при запросе
+                if (!isEmbedContext()) maybeShowOnboarding();
+                if (q.get('checklist') === '1') maybeShowPresenterChecklist(true);
             }, 500);
         }, 250);
-    } else if (q.get('checklist') === '1') {
+    } else if (q.get('checklist') === '1' && !isEmbedContext()) {
         maybeShowPresenterChecklist(true);
     }
 }
@@ -193,9 +213,11 @@ function maybeShowPresenterChecklist(force) {
 
 document.addEventListener('DOMContentLoaded', function() {
     if (!document.getElementById('appShell')) return;
+    applyEmbedMode();
     runClientDemoBoot();
-    // soft onboarding after normal login too (once)
+    // soft onboarding after normal login too (once) — не в split-view iframe
     setTimeout(function() {
+        if (isEmbedContext()) return;
         var auth = document.getElementById('authFullscreen');
         if (auth && auth.classList.contains('hidden')) maybeShowOnboarding();
     }, 1500);
