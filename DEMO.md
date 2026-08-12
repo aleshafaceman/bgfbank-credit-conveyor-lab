@@ -2,10 +2,17 @@
 
 ## URL
 
+### Стабильный показ (freeze)
 - Клиент: https://aleshafaceman.github.io/bgfbank-credit-conveyor/
 - Менеджер: https://aleshafaceman.github.io/bgfbank-credit-conveyor/manager/
+- Репозиторий: https://github.com/aleshafaceman/bgfbank-credit-conveyor (`v1.0-demo`)
 
-Открывать **только эти две страницы**. Не использовать `mob_*.html` и standalone scoring HTML — там устаревшие моки.
+### Эта копия (LAB — разработка)
+- Клиент: https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/
+- Менеджер: https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/manager/
+- Репозиторий: https://github.com/aleshafaceman/bgfbank-credit-conveyor-lab
+
+Открывать **только клиент + менеджер**. Не использовать `mob_*.html` и standalone scoring HTML — там устаревшие моки.
 
 ## Логины
 
