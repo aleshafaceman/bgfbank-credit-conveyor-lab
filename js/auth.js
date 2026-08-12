@@ -192,7 +192,12 @@ function enterApp() {
             if (typeof refreshClientApplicationsUI === 'function') refreshClientApplicationsUI(state.selectedApp);
             if (typeof renderClientChat === 'function') renderClientChat();
             if (typeof refreshDashboard === 'function') refreshDashboard();
+            if (typeof checkApprovalCelebration === 'function') checkApprovalCelebration();
         });
+    }
+    if (typeof checkApprovalCelebration === 'function') {
+        window.BGF_DEMO = window.BGF_DEMO || {};
+        window.BGF_DEMO.lastKnownStatuses = typeof snapshotAppStatuses === 'function' ? snapshotAppStatuses() : {};
     }
 }
 

@@ -14,6 +14,7 @@ function onCollateralSelect(v) {
     const pt = document.getElementById('ocenkaPreviewText');
     const be = document.getElementById('btnEsia');
     const bm = document.getElementById('btnManual');
+    const hero = document.getElementById('collateralHero');
     
     if (v === 'new') {
         openAddPropertyModal();
@@ -22,9 +23,10 @@ function onCollateralSelect(v) {
     }
     
     if (!v) {
-        pr.classList.remove('visible');
-        be.disabled = true;
-        bm.disabled = true;
+        if (pr) pr.classList.remove('visible');
+        if (be) be.disabled = true;
+        if (bm) bm.disabled = true;
+        if (hero) { hero.classList.add('hidden'); hero.innerHTML = ''; }
         return;
     }
     
@@ -33,12 +35,29 @@ function onCollateralSelect(v) {
     
     state.selectedCollateralId = v;
     state.collateralValue = p.valuation || 8500000;
-    pr.classList.add('visible');
-    pt.textContent = p.valuation
-        ? 'Ocenka.mobi: ' + p.valuation.toLocaleString('ru-RU') + ' ₽ (от ' + p.valuationDate + ')'
-        : 'Ocenka.mobi: ожидает оценки';
-    be.disabled = false;
-    bm.disabled = false;
+    if (pr) pr.classList.add('visible');
+    if (pt) {
+        pt.textContent = p.valuation
+            ? 'Ocenka.mobi: ' + p.valuation.toLocaleString('ru-RU') + ' ₽ (от ' + p.valuationDate + ')'
+            : 'Ocenka.mobi: ожидает оценки';
+    }
+    if (be) be.disabled = false;
+    if (bm) bm.disabled = false;
+
+    if (hero && p.valuation) {
+        const ltv = state.baseLTV || 0.6;
+        const limit = Math.round(p.valuation * ltv / 100000) * 100000;
+        hero.classList.remove('hidden');
+        hero.innerHTML =
+            '<div class="collateral-hero-head"><i class="fas fa-home"></i> Объект залога</div>' +
+            '<div class="collateral-hero-address">' + (p.address || '') + '</div>' +
+            '<div class="collateral-hero-metrics">' +
+            '<div><span>Оценка</span><b>' + p.valuation.toLocaleString('ru-RU') + ' ₽</b></div>' +
+            '<div><span>LTV</span><b>' + Math.round(ltv * 100) + '%</b></div>' +
+            '<div><span>Лимит до</span><b>' + limit.toLocaleString('ru-RU') + ' ₽</b></div>' +
+            '</div>' +
+            '<div class="collateral-hero-gauge"><div class="collateral-hero-gauge-fill" style="width:' + Math.round(ltv * 100) + '%"></div></div>';
+    }
 }
 
 function hideEl(id) {

@@ -134,3 +134,28 @@ body { background: #f0f4f8; min-height: 100vh; }
   .m-info-grid { grid-template-columns: 1fr; }
   #m-tab-chat > div { grid-template-columns: 1fr !important; height: auto !important; }
 }
+
+/* LAB polish */
+.m-fast-scoring { display: flex; align-items: center; gap: 6px; font-size: 11px; color: rgba(255,255,255,0.85); cursor: pointer; white-space: nowrap; }
+.m-fast-scoring input { accent-color: #10b981; }
+.m-tab--pulse { animation: mTabPulse 1.2s ease 3; }
+@keyframes mTabPulse {
+  0%, 100% { background: transparent; }
+  50% { background: #fee2e2; color: #991b1b; }
+}
+.m-funnel { display: flex; flex-direction: column; gap: 12px; background: white; border: 1px solid #e1e9f1; border-radius: 16px; padding: 20px; }
+.m-funnel-row { display: grid; grid-template-columns: 90px 1fr 48px; gap: 12px; align-items: center; font-size: 13px; color: #475569; }
+.m-funnel-bar { height: 12px; background: #eef2f7; border-radius: 999px; overflow: hidden; }
+.m-funnel-bar i { display: block; height: 100%; background: #003b6f; border-radius: 999px; }
+.m-funnel-bar--warn i { background: #f59e0b; }
+.m-funnel-bar--ok i { background: #10b981; }
+.m-funnel-bar--bad i { background: #ef4444; }
+.bgf-demo-toast {
+    position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(20px);
+    z-index: 4000; opacity: 0; transition: 0.3s ease; pointer-events: none; max-width: min(520px, calc(100vw - 24px));
+}
+.bgf-demo-toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
+.bgf-demo-toast-inner {
+    display: flex; align-items: center; gap: 10px; background: #1e3a5f; color: white;
+    padding: 14px 18px; border-radius: 14px; box-shadow: 0 16px 40px rgba(0,45,80,0.28); font-size: 14px; font-weight: 600;
+}

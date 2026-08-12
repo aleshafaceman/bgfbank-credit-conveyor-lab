@@ -32,20 +32,19 @@ function loadSharedData() {
                 id: '4421-И', client: 'Александр Кузнецов', phone: '+7 (999) 123-45-67',
                 product: 'Кредит под залог недвижимости', amount: 5000000, term: 15, rate: null, payment: null,
                 collateralAddress: 'г. Москва, ул. Крылатская, д. 15, кв. 42', collateralValue: 8500000,
-                status: 'valuation', statusLabel: 'На оценке', date: '15.06.2026',
+                status: 'processing', statusLabel: 'Подтверждение дохода', date: '15.06.2026',
                 preApprovedPackageId: 'PKG_RECOMMENDED',
                 selectedPackageId: 'PKG_RECOMMENDED',
                 packageStatus: 'proposed',
                 offerValidUntil: '04.07.2026',
                 documents: [
-                    { name: 'Справка 2-НДФЛ', status: 'uploaded', statusLabel: 'Загружен' },
-                    { name: 'Паспорт (разворот)', status: 'uploaded', statusLabel: 'Загружен' },
-                    { name: 'Выписка ЕГРН', status: 'missing', statusLabel: 'Не загружен' }
+                    { name: 'Паспорт (разворот)', status: 'uploaded', statusLabel: 'Из ЕСИА' },
+                    { name: 'Данные о доходе (ЕСИА)', status: 'uploaded', statusLabel: 'Из Госуслуг' },
+                    { name: 'Выписка ЕГРН', status: 'missing', statusLabel: 'Нужна для залога' }
                 ],
                 history: [
-                    { text: 'Заявка передана на оценку залога', date: '15.06.2026, 14:32', current: true },
-                    { text: 'Данные профиля загружены из ЕСИА', date: '15.06.2026, 14:30', current: false },
-                    { text: 'Параметры кредита указаны', date: '15.06.2026, 10:15', current: false },
+                    { text: 'Ожидает выбора объекта залога и подтверждения дохода через ЕСИА', date: '15.06.2026, 14:32', current: true },
+                    { text: 'Профиль загружен из Госуслуг', date: '15.06.2026, 14:30', current: false },
                     { text: 'Заявка создана', date: '15.06.2026, 10:12', current: false }
                 ]
             },

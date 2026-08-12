@@ -49,7 +49,9 @@ function openManagerScoring() {
     document.getElementById('sIssueCounters').style.display = 'none';
     document.getElementById('sResultSubtitle').textContent = 'Идёт проверка...';
     
-    var delays = [1200, 800, 2100, 1500, 2800, 3200, 1000, 800];
+    var delays = (typeof getScoringDelays === 'function')
+        ? getScoringDelays([1200, 800, 2100, 1500, 2800, 3200, 1000, 800])
+        : [1200, 800, 2100, 1500, 2800, 3200, 1000, 800];
     runSStep(0, delays);
 }
 

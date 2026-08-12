@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>БЖФ Банк · Менеджер заявок</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="css/manager.css">
     <link rel="stylesheet" href="css/scoring.css">
@@ -20,7 +23,7 @@
         <input type="password" id="passInput" placeholder="Пароль" value="manager123" style="width:100%;padding:14px;border:1px solid #cbd5e1;border-radius:10px;font-size:15px;text-align:center;margin-bottom:12px;">
         <div id="loginError" style="color:#ef4444;font-size:13px;margin-bottom:12px;display:none;"></div>
         <button id="loginBtn" style="width:100%;padding:14px;border-radius:12px;font-weight:700;font-size:15px;cursor:pointer;border:none;background:#003b6f;color:white;">Войти</button>
-        <p style="font-size:11px;color:#94a3b8;margin-top:16px;">admin / manager123</p>
+        <button type="button" class="btn-demo-reset" style="width:100%;margin-top:12px;" onclick="resetManagerDemoData()"><i class="fas fa-undo"></i> Сбросить демо · готово к показу</button>
     </div>
 </div>
 
@@ -35,6 +38,8 @@
             </div>
             <div class="m-user">
                 <div class="m-avatar">ЕС</div><div><div class="m-user-name">Елена Смирнова</div><div class="m-user-role">Кредитный менеджер</div></div>
+                <label class="m-fast-scoring" title="Ускорить скоринг для показа"><input type="checkbox" id="chkFastScoring" checked onchange="window.BGF_DEMO.fastScoring=this.checked"> Быстрый скоринг</label>
+                <button type="button" class="m-logout" title="Сброс демо" onclick="resetManagerDemoData()"><i class="fas fa-undo"></i></button>
                 <button class="m-logout" id="logoutBtn"><i class="fas fa-sign-out-alt"></i></button>
             </div>
         </header>
@@ -144,6 +149,7 @@ function initApp() {
 
 <script src="../shared/data.js"></script>
 <script src="js/utils.js"></script>
+<script src="js/demo-lab.js"></script>
 <script src="js/navigation.js"></script>
 <script src="js/applications.js"></script>
 <script src="js/actions.js"></script>
