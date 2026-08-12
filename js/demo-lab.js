@@ -20,6 +20,9 @@ function resetDemoDataReady() {
         resetDemoStorage({ includeUser: false });
     } else {
         try {
+            localStorage.removeItem('bgfbank_lab_applications');
+            localStorage.removeItem('bgfbank_lab_clients');
+            localStorage.removeItem('bgfbank_lab_messages');
             localStorage.removeItem('bgfbank_applications');
             localStorage.removeItem('bgfbank_clients');
             localStorage.removeItem('bgfbank_messages');

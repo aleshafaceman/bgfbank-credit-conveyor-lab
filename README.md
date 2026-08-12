@@ -8,6 +8,9 @@
 | **Этот репозиторий** (`bgfbank-credit-conveyor-lab`) | Разработка, доп. функционал, эксперименты |
 
 Стабильный демо-показ: https://aleshafaceman.github.io/bgfbank-credit-conveyor/  
-Релиз freeze: https://github.com/aleshafaceman/bgfbank-credit-conveyor/releases/tag/v1.0-demo
+LAB Pages: https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/  
+Split-view: https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/demo.html  
+
+Быстрый показ: `/?demo=1`, `/manager/?demo=1`. Хранилище: `bgfbank_lab_*`.
 
 Сценарий показа: см. `DEMO.md`.

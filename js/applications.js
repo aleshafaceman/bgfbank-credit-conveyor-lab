@@ -339,11 +339,14 @@ function getActiveApplicationHTML(app) {
             ).join('') + '</div>';
     }
 
+    const timeline = typeof renderAppTimelineHTML === 'function' ? renderAppTimelineHTML(app) : getStepperHTML(app.status);
+    const printBtn = '<button type="button" class="btn btn-outline app-detail-print" data-action="print-offer"><i class="fas fa-print"></i> Печать оффера</button>';
+
     return `<div class="detail-header">
         <div><div class="detail-number">№${app.id}</div><div class="detail-product">${app.product || 'Кредит под залог недвижимости'}</div></div>
         <div class="detail-date">Создана: ${app.date || '—'} · ${statusLabel}</div>
     </div>
-    ${getStepperHTML(app.status)}
+    ${timeline}
     <div class="detail-params">
         <div class="detail-param"><div class="param-label">Сумма</div><div class="param-value">${amount}</div></div>
         <div class="detail-param"><div class="param-label">Срок</div><div class="param-value">${term}</div></div>
@@ -351,7 +354,7 @@ function getActiveApplicationHTML(app) {
         ${payment ? '<div class="detail-param"><div class="param-label">Платёж / мес.</div><div class="param-value">' + payment + '</div></div>' : ''}
     </div>
     ${pkgBlock}
-    ${continueCta}
+    <div class="app-detail-actions-row">${continueCta}${printBtn}</div>
     ${renderClientDUSection({ collateralAddress: app.collateralAddress || '' })}
     ${actions}`;
 }
@@ -374,7 +377,14 @@ function bindApplicationDetailActions() {
         if (action === 'upload-doc') {
             e.preventDefault();
             const name = btn.getAttribute('data-doc-name') || 'документ';
-            alert('Открывается форма загрузки: ' + name);
+            if (typeof uploadMissingDocDemo === 'function') uploadMissingDocDemo(name);
+            else alert('Открывается форма загрузки: ' + name);
+            return;
+        }
+        if (action === 'print-offer') {
+            e.preventDefault();
+            if (typeof printOfferPackage === 'function') printOfferPackage();
+            else window.print();
         }
     });
 }

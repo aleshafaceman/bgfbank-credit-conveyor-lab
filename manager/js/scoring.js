@@ -71,8 +71,8 @@ function runSStep(idx, delays) {
     
     var step = sSteps[idx];
     var hasIssue = false;
-    // Демо-режим: полный скоринг всегда зелёный (негатив — в scoring_negative.html)
-    var DEMO_SCORING_GREEN = true;
+    // LAB: зелёный по умолчанию; снять «Зелёный скоринг» — демо отказа/проблем
+    var DEMO_SCORING_GREEN = !(window.BGF_DEMO && window.BGF_DEMO.scoringGreen === false);
     
     if (!DEMO_SCORING_GREEN && step.issues && step.issues.length > 0) {
         var totalProb = 0;

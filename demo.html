@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>БЖФ · Split-view демо</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root { --bgf-navy: #003b6f; --bgf-ink: #0f2740; }
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: Inter, system-ui, sans-serif; background: #0b1e33; color: white; height: 100vh; display: flex; flex-direction: column; }
+        header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 16px; background: #0f2740; border-bottom: 1px solid rgba(255,255,255,0.08); }
+        .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; }
+        .logo { width: 32px; height: 32px; border-radius: 8px; background: var(--bgf-navy); display: grid; place-items: center; font-weight: 900; }
+        .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+        .actions a, .actions button {
+            appearance: none; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.06);
+            color: white; border-radius: 10px; padding: 8px 12px; font-size: 12px; font-weight: 700; cursor: pointer; text-decoration: none;
+        }
+        .actions a:hover, .actions button:hover { background: rgba(255,255,255,0.12); }
+        .frames { flex: 1; display: grid; grid-template-columns: 1fr 1fr; min-height: 0; }
+        .pane { display: flex; flex-direction: column; min-width: 0; border-right: 1px solid rgba(255,255,255,0.08); }
+        .pane:last-child { border-right: none; }
+        .pane-head { padding: 8px 12px; font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #9fb4c9; background: #122a44; }
+        iframe { border: 0; width: 100%; flex: 1; background: #f8fbff; }
+        @media (max-width: 960px) {
+            .frames { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="brand"><div class="logo">Б</div><div>БЖФ · Split-view показа</div></div>
+        <div class="actions">
+            <button type="button" id="btnReset">Сбросить оба фрейма</button>
+            <a href="index.html?demo=1" target="_blank">Клиент отдельно</a>
+            <a href="manager/?demo=1" target="_blank">Менеджер отдельно</a>
+        </div>
+    </header>
+    <div class="frames">
+        <section class="pane">
+            <div class="pane-head">Клиент</div>
+            <iframe id="frameClient" title="Клиент" src="index.html?demo=1&checklist=1"></iframe>
+        </section>
+        <section class="pane">
+            <div class="pane-head">Менеджер</div>
+            <iframe id="frameManager" title="Менеджер" src="manager/?demo=1"></iframe>
+        </section>
+    </div>
+    <script>
+        document.getElementById('btnReset').onclick = function() {
+            document.getElementById('frameClient').src = 'index.html?demo=1&checklist=1&t=' + Date.now();
+            document.getElementById('frameManager').src = 'manager/?demo=1&t=' + Date.now();
+        };
+    </script>
+</body>
+</html>
