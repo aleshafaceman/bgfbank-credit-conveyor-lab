@@ -8,7 +8,8 @@
 - Репозиторий: https://github.com/aleshafaceman/bgfbank-credit-conveyor (`v1.0-demo`)
 
 ### Эта копия (LAB — разработка)
-- Клиент: https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/
+- **Форма happy-path v1 (ПК):** https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/form/
+- Клиент (кабинет): https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/
 - Менеджер: https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/manager/
 - Split-view: https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/demo.html
 - Репозиторий: https://github.com/aleshafaceman/bgfbank-credit-conveyor-lab

@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>БЖФ · заявка под залог своей квартиры</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="form.css">
+</head>
+<body>
+  <div class="shell">
+    <header class="top">
+      <div class="brand">
+        <div class="logo">Б</div>
+        <div>
+          <strong>Банк БЖФ</strong>
+          <small>Кредит под залог своей квартиры · v1</small>
+        </div>
+      </div>
+      <div class="steps" aria-hidden="true">
+        <i class="dot on"></i><i class="dot"></i><i class="dot"></i><i class="dot"></i>
+        <i class="dot"></i><i class="dot"></i><i class="dot"></i>
+      </div>
+    </header>
+
+    <section class="screen on" id="phone">
+      <h1>Введите телефон</h1>
+      <p class="lead">Пришлём код. Это заявка банка, не кабинет брокера.</p>
+      <label for="phone">Мобильный телефон</label>
+      <input id="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+7 999 123-45-67" value="+7 999 123-45-67">
+      <p class="err" id="err-phone"></p>
+      <p class="demo">Демо: номер можно не менять. OTP — любые 4 цифры.</p>
+    </section>
+
+    <section class="screen" id="otp">
+      <h1>Код из SMS</h1>
+      <p class="lead">Отправили на <b id="otp-phone"></b>. Для демо подойдёт любой код.</p>
+      <label for="otp">Код</label>
+      <input id="otp" type="text" inputmode="numeric" maxlength="6" placeholder="0000" autocomplete="one-time-code">
+      <p class="err" id="err-otp"></p>
+    </section>
+
+    <section class="screen" id="goal">
+      <h1>Цель кредита</h1>
+      <p class="lead">В этой версии только залог своей квартиры. Рефинансирование и покупка — сход.</p>
+      <div class="choices">
+      <button type="button" class="choice on" data-intent="cash_on_pledge" onclick="pickIntent('cash_on_pledge')">
+        <b>Под залог своей квартиры</b>
+        <span>Happy-path v1</span>
+      </button>
+      <button type="button" class="choice" data-intent="purchase" onclick="pickIntent('purchase')">
+        <b>Покупка жилья</b>
+        <span>Другой сценарий</span>
+      </button>
+      <button type="button" class="choice" data-intent="refinancing" onclick="pickIntent('refinancing')">
+        <b>Рефинансирование</b>
+        <span>Следующая версия</span>
+      </button>
+      </div>
+      <label for="amount">Желаемая сумма, ₽</label>
+      <input id="amount" type="number" inputmode="numeric" min="450000" max="20000000" step="50000" value="3000000">
+      <div class="chips">
+        <button type="button" class="chip" data-amount="1000000" onclick="pickAmount(1000000)">1 млн</button>
+        <button type="button" class="chip on" data-amount="3000000" onclick="pickAmount(3000000)">3 млн</button>
+        <button type="button" class="chip" data-amount="5000000" onclick="pickAmount(5000000)">5 млн</button>
+        <button type="button" class="chip" data-amount="10000000" onclick="pickAmount(10000000)">10 млн</button>
+      </div>
+      <p class="hint">От 450 000 до 20 млн. Итог покажем после оценки квартиры.</p>
+      <p class="err" id="err-amount"></p>
+    </section>
+
+    <section class="screen" id="consents">
+      <h1>Согласия</h1>
+      <p class="lead">Без всех четырёх на Госуслуги не переходим. Кредитный отчёт — один текст на банк и на цель ЕСИА.</p>
+      <label class="check"><input type="checkbox" id="c-pd"><span>Согласие на обработку персональных данных (152-ФЗ)</span></label>
+      <label class="check"><input type="checkbox" id="c-bki"><span>Согласие на запрос кредитного отчёта (БКИ)</span></label>
+      <label class="check"><input type="checkbox" id="c-fin"><span>Финансовые услуги — цель цифрового профиля</span></label>
+      <label class="check"><input type="checkbox" id="c-nonfin"><span>Нефинансовые услуги — цель цифрового профиля</span></label>
+    </section>
+
+    <section class="screen" id="esia">
+      <div class="esia">
+        <div class="gs">ГС</div>
+        <h1>Госуслуги</h1>
+        <p class="lead">Имитация входа. Цели: фин, нонфин, запрос кредитного отчёта. Квартиры ЕСИА не отдаёт.</p>
+      </div>
+    </section>
+
+    <section class="screen" id="preview">
+      <h1>Проверьте данные</h1>
+      <p class="lead">Из цифрового профиля. Редактировать нельзя.</p>
+      <div class="card">
+        <div class="row"><span>ФИО</span><b>Кузнецов Александр Игоревич</b></div>
+        <div class="row"><span>Дата рождения</span><b>12.03.1988</b></div>
+        <div class="row"><span>Паспорт</span><b>4508 123456</b></div>
+        <div class="row"><span>ИНН / СНИЛС</span><b>770123456789 · 112-233-445 95</b></div>
+        <div class="row"><span>Адрес</span><b>г. Москва, ул. Крылатская, д. 15, кв. 42</b></div>
+      </div>
+    </section>
+
+    <section class="screen" id="cadastral">
+      <h1>Кадастровый номер</h1>
+      <p class="lead">Объект берём из ЕГРН, не из списка Госуслуг.</p>
+      <div class="two">
+        <div>
+          <label for="cadastral-input">Кадастр</label>
+          <input id="cadastral-input" type="text" placeholder="77:07:0001075:1234" value="77:07:0001075:1234" autocomplete="off">
+          <p class="err" id="err-cad"></p>
+        </div>
+        <p class="demo">
+          Демо-номера:<br>
+          <code>77:07:0001075:1234</code> — своя квартира<br>
+          <code>77:01:0004041:5678</code> — апартаменты<br>
+          <code>50:20:0010101:999</code> — дом (сход)<br>
+          <code>77:00:0000001:0001</code> — чужое ФИО<br>
+          <code>77:00:0000002:0002</code> — обременение<br>
+          любой другой — ЕГРН недоступен
+        </p>
+      </div>
+    </section>
+
+    <section class="screen" id="egrn">
+      <h1>Карточка ЕГРН</h1>
+      <p class="lead">Право, доля, обременения. Цена — у оценщика на следующем шаге.</p>
+      <div class="card" id="egrn-card"></div>
+      <div id="egrn-gate"></div>
+    </section>
+
+    <section class="screen" id="wait">
+      <h1>Подбираем условия</h1>
+      <p class="lead">Прескоринг Loginom, оценка МО, пакеты Solver. Скоринг АНД здесь не считается.</p>
+      <ul class="log" id="wait-log">
+        <li>ЕГРН уже получен</li>
+        <li>Идентификация и аресты</li>
+        <li>Прескоринг банка</li>
+        <li>Цена Мобильного оценщика</li>
+        <li>Пакеты Solver</li>
+      </ul>
+    </section>
+
+    <section class="screen" id="packages">
+      <h1>Предварительные условия</h1>
+      <p class="lead">Это витрина Solver, не решение андеррайтера.</p>
+      <div class="card" id="pkg-hero"></div>
+      <div class="pkg-list" id="pkg-list"></div>
+    </section>
+
+    <section class="screen" id="status">
+      <h1>Заявка на рассмотрении</h1>
+      <p class="lead">Дальше СБ, АНД и АПЗ. Если понадобятся документы — пришлём список ДУ.</p>
+      <div class="card" id="status-sum"></div>
+      <p class="hint">В лабе можно сразу открыть экран доп. условий, как после решения банка.</p>
+    </section>
+
+    <section class="screen" id="du">
+      <h1>Условия банка</h1>
+      <p class="lead">После АНД. Без снятия ДУ договор не подписывают.</p>
+      <div class="du">
+        <strong>Финансовый документ</strong>
+        <span>Справка о доходе или 2-НДФЛ — тип 0, самый частый возврат.</span>
+        <input class="file" type="file">
+      </div>
+      <div class="du">
+        <strong>Нотариальное согласие супруга</strong>
+        <span>Тип 18. ЕСИА семью не отдаёт.</span>
+        <input class="file" type="file">
+      </div>
+      <div class="du">
+        <strong>Согласование Правлением</strong>
+        <span>Тип 4. Вам ничего грузить не нужно — ожидайте банк.</span>
+      </div>
+    </section>
+
+    <section class="screen" id="offramp">
+      <h1 id="off-title">Другой сценарий</h1>
+      <p class="lead" id="off-text"></p>
+    </section>
+
+    <footer class="bar" id="bar">
+      <button type="button" class="btn btn-ghost" onclick="goBack()">Назад</button>
+      <button type="button" class="btn btn-primary" id="cta" onclick="runCta()">Получить код</button>
+    </footer>
+  </div>
+  <script src="form.js"></script>
+</body>
+</html>
