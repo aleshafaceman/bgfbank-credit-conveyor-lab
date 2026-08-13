@@ -27,8 +27,8 @@
     <section class="screen on" id="phone">
       <h1>Введите телефон</h1>
       <p class="lead">Пришлём код. Это заявка банка, не кабинет брокера.</p>
-      <label for="phone">Мобильный телефон</label>
-      <input id="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+7 999 123-45-67" value="+7 999 123-45-67">
+      <label for="phone-input">Мобильный телефон</label>
+      <input id="phone-input" type="tel" inputmode="tel" autocomplete="tel" placeholder="+7 999 123-45-67" value="+7 999 123-45-67">
       <p class="err" id="err-phone"></p>
       <p class="demo">Демо: номер можно не менять. OTP — любые 4 цифры.</p>
     </section>
@@ -36,8 +36,8 @@
     <section class="screen" id="otp">
       <h1>Код из SMS</h1>
       <p class="lead">Отправили на <b id="otp-phone"></b>. Для демо подойдёт любой код.</p>
-      <label for="otp">Код</label>
-      <input id="otp" type="text" inputmode="numeric" maxlength="6" placeholder="0000" autocomplete="one-time-code">
+      <label for="otp-input">Код</label>
+      <input id="otp-input" type="text" inputmode="numeric" maxlength="6" placeholder="0000" autocomplete="one-time-code">
       <p class="err" id="err-otp"></p>
     </section>
 

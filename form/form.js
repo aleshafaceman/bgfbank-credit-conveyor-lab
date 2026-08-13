@@ -120,22 +120,28 @@ function payment(amount, rate, years) {
   return Math.round(amount * r / (1 - Math.pow(1 + r, -n)));
 }
 
+function phoneDigits() {
+  let raw = (($("phone-input") && $("phone-input").value) || "").replace(/\D/g, "");
+  if (raw.length === 11 && (raw[0] === "7" || raw[0] === "8")) raw = raw.slice(1);
+  return raw.slice(-10);
+}
+
 function sendOtp() {
-  const raw = ($("phone").value || "").replace(/\D/g, "");
+  const raw = phoneDigits();
   const err = $("err-phone");
-  if (raw.length < 10) {
+  if (raw.length !== 10) {
     err.textContent = "Введите 10 цифр номера";
     err.classList.add("on");
     return;
   }
   err.classList.remove("on");
   state.phone = raw;
-  $("otp-phone").textContent = "+7 " + raw.slice(-10);
+  $("otp-phone").textContent = "+7 " + raw;
   show("otp");
 }
 
 function verifyOtp() {
-  const code = ($("otp").value || "").trim();
+  const code = (($("otp-input") && $("otp-input").value) || "").replace(/\D/g, "");
   const err = $("err-otp");
   if (code.length < 4) {
     err.textContent = "Введите код из SMS (для демо — любые 4 цифры)";
@@ -347,6 +353,15 @@ document.addEventListener("DOMContentLoaded", () => {
   $("amount").addEventListener("input", () => {
     const n = parseInt(($("amount").value || "").replace(/\D/g, ""), 10);
     if (n) state.amount = n;
+  });
+  $("phone-input").addEventListener("input", () => {
+    if (phoneDigits().length === 10) $("err-phone").classList.remove("on");
+  });
+  $("otp-input").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") verifyOtp();
+  });
+  $("phone-input").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") sendOtp();
   });
   syncCta();
 });
