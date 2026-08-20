@@ -347,6 +347,7 @@ function getActiveApplicationHTML(app) {
         <div class="detail-date">Создана: ${app.date || '—'} · ${statusLabel}</div>
     </div>
     ${timeline}
+    ${typeof renderCpCoverageHTML === 'function' ? renderCpCoverageHTML(app) : ''}
     <div class="detail-params">
         <div class="detail-param"><div class="param-label">Сумма</div><div class="param-value">${amount}</div></div>
         <div class="detail-param"><div class="param-label">Срок</div><div class="param-value">${term}</div></div>

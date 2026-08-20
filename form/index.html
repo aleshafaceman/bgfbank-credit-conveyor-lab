@@ -89,14 +89,14 @@
 
     <section class="screen" id="preview">
       <h1>Проверьте данные</h1>
-      <p class="lead">Из цифрового профиля. Редактировать нельзя.</p>
-      <div class="card">
-        <div class="row"><span>ФИО</span><b>Кузнецов Александр Игоревич</b></div>
-        <div class="row"><span>Дата рождения</span><b>12.03.1988</b></div>
-        <div class="row"><span>Паспорт</span><b>4508 123456</b></div>
-        <div class="row"><span>ИНН / СНИЛС</span><b>770123456789 · 112-233-445 95</b></div>
-        <div class="row"><span>Адрес</span><b>г. Москва, ул. Крылатская, д. 15, кв. 42</b></div>
+      <p class="lead">Патч TrustGate в <code>borrowers[0]</code>. Редактировать нельзя. Можно сменить профиль ЦП — не все scope приходят.</p>
+      <div class="chips" id="cp-profiles">
+        <button type="button" class="chip on" data-cp="full" onclick="pickCpProfile('full')">Базовый ЦП</button>
+        <button type="button" class="chip" data-cp="no_ndfl" onclick="pickCpProfile('no_ndfl')">Без 2-НДФЛ</button>
+        <button type="button" class="chip" data-cp="szi6" onclick="pickCpProfile('szi6')">+ СЗИ-6</button>
       </div>
+      <div class="card" id="preview-card"></div>
+      <div id="preview-coverage"></div>
     </section>
 
     <section class="screen" id="cadastral">
@@ -131,9 +131,10 @@
       <h1>Подбираем условия</h1>
       <p class="lead">Прескоринг Loginom, оценка МО, пакеты Solver. Скоринг АНД здесь не считается.</p>
       <ul class="log" id="wait-log">
+        <li>TrustGate · ЦП (фин / нонфин / CREDIT_REPORT)</li>
         <li>ЕГРН уже получен</li>
         <li>Идентификация и аресты</li>
-        <li>Прескоринг банка</li>
+        <li>Прескоринг банка · CREDIT Registry</li>
         <li>Цена Мобильного оценщика</li>
         <li>Пакеты Solver</li>
       </ul>
@@ -182,6 +183,8 @@
       <button type="button" class="btn btn-primary" id="cta" onclick="runCta()">Получить код</button>
     </footer>
   </div>
+  <script src="../shared/data.js"></script>
+  <script src="../shared/lk-application.js"></script>
   <script src="form.js"></script>
 </body>
 </html>
