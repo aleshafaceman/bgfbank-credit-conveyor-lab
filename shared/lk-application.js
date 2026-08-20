@@ -397,8 +397,55 @@ function documentsFromCp(lk) {
         doc('ИНН / СНИЛС', scopes.inn, 'Из ЦП (TrustGate)', 'Нет в ЦП'),
         doc('Данные о доходе (2-НДФЛ)', scopes.ndfl, 'INCOME_REFERENCE из ЦП', 'ЦП не вернул — ДУ тип 0'),
         doc('СЗИ-6', scopes.szi6, 'Из ЦП (редко)', 'Не пришёл — это норма'),
-        { name: 'Выписка ЕГРН', status: 'missing', statusLabel: 'Нужен кадастр, не ЦП' }
+        {
+            name: 'Выписка ЕГРН',
+            status: (lk && lk.product && lk.product.cadastral_number) ? 'uploaded' : 'missing',
+            statusLabel: (lk && lk.product && lk.product.cadastral_number)
+                ? ('По кадастру ' + lk.product.cadastral_number + ', не из ЦП')
+                : 'Нужен кадастр, не ЦП'
+        }
     ];
+}
+
+function formatLkBirth(iso) {
+    var p = String(iso || '').split('-');
+    if (p.length !== 3) return iso || '—';
+    return p[2] + '.' + p[1] + '.' + p[0];
+}
+
+function humanCpPreviewModel(lk) {
+    var b = lk && lk.borrowers && lk.borrowers[0];
+    var cp = lk && lk.extra_data && lk.extra_data.cp;
+    var scopes = (cp && cp.scopes) || {};
+    var ndflOk = !!(scopes.ndfl && scopes.ndfl.status === 'ok');
+    var income = ndflOk
+        ? ('Подтверждён · ' + Number((b && b.incomes) || 0).toLocaleString('ru-RU') + ' ₽/мес')
+        : 'Не подтверждён';
+    return {
+        incomeOk: ndflOk,
+        rows: [
+            ['ФИО', borrowerDisplayName(b) || '—'],
+            ['Дата рождения', formatLkBirth(b && b.birth_date)],
+            ['Паспорт', b ? (((b.series || '') + ' ' + (b.number || '')).trim() || '—') : '—'],
+            ['ИНН / СНИЛС', ((scopes.inn && scopes.inn.value) || '—') + ' · ' + ((scopes.snils && scopes.snils.value) || '—')],
+            ['Адрес', (b && b.registration_address) || '—'],
+            ['Доход', income]
+        ],
+        note: ndflOk
+            ? ''
+            : 'Цифровой профиль не подтвердил доход. После решения банка нужно будет приложить справку о доходе.'
+    };
+}
+
+function renderHumanCpPreviewHTML(lk) {
+    var model = humanCpPreviewModel(lk);
+    var html = model.rows.map(function(row) {
+        return '<div class="row"><span>' + row[0] + '</span><b>' + row[1] + '</b></div>';
+    }).join('');
+    if (model.note) {
+        html += '<p class="callout">' + model.note + '</p>';
+    }
+    return html;
 }
 
 function isLkLabApplication(app) {
@@ -594,6 +641,123 @@ function upsertLkLabApplication(profileId, requestedAmount) {
     if (typeof buildClientsFromApplications === 'function') buildClientsFromApplications();
     if (typeof saveSharedData === 'function') saveSharedData();
     return lab;
+}
+
+function normalizeFormCpProfile(raw) {
+    var p = String(raw || '').toLowerCase();
+    if (p === 'no_ndfl' || p === 'szi6' || p === 'full') return p;
+    return 'full';
+}
+
+function getFormCpProfile(search) {
+    var raw = search;
+    if (raw == null && typeof location !== 'undefined') {
+        try { raw = location.search || ''; } catch (e) { raw = ''; }
+    }
+    try {
+        var q = new URLSearchParams(raw || '');
+        return normalizeFormCpProfile(q.get('cp') || q.get('profile'));
+    } catch (e2) {
+        return 'full';
+    }
+}
+
+function getLkLabApp() {
+    if (typeof loadSharedData === 'function') loadSharedData();
+    var list = (typeof sharedApplications !== 'undefined' && sharedApplications) ? sharedApplications : [];
+    for (var i = 0; i < list.length; i++) {
+        if (isLkLabApplication(list[i])) return list[i];
+    }
+    return null;
+}
+
+function replaceLkLabApp(lab) {
+    var list = (typeof sharedApplications !== 'undefined' && sharedApplications) ? sharedApplications : [];
+    var idx = -1;
+    for (var i = 0; i < list.length; i++) {
+        if (isLkLabApplication(list[i])) { idx = i; break; }
+    }
+    if (idx >= 0) list[idx] = lab;
+    else list.unshift(lab);
+    if (typeof buildClientsFromApplications === 'function') buildClientsFromApplications();
+    if (typeof saveSharedData === 'function') saveSharedData();
+    return lab;
+}
+
+function persistFormTrustGateApplication(opts) {
+    opts = opts || {};
+    var profile = normalizeFormCpProfile(opts.profile);
+    var amount = opts.amount || 3000000;
+    var lab = upsertLkLabApplication(profile, amount);
+    var lk = lab && lab.lk;
+    if (opts.phone && lk && lk.borrowers && lk.borrowers[0]) {
+        var d = String(opts.phone).replace(/\D/g, '');
+        if (d.length === 10) d = '7' + d;
+        lk.borrowers[0].cell_phone = d;
+        lab.phone = formatLkPhone(d);
+    }
+    lab.source = 'form_esia';
+    if (typeof saveSharedData === 'function') saveSharedData();
+    return lab;
+}
+
+function patchLkLabFromForm(patch) {
+    patch = patch || {};
+    var lab = getLkLabApp();
+    if (!lab || !lab.lk) {
+        lab = persistFormTrustGateApplication(patch);
+    }
+    var lk = lab.lk;
+    if (!lk) return lab;
+    if (patch.phone && lk.borrowers && lk.borrowers[0]) {
+        var d = String(patch.phone).replace(/\D/g, '');
+        if (d.length === 10) d = '7' + d;
+        lk.borrowers[0].cell_phone = d;
+    }
+    if (patch.object) {
+        var obj = patch.object;
+        lk.product.address = obj.address || lk.product.address;
+        if (!lk.product.object_address) lk.product.object_address = {};
+        lk.product.object_address.AddressString = obj.address || lk.product.object_address.AddressString;
+        lk.product.cadastral_number = obj.cadastral || null;
+        lk.product.cadastral_or_conditional_number = obj.cadastral || null;
+        if (obj.price) {
+            lk.product.building_price = obj.price;
+            lk.product.appraisal_building_price = obj.price;
+        }
+    }
+    if (patch.requestedAmount) {
+        lk.product.requested_amount = patch.requestedAmount;
+    }
+    if (patch.creditAmount) {
+        lk.product.current_amount = patch.creditAmount;
+        lk.product.credit_amount = patch.creditAmount;
+    }
+    var prevHistory = Array.isArray(lab.history) ? lab.history.slice() : [];
+    var next = flattenLkToLabApp(lk);
+    if (patch.object) {
+        next.collateralAddress = patch.object.address || next.collateralAddress;
+        if (patch.object.price) next.collateralValue = patch.object.price;
+    }
+    if (patch.pkgId) next.selectedPackageId = patch.pkgId;
+    if (patch.pkgLabel) next.selectedPackageLabel = patch.pkgLabel;
+    if (patch.rate != null) next.rate = patch.rate;
+    if (patch.payment != null) next.payment = patch.payment;
+    if (patch.creditAmount) next.amount = patch.creditAmount;
+    if (patch.status) next.status = patch.status;
+    if (patch.statusLabel) next.statusLabel = patch.statusLabel;
+    next.source = lab.source || next.source;
+    next.history = prevHistory.length ? prevHistory : next.history;
+    if (patch.historyText) {
+        if (!Array.isArray(next.history)) next.history = [];
+        next.history.forEach(function(h) { if (h) h.current = false; });
+        next.history.unshift({
+            text: patch.historyText,
+            date: new Date().toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+            current: true
+        });
+    }
+    return replaceLkLabApp(next);
 }
 
 if (typeof document !== 'undefined' && !window.__bgfCpProfileBound) {

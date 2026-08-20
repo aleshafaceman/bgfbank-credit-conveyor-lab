@@ -112,6 +112,7 @@ function loadSharedContext() {
     isNaN,
     Set,
     Map,
+    URLSearchParams,
     alert(msg) { ctx._alerts.push(String(msg)); },
     setTimeout(fn) { if (typeof fn === 'function') fn(); return 0; },
     clearInterval() {},
@@ -200,7 +201,8 @@ console.log('\n=== 1. Syntax check ===');
   'manager/js/client-card.js',
   'manager/js/scoring.js',
   'manager/js/actions.js',
-  'manager/js/chat.js'
+  'manager/js/chat.js',
+  'form/form.js'
 ].forEach(rel => {
   try {
     require('child_process').execFileSync(process.execPath, ['--check', path.join(root, rel)], { stdio: 'pipe' });
@@ -435,6 +437,15 @@ console.log('\n=== 7. HTML script order / critical refs ===');
   assert(index.includes('continueOrStartApplication') || true, 'dashboard continue present');
   assert(fs.readFileSync(path.join(root, 'js/conveyor.js'), 'utf8').includes('function openConveyorFromApplications'),
     'openConveyorFromApplications defined');
+  const form = fs.readFileSync(path.join(root, 'form/index.html'), 'utf8');
+  const formScripts = [...form.matchAll(/<script src="([^"]+)"/g)].map(m => m[1]);
+  assert(formScripts.indexOf('../shared/data.js') < formScripts.indexOf('../shared/lk-application.js'),
+    'form: data before lk-application');
+  assert(formScripts.indexOf('../shared/lk-application.js') < formScripts.indexOf('form.js'),
+    'form: lk-application before form.js');
+  assert(!form.includes('data-cp-profile'), 'form has no CP profile switcher');
+  assert(!form.includes('тип 0'), 'form DU copy has no engine type 0');
+  assert(!form.includes('FILL_IN'), 'form HTML has no FILL_IN');
   assert(fs.readFileSync(path.join(root, 'manager/js/applications.js'), 'utf8').includes('function selectManagerApp'),
     'selectManagerApp defined');
 }
@@ -486,6 +497,54 @@ console.log('\n=== 8. TrustGate lab app is manager-only ===');
   assert(noNdflHtml.includes('ДУ тип 0'), 'no_ndfl profile tells manager to set DU type 0');
   assert(ctx.cpActionItems(noNdfl.extra_data.cp).some(i => i.kind === 'need' && i.text.indexOf('2-НДФЛ') !== -1),
     'no_ndfl action item is a need');
+}
+
+console.log('\n=== 9. Form writes the same TrustGate application ===');
+{
+  const ctx = loadSharedContext();
+  ctx.loadSharedData();
+  assert(ctx.getFormCpProfile('') === 'full', 'empty search is full profile');
+  assert(ctx.getFormCpProfile('?cp=no_ndfl') === 'no_ndfl', 'form reads ?cp=no_ndfl');
+  assert(ctx.getFormCpProfile('?cp=szi6') === 'szi6', 'form reads ?cp=szi6');
+
+  const lab = ctx.persistFormTrustGateApplication({ profile: 'full', amount: 5000000, phone: '9991234567' });
+  assert(lab && lab.id === '4636-И', 'form persist writes 4636-И');
+  assert(lab.amount === 5000000, 'form persist keeps requested amount');
+  assert(lab.source === 'form_esia', 'form persist marks source form_esia');
+  assert(lab.lk && lab.lk.status === 'FILL_IN', 'form persist keeps engine FILL_IN');
+  assert(/999/.test(lab.phone || ''), 'form persist patches phone');
+
+  const html = ctx.renderHumanCpPreviewHTML(lab.lk);
+  assert(html.includes('Кузнецов'), 'human preview shows FIO');
+  assert(html.includes('Подтверждён'), 'full profile preview says income confirmed');
+  assert(!html.includes('FILL_IN'), 'human preview has no FILL_IN');
+  assert(!html.includes('тип 0'), 'human preview has no DU type 0');
+  assert(!html.includes('confirmation_income_summary'), 'human preview has no engine income field');
+  assert(!html.includes('СЗИ'), 'human preview has no SZI-6');
+  assert(!html.includes('borrowers[0]'), 'human preview has no borrowers[0]');
+  assert(!html.includes('data-cp-profile'), 'human preview has no profile switcher');
+
+  const hole = ctx.persistFormTrustGateApplication({ profile: 'no_ndfl', amount: 3000000, phone: '9991234567' });
+  const holeHtml = ctx.renderHumanCpPreviewHTML(hole.lk);
+  assert(holeHtml.includes('Не подтверждён'), 'no_ndfl preview says income missing');
+  assert(holeHtml.includes('справку о доходе'), 'no_ndfl preview asks for income document');
+  assert(!holeHtml.includes('тип 0'), 'no_ndfl human copy has no type 0');
+  assert(hole.lk.confirmation_income_summary === -1, 'engine still stores summary -1');
+  assert((hole.lk.additional_conditions || []).some(c => c && c.type === 0), 'engine still sets DU type 0');
+
+  const patched = ctx.patchLkLabFromForm({
+    object: { cadastral: '77:07:0001075:1234', address: 'г. Москва, ул. Крылатская, д. 15, кв. 42', price: 8500000 },
+    historyText: 'ЕГРН по кадастру'
+  });
+  assert(patched.lk.product.cadastral_number === '77:07:0001075:1234', 'form EGRN writes cadastral onto lk');
+  assert(/кадастру/.test((patched.documents || []).map(d => d.statusLabel || '').join(' ')),
+    'EGRN document is from cadastral, not CP');
+  assert(patched.history[0] && /ЕГРН/.test(patched.history[0].text), 'form EGRN appends history');
+
+  const appsCode = fs.readFileSync(path.join(root, 'js/applications.js'), 'utf8');
+  vm.runInNewContext(appsCode, ctx, { filename: 'js/applications.js' });
+  assert(!ctx.getClientApplications().some(a => a.id === '4636-И'),
+    'form-written 4636 still hidden from old client LK');
 }
 
 console.log('\n=== Summary ===');

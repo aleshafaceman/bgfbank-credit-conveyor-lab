@@ -100,6 +100,16 @@ input:focus { outline: 2px solid rgba(0,59,111,.2); border-color: var(--navy); }
 .row { display: flex; justify-content: space-between; gap: 16px; font-size: 14px; padding: 7px 0; }
 .row span { color: var(--muted); }
 .row b { text-align: right; }
+.callout {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #fff7ed;
+  color: var(--warn);
+  font-size: 14px;
+  line-height: 1.45;
+  font-weight: 600;
+}
 .ok { color: var(--ok); font-weight: 700; margin-top: 8px; }
 .bad { color: var(--danger); font-weight: 700; margin-top: 8px; }
 .log { list-style: none; max-width: 420px; }
