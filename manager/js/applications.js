@@ -100,7 +100,9 @@ function renderApplicationDetail(appId) {
 
     const docs = Array.isArray(app.documents) ? app.documents : [];
     const history = Array.isArray(app.history) ? app.history : [];
-    const collateralValue = app.collateralValue != null ? app.collateralValue : 0;
+    const collateralValue = (typeof app.collateralValue === 'number' && isFinite(app.collateralValue))
+        ? app.collateralValue
+        : 0;
     const safeClient = (app.client || '').replace(/'/g, "\\'");
     
     try {
@@ -119,10 +121,10 @@ function renderApplicationDetail(appId) {
         ${typeof getManagerAppTimelineHTML === 'function' ? getManagerAppTimelineHTML(app) : ''}
         
         <div class="m-detail-params" style="margin-top:20px;">
-            <div class="m-detail-param"><div class="m-param-label">Сумма кредита</div><div class="m-param-value">${(app.amount != null ? app.amount : 0).toLocaleString('ru-RU')} ₽</div></div>
+            <div class="m-detail-param"><div class="m-param-label">Сумма кредита</div><div class="m-param-value">${(app.amount != null ? Number(app.amount) || 0 : 0).toLocaleString('ru-RU')} ₽</div></div>
             <div class="m-detail-param"><div class="m-param-label">Срок</div><div class="m-param-value">${app.term || '—'} лет</div></div>
             <div class="m-detail-param"><div class="m-param-label">Ставка</div><div class="m-param-value ${app.rate ? '' : 'pending'}">${app.rate ? app.rate + '%' : 'ожидается'}</div></div>
-            <div class="m-detail-param"><div class="m-param-label">Платёж / мес.</div><div class="m-param-value ${app.payment ? '' : 'pending'}">${app.payment ? '~ ' + app.payment.toLocaleString('ru-RU') + ' ₽' : 'ожидается'}</div></div>
+            <div class="m-detail-param"><div class="m-param-label">Платёж / мес.</div><div class="m-param-value ${app.payment ? '' : 'pending'}">${app.payment ? '~ ' + Number(app.payment).toLocaleString('ru-RU') + ' ₽' : 'ожидается'}</div></div>
             ${app.selectedPackageLabel ? '<div class="m-detail-param"><div class="m-param-label">Рекомендуемый пакет условий</div><div class="m-param-value">' + app.selectedPackageLabel + (app.offerValidUntil ? ' <span style="font-size:11px;color:#7e9bb6;">(до ' + app.offerValidUntil + ')</span>' : '') + '</div></div>' : ''}
         </div>
         
@@ -157,48 +159,49 @@ function renderApplicationDetail(appId) {
             </div>
         </div>
         
-        ${typeof renderDUSection === 'function' ? renderDUSection(app) : ''}
-        
-        <div class="m-actions">
+        <div class="m-actions" style="margin-bottom:24px;">
             ${getActionButtons(app)}
-            <button class="m-btn m-btn-outline" onclick="switchManagerTab('clients'); setTimeout(function(){ openClientProfile('${safeClient}'); }, 200);">
+            <button type="button" class="m-btn m-btn-outline" onclick="switchManagerTab('clients'); setTimeout(function(){ openClientProfile('${safeClient}'); }, 200);">
                 <i class="fas fa-user"></i> Профиль клиента
             </button>
-            <button class="m-btn m-btn-outline" onclick="switchManagerTab('chat'); openChatWithClient('${safeClient}')">
+            <button type="button" class="m-btn m-btn-outline" onclick="switchManagerTab('chat'); openChatWithClient('${safeClient}')">
                 <i class="fas fa-comment-dots"></i> Чат ${unreadBadge}
             </button>
         </div>
+
+        ${typeof renderDUSection === 'function' ? renderDUSection(app) : ''}
     `;
     } catch (err) {
         console.error('renderApplicationDetail failed', appId, err);
-        container.innerHTML = '<div class="m-detail-empty"><p>Не удалось открыть заявку №' + appId + '</p><p style="font-size:12px;color:#94a3b8;">' + (err && err.message ? err.message : '') + '</p></div>';
+        container.innerHTML = '<div class="m-detail-empty"><p>Не удалось открыть заявку №' + appId + '</p><p style="font-size:12px;color:#94a3b8;">' + (err && err.message ? err.message : '') + '</p><p style="margin-top:12px;"><button type="button" class="m-btn m-btn-outline" onclick="resetManagerDemoData()">Сбросить демо</button></p></div>';
     }
 }
 
 function getActionButtons(app) {
+    var id = String((app && app.id) || '').replace(/'/g, "\\'");
     switch(app.status) {
         case 'new':
-            return `<button class="m-btn m-btn-primary" onclick="managerAction('${app.id}','requestDocs')"><i class="fas fa-file-upload"></i> Запросить документы</button>
-                    <button class="m-btn m-btn-outline" onclick="managerAction('${app.id}','startReview')"><i class="fas fa-play"></i> Начать рассмотрение</button>`;
+            return `<button type="button" class="m-btn m-btn-primary" onclick="managerAction('${id}','requestDocs')"><i class="fas fa-file-upload"></i> Запросить документы</button>
+                    <button type="button" class="m-btn m-btn-outline" onclick="managerAction('${id}','startReview')"><i class="fas fa-play"></i> Начать рассмотрение</button>`;
         case 'processing':
-            return `<button class="m-btn m-btn-warning" onclick="managerAction('${app.id}','startScoring')"><i class="fas fa-robot"></i> Запустить прескоринг</button>
-                    <button class="m-btn m-btn-primary" onclick="openManagerScoring()"><i class="fas fa-flask"></i> Полный скоринг</button>
-                    <button class="m-btn m-btn-outline" onclick="managerAction('${app.id}','requestDocs')"><i class="fas fa-file-upload"></i> Запросить документы</button>`;
+            return `<button type="button" class="m-btn m-btn-warning" onclick="managerAction('${id}','startScoring')"><i class="fas fa-robot"></i> Запустить прескоринг</button>
+                    <button type="button" class="m-btn m-btn-primary" onclick="openManagerScoring()"><i class="fas fa-flask"></i> Полный скоринг</button>
+                    <button type="button" class="m-btn m-btn-outline" onclick="managerAction('${id}','requestDocs')"><i class="fas fa-file-upload"></i> Запросить документы</button>`;
         case 'valuation':
-            return `<button class="m-btn m-btn-warning" onclick="managerAction('${app.id}','startScoring')"><i class="fas fa-robot"></i> Запустить прескоринг</button>
-                    <button class="m-btn m-btn-primary" onclick="openManagerScoring()"><i class="fas fa-flask"></i> Полный скоринг</button>
-                    <button class="m-btn m-btn-outline" onclick="managerAction('${app.id}','requestValuation')"><i class="fas fa-home"></i> Запросить оценку</button>
-                    <button class="m-btn m-btn-outline" onclick="managerAction('${app.id}','requestDocs')"><i class="fas fa-file-upload"></i> Запросить документы</button>`;
+            return `<button type="button" class="m-btn m-btn-warning" onclick="managerAction('${id}','startScoring')"><i class="fas fa-robot"></i> Запустить прескоринг</button>
+                    <button type="button" class="m-btn m-btn-primary" onclick="openManagerScoring()"><i class="fas fa-flask"></i> Полный скоринг</button>
+                    <button type="button" class="m-btn m-btn-outline" onclick="managerAction('${id}','requestValuation')"><i class="fas fa-home"></i> Запросить оценку</button>
+                    <button type="button" class="m-btn m-btn-outline" onclick="managerAction('${id}','requestDocs')"><i class="fas fa-file-upload"></i> Запросить документы</button>`;
         case 'decision':
-            return `<button class="m-btn m-btn-success" onclick="managerAction('${app.id}','approve')"><i class="fas fa-check"></i> Одобрить</button>
-                    <button class="m-btn m-btn-danger" onclick="managerAction('${app.id}','reject')"><i class="fas fa-times"></i> Отклонить</button>`;
+            return `<button type="button" class="m-btn m-btn-success" onclick="managerAction('${id}','approve')"><i class="fas fa-check"></i> Одобрить</button>
+                    <button type="button" class="m-btn m-btn-danger" onclick="managerAction('${id}','reject')"><i class="fas fa-times"></i> Отклонить</button>`;
         case 'approved':
-            return `<button class="m-btn m-btn-outline" onclick="alert('Договор отправлен клиенту')"><i class="fas fa-signature"></i> Отправить договор</button>`;
+            return `<button type="button" class="m-btn m-btn-outline" onclick="alert('Договор отправлен клиенту')"><i class="fas fa-signature"></i> Отправить договор</button>`;
         case 'rejected':
-            return `<button class="m-btn m-btn-outline" onclick="alert('Клиент уведомлён')"><i class="fas fa-redo"></i> Предложить изменить параметры</button>`;
+            return `<button type="button" class="m-btn m-btn-outline" onclick="alert('Клиент уведомлён')"><i class="fas fa-redo"></i> Предложить изменить параметры</button>`;
         default:
-            return `<button class="m-btn m-btn-warning" onclick="managerAction('${app.id}','startScoring')"><i class="fas fa-robot"></i> Запустить прескоринг</button>
-                    <button class="m-btn m-btn-primary" onclick="openManagerScoring()"><i class="fas fa-flask"></i> Полный скоринг</button>`;
+            return `<button type="button" class="m-btn m-btn-warning" onclick="managerAction('${id}','startScoring')"><i class="fas fa-robot"></i> Запустить прескоринг</button>
+                    <button type="button" class="m-btn m-btn-primary" onclick="openManagerScoring()"><i class="fas fa-flask"></i> Полный скоринг</button>`;
     }
 }
 

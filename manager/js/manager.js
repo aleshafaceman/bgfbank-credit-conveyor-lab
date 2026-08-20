@@ -13,12 +13,15 @@ function bindEvents() {
     var tabs = document.querySelectorAll('.m-tab');
     if (tabs.length > 0) {
         tabs.forEach(function(tab) {
+            if (tab._bgfTabBound) return;
+            tab._bgfTabBound = true;
             tab.addEventListener('click', function() {
                 var tabName = '';
-                if (this.textContent.includes('Все заявки')) tabName = 'applications';
-                else if (this.textContent.includes('Клиенты')) tabName = 'clients';
-                else if (this.textContent.includes('Чат')) tabName = 'chat';
-                else if (this.textContent.includes('Отчёты')) tabName = 'reports';
+                var text = this.textContent || '';
+                if (text.indexOf('Все заявки') !== -1) tabName = 'applications';
+                else if (text.indexOf('Клиенты') !== -1) tabName = 'clients';
+                else if (text.indexOf('Чат') !== -1) tabName = 'chat';
+                else if (text.indexOf('Отчёты') !== -1) tabName = 'reports';
                 if (tabName && typeof switchManagerTab === 'function') switchManagerTab(tabName);
             });
         });
@@ -26,10 +29,12 @@ function bindEvents() {
     
     var filterStatus = document.getElementById('filterStatus');
     var filterSearch = document.getElementById('filterSearch');
-    if (filterStatus && typeof filterApplications === 'function') {
+    if (filterStatus && typeof filterApplications === 'function' && !filterStatus._bgfBound) {
+        filterStatus._bgfBound = true;
         filterStatus.addEventListener('change', filterApplications);
     }
-    if (filterSearch && typeof filterApplications === 'function') {
+    if (filterSearch && typeof filterApplications === 'function' && !filterSearch._bgfBound) {
+        filterSearch._bgfBound = true;
         filterSearch.addEventListener('input', filterApplications);
     }
 

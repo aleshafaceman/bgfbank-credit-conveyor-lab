@@ -3,7 +3,9 @@
 function renderClientsTab() {
     refreshData();
     var allClients = getAllClients ? getAllClients() : {};
-    var clientList = Object.values(allClients);
+    var clientList = Object.values(allClients || {}).filter(function(c) {
+        return c && typeof c === 'object' && c.name;
+    });
     
     var h = '<div style="display:grid;grid-template-columns:320px 1fr;gap:30px;height:600px;">';
     
@@ -13,11 +15,14 @@ function renderClientsTab() {
     h += '<input type="text" id="clientSearch" placeholder="Поиск по имени..." style="width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:10px;font-size:13px;margin-bottom:12px;" oninput="filterClients()">';
     h += '<div id="clientListContainer">';
     clientList.forEach(function(c) {
-        h += '<div class="client-list-item" data-client="' + c.name + '" onclick="openClientProfile(\'' + c.name + '\')" style="padding:14px;background:#f8fbff;border-radius:12px;margin-bottom:8px;cursor:pointer;border:1px solid #e1e9f1;">';
+        var safeName = String(c.name).replace(/'/g, "\\'");
+        var initials = String(c.name).split(' ').map(function(w){ return w[0] || ''; }).join('') || '?';
+        var appCount = Array.isArray(c.applications) ? c.applications.length : 0;
+        h += '<div class="client-list-item" data-client="' + String(c.name).replace(/"/g, '&quot;') + '" onclick="openClientProfile(\'' + safeName + '\')" style="padding:14px;background:#f8fbff;border-radius:12px;margin-bottom:8px;cursor:pointer;border:1px solid #e1e9f1;">';
         h += '<div style="display:flex;align-items:center;gap:12px;">';
-        h += '<div style="width:40px;height:40px;border-radius:50%;background:#003b6f;color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;">' + c.name.split(' ').map(function(w){return w[0];}).join('') + '</div>';
-        h += '<div style="flex:1;"><div style="font-weight:700;font-size:14px;color:#1e293b;">' + c.name + '</div><div style="font-size:12px;color:#64748b;">' + c.phone + '</div></div>';
-        h += '<div style="font-size:12px;color:#94a3b8;">' + c.applications.length + ' заявок</div>';
+        h += '<div style="width:40px;height:40px;border-radius:50%;background:#003b6f;color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;">' + initials + '</div>';
+        h += '<div style="flex:1;"><div style="font-weight:700;font-size:14px;color:#1e293b;">' + c.name + '</div><div style="font-size:12px;color:#64748b;">' + (c.phone || '—') + '</div></div>';
+        h += '<div style="font-size:12px;color:#94a3b8;">' + appCount + ' заявок</div>';
         h += '</div></div>';
     });
     h += '</div></div>';
