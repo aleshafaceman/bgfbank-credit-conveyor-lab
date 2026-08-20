@@ -19,6 +19,24 @@ let userCredentials = {
     registered: true
 };
 
+function normalizeApplicationRecord(app) {
+    if (!app || typeof app !== 'object') return { app: null, changed: false };
+    var next = Object.assign({}, app);
+    var changed = false;
+    if (!Array.isArray(next.documents)) { next.documents = []; changed = true; }
+    if (!Array.isArray(next.history)) { next.history = []; changed = true; }
+    if (typeof next.amount !== 'number' || !isFinite(next.amount)) {
+        next.amount = Number(next.amount) || 0;
+        changed = true;
+    }
+    if (next.collateralValue != null && (typeof next.collateralValue !== 'number' || !isFinite(next.collateralValue))) {
+        var cv = Number(next.collateralValue);
+        next.collateralValue = isFinite(cv) ? cv : null;
+        changed = true;
+    }
+    return { app: next, changed: changed };
+}
+
 function loadSharedData() {
     try {
         const savedApps = localStorage.getItem(STORAGE_KEY);
@@ -29,10 +47,18 @@ function loadSharedData() {
         if (savedApps) {
             try {
                 const parsed = JSON.parse(savedApps);
+                var normalizedChanged = false;
                 sharedApplications = Array.isArray(parsed)
-                    ? parsed.filter(function(a) { return a && a.id && a.client; })
+                    ? parsed.filter(function(a) { return a && a.id && a.client; }).map(function(a) {
+                        var res = normalizeApplicationRecord(a);
+                        if (res.changed) normalizedChanged = true;
+                        return res.app;
+                    }).filter(Boolean)
                     : [];
                 if (!sharedApplications.length) throw new Error('empty apps');
+                if (normalizedChanged) {
+                    try { saveSharedData(); } catch (eSave) {}
+                }
             } catch (e) {
                 sharedApplications = [];
                 try { localStorage.removeItem(STORAGE_KEY); } catch (e2) {}
@@ -114,7 +140,19 @@ function loadSharedData() {
         }
         
         if (savedClients) {
-            try { sharedClients = JSON.parse(savedClients) || {}; } catch (e) { sharedClients = {}; }
+            try {
+                const parsedClients = JSON.parse(savedClients) || {};
+                sharedClients = {};
+                Object.keys(parsedClients).forEach(function(key) {
+                    var c = parsedClients[key];
+                    if (c && typeof c === 'object' && (c.name || key)) {
+                        sharedClients[key] = c;
+                        if (!sharedClients[key].name) sharedClients[key].name = key;
+                        if (!Array.isArray(sharedClients[key].applications)) sharedClients[key].applications = [];
+                        if (!Array.isArray(sharedClients[key].properties)) sharedClients[key].properties = [];
+                    }
+                });
+            } catch (e) { sharedClients = {}; }
         }
         
         if (savedMessages) {
@@ -181,7 +219,7 @@ function buildClientsFromApplications() {
         newClients[app.client].applications.push(app);
     });
     
-    if (newClients['Александр Кузнецов'] && newClients['Александр Кузнецов'].properties.length < 2) {
+    if (newClients['Александр Кузнецов'] && Array.isArray(newClients['Александр Кузнецов'].properties) && newClients['Александр Кузнецов'].properties.length < 2) {
         newClients['Александр Кузнецов'].properties.push({
             address: 'г. Москва, ул. Пресненская наб., д. 8, апарт. 120',
             type: 'Апартаменты', area: 48, valuation: 7200000

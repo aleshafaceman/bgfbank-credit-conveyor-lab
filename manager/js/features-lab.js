@@ -64,7 +64,8 @@ function getManagerAppTimelineSteps(app) {
     var approved = app.status === 'approved';
     var rejected = app.status === 'rejected';
     var scoring = app.status === 'decision' || approved || rejected;
-    var docsDone = !(app.documents || []).some(function(d) { return d.status === 'missing'; });
+    var docs = Array.isArray(app.documents) ? app.documents : [];
+    var docsDone = !docs.some(function(d) { return d && d.status === 'missing'; });
 
     return [
         { id: 'create', label: 'Заявка', done: true },
