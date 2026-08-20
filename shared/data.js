@@ -332,8 +332,9 @@ function updateApplication(appId, updates) {
     return app;
 }
 
-function getApplicationsForClient(clientName) { return sharedApplications.filter(a => a.client === clientName); }
 function getAllApplications() { return [...sharedApplications]; }
+function getSharedApplicationsStore() { return sharedApplications; }
+function getApplicationsForClient(clientName) { return sharedApplications.filter(a => a.client === clientName); }
 function getClientData(clientName) { buildClientsFromApplications(); return sharedClients[clientName] || null; }
 function getAllClients() { buildClientsFromApplications(); return { ...sharedClients }; }
 function generateAppId() { return (Math.floor(Math.random() * 9000) + 1000) + '-И'; }

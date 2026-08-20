@@ -505,7 +505,8 @@ function renderCpCoverageHTML(appOrLk) {
     var ndfl = cp.scopes.ndfl || {};
     var profile = cp.profile || 'full';
     function pbtn(id, label) {
-        return '<button type="button" class="cp-profile-btn' + (profile === id ? ' on' : '') + '" data-cp-profile="' + id + '">' + label + '</button>';
+        return '<button type="button" class="cp-profile-btn' + (profile === id ? ' on' : '') +
+            '" data-cp-profile="' + id + '" onclick="applyLkTrustGateProfile(\'' + id + '\')">' + label + '</button>';
     }
     var b = lk && lk.borrowers && lk.borrowers[0];
     var borrower = '';
@@ -543,29 +544,41 @@ function renderCpCoverageHTML(appOrLk) {
 }
 
 function applyLkTrustGateProfile(profileId) {
-    var amount = 3000000;
+    if (window.__bgfCpProfileBusy) return null;
+    window.__bgfCpProfileBusy = true;
+    var lab = null;
     try {
-        if (typeof sharedApplications !== 'undefined') {
-            var prev = sharedApplications.find(function(a) {
-                return a && (a.id === LK_LAB_ID || (a.lk && a.lk.id === LK_APP_UUID));
-            });
+        var amount = 3000000;
+        try {
+            var prev = typeof getLkLabApp === 'function' ? getLkLabApp() : null;
+            if (!prev && typeof getAllApplications === 'function') {
+                prev = getAllApplications().find(function(a) {
+                    return a && (a.id === LK_LAB_ID || (a.lk && a.lk.id === LK_APP_UUID));
+                });
+            }
             if (prev && prev.lk && prev.lk.product && prev.lk.product.requested_amount) {
                 amount = prev.lk.product.requested_amount;
             } else if (prev && prev.amount) amount = prev.amount;
+        } catch (e) {}
+        lab = upsertLkLabApplication(profileId || 'full', amount);
+        try { if (typeof refreshData === 'function') refreshData(); } catch (e2) {}
+        try {
+            if (typeof renderApplicationList === 'function') renderApplicationList();
+            if (typeof selectManagerApp === 'function') selectManagerApp(LK_LAB_ID);
+            else if (typeof renderApplicationDetail === 'function') renderApplicationDetail(LK_LAB_ID);
+            if (typeof updateStats === 'function') updateStats();
+        } catch (e3) {
+            console.error('applyLkTrustGateProfile render', e3);
         }
-    } catch (e) {}
-    var lab = upsertLkLabApplication(profileId || 'full', amount);
-    if (typeof refreshData === 'function') {
-        try { refreshData(); } catch (e2) {}
-    }
-    if (document.getElementById('mAppDetail') && typeof selectManagerApp === 'function') {
-        if (typeof renderApplicationList === 'function') renderApplicationList();
-        selectManagerApp(LK_LAB_ID);
-        if (typeof updateStats === 'function') updateStats();
         return lab;
+    } catch (err) {
+        console.error('applyLkTrustGateProfile', err);
+        return lab;
+    } finally {
+        setTimeout(function() { window.__bgfCpProfileBusy = false; }, 0);
     }
-    return lab;
 }
+if (typeof window !== 'undefined') window.applyLkTrustGateProfile = applyLkTrustGateProfile;
 
 function upsertLkLabApplication(profileId, requestedAmount) {
     if (typeof loadSharedData === 'function') loadSharedData();
@@ -581,7 +594,13 @@ function upsertLkLabApplication(profileId, requestedAmount) {
     }
     applyTrustGateToApplication(lk, profileId || 'full');
     var lab = flattenLkToLabApp(lk);
-    var list = (typeof sharedApplications !== 'undefined' && sharedApplications) ? sharedApplications : [];
+    var list = null;
+    if (typeof getSharedApplicationsStore === 'function') {
+        list = getSharedApplicationsStore();
+    } else if (typeof sharedApplications !== 'undefined' && sharedApplications) {
+        list = sharedApplications;
+    }
+    if (!list) list = [];
     var idx = -1;
     for (var i = 0; i < list.length; i++) {
         if (list[i] && (list[i].id === LK_LAB_ID || (list[i].lk && list[i].lk.id === LK_APP_UUID))) {
@@ -599,7 +618,9 @@ function upsertLkLabApplication(profileId, requestedAmount) {
 if (typeof document !== 'undefined' && !window.__bgfCpProfileBound) {
     window.__bgfCpProfileBound = true;
     document.addEventListener('click', function(e) {
-        var btn = e.target && e.target.closest && e.target.closest('[data-cp-profile]');
+        var el = e.target;
+        if (el && el.nodeType !== 1) el = el.parentElement;
+        var btn = el && el.closest && el.closest('[data-cp-profile]');
         if (!btn) return;
         e.preventDefault();
         applyLkTrustGateProfile(btn.getAttribute('data-cp-profile'));
@@ -608,8 +629,11 @@ if (typeof document !== 'undefined' && !window.__bgfCpProfileBound) {
 
 function ensureLkDemoApplication() {
     try {
-        if (typeof sharedApplications === 'undefined' || !Array.isArray(sharedApplications)) return;
-        var existing = sharedApplications.find(function(a) {
+        var list = typeof getSharedApplicationsStore === 'function'
+            ? getSharedApplicationsStore()
+            : (typeof sharedApplications !== 'undefined' ? sharedApplications : null);
+        if (!list || !Array.isArray(list)) return;
+        var existing = list.find(function(a) {
             return a && (a.id === LK_LAB_ID || (a.lk && a.lk.id === LK_APP_UUID));
         });
         if (existing) {
