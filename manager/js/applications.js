@@ -172,9 +172,27 @@ function renderApplicationDetail(appId) {
 
         ${typeof renderDUSection === 'function' ? renderDUSection(app) : ''}
     `;
+        bindManagerCpProfileButtons(container);
     } catch (err) {
         console.error('renderApplicationDetail failed', appId, err);
         container.innerHTML = '<div class="m-detail-empty"><p>Не удалось открыть заявку №' + appId + '</p><p style="font-size:12px;color:#94a3b8;">' + (err && err.message ? err.message : '') + '</p><p style="margin-top:12px;"><button type="button" class="m-btn m-btn-outline" onclick="resetManagerDemoData()">Сбросить демо</button></p></div>';
+    }
+}
+
+function bindManagerCpProfileButtons(root) {
+    if (!root || !root.querySelectorAll) return;
+    var buttons = root.querySelectorAll('[data-cp-profile]');
+    for (var i = 0; i < buttons.length; i++) {
+        (function(btn) {
+            if (btn._bgfCpBound) return;
+            btn._bgfCpBound = true;
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                if (typeof applyLkTrustGateProfile === 'function') {
+                    applyLkTrustGateProfile(btn.getAttribute('data-cp-profile'));
+                }
+            });
+        })(buttons[i]);
     }
 }
 

@@ -486,6 +486,15 @@ console.log('\n=== 8. TrustGate lab app is manager-only ===');
   assert(noNdflHtml.includes('ДУ тип 0'), 'no_ndfl profile tells manager to set DU type 0');
   assert(ctx.cpActionItems(noNdfl.extra_data.cp).some(i => i.kind === 'need' && i.text.indexOf('2-НДФЛ') !== -1),
     'no_ndfl action item is a need');
+
+  const switched = ctx.applyLkTrustGateProfile('no_ndfl');
+  assert(switched && switched.lk && switched.lk.extra_data.cp.profile === 'no_ndfl',
+    'manager profile switch writes no_ndfl into store');
+  assert(ctx.renderCpCoverageHTML(switched).indexOf('onclick="applyLkTrustGateProfile(\'no_ndfl\')"') !== -1,
+    'manager profile buttons have onclick handlers');
+  const switchedFull = ctx.applyLkTrustGateProfile('full');
+  assert(switchedFull && switchedFull.lk.extra_data.cp.profile === 'full',
+    'manager profile switch writes full into store');
 }
 
 console.log('\n=== Summary ===');
