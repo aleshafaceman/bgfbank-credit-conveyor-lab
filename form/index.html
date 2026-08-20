@@ -89,14 +89,16 @@
 
     <section class="screen" id="preview">
       <h1>Проверьте данные</h1>
-      <p class="lead">Из цифрового профиля. Редактировать нельзя.</p>
-      <div class="card">
+      <p class="lead">Из цифрового профиля. Редактировать нельзя. Квартиру на этом шаге не показываем — объект берём из ЕГРН по кадастру.</p>
+      <div class="card" id="preview-card">
         <div class="row"><span>ФИО</span><b>Кузнецов Александр Игоревич</b></div>
         <div class="row"><span>Дата рождения</span><b>12.03.1988</b></div>
         <div class="row"><span>Паспорт</span><b>4508 123456</b></div>
         <div class="row"><span>ИНН / СНИЛС</span><b>770123456789 · 112-233-445 95</b></div>
         <div class="row"><span>Адрес</span><b>г. Москва, ул. Крылатская, д. 15, кв. 42</b></div>
+        <div class="row"><span>Доход</span><b>Подтверждён · 180 000 ₽/мес</b></div>
       </div>
+      <p class="demo">Демо-профиль ЦП: <code>?cp=full</code> (по умолчанию), <code>?cp=no_ndfl</code> — без подтверждения дохода. Переключатель сценариев — в кабинете менеджера.</p>
     </section>
 
     <section class="screen" id="cadastral">
@@ -156,19 +158,23 @@
     <section class="screen" id="du">
       <h1>Условия банка</h1>
       <p class="lead">После АНД. Без снятия ДУ договор не подписывают.</p>
-      <div class="du">
-        <strong>Финансовый документ</strong>
-        <span>Справка о доходе или 2-НДФЛ — тип 0, самый частый возврат.</span>
+      <div class="du" id="du-income">
+        <strong>Подтверждение дохода</strong>
+        <span>Нужно приложить справку о доходе. Цифровой профиль её не вернул.</span>
         <input class="file" type="file">
+      </div>
+      <div class="du hidden" id="du-income-done">
+        <strong>Доход</strong>
+        <span>Уже подтверждён цифровым профилем — эту справку банк не запрашивает.</span>
       </div>
       <div class="du">
         <strong>Нотариальное согласие супруга</strong>
-        <span>Тип 18. ЕСИА семью не отдаёт.</span>
+        <span>Состав семьи из цифрового профиля не приходит. Если банк запросит согласие — загрузите его сюда.</span>
         <input class="file" type="file">
       </div>
       <div class="du">
         <strong>Согласование Правлением</strong>
-        <span>Тип 4. Вам ничего грузить не нужно — ожидайте банк.</span>
+        <span>Вам ничего грузить не нужно — ожидайте банк.</span>
       </div>
     </section>
 
@@ -182,6 +188,8 @@
       <button type="button" class="btn btn-primary" id="cta" onclick="runCta()">Получить код</button>
     </footer>
   </div>
+  <script src="../shared/data.js"></script>
+  <script src="../shared/lk-application.js"></script>
   <script src="form.js"></script>
 </body>
 </html>

@@ -84,6 +84,9 @@ const state = {
   object: null,
   pkg: "rec",
   egrnOk: false,
+  cpProfile: "full",
+  lk: null,
+  pkgOffer: null,
 };
 
 const FLOW = ["phone", "otp", "goal", "consents", "esia", "preview", "cadastral", "egrn", "wait", "packages", "status", "du"];
@@ -197,8 +200,66 @@ function toggleGo() {
 
 function goEsia() {
   if (!consentsOk()) return;
+  state.cpProfile = typeof getFormCpProfile === "function" ? getFormCpProfile() : "full";
   show("esia");
-  setTimeout(() => show("preview"), 1400);
+  setTimeout(() => {
+    pullFormTrustGate();
+    renderFormPreview();
+    show("preview");
+  }, 1400);
+}
+
+function pullFormTrustGate() {
+  if (typeof persistFormTrustGateApplication !== "function") return;
+  const lab = persistFormTrustGateApplication({
+    profile: state.cpProfile,
+    amount: state.amount,
+    phone: state.phone
+  });
+  state.lk = lab && lab.lk ? lab.lk : null;
+}
+
+function fallbackPreviewHTML() {
+  const income = state.cpProfile === "no_ndfl"
+    ? "Не подтверждён"
+    : "Подтверждён · 180 000 ₽/мес";
+  const rows = [
+    ["ФИО", DEMO_PERSON.fio],
+    ["Дата рождения", DEMO_PERSON.birth],
+    ["Паспорт", "4508 123456"],
+    ["ИНН / СНИЛС", DEMO_PERSON.inn + " · " + DEMO_PERSON.snils],
+    ["Адрес", DEMO_PERSON.address],
+    ["Доход", income],
+  ];
+  let html = rows.map(([k, v]) => '<div class="row"><span>' + k + "</span><b>" + v + "</b></div>").join("");
+  if (state.cpProfile === "no_ndfl") {
+    html += '<p class="callout">Цифровой профиль не подтвердил доход. После решения банка нужно будет приложить справку о доходе.</p>';
+  }
+  return html;
+}
+
+function renderFormPreview() {
+  const card = $("preview-card");
+  if (!card) return;
+  if (typeof renderHumanCpPreviewHTML === "function" && state.lk) {
+    card.innerHTML = renderHumanCpPreviewHTML(state.lk);
+    return;
+  }
+  card.innerHTML = fallbackPreviewHTML();
+}
+
+function incomeConfirmed() {
+  const scopes = state.lk && state.lk.extra_data && state.lk.extra_data.cp && state.lk.extra_data.cp.scopes;
+  if (scopes && scopes.ndfl) return scopes.ndfl.status === "ok";
+  return state.cpProfile !== "no_ndfl";
+}
+
+function syncDuScreen() {
+  const needIncome = !incomeConfirmed();
+  const need = $("du-income");
+  const done = $("du-income-done");
+  if (need) need.classList.toggle("hidden", !needIncome);
+  if (done) done.classList.toggle("hidden", needIncome);
 }
 
 function findEgrn() {
@@ -241,6 +302,13 @@ function findEgrn() {
 
 function confirmObject() {
   if (!state.object || !state.egrnOk) return;
+  if (typeof patchLkLabFromForm === "function") {
+    patchLkLabFromForm({
+      object: state.object,
+      requestedAmount: state.amount,
+      historyText: "ЕГРН по кадастру " + state.object.cadastral + " — объект не из ЦП"
+    });
+  }
   show("wait");
   const items = document.querySelectorAll("#wait-log li");
   items.forEach((li) => { li.className = ""; });
@@ -272,6 +340,7 @@ function renderPackages() {
     { id: "spec", title: "Спец. опция", rec: false, rate: 16.9, amount: Math.min(maxLoan, Math.round(price * 0.5 / 100000) * 100000), years },
     { id: "noins", title: "Без страхования жизни", rec: false, rate: 23.5, amount: maxLoan, years },
   ];
+  state.pkgOffer = pkgs;
   $("pkg-list").innerHTML = pkgs.map((p) =>
     '<label class="pkg' + (p.id === state.pkg ? " on" : "") + '">' +
     '<input type="radio" name="pkg" value="' + p.id + '"' + (p.id === state.pkg ? " checked" : "") + ">" +
@@ -290,10 +359,26 @@ function renderPackages() {
 }
 
 function acceptOffer() {
+  const pkg = (state.pkgOffer || []).find((p) => p.id === state.pkg) || { id: state.pkg, title: "Рекомендуем", rate: 18.5, amount: state.amount, years: 15 };
+  const label = pkg.title || (state.pkg === "rec" ? "Рекомендуем" : state.pkg === "spec" ? "Спец. опция" : "Без страхования");
   $("status-sum").innerHTML =
-    "<div class=\"row\"><span>Пакет</span><b>" + (state.pkg === "rec" ? "Рекомендуем" : state.pkg === "spec" ? "Спец. опция" : "Без страхования") + "</b></div>" +
+    "<div class=\"row\"><span>Пакет</span><b>" + label + "</b></div>" +
     "<div class=\"row\"><span>Объект</span><b>" + state.object.address + "</b></div>" +
     "<div class=\"row\"><span>Кадастр</span><b>" + state.object.cadastral + "</b></div>";
+  if (typeof patchLkLabFromForm === "function") {
+    patchLkLabFromForm({
+      object: state.object,
+      requestedAmount: state.amount,
+      creditAmount: pkg.amount,
+      pkgId: pkg.id,
+      pkgLabel: label,
+      rate: pkg.rate,
+      payment: payment(pkg.amount, pkg.rate, pkg.years || 15),
+      status: "processing",
+      statusLabel: "На рассмотрении",
+      historyText: "Клиент выбрал пакет на форме: " + label
+    });
+  }
   show("status");
 }
 
@@ -325,7 +410,7 @@ const CTA = {
   cadastral: ["Найти объект", findEgrn],
   egrn: ["Это моя квартира", confirmObject],
   packages: ["Продолжить с этими условиями", acceptOffer],
-  status: ["Показать ДУ (демо АНД)", function () { show("du"); }],
+  status: ["Показать ДУ (демо АНД)", function () { syncDuScreen(); show("du"); }],
   du: ["Отправить документы", function () { alert("В лабе файлы никуда не уходят."); }],
   offramp: ["В начало", function () { show("phone"); }],
 };
@@ -349,6 +434,7 @@ function runCta() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  state.cpProfile = typeof getFormCpProfile === "function" ? getFormCpProfile() : "full";
   ["c-pd", "c-bki", "c-fin", "c-nonfin"].forEach((id) => $(id).addEventListener("change", toggleGo));
   $("amount").addEventListener("input", () => {
     const n = parseInt(($("amount").value || "").replace(/\D/g, ""), 10);

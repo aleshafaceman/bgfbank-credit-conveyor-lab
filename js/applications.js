@@ -11,13 +11,16 @@ function getClientDisplayName() {
 function getClientApplications() {
     if (typeof loadSharedData === 'function') loadSharedData();
     const name = getClientDisplayName();
+    let list = [];
     if (typeof getApplicationsForClient === 'function') {
-        return getApplicationsForClient(name);
+        list = getApplicationsForClient(name);
+    } else if (typeof getAllApplications === 'function') {
+        list = getAllApplications().filter(a => a.client === name);
     }
-    if (typeof getAllApplications === 'function') {
-        return getAllApplications().filter(a => a.client === name);
+    if (typeof isLkLabApplication === 'function') {
+        list = list.filter(function(a) { return !isLkLabApplication(a); });
     }
-    return [];
+    return list;
 }
 
 function getAppStatusMeta(status, statusLabel) {
@@ -76,9 +79,7 @@ function pickPreferredClientAppId(preferredAppId) {
     const apps = getClientApplications();
     const active = getActiveClientApplications();
     const preferred = preferredAppId || state.selectedApp;
-    const lkId = typeof LK_LAB_ID !== 'undefined' ? LK_LAB_ID : '4636-И';
 
-    if (active.some(function(a) { return a.id === lkId; })) return lkId;
     if (preferred && active.some(a => a.id === preferred)) return preferred;
     if (active[0]) return active[0].id;
     if (preferred && apps.some(a => a.id === preferred)) return preferred;
@@ -244,10 +245,15 @@ function renderApplicationDetail(appId) {
     bindApplicationDetailActions();
 
     if (typeof loadSharedData === 'function') loadSharedData();
-    const apps = typeof getAllApplications === 'function' ? getAllApplications() : [];
+    const apps = getClientApplications();
     const app = apps.find(a => a.id === appId);
 
     if (!app) {
+        const fallback = pickPreferredClientAppId('4421-И');
+        if (fallback && fallback !== appId) {
+            selectApplication(fallback);
+            return;
+        }
         c.innerHTML = '<div class="detail-empty"><i class="fas fa-file-alt"></i><p>Выберите заявку</p></div>';
         return;
     }
@@ -349,7 +355,6 @@ function getActiveApplicationHTML(app) {
         <div class="detail-date">Создана: ${app.date || '—'} · ${statusLabel}</div>
     </div>
     ${timeline}
-    ${typeof renderCpCoverageHTML === 'function' ? renderCpCoverageHTML(app) : ''}
     <div class="detail-params">
         <div class="detail-param"><div class="param-label">Сумма</div><div class="param-value">${amount}</div></div>
         <div class="detail-param"><div class="param-label">Срок</div><div class="param-value">${term}</div></div>

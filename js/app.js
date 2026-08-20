@@ -17,7 +17,7 @@ const state = {
     flowType: 'esia',
     consents: { personalData: false, bkiRequest: false, timestamp: null },
     currentPage: 'applications',
-    selectedApp: '4636-И',
+    selectedApp: '4421-И',
     selectedCollateralId: null,
     eligiblePackages: [],
     selectedPackageId: 'PKG_RECOMMENDED',
@@ -25,7 +25,7 @@ const state = {
     packageModifiers: { ltvBoost: false, coBorrower: false, fixedRate: false },
     offerValidUntil: null,
     offerAccepted: false,
-    conveyorAppId: '4636-И'
+    conveyorAppId: '4421-И'
 };
 
 // ========== ПОРТФЕЛЬ НЕДВИЖИМОСТИ ==========
