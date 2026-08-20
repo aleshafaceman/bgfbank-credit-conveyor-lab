@@ -401,26 +401,36 @@ function documentsFromCp(lk) {
     ];
 }
 
+function isLkLabApplication(app) {
+    if (!app) return false;
+    return app.id === LK_LAB_ID || !!(app.lk && app.lk.id === LK_APP_UUID);
+}
+
 function flattenLkToLabApp(lk) {
     var b = (lk && lk.borrowers && lk.borrowers[0]) || {};
     var cp = lk && lk.extra_data && lk.extra_data.cp;
     var name = borrowerDisplayName(b) || 'Новый заёмщик';
     var ndflOk = cp && cp.scopes && cp.scopes.ndfl && cp.scopes.ndfl.status === 'ok';
     var patched = !!(cp && cp.scopes && cp.scopes.passport && cp.scopes.passport.status === 'ok');
+    var amount = (lk.product && (lk.product.requested_amount || lk.product.current_amount)) || 3000000;
+    var term = (lk.product && lk.product.term) || 15;
+    var address = (lk.product && lk.product.object_address && lk.product.object_address.AddressString)
+        || b.registration_address
+        || '';
     return {
         id: LK_LAB_ID,
         client: 'Александр Кузнецов',
         clientOfficialName: name,
         phone: formatLkPhone(b.cell_phone) || '+7 (999) 123-45-67',
         product: 'Кредит под залог недвижимости',
-        amount: (lk.product && (lk.product.requested_amount || lk.product.current_amount)) || 0,
-        term: (lk.product && lk.product.term) || 0,
+        amount: amount,
+        term: term,
         rate: null,
         payment: null,
-        collateralAddress: (lk.product && lk.product.object_address && lk.product.object_address.AddressString) || '',
+        collateralAddress: address,
         collateralValue: null,
         status: 'new',
-        statusLabel: patched ? 'FILL_IN · данные ЦП получены' : 'FILL_IN · заполнение',
+        statusLabel: patched ? 'ЦП получен' : 'Заполнение',
         date: new Date().toLocaleDateString('ru-RU'),
         documents: documentsFromCp(lk),
         history: [
@@ -449,6 +459,26 @@ function getCpCoverage(appOrLk) {
     return lk && lk.extra_data && lk.extra_data.cp ? lk.extra_data.cp : null;
 }
 
+function cpActionItems(cp) {
+    var scopes = (cp && cp.scopes) || {};
+    var items = [];
+    var ndfl = scopes.ndfl || {};
+    if (ndfl.status === 'ok') {
+        items.push({ kind: 'ok', text: '2-НДФЛ есть — доход из ЦП, ДУ тип 0 не ставим.' });
+    } else {
+        items.push({ kind: 'need', text: '2-НДФЛ нет — ДУ тип 0 (справка о доходе), confirmation_income_summary = −1.' });
+    }
+    items.push({ kind: 'need', text: 'Квартиры из ЦП не берём — дальше кадастр и ЕГРН.' });
+    items.push({ kind: 'skip', text: 'Семью ЦП не отдаёт — не ждём.' });
+    if (scopes.szi6 && scopes.szi6.status === 'ok') {
+        items.push({ kind: 'ok', text: 'СЗИ-6 пришёл — стаж в jobs заполнен.' });
+    } else {
+        items.push({ kind: 'skip', text: 'СЗИ-6 нет — это норма, не стоп.' });
+    }
+    items.push({ kind: 'wait', text: 'БКИ: согласие есть, отчёт тянет Loginom / CREDIT Registry.' });
+    return items;
+}
+
 function renderCpCoverageHTML(appOrLk) {
     var lk = appOrLk && appOrLk.borrowers ? appOrLk : getLkFromApp(appOrLk);
     var cp = getCpCoverage(appOrLk);
@@ -473,12 +503,6 @@ function renderCpCoverageHTML(appOrLk) {
         return '<span class="cp-chip ' + cls + '">' + title + extra + '</span>';
     }).join('');
     var ndfl = cp.scopes.ndfl || {};
-    var szi = cp.scopes.szi6 || {};
-    var note = ndfl.status !== 'ok'
-        ? '2-НДФЛ не пришёл — в заявке ДУ тип 0, confirmation_income_summary = −1.'
-        : (szi.status !== 'ok'
-            ? 'Базовый ЦП на месте. СЗИ-6 нет — это норма, доход считаем по 2-НДФЛ.'
-            : 'СЗИ-6 пришёл: стаж в jobs заполнен. Семью и список квартир ЦП всё равно не отдаёт.');
     var profile = cp.profile || 'full';
     function pbtn(id, label) {
         return '<button type="button" class="cp-profile-btn' + (profile === id ? ' on' : '') + '" data-cp-profile="' + id + '">' + label + '</button>';
@@ -497,11 +521,15 @@ function renderCpCoverageHTML(appOrLk) {
             '<div class="cp-borrower-row"><span>Паспорт</span><b>' + pass + '</b></div>' +
             '<div class="cp-borrower-row"><span>ИНН</span><b>' + inn + '</b></div>' +
             '<div class="cp-borrower-row"><span>Доход ЦП</span><b>' + income + '</b></div>' +
-            '<div class="cp-borrower-row"><span>Статус ЛК</span><b>' + (lk.status || '') + '</b></div>' +
+            '<div class="cp-borrower-row"><span>Состояние движка</span><b>' + (lk.status || '') + '</b></div>' +
             '</div>';
     }
+    var next = cpActionItems(cp).map(function(item) {
+        return '<li class="' + item.kind + '">' + item.text + '</li>';
+    }).join('');
     return '<div class="cp-coverage">' +
         '<div class="cp-coverage-head">Цифровой профиль · ' + (cp.gateway || 'TrustGate') + '</div>' +
+        '<div class="cp-coverage-sub">Лабораторный срез покрытия · не клиентский экран</div>' +
         '<div class="cp-coverage-purposes">' + (cp.purposes || []).join(' · ') + '</div>' +
         '<div class="cp-profiles">' +
             pbtn('full', 'Базовый ЦП') +
@@ -510,7 +538,8 @@ function renderCpCoverageHTML(appOrLk) {
         '</div>' +
         borrower +
         '<div class="cp-chips">' + chips + '</div>' +
-        '<p class="cp-note">' + note + '</p></div>';
+        '<div class="cp-next-head">Дальше</div>' +
+        '<ul class="cp-next">' + next + '</ul></div>';
 }
 
 function applyLkTrustGateProfile(profileId) {
@@ -535,21 +564,20 @@ function applyLkTrustGateProfile(profileId) {
         if (typeof updateStats === 'function') updateStats();
         return lab;
     }
-    if (document.getElementById('applicationDetail') && typeof renderApplicationDetail === 'function') {
-        if (typeof state !== 'undefined') state.selectedApp = LK_LAB_ID;
-        if (typeof renderApplicationsList === 'function') renderApplicationsList();
-        renderApplicationDetail(LK_LAB_ID);
-    }
     return lab;
 }
 
 function upsertLkLabApplication(profileId, requestedAmount) {
     if (typeof loadSharedData === 'function') loadSharedData();
     var lk = createFillInApplication();
-    if (requestedAmount) {
-        lk.product.requested_amount = requestedAmount;
-        lk.product.current_amount = requestedAmount;
-        lk.product.credit_amount = requestedAmount;
+    var amount = requestedAmount || 3000000;
+    lk.product.requested_amount = amount;
+    lk.product.current_amount = amount;
+    lk.product.credit_amount = amount;
+    if (!lk.product.term) lk.product.term = 15;
+    if (lk.product.object_address && !lk.product.object_address.AddressString) {
+        lk.product.object_address.AddressString = TRUSTGATE_PERSON.registration_address;
+        lk.product.address = TRUSTGATE_PERSON.registration_address;
     }
     applyTrustGateToApplication(lk, profileId || 'full');
     var lab = flattenLkToLabApp(lk);
@@ -585,10 +613,25 @@ function ensureLkDemoApplication() {
             return a && (a.id === LK_LAB_ID || (a.lk && a.lk.id === LK_APP_UUID));
         });
         if (existing) {
+            var dirty = false;
             if (existing.client !== 'Александр Кузнецов') {
                 existing.client = 'Александр Кузнецов';
-                if (typeof saveSharedData === 'function') saveSharedData();
+                dirty = true;
             }
+            var profile = existing.lk && existing.lk.extra_data && existing.lk.extra_data.cp
+                ? existing.lk.extra_data.cp.profile
+                : 'full';
+            var needsShape = !existing.term
+                || !existing.collateralAddress
+                || (existing.statusLabel && String(existing.statusLabel).indexOf('FILL_IN') === 0)
+                || !existing.lk
+                || !existing.lk.product
+                || !existing.lk.product.term;
+            if (needsShape) {
+                upsertLkLabApplication(profile || 'full', existing.amount || 3000000);
+                return;
+            }
+            if (dirty && typeof saveSharedData === 'function') saveSharedData();
             return;
         }
         upsertLkLabApplication('full', 3000000);
