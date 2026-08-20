@@ -76,7 +76,9 @@ function pickPreferredClientAppId(preferredAppId) {
     const apps = getClientApplications();
     const active = getActiveClientApplications();
     const preferred = preferredAppId || state.selectedApp;
+    const lkId = typeof LK_LAB_ID !== 'undefined' ? LK_LAB_ID : '4636-И';
 
+    if (active.some(function(a) { return a.id === lkId; })) return lkId;
     if (preferred && active.some(a => a.id === preferred)) return preferred;
     if (active[0]) return active[0].id;
     if (preferred && apps.some(a => a.id === preferred)) return preferred;
@@ -347,6 +349,7 @@ function getActiveApplicationHTML(app) {
         <div class="detail-date">Создана: ${app.date || '—'} · ${statusLabel}</div>
     </div>
     ${timeline}
+    ${typeof renderCpCoverageHTML === 'function' ? renderCpCoverageHTML(app) : ''}
     <div class="detail-params">
         <div class="detail-param"><div class="param-label">Сумма</div><div class="param-value">${amount}</div></div>
         <div class="detail-param"><div class="param-label">Срок</div><div class="param-value">${term}</div></div>

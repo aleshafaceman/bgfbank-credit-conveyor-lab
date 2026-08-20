@@ -119,6 +119,7 @@ function renderApplicationDetail(appId) {
         </div>
         <div class="m-detail-phone"><i class="fas fa-phone" style="margin-right:4px;"></i> ${app.phone || '—'}</div>
         ${typeof getManagerAppTimelineHTML === 'function' ? getManagerAppTimelineHTML(app) : ''}
+        ${typeof renderCpCoverageHTML === 'function' ? renderCpCoverageHTML(app) : ''}
         
         <div class="m-detail-params" style="margin-top:20px;">
             <div class="m-detail-param"><div class="m-param-label">Сумма кредита</div><div class="m-param-value">${(app.amount != null ? Number(app.amount) || 0 : 0).toLocaleString('ru-RU')} ₽</div></div>

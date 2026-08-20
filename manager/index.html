@@ -118,6 +118,7 @@
 </div>
 
 <script src="../shared/data.js"></script>
+<script src="../shared/lk-application.js"></script>
 <script src="js/utils.js"></script>
 <script src="js/demo-lab.js"></script>
 <script src="js/navigation.js"></script>
@@ -144,7 +145,7 @@
         safeCall('buildClients', typeof buildClients === 'function' ? buildClients : null);
         safeCall('renderApplicationList', typeof renderApplicationList === 'function' ? renderApplicationList : null);
         safeCall('selectManagerApp', function() {
-            if (typeof selectManagerApp === 'function') selectManagerApp('4421-И');
+            if (typeof selectManagerApp === 'function') selectManagerApp(typeof LK_LAB_ID !== 'undefined' ? LK_LAB_ID : '4636-И');
         });
         safeCall('updateStats', typeof updateStats === 'function' ? updateStats : null);
     }
