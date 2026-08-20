@@ -84,8 +84,6 @@ const state = {
   object: null,
   pkg: "rec",
   egrnOk: false,
-  cpProfile: "full",
-  labApp: null,
 };
 
 const FLOW = ["phone", "otp", "goal", "consents", "esia", "preview", "cadastral", "egrn", "wait", "packages", "status", "du"];
@@ -200,66 +198,7 @@ function toggleGo() {
 function goEsia() {
   if (!consentsOk()) return;
   show("esia");
-  setTimeout(function () {
-    applyCpAndPreview(state.cpProfile);
-    show("preview");
-  }, 1400);
-}
-
-function pickCpProfile(id) {
-  state.cpProfile = id || "full";
-  document.querySelectorAll("#cp-profiles .chip").forEach(function (b) {
-    b.classList.toggle("on", b.getAttribute("data-cp") === state.cpProfile);
-  });
-  applyCpAndPreview(state.cpProfile);
-}
-
-function applyCpAndPreview(profileId) {
-  var profile = profileId || state.cpProfile || "full";
-  state.cpProfile = profile;
-  document.querySelectorAll("#cp-profiles .chip").forEach(function (b) {
-    b.classList.toggle("on", b.getAttribute("data-cp") === profile);
-  });
-  if (typeof upsertLkLabApplication === "function") {
-    state.labApp = upsertLkLabApplication(profile, state.amount);
-  }
-  renderPreview();
-}
-
-function renderPreview() {
-  var lk = state.labApp && state.labApp.lk;
-  var b = lk && lk.borrowers && lk.borrowers[0];
-  var cp = lk && lk.extra_data && lk.extra_data.cp;
-  var card = $("preview-card");
-  var cov = $("preview-coverage");
-  if (!card) return;
-  if (!b) {
-    card.innerHTML = "<p class=\"bad\">Нет borrowers[0] — каркас FILL_IN не собрался.</p>";
-    if (cov) cov.innerHTML = "";
-    return;
-  }
-  var inn = cp && cp.scopes && cp.scopes.inn && cp.scopes.inn.value ? cp.scopes.inn.value : "—";
-  var snils = cp && cp.scopes && cp.scopes.snils && cp.scopes.snils.value ? cp.scopes.snils.value : "—";
-  var ndfl = cp && cp.scopes && cp.scopes.ndfl;
-  var incomeRow = ndfl && ndfl.status === "ok"
-    ? (b.incomes ? Number(b.incomes).toLocaleString("ru-RU") + " ₽/мес · годы " + (ndfl.years || []).join(", ") : "есть")
-    : "нет (confirmation_income_summary = " + (lk.confirmation_income_summary) + ")";
-  var fio = [b.last_name, b.first_name, b.second_name].filter(Boolean).join(" ");
-  card.innerHTML = [
-    ["Статус ЛК", lk.status + " · №" + (typeof LK_LAB_ID !== "undefined" ? LK_LAB_ID : "")],
-    ["ФИО", fio || "—"],
-    ["Дата рождения", b.birth_date || "—"],
-    ["Паспорт", ((b.series || "") + " " + (b.number || "")).trim() || "—"],
-    ["ИНН / СНИЛС", inn + " · " + snils],
-    ["Адрес", b.registration_address || "—"],
-    ["2-НДФЛ", incomeRow],
-    ["Семья", "marital_status = " + (b.marital_status == null ? "null" : b.marital_status)]
-  ].map(function (row) {
-    return '<div class="row"><span>' + row[0] + "</span><b>" + row[1] + "</b></div>";
-  }).join("");
-  if (cov) {
-    cov.innerHTML = typeof renderCpCoverageHTML === "function" ? renderCpCoverageHTML(lk) : "";
-  }
+  setTimeout(() => show("preview"), 1400);
 }
 
 function findEgrn() {
@@ -305,7 +244,7 @@ function confirmObject() {
   show("wait");
   const items = document.querySelectorAll("#wait-log li");
   items.forEach((li) => { li.className = ""; });
-  const steps = [0, 1, 2, 3, 4, 5];
+  const steps = [0, 1, 2, 3];
   steps.forEach((i, n) => {
     setTimeout(() => {
       if (items[i - 1]) { items[i - 1].className = "done"; }
@@ -316,7 +255,7 @@ function confirmObject() {
     items.forEach((li) => { li.className = "done"; });
     renderPackages();
     show("packages");
-  }, 4000);
+  }, 2800);
 }
 
 function renderPackages() {
@@ -410,11 +349,6 @@ function runCta() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  try {
-    var q = new URLSearchParams(location.search || "");
-    var cp = q.get("cp");
-    if (cp === "full" || cp === "no_ndfl" || cp === "szi6") state.cpProfile = cp;
-  } catch (e) {}
   ["c-pd", "c-bki", "c-fin", "c-nonfin"].forEach((id) => $(id).addEventListener("change", toggleGo));
   $("amount").addEventListener("input", () => {
     const n = parseInt(($("amount").value || "").replace(/\D/g, ""), 10);

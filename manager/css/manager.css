@@ -191,6 +191,19 @@ body { background: #f0f4f8; min-height: 100vh; }
 .cp-chip.wait { background: #fef3c7; color: #92400e; }
 .cp-chip.miss { background: #f1f5f9; color: #64748b; }
 .cp-note { font-size: 12px; color: #7e9bb6; margin-top: 8px; line-height: 1.4; }
+.cp-profiles { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 10px; }
+.cp-profile-btn {
+    font-size: 11px; font-weight: 700; padding: 6px 10px; border-radius: 10px; cursor: pointer;
+    border: 1px solid #cbd5e1; background: white; color: #003b6f;
+}
+.cp-profile-btn.on { background: #003b6f; color: white; border-color: #003b6f; }
+.cp-borrower { margin: 0 0 10px; }
+.cp-borrower-row {
+    display: flex; justify-content: space-between; gap: 12px;
+    font-size: 12px; padding: 4px 0; border-bottom: 1px solid #eef2f7;
+}
+.cp-borrower-row span { color: #7e9bb6; }
+.cp-borrower-row b { color: #1e293b; text-align: right; }
 
 /* Split-view / iframe embed */
 html.embed-mode,

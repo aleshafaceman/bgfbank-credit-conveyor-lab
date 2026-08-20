@@ -449,6 +449,7 @@ function getCpCoverage(appOrLk) {
 }
 
 function renderCpCoverageHTML(appOrLk) {
+    var lk = appOrLk && appOrLk.borrowers ? appOrLk : getLkFromApp(appOrLk);
     var cp = getCpCoverage(appOrLk);
     if (!cp || !cp.scopes) return '';
     var labels = [
@@ -477,11 +478,68 @@ function renderCpCoverageHTML(appOrLk) {
         : (szi.status !== 'ok'
             ? 'Базовый ЦП на месте. СЗИ-6 нет — это норма, доход считаем по 2-НДФЛ.'
             : 'СЗИ-6 пришёл: стаж в jobs заполнен. Семью и список квартир ЦП всё равно не отдаёт.');
+    var profile = cp.profile || 'full';
+    function pbtn(id, label) {
+        return '<button type="button" class="cp-profile-btn' + (profile === id ? ' on' : '') + '" data-cp-profile="' + id + '">' + label + '</button>';
+    }
+    var b = lk && lk.borrowers && lk.borrowers[0];
+    var borrower = '';
+    if (b) {
+        var fio = borrowerDisplayName(b) || '—';
+        var pass = ((b.series || '') + ' ' + (b.number || '')).trim() || '—';
+        var inn = (cp.scopes.inn && cp.scopes.inn.value) || '—';
+        var income = ndfl.status === 'ok'
+            ? (Number(b.incomes || 0).toLocaleString('ru-RU') + ' ₽/мес')
+            : 'нет (summary ' + lk.confirmation_income_summary + ')';
+        borrower = '<div class="cp-borrower">' +
+            '<div class="cp-borrower-row"><span>borrowers[0]</span><b>' + fio + '</b></div>' +
+            '<div class="cp-borrower-row"><span>Паспорт</span><b>' + pass + '</b></div>' +
+            '<div class="cp-borrower-row"><span>ИНН</span><b>' + inn + '</b></div>' +
+            '<div class="cp-borrower-row"><span>Доход ЦП</span><b>' + income + '</b></div>' +
+            '<div class="cp-borrower-row"><span>Статус ЛК</span><b>' + (lk.status || '') + '</b></div>' +
+            '</div>';
+    }
     return '<div class="cp-coverage">' +
         '<div class="cp-coverage-head">Цифровой профиль · ' + (cp.gateway || 'TrustGate') + '</div>' +
         '<div class="cp-coverage-purposes">' + (cp.purposes || []).join(' · ') + '</div>' +
+        '<div class="cp-profiles">' +
+            pbtn('full', 'Базовый ЦП') +
+            pbtn('no_ndfl', 'Без 2-НДФЛ') +
+            pbtn('szi6', '+ СЗИ-6') +
+        '</div>' +
+        borrower +
         '<div class="cp-chips">' + chips + '</div>' +
         '<p class="cp-note">' + note + '</p></div>';
+}
+
+function applyLkTrustGateProfile(profileId) {
+    var amount = 3000000;
+    try {
+        if (typeof sharedApplications !== 'undefined') {
+            var prev = sharedApplications.find(function(a) {
+                return a && (a.id === LK_LAB_ID || (a.lk && a.lk.id === LK_APP_UUID));
+            });
+            if (prev && prev.lk && prev.lk.product && prev.lk.product.requested_amount) {
+                amount = prev.lk.product.requested_amount;
+            } else if (prev && prev.amount) amount = prev.amount;
+        }
+    } catch (e) {}
+    var lab = upsertLkLabApplication(profileId || 'full', amount);
+    if (typeof refreshData === 'function') {
+        try { refreshData(); } catch (e2) {}
+    }
+    if (document.getElementById('mAppDetail') && typeof selectManagerApp === 'function') {
+        if (typeof renderApplicationList === 'function') renderApplicationList();
+        selectManagerApp(LK_LAB_ID);
+        if (typeof updateStats === 'function') updateStats();
+        return lab;
+    }
+    if (document.getElementById('applicationDetail') && typeof renderApplicationDetail === 'function') {
+        if (typeof state !== 'undefined') state.selectedApp = LK_LAB_ID;
+        if (typeof renderApplicationsList === 'function') renderApplicationsList();
+        renderApplicationDetail(LK_LAB_ID);
+    }
+    return lab;
 }
 
 function upsertLkLabApplication(profileId, requestedAmount) {
@@ -507,6 +565,16 @@ function upsertLkLabApplication(profileId, requestedAmount) {
     if (typeof buildClientsFromApplications === 'function') buildClientsFromApplications();
     if (typeof saveSharedData === 'function') saveSharedData();
     return lab;
+}
+
+if (typeof document !== 'undefined' && !window.__bgfCpProfileBound) {
+    window.__bgfCpProfileBound = true;
+    document.addEventListener('click', function(e) {
+        var btn = e.target && e.target.closest && e.target.closest('[data-cp-profile]');
+        if (!btn) return;
+        e.preventDefault();
+        applyLkTrustGateProfile(btn.getAttribute('data-cp-profile'));
+    });
 }
 
 function ensureLkDemoApplication() {
