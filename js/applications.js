@@ -76,7 +76,9 @@ function pickPreferredClientAppId(preferredAppId) {
     const apps = getClientApplications();
     const active = getActiveClientApplications();
     const preferred = preferredAppId || state.selectedApp;
+    const lkId = typeof LK_LAB_ID !== 'undefined' ? LK_LAB_ID : '4636-И';
 
+    if (active.some(function(a) { return a.id === lkId; })) return lkId;
     if (preferred && active.some(a => a.id === preferred)) return preferred;
     if (active[0]) return active[0].id;
     if (preferred && apps.some(a => a.id === preferred)) return preferred;

@@ -409,8 +409,9 @@ function flattenLkToLabApp(lk) {
     var patched = !!(cp && cp.scopes && cp.scopes.passport && cp.scopes.passport.status === 'ok');
     return {
         id: LK_LAB_ID,
-        client: name,
-        phone: formatLkPhone(b.cell_phone) || '',
+        client: 'Александр Кузнецов',
+        clientOfficialName: name,
+        phone: formatLkPhone(b.cell_phone) || '+7 (999) 123-45-67',
         product: 'Кредит под залог недвижимости',
         amount: (lk.product && (lk.product.requested_amount || lk.product.current_amount)) || 0,
         term: (lk.product && lk.product.term) || 0,
@@ -580,10 +581,16 @@ if (typeof document !== 'undefined' && !window.__bgfCpProfileBound) {
 function ensureLkDemoApplication() {
     try {
         if (typeof sharedApplications === 'undefined' || !Array.isArray(sharedApplications)) return;
-        var exists = sharedApplications.some(function(a) {
+        var existing = sharedApplications.find(function(a) {
             return a && (a.id === LK_LAB_ID || (a.lk && a.lk.id === LK_APP_UUID));
         });
-        if (exists) return;
+        if (existing) {
+            if (existing.client !== 'Александр Кузнецов') {
+                existing.client = 'Александр Кузнецов';
+                if (typeof saveSharedData === 'function') saveSharedData();
+            }
+            return;
+        }
         upsertLkLabApplication('full', 3000000);
     } catch (e) {
         console.error('ensureLkDemoApplication', e);

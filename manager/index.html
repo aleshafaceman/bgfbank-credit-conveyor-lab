@@ -145,7 +145,7 @@
         safeCall('buildClients', typeof buildClients === 'function' ? buildClients : null);
         safeCall('renderApplicationList', typeof renderApplicationList === 'function' ? renderApplicationList : null);
         safeCall('selectManagerApp', function() {
-            if (typeof selectManagerApp === 'function') selectManagerApp('4421-И');
+            if (typeof selectManagerApp === 'function') selectManagerApp(typeof LK_LAB_ID !== 'undefined' ? LK_LAB_ID : '4636-И');
         });
         safeCall('updateStats', typeof updateStats === 'function' ? updateStats : null);
     }
