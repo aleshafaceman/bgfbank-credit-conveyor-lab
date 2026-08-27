@@ -351,31 +351,34 @@ function sendChatMessage(from, to, text, clientName) {
         date: now.toLocaleDateString('ru-RU'),
         read: false
     };
+    if (!Array.isArray(sharedMessages)) sharedMessages = [];
     sharedMessages.push(msg);
     saveMessagesData();
     return msg;
 }
 
 function getChatHistory(clientName) {
-    if (!clientName) return [];
-    return sharedMessages.filter(m => m.to === clientName);
+    if (!clientName || !Array.isArray(sharedMessages)) return [];
+    return sharedMessages.filter(m => m && m.to === clientName);
 }
 
 function getUnreadCount(clientName) {
-    if (!clientName) return 0;
-    return sharedMessages.filter(m => m.to === clientName && !m.read && m.from === 'client').length;
+    if (!clientName || !Array.isArray(sharedMessages)) return 0;
+    return sharedMessages.filter(m => m && m.to === clientName && !m.read && m.from === 'client').length;
 }
 
 function markMessagesAsRead(clientName) {
+    if (!clientName || !Array.isArray(sharedMessages)) return;
     let updated = false;
-    sharedMessages.forEach(m => { if (m.to === clientName && !m.read) { m.read = true; updated = true; } });
+    sharedMessages.forEach(m => { if (m && m.to === clientName && !m.read) { m.read = true; updated = true; } });
     if (updated) saveMessagesData();
 }
 
 function getManagerChatList() {
-    const uniqueClients = [...new Set(sharedMessages.map(m => m.to))];
+    if (!Array.isArray(sharedMessages)) return [];
+    const uniqueClients = [...new Set(sharedMessages.filter(Boolean).map(m => m.to))];
     return uniqueClients.map(clientName => {
-        const messages = sharedMessages.filter(m => m.to === clientName);
+        const messages = sharedMessages.filter(m => m && m.to === clientName);
         const lastMessage = messages[messages.length - 1];
         const unreadCount = messages.filter(m => !m.read && m.from === 'client').length;
         const activeApp = sharedApplications.find(a => a.client === clientName && a.status !== 'approved' && a.status !== 'rejected');

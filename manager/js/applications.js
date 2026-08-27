@@ -21,48 +21,61 @@ function renderApplicationList(filteredApps) {
         new: 'badge-new', processing: 'badge-processing', valuation: 'badge-valuation',
         decision: 'badge-decision', approved: 'badge-approved', rejected: 'badge-rejected'
     };
-    
-    container.innerHTML = apps.map(app => `
-        <div class="m-app-card ${app.id === selectedAppId ? 'active' : ''}" data-app-id="${app.id}">
-            <div class="m-card-row">
-                <span class="m-card-id">№${app.id}</span>
-                <span class="m-card-date">${app.date || ''}</span>
-            </div>
-            <div class="m-card-client">${app.client || ''}</div>
-            <div class="m-card-bottom">
-                <span class="m-card-amount">${(app.amount != null ? app.amount : 0).toLocaleString('ru-RU')} ₽</span>
-                <span class="m-badge ${statusClasses[app.status] || 'badge-processing'}">${app.statusLabel || app.status || ''}</span>
-            </div>
-        </div>
-    `).join('');
+    const safeApps = (apps || []).filter(function(a) { return a && a.id; });
+
+    try {
+        container.innerHTML = safeApps.map(function(app) {
+            var amount = (typeof app.amount === 'number' && isFinite(app.amount)) ? app.amount : (Number(app.amount) || 0);
+            return '<div class="m-app-card' + (app.id === selectedAppId ? ' active' : '') + '" data-app-id="' + String(app.id).replace(/"/g, '&quot;') + '">' +
+                '<div class="m-card-row">' +
+                    '<span class="m-card-id">№' + app.id + '</span>' +
+                    '<span class="m-card-date">' + (app.date || '') + '</span>' +
+                '</div>' +
+                '<div class="m-card-client">' + (app.client || '') + '</div>' +
+                '<div class="m-card-bottom">' +
+                    '<span class="m-card-amount">' + amount.toLocaleString('ru-RU') + ' ₽</span>' +
+                    '<span class="m-badge ' + (statusClasses[app.status] || 'badge-processing') + '">' + (app.statusLabel || app.status || '') + '</span>' +
+                '</div>' +
+            '</div>';
+        }).join('');
+    } catch (err) {
+        console.error('renderApplicationList failed', err);
+        container.innerHTML = '<div style="color:#94a3b8;font-size:13px;padding:12px;">Не удалось показать список заявок. <button type="button" class="m-btn m-btn-outline" onclick="resetManagerDemoData()">Сбросить демо</button></div>';
+    }
 
     if (!container._bgfClickBound) {
         container._bgfClickBound = true;
         container.addEventListener('click', function(e) {
-            var card = e.target.closest('.m-app-card');
+            var el = e.target;
+            if (el && el.nodeType !== 1) el = el.parentElement;
+            var card = el && el.closest ? el.closest('.m-app-card') : null;
             if (!card) return;
             var id = card.getAttribute('data-app-id');
-            if (id) selectManagerApp(id);
+            if (id && typeof selectManagerApp === 'function') {
+                try { selectManagerApp(id); } catch (err) { console.error('mAppCards click', err); }
+            }
         });
     }
 }
 
 function filterApplications() {
-    refreshData();
-    const status = document.getElementById('filterStatus').value;
-    const search = document.getElementById('filterSearch').value.toLowerCase();
-    let filtered = managerApplications;
-    if (status !== 'all') filtered = filtered.filter(a => a.status === status);
-    if (search) filtered = filtered.filter(a =>
-        (a.id || '').toLowerCase().includes(search) ||
-        (a.client || '').toLowerCase().includes(search) ||
-        (a.collateralAddress || '').toLowerCase().includes(search)
-    );
+    try { refreshData(); } catch (e) {}
+    var statusEl = document.getElementById('filterStatus');
+    var searchEl = document.getElementById('filterSearch');
+    var status = statusEl ? statusEl.value : 'all';
+    var search = searchEl && searchEl.value ? String(searchEl.value).toLowerCase() : '';
+    var filtered = managerApplications || [];
+    if (status && status !== 'all') filtered = filtered.filter(function(a) { return a && a.status === status; });
+    if (search) filtered = filtered.filter(function(a) {
+        return ((a && a.id) || '').toLowerCase().includes(search) ||
+            ((a && a.client) || '').toLowerCase().includes(search) ||
+            ((a && a.collateralAddress) || '').toLowerCase().includes(search);
+    });
     renderApplicationList(filtered);
 }
 
 function selectManagerApp(appId) {
-    refreshData();
+    try { refreshData(); } catch (e) {}
     selectedAppId = appId;
 
     var clientDetail = document.getElementById('mClientDetail');
@@ -70,16 +83,26 @@ function selectManagerApp(appId) {
     if (clientDetail) clientDetail.classList.add('hidden');
     if (appDetail) appDetail.classList.remove('hidden');
 
-    document.querySelectorAll('.m-app-card').forEach(c => {
-        c.classList.toggle('active', c.getAttribute('data-app-id') === appId);
-    });
+    try {
+        document.querySelectorAll('.m-app-card').forEach(function(c) {
+            c.classList.toggle('active', c.getAttribute('data-app-id') === appId);
+        });
+    } catch (e2) {}
 
-    renderApplicationDetail(appId);
+    try {
+        renderApplicationDetail(appId);
+    } catch (err) {
+        console.error('selectManagerApp', appId, err);
+        if (appDetail) {
+            appDetail.innerHTML = '<div class="m-detail-empty"><p>Не удалось открыть заявку №' + (appId || '') + '</p>' +
+                '<p style="margin-top:12px;"><button type="button" class="m-btn m-btn-outline" onclick="resetManagerDemoData()">Сбросить демо</button></p></div>';
+        }
+    }
 }
 
 function renderApplicationDetail(appId) {
-    refreshData();
-    const app = managerApplications.find(a => a.id === appId);
+    try { refreshData(); } catch (e) {}
+    const app = (managerApplications || []).find(function(a) { return a && a.id === appId; });
     const container = document.getElementById('mAppDetail');
     if (!container) return;
 
@@ -92,20 +115,29 @@ function renderApplicationDetail(appId) {
         new: 'badge-new', processing: 'badge-processing', valuation: 'badge-valuation',
         decision: 'badge-decision', approved: 'badge-approved', rejected: 'badge-rejected'
     };
-    
-    const unreadCount = typeof getUnreadCount === 'function' ? getUnreadCount(app.client) : 0;
-    const unreadBadge = unreadCount > 0
-        ? `<span style="background:#ef4444;color:white;font-size:10px;padding:2px 6px;border-radius:8px;margin-left:6px;">${unreadCount}</span>`
-        : '';
 
-    const docs = Array.isArray(app.documents) ? app.documents : [];
-    const history = Array.isArray(app.history) ? app.history : [];
-    const collateralValue = (typeof app.collateralValue === 'number' && isFinite(app.collateralValue))
-        ? app.collateralValue
-        : 0;
-    const safeClient = (app.client || '').replace(/'/g, "\\'");
-    
     try {
+        var unreadCount = 0;
+        try {
+            unreadCount = typeof getUnreadCount === 'function' ? getUnreadCount(app.client) : 0;
+        } catch (eUnread) { unreadCount = 0; }
+        const unreadBadge = unreadCount > 0
+            ? `<span style="background:#ef4444;color:white;font-size:10px;padding:2px 6px;border-radius:8px;margin-left:6px;">${unreadCount}</span>`
+            : '';
+
+        const docs = Array.isArray(app.documents) ? app.documents.filter(Boolean) : [];
+        const history = Array.isArray(app.history) ? app.history.filter(Boolean) : [];
+        const collateralValue = (typeof app.collateralValue === 'number' && isFinite(app.collateralValue))
+            ? app.collateralValue
+            : 0;
+        const safeClient = String(app.client || '').replace(/'/g, "\\'");
+        var timelineHtml = '';
+        try { timelineHtml = typeof getManagerAppTimelineHTML === 'function' ? (getManagerAppTimelineHTML(app) || '') : ''; } catch (eT) { timelineHtml = ''; }
+        var cpHtml = '';
+        try { cpHtml = typeof renderCpCoverageHTML === 'function' ? (renderCpCoverageHTML(app) || '') : ''; } catch (eC) { cpHtml = ''; }
+        var duHtml = '';
+        try { duHtml = typeof renderDUSection === 'function' ? (renderDUSection(app) || '') : ''; } catch (eD) { duHtml = ''; }
+
         container.innerHTML = `
         <div class="m-detail-header">
             <div>
@@ -118,8 +150,8 @@ function renderApplicationDetail(appId) {
             ${app.client || '—'} <i class="fas fa-external-link-alt" style="font-size:10px;opacity:0.5;"></i>
         </div>
         <div class="m-detail-phone"><i class="fas fa-phone" style="margin-right:4px;"></i> ${app.phone || '—'}</div>
-        ${typeof getManagerAppTimelineHTML === 'function' ? getManagerAppTimelineHTML(app) : ''}
-        ${typeof renderCpCoverageHTML === 'function' ? renderCpCoverageHTML(app) : ''}
+        ${timelineHtml}
+        ${cpHtml}
         
         <div class="m-detail-params" style="margin-top:20px;">
             <div class="m-detail-param"><div class="m-param-label">Сумма кредита</div><div class="m-param-value">${(app.amount != null ? Number(app.amount) || 0 : 0).toLocaleString('ru-RU')} ₽</div></div>
@@ -141,7 +173,7 @@ function renderApplicationDetail(appId) {
                 ${docs.length ? docs.map(d => `
                     <div class="m-doc-item">
                         <i class="fas ${d.status === 'uploaded' ? 'fa-check-circle' : 'fa-times-circle'}" style="color:${d.status === 'uploaded' ? '#10b981' : '#ef4444'};"></i>
-                        <span class="doc-name">${d.name}</span>
+                        <span class="doc-name">${d.name || ''}</span>
                         <span class="doc-status ${d.status === 'uploaded' ? 'doc-uploaded' : 'doc-missing'}">${d.statusLabel || d.status || ''}</span>
                     </div>
                 `).join('') : '<div style="color:#94a3b8;font-size:13px;">Документы не загружены</div>'}
@@ -153,7 +185,7 @@ function renderApplicationDetail(appId) {
             <div class="m-history">
                 ${history.length ? history.map(h => `
                     <div class="m-history-item ${h.current ? 'current' : ''}">
-                        <div style="font-weight:${h.current ? '600' : '400'};color:${h.current ? '#1e293b' : '#64748b'};">${h.text}</div>
+                        <div style="font-weight:${h.current ? '600' : '400'};color:${h.current ? '#1e293b' : '#64748b'};">${h.text || ''}</div>
                         <div class="m-history-date">${h.date || ''}</div>
                     </div>
                 `).join('') : '<div style="color:#94a3b8;font-size:13px;">История пуста</div>'}
@@ -170,9 +202,10 @@ function renderApplicationDetail(appId) {
             </button>
         </div>
 
-        ${typeof renderDUSection === 'function' ? renderDUSection(app) : ''}
+        ${duHtml}
     `;
         bindManagerCpProfileButtons(container);
+        bindManagerDetailActions(container);
     } catch (err) {
         console.error('renderApplicationDetail failed', appId, err);
         container.innerHTML = '<div class="m-detail-empty"><p>Не удалось открыть заявку №' + appId + '</p><p style="font-size:12px;color:#94a3b8;">' + (err && err.message ? err.message : '') + '</p><p style="margin-top:12px;"><button type="button" class="m-btn m-btn-outline" onclick="resetManagerDemoData()">Сбросить демо</button></p></div>';
@@ -196,31 +229,66 @@ function bindManagerCpProfileButtons(root) {
     }
 }
 
+function clickElementFromEvent(e) {
+    var el = e && e.target;
+    if (el && el.nodeType !== 1) el = el.parentElement;
+    return el || null;
+}
+
+function bindManagerDetailActions(root) {
+    if (!root || root._bgfActionBound) return;
+    root._bgfActionBound = true;
+    root.addEventListener('click', function(e) {
+        var el = clickElementFromEvent(e);
+        if (!el || !el.closest) return;
+        if (el.closest('[data-cp-profile]')) return;
+        var btn = el.closest('[data-m-action]');
+        if (!btn) return;
+        var act = btn.getAttribute('data-m-action');
+        var appId = btn.getAttribute('data-app-id');
+        try {
+            if (act === 'openScoring' && typeof openManagerScoring === 'function') {
+                openManagerScoring();
+            } else if (act && appId && typeof managerAction === 'function') {
+                managerAction(appId, act);
+            }
+        } catch (err) {
+            console.error('mAppDetail action click', err);
+        }
+    });
+}
+
+function mActionButton(id, action, cls, icon, label) {
+    return '<button type="button" class="m-btn ' + cls + '" data-m-action="' + action + '" data-app-id="' + id +
+        '" onclick="managerAction(\'' + id + '\',\'' + action + '\')"><i class="fas ' + icon + '"></i> ' + label + '</button>';
+}
+
 function getActionButtons(app) {
     var id = String((app && app.id) || '').replace(/'/g, "\\'");
+    var scoring = '<button type="button" class="m-btn m-btn-primary" data-m-action="openScoring" data-app-id="' + id +
+        '" onclick="openManagerScoring()"><i class="fas fa-flask"></i> Полный скоринг</button>';
     switch(app.status) {
         case 'new':
-            return `<button type="button" class="m-btn m-btn-primary" onclick="managerAction('${id}','requestDocs')"><i class="fas fa-file-upload"></i> Запросить документы</button>
-                    <button type="button" class="m-btn m-btn-outline" onclick="managerAction('${id}','startReview')"><i class="fas fa-play"></i> Начать рассмотрение</button>`;
+            return mActionButton(id, 'requestDocs', 'm-btn-primary', 'fa-file-upload', 'Запросить документы') +
+                    mActionButton(id, 'startReview', 'm-btn-outline', 'fa-play', 'Начать рассмотрение');
         case 'processing':
-            return `<button type="button" class="m-btn m-btn-warning" onclick="managerAction('${id}','startScoring')"><i class="fas fa-robot"></i> Запустить прескоринг</button>
-                    <button type="button" class="m-btn m-btn-primary" onclick="openManagerScoring()"><i class="fas fa-flask"></i> Полный скоринг</button>
-                    <button type="button" class="m-btn m-btn-outline" onclick="managerAction('${id}','requestDocs')"><i class="fas fa-file-upload"></i> Запросить документы</button>`;
+            return mActionButton(id, 'startScoring', 'm-btn-warning', 'fa-robot', 'Запустить прескоринг') +
+                    scoring +
+                    mActionButton(id, 'requestDocs', 'm-btn-outline', 'fa-file-upload', 'Запросить документы');
         case 'valuation':
-            return `<button type="button" class="m-btn m-btn-warning" onclick="managerAction('${id}','startScoring')"><i class="fas fa-robot"></i> Запустить прескоринг</button>
-                    <button type="button" class="m-btn m-btn-primary" onclick="openManagerScoring()"><i class="fas fa-flask"></i> Полный скоринг</button>
-                    <button type="button" class="m-btn m-btn-outline" onclick="managerAction('${id}','requestValuation')"><i class="fas fa-home"></i> Запросить оценку</button>
-                    <button type="button" class="m-btn m-btn-outline" onclick="managerAction('${id}','requestDocs')"><i class="fas fa-file-upload"></i> Запросить документы</button>`;
+            return mActionButton(id, 'startScoring', 'm-btn-warning', 'fa-robot', 'Запустить прескоринг') +
+                    scoring +
+                    mActionButton(id, 'requestValuation', 'm-btn-outline', 'fa-home', 'Запросить оценку') +
+                    mActionButton(id, 'requestDocs', 'm-btn-outline', 'fa-file-upload', 'Запросить документы');
         case 'decision':
-            return `<button type="button" class="m-btn m-btn-success" onclick="managerAction('${id}','approve')"><i class="fas fa-check"></i> Одобрить</button>
-                    <button type="button" class="m-btn m-btn-danger" onclick="managerAction('${id}','reject')"><i class="fas fa-times"></i> Отклонить</button>`;
+            return mActionButton(id, 'approve', 'm-btn-success', 'fa-check', 'Одобрить') +
+                    mActionButton(id, 'reject', 'm-btn-danger', 'fa-times', 'Отклонить');
         case 'approved':
             return `<button type="button" class="m-btn m-btn-outline" onclick="alert('Договор отправлен клиенту')"><i class="fas fa-signature"></i> Отправить договор</button>`;
         case 'rejected':
             return `<button type="button" class="m-btn m-btn-outline" onclick="alert('Клиент уведомлён')"><i class="fas fa-redo"></i> Предложить изменить параметры</button>`;
         default:
-            return `<button type="button" class="m-btn m-btn-warning" onclick="managerAction('${id}','startScoring')"><i class="fas fa-robot"></i> Запустить прескоринг</button>
-                    <button type="button" class="m-btn m-btn-primary" onclick="openManagerScoring()"><i class="fas fa-flask"></i> Полный скоринг</button>`;
+            return mActionButton(id, 'startScoring', 'm-btn-warning', 'fa-robot', 'Запустить прескоринг') + scoring;
     }
 }
 
@@ -431,7 +499,7 @@ function renderDUSection(app) {
                 if (du.source === 'external') {
                     h += '<button class="m-btn m-btn-outline" style="padding:4px 10px;font-size:10px;" onclick="alert(\'Запрос направлен в ' + du.name + '\')"><i class="fas fa-building"></i> Запросить</button>';
                 } else if (du.source === 'client') {
-                    h += '<button class="m-btn m-btn-outline" style="padding:4px 10px;font-size:10px;white-space:nowrap;" onclick="requestDUFromClient(\'' + app.id + '\', \'' + du.id + '\', \'' + app.client.replace(/'/g, "\\'") + '\')"><i class="fas fa-comment-dots"></i> Запросить в чат</button>';
+                    h += '<button class="m-btn m-btn-outline" style="padding:4px 10px;font-size:10px;white-space:nowrap;" onclick="requestDUFromClient(\'' + app.id + '\', \'' + du.id + '\', \'' + String(app.client || '').replace(/'/g, "\\'") + '\')"><i class="fas fa-comment-dots"></i> Запросить в чат</button>';
                 }
             }
             h += '</div>';
@@ -440,7 +508,7 @@ function renderDUSection(app) {
     });
     
     h += '<div style="display:flex;gap:8px;margin-top:12px;">';
-    h += '<button class="m-btn m-btn-primary" style="flex:1;padding:10px;font-size:12px;" onclick="requestAllDUFromClient(\'' + app.id + '\', \'' + app.client.replace(/'/g, "\\'") + '\')"><i class="fas fa-paper-plane"></i> Запросить все ДУ (в чат)</button>';
+    h += '<button class="m-btn m-btn-primary" style="flex:1;padding:10px;font-size:12px;" onclick="requestAllDUFromClient(\'' + app.id + '\', \'' + String(app.client || '').replace(/'/g, "\\'") + '\')"><i class="fas fa-paper-plane"></i> Запросить все ДУ (в чат)</button>';
     h += '<button class="m-btn m-btn-outline" style="flex:1;padding:10px;font-size:12px;" onclick="alert(\'Открывается выбор отдельных ДУ...\')"><i class="fas fa-list-check"></i> Выбрать отдельно</button>';
     h += '</div>';
     

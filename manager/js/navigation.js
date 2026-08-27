@@ -35,6 +35,15 @@ function switchManagerTab(tab) {
         if (tab === 'reports' && typeof renderReportsTab === 'function') renderReportsTab();
     } catch (err) {
         console.error('switchManagerTab render', tab, err);
+        // Не затираем #m-tab-applications — там список заявок и его click-listener
+        if (tab === 'applications') {
+            var detail = document.getElementById('mAppDetail');
+            if (detail) {
+                detail.innerHTML = '<div class="m-detail-empty"><p>Не удалось открыть заявку</p>' +
+                    '<p style="font-size:12px;color:#94a3b8;margin-top:8px;">Нажмите «Сбросить демо» на экране входа и войдите снова.</p></div>';
+            }
+            return;
+        }
         if (target) {
             target.innerHTML = '<div class="m-detail-empty"><p>Не удалось открыть раздел</p>' +
                 '<p style="font-size:12px;color:#94a3b8;margin-top:8px;">Нажмите «Сбросить демо» на экране входа и войдите снова.</p></div>';
