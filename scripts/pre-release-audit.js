@@ -584,13 +584,25 @@ console.log('\n=== 8. TrustGate lab app is manager-only ===');
     'timeline splits prescoring and scoring');
   assert(steps.find(s => s.id === 'prescore').done === false && steps.find(s => s.id === 'scoring').done === false,
     'new lab app has neither prescore nor scoring done');
+  const stepIds = steps.map(s => s.id);
+  assert(stepIds.indexOf('prescore') < stepIds.indexOf('package') && stepIds.indexOf('package') < stepIds.indexOf('scoring'),
+    'package sits between prescore and full scoring');
+  assert(steps.find(s => s.id === 'package') && steps.find(s => s.id === 'package').done === false,
+    'new lab app has not accepted the package');
 
   const procBtns = ctx.getActionButtons({ id: '4421-И', status: 'processing' });
   assert(/прескоринг/i.test(procBtns) && procBtns.indexOf('Полный скоринг') === -1,
     'processing shows prescoring only, not full scoring');
+  assert(procBtns.indexOf('Пакет принят') === -1, 'processing does not accept package before prescore');
   const decBtns = ctx.getActionButtons({ id: '4421-И', status: 'decision', rate: 12.5, termsKind: 'preliminary' });
   assert(decBtns.indexOf('Запустить прескоринг') === -1, 'after prescore, prescoring is not offered');
-  assert(decBtns.indexOf('Полный скоринг') !== -1, 'after prescore, full scoring is offered');
+  assert(decBtns.indexOf('Пакет принят') !== -1 && decBtns.indexOf('Полный скоринг') === -1,
+    'after prescore, package must be accepted before full scoring');
+  const decPkgBtns = ctx.getActionButtons({
+    id: '4421-И', status: 'decision', rate: 12.5, termsKind: 'preliminary', packageStatus: 'accepted'
+  });
+  assert(decPkgBtns.indexOf('Полный скоринг') !== -1 && decPkgBtns.indexOf('Пакет принят') === -1,
+    'accepted package unlocks full scoring');
 
   const scoringCode = fs.readFileSync(path.join(root, 'manager/js/scoring.js'), 'utf8');
   vm.runInNewContext(scoringCode, ctx, { filename: 'manager/js/scoring.js' });
@@ -653,10 +665,30 @@ console.log('\n=== 8. TrustGate lab app is manager-only ===');
   assert(ctx._els.mAppDetail.innerHTML.includes('Лаб. ЦП'), '4636 detail shows lab badge');
   ctx.selectManagerApp('4421-И');
   assert(ctx._els.mAppDetail.innerHTML.includes('Конвейер'), '4421 detail shows conveyor badge');
+  assert(ctx._els.mAppDetail.innerHTML.includes('Пакет условий'), 'manager detail shows package block');
+  assert(ctx._els.mAppDetail.innerHTML.indexOf('Предложен, клиент ещё не принял') !== -1,
+    '4421 package is proposed, not accepted');
+
+  assert(!ctx.isPackageAccepted(app4421), '4421 seed package is not accepted');
+  assert(!ctx.isPackageAccepted({ id: 'x', status: 'decision', rate: 12.5, selectedPackageId: 'PKG_RECOMMENDED' }),
+    'rate plus selected package does not count as acceptance');
 
   const missingLab = ctx.missingOriginals(lab);
   assert(missingLab.some(n => /ЕГРН/i.test(n)), '4636 missing originals include EGRN');
-  const labDecisionBtns = ctx.getActionButtons(Object.assign({}, lab, {
+  const labDecisionNoPkg = ctx.getActionButtons(Object.assign({}, lab, {
+    status: 'decision', termsKind: 'preliminary', rate: 12.5
+  }));
+  assert(labDecisionNoPkg.indexOf('Пакет принят') !== -1 && labDecisionNoPkg.indexOf('Полный скоринг') === -1,
+    'lab decision without package asks to accept package, not score');
+
+  ctx.updateApplicationStatus('4636-И', 'decision', 'Прескоринг пройден', 'Прескоринг завершён');
+  ctx.updateApplication('4636-И', { termsKind: 'preliminary', rate: 12.5 });
+  const acceptedPkg = ctx.acceptManagerPackage('4636-И');
+  assert(acceptedPkg && acceptedPkg.packageStatus === 'accepted', 'manager can mark package accepted');
+  assert(ctx.getManagerAppTimelineSteps(acceptedPkg).find(s => s.id === 'package').done,
+    'timeline marks package done after accept');
+
+  const labDecisionBtns = ctx.getActionButtons(Object.assign({}, acceptedPkg, {
     status: 'decision', termsKind: 'preliminary', rate: 12.5
   }));
   assert(labDecisionBtns.indexOf('Полный скоринг без комплекта') !== -1,
@@ -673,7 +705,7 @@ console.log('\n=== 8. TrustGate lab app is manager-only ===');
   assert(egrnAfter && egrnAfter.status === 'uploaded', 'external DU request marks EGRN uploaded');
   assert(ctx.missingOriginals(labAfterDu).length === 0, 'originals empty after EGRN/house-book DUs');
   const completeBtns = ctx.getActionButtons(Object.assign({}, labAfterDu, {
-    status: 'decision', termsKind: 'preliminary', rate: 12.5
+    status: 'decision', termsKind: 'preliminary', rate: 12.5, packageStatus: 'accepted'
   }));
   assert(completeBtns.indexOf('Полный скоринг без комплекта') === -1, 'complete set does not offer skip');
   assert(completeBtns.indexOf('Полный скоринг') !== -1, 'complete set offers full scoring');
@@ -688,6 +720,18 @@ console.log('\n=== 8. TrustGate lab app is manager-only ===');
   assert(ctx._els.sModeBadge.textContent === 'Полный скоринг', 'overlay badge says full scoring');
 
   ctx.duStorage = {};
+  ctx.updateApplication('4636-И', {
+    documents: labDocsSnapshot.map(d => Object.assign({}, d)),
+    packageStatus: 'proposed'
+  });
+  const blockedRuns = [];
+  ctx.startScoringRun = function(mode) { blockedRuns.push(mode); };
+  ctx._alerts = [];
+  ctx.selectedAppId = '4636-И';
+  ctx.openManagerScoring(true);
+  assert(blockedRuns.length === 0, 'full scoring blocked until package is accepted');
+
+  ctx.acceptManagerPackage('4636-И');
   ctx.updateApplication('4636-И', { documents: labDocsSnapshot.map(d => Object.assign({}, d)) });
   const runs = [];
   ctx.startScoringRun = function(mode) { runs.push(mode); };
