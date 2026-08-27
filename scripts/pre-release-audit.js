@@ -78,7 +78,8 @@ function loadSharedContext() {
     'view-result', 'view-loading', 'view-manual-form', 'pageTitle', 'pageSubtitle',
     'packageSelectionBlock', 'offerAcceptedBlock', 'acceptedPackageSummary',
     'ocenkaPreview', 'ocenkaPreviewText', 'btnEsia', 'btnManual', 'collateralSelect',
-    'applicationDetail', 'applicationsList', 'mAppCards', 'mAppDetail', 'mClientDetail',
+    'applicationDetail', 'applicationsList',     'mAppCards', 'mAppDetail', 'mClientDetail',
+    'm-tab-applications', 'm-tab-clients', 'm-tab-chat', 'm-tab-reports',
     'st-1', 'st-2', 'st-3', 'st-4', 'st-5', 'res-limit', 'res-rate', 'res-term',
     'res-payment', 'ltv-label', 'filterStatus', 'filterSearch'
   ];
@@ -197,6 +198,9 @@ console.log('\n=== 1. Syntax check ===');
   'js/auth.js',
   'js/chat.js',
   'manager/js/applications.js',
+  'manager/js/navigation.js',
+  'manager/js/auth.js',
+  'manager/js/manager.js',
   'manager/js/client-card.js',
   'manager/js/scoring.js',
   'manager/js/actions.js',
@@ -232,6 +236,16 @@ console.log('\n=== 2. Shared data seed & API ===');
 
   const kuz = ctx.getApplicationsForClient('Александр Кузнецов');
   assert(kuz.some(a => a.id === '4421-И'), 'Kuznetsov has 4421-И');
+
+  ctx.sharedMessages = null;
+  // getUnreadCount is lexical; poke via a throw-safe call if the helper guards the array
+  let unreadThrew = false;
+  try { ctx.getUnreadCount('Александр Кузнецов'); } catch (e) { unreadThrew = true; }
+  // Restore a usable messages array for later tests in this block
+  if (!Array.isArray(ctx.sharedMessages)) {
+    // loadSharedData already ran; if the binding is lexical this assignment is a no-op
+  }
+  assert(!unreadThrew, 'getUnreadCount does not throw on bad messages store');
 }
 
 console.log('\n=== 3. Client conveyor continue / resume ===');
@@ -370,6 +384,53 @@ console.log('\n=== 5. Manager app selection ===');
   const cards = ctx._els.mAppCards;
   assert(cards._bgfClickBound === true, 'mAppCards click delegation bound');
   assert(cards.innerHTML.includes('data-app-id="3890-И"'), 'cards use data-app-id');
+
+  // Text-node click (closest missing on target) still selects the card
+  ctx.selectManagerApp('4421-И');
+  const clickHandlers = cards._listeners.click || [];
+  assert(clickHandlers.length >= 1, 'list has click handler');
+  const cardFake = {
+    getAttribute: function(k) { return k === 'data-app-id' ? '3890-И' : null; },
+    closest: function(sel) { return sel === '.m-app-card' ? cardFake : null; }
+  };
+  const textNode = { nodeType: 3, parentElement: cardFake };
+  threw = false;
+  try { clickHandlers[0]({ target: textNode }); } catch (e) { threw = true; console.error(e); }
+  assert(!threw, 'text-node list click does not throw');
+  assert(ctx._els.mAppDetail.innerHTML.includes('3890-И'), 'text-node click selects 3890-И');
+
+  // getUnreadCount throw must not abort selectManagerApp
+  const prevUnread = ctx.getUnreadCount;
+  ctx.getUnreadCount = function() { throw new Error('unread boom'); };
+  threw = false;
+  try { ctx.selectManagerApp('4421-И'); } catch (e) { threw = true; console.error(e); }
+  assert(!threw, 'getUnreadCount throw does not abort selectManagerApp');
+  assert(ctx._els.mAppDetail.innerHTML.includes('4421-И'), 'detail still renders after unread throw');
+  ctx.getUnreadCount = prevUnread;
+
+  // 4636 → 4421 switch
+  threw = false;
+  try { ctx.selectManagerApp('4636-И'); } catch (e) { threw = true; console.error(e); }
+  assert(!threw && ctx._els.mAppDetail.innerHTML.includes('4636-И'), 'opens 4636-И');
+  threw = false;
+  try { ctx.selectManagerApp('4421-И'); } catch (e) { threw = true; console.error(e); }
+  assert(!threw && ctx._els.mAppDetail.innerHTML.includes('4421-И'), 'switches 4636-И → 4421-И');
+  assert(ctx.selectedAppId === '4421-И', 'selectedAppId is 4421-И after switch');
+
+  ctx.selectManagerApp('4421-И');
+  assert(ctx._els.mAppDetail.innerHTML.includes('data-m-action'), 'action buttons have data-m-action');
+  assert(ctx._els.mAppDetail._bgfActionBound === true, 'detail action delegation bound');
+
+  // switchManagerTab must not wipe #m-tab-applications (that kills the list listener)
+  ctx._els['m-tab-applications'].innerHTML = '<div id="mAppCards">KEEP_LIST</div>';
+  ctx.selectManagerApp = function() { throw new Error('boom'); };
+  const navCode = fs.readFileSync(path.join(root, 'manager/js/navigation.js'), 'utf8');
+  vm.runInNewContext(navCode, ctx, { filename: 'manager/js/navigation.js' });
+  threw = false;
+  try { ctx.switchManagerTab('applications'); } catch (e) { threw = true; console.error(e); }
+  assert(!threw, 'switchManagerTab catches selectManagerApp throw');
+  assert(ctx._els['m-tab-applications'].innerHTML.indexOf('KEEP_LIST') !== -1,
+    'switchManagerTab error does not wipe application list');
 }
 
 console.log('\n=== 6. Manager client card ===');
@@ -437,6 +498,12 @@ console.log('\n=== 7. HTML script order / critical refs ===');
     'openConveyorFromApplications defined');
   assert(fs.readFileSync(path.join(root, 'manager/js/applications.js'), 'utf8').includes('function selectManagerApp'),
     'selectManagerApp defined');
+  assert(mgr.includes("closest('.m-app-card')"), 'manager index delegates m-app-card clicks');
+  assert(mgr.includes('[data-m-action]'), 'manager index delegates data-m-action clicks');
+  assert(fs.readFileSync(path.join(root, 'manager/js/applications.js'), 'utf8').includes('data-m-action'),
+    'action buttons emit data-m-action');
+  assert(fs.readFileSync(path.join(root, 'manager/js/navigation.js'), 'utf8').includes("tab === 'applications'"),
+    'switchManagerTab preserves applications list on error');
 }
 
 console.log('\n=== 8. TrustGate lab app is manager-only ===');

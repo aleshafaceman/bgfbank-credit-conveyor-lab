@@ -182,9 +182,35 @@
         });
     }
 
-    // Делегирование вкладок — работает даже без bindEvents
+    // Делегирование кликов — работает даже если контейнер списка пересоздали
     document.addEventListener('click', function(e) {
-        var tab = e.target.closest && e.target.closest('.m-tab');
+        var el = e.target;
+        if (el && el.nodeType !== 1) el = el.parentElement;
+        if (!el || !el.closest) return;
+
+        if (el.closest('[data-cp-profile]')) return;
+
+        var actionBtn = el.closest('[data-m-action]');
+        if (actionBtn) {
+            var act = actionBtn.getAttribute('data-m-action');
+            var appId = actionBtn.getAttribute('data-app-id');
+            try {
+                if (act === 'openScoring' && typeof openManagerScoring === 'function') openManagerScoring();
+                else if (act && appId && typeof managerAction === 'function') managerAction(appId, act);
+            } catch (err) { console.error('document data-m-action', err); }
+            return;
+        }
+
+        var card = el.closest('.m-app-card');
+        if (card) {
+            var id = card.getAttribute('data-app-id');
+            if (id && typeof selectManagerApp === 'function') {
+                try { selectManagerApp(id); } catch (err) { console.error('document m-app-card', err); }
+            }
+            return;
+        }
+
+        var tab = el.closest('.m-tab');
         if (!tab) return;
         var tabName = '';
         var t = tab.textContent || '';
