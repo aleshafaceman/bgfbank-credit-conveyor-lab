@@ -137,6 +137,14 @@ function renderApplicationDetail(appId) {
         try { cpHtml = typeof renderCpCoverageHTML === 'function' ? (renderCpCoverageHTML(app) || '') : ''; } catch (eC) { cpHtml = ''; }
         var duHtml = '';
         try { duHtml = typeof renderDUSection === 'function' ? (renderDUSection(app) || '') : ''; } catch (eD) { duHtml = ''; }
+        var termsKind = (typeof appTermsKind === 'function') ? appTermsKind(app) : (app.termsKind || null);
+        var rateLabel = termsKind === 'final' ? 'Итоговая ставка' : (termsKind === 'preliminary' ? 'Предварительная ставка' : 'Ставка');
+        var payLabel = termsKind === 'final' ? 'Итоговый платёж / мес.' : (termsKind === 'preliminary' ? 'Предварительный платёж / мес.' : 'Платёж / мес.');
+        var termsNote = termsKind === 'preliminary'
+            ? '<div class="m-detail-param" style="margin-top:8px;"><div class="m-param-label">Тип условий</div><div class="m-param-value" style="font-size:13px;color:#b45309;">Предварительные · могут отличаться от итога</div></div>'
+            : (termsKind === 'final'
+                ? '<div class="m-detail-param" style="margin-top:8px;"><div class="m-param-label">Тип условий</div><div class="m-param-value" style="font-size:13px;color:#047857;">Итоговые · полный скоринг</div></div>'
+                : '');
 
         container.innerHTML = `
         <div class="m-detail-header">
@@ -156,8 +164,9 @@ function renderApplicationDetail(appId) {
         <div class="m-detail-params" style="margin-top:20px;">
             <div class="m-detail-param"><div class="m-param-label">Сумма кредита</div><div class="m-param-value">${(app.amount != null ? Number(app.amount) || 0 : 0).toLocaleString('ru-RU')} ₽</div></div>
             <div class="m-detail-param"><div class="m-param-label">Срок</div><div class="m-param-value">${app.term || '—'} лет</div></div>
-            <div class="m-detail-param"><div class="m-param-label">Ставка</div><div class="m-param-value ${app.rate ? '' : 'pending'}">${app.rate ? app.rate + '%' : 'ожидается'}</div></div>
-            <div class="m-detail-param"><div class="m-param-label">Платёж / мес.</div><div class="m-param-value ${app.payment ? '' : 'pending'}">${app.payment ? '~ ' + Number(app.payment).toLocaleString('ru-RU') + ' ₽' : 'ожидается'}</div></div>
+            <div class="m-detail-param"><div class="m-param-label">${rateLabel}</div><div class="m-param-value ${app.rate ? '' : 'pending'}">${app.rate ? app.rate + '%' : 'ожидается'}</div></div>
+            <div class="m-detail-param"><div class="m-param-label">${payLabel}</div><div class="m-param-value ${app.payment ? '' : 'pending'}">${app.payment ? '~ ' + Number(app.payment).toLocaleString('ru-RU') + ' ₽' : 'ожидается'}</div></div>
+            ${termsNote}
             ${app.selectedPackageLabel ? '<div class="m-detail-param"><div class="m-param-label">Рекомендуемый пакет условий</div><div class="m-param-value">' + app.selectedPackageLabel + (app.offerValidUntil ? ' <span style="font-size:11px;color:#7e9bb6;">(до ' + app.offerValidUntil + ')</span>' : '') + '</div></div>' : ''}
         </div>
         
@@ -267,32 +276,48 @@ function mActionButton(id, action, cls, icon, label) {
         '" onclick="managerAction(\'' + id + '\',\'' + action + '\')"><i class="fas ' + icon + '"></i> ' + label + '</button>';
 }
 
+function appTermsKind(app) {
+    if (!app) return null;
+    if (app.termsKind === 'final' || app.status === 'approved' || app.status === 'rejected') return 'final';
+    if (app.termsKind === 'preliminary' || app.status === 'decision' || app.status === 'valuation') {
+        return app.rate != null ? 'preliminary' : (app.status === 'valuation' ? 'preliminary' : null);
+    }
+    if (app.rate != null && app.status !== 'new' && app.status !== 'processing') return 'preliminary';
+    return null;
+}
+
+function mActionsHint(text) {
+    return '<div class="m-actions-hint">' + text + '</div>';
+}
+
 function getActionButtons(app) {
     var id = String((app && app.id) || '').replace(/'/g, "\\'");
     var scoring = '<button type="button" class="m-btn m-btn-primary" data-m-action="openScoring" data-app-id="' + id +
         '" onclick="openManagerScoring()"><i class="fas fa-flask"></i> Полный скоринг</button>';
+    var prescore = mActionButton(id, 'startScoring', 'm-btn-warning', 'fa-robot', 'Запустить прескоринг');
     switch(app.status) {
         case 'new':
             return mActionButton(id, 'requestDocs', 'm-btn-primary', 'fa-file-upload', 'Запросить документы') +
                     mActionButton(id, 'startReview', 'm-btn-outline', 'fa-play', 'Начать рассмотрение');
         case 'processing':
-            return mActionButton(id, 'startScoring', 'm-btn-warning', 'fa-robot', 'Запустить прескоринг') +
-                    scoring +
+            return mActionsHint('Прескоринг — первый этап: паспорт и запрос в БКИ. Предварительные условия, не финальное одобрение.') +
+                    prescore +
                     mActionButton(id, 'requestDocs', 'm-btn-outline', 'fa-file-upload', 'Запросить документы');
         case 'valuation':
-            return mActionButton(id, 'startScoring', 'm-btn-warning', 'fa-robot', 'Запустить прескоринг') +
-                    scoring +
-                    mActionButton(id, 'requestValuation', 'm-btn-outline', 'fa-home', 'Запросить оценку') +
+            return mActionsHint('Идёт прескоринг (паспорт + БКИ). Полный скоринг станет доступен после предварительного решения.') +
+                    prescore +
                     mActionButton(id, 'requestDocs', 'm-btn-outline', 'fa-file-upload', 'Запросить документы');
         case 'decision':
-            return mActionButton(id, 'approve', 'm-btn-success', 'fa-check', 'Одобрить') +
-                    mActionButton(id, 'reject', 'm-btn-danger', 'fa-times', 'Отклонить');
+            return mActionsHint('Прескоринг пройден. Итоговые условия — полный скоринг, обычно нужны оригиналы документов.') +
+                    scoring +
+                    mActionButton(id, 'requestDocs', 'm-btn-outline', 'fa-file-upload', 'Запросить оригиналы') +
+                    mActionButton(id, 'reject', 'm-btn-danger', 'fa-times', 'Клиент не подходит');
         case 'approved':
             return `<button type="button" class="m-btn m-btn-outline" onclick="alert('Договор отправлен клиенту')"><i class="fas fa-signature"></i> Отправить договор</button>`;
         case 'rejected':
             return `<button type="button" class="m-btn m-btn-outline" onclick="alert('Клиент уведомлён')"><i class="fas fa-redo"></i> Предложить изменить параметры</button>`;
         default:
-            return mActionButton(id, 'startScoring', 'm-btn-warning', 'fa-robot', 'Запустить прескоринг') + scoring;
+            return mActionsHint('Сначала прескоринг (паспорт + БКИ), затем полный скоринг по оригиналам.') + prescore;
     }
 }
 

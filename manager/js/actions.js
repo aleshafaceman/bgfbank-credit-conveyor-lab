@@ -22,13 +22,16 @@ function managerAction(appId, action) {
                 break;
 
             case 'startScoring':
-                updateApplicationStatus(appId, 'valuation', 'На оценке', 'Запущен прескоринг в Loginom');
-                sendChatMessage('manager', app.client, 'Запущен прескоринг по заявке №' + appId + '. Результат через 2 минуты.', app.client);
+                updateApplicationStatus(appId, 'valuation', 'Прескоринг', 'Запущен прескоринг: паспорт + БКИ');
+                sendChatMessage('manager', app.client, 'Запущен прескоринг по заявке №' + appId + ': паспорт и запрос в БКИ. Это предварительная проверка, условия могут отличаться от итоговых.', app.client);
                 try { refreshData(); } catch (e1) {}
                 try { renderApplicationDetail(appId); } catch (e2) {}
                 try { renderApplicationList(); } catch (e3) {}
                 try { if (typeof updateStats === 'function') updateStats(); } catch (e4) {}
-
+                if (typeof openManagerPrescoring === 'function') {
+                    openManagerPrescoring();
+                    break;
+                }
                 setTimeout(() => {
                     try {
                         refreshData();
@@ -45,14 +48,12 @@ function managerAction(appId, action) {
                                 : (typeof calculatePayment === 'function'
                                     ? calculatePayment(amount, rate, term)
                                     : Math.round(amount * (rate / 100) / 12 / (1 - Math.pow(1 + (rate / 100) / 12, -term * 12))));
-                            if (updatedApp.rate == null || updatedApp.payment == null) {
-                                updateApplication(appId, { rate, payment });
-                            }
-                            updateApplicationStatus(appId, 'decision', 'Решение', 'Прескоринг завершён. Ставка: ' + rate + '%');
+                            updateApplication(appId, { rate: rate, payment: payment, termsKind: 'preliminary' });
+                            updateApplicationStatus(appId, 'decision', 'Прескоринг пройден', 'Прескоринг завершён. Предварительная ставка: ' + rate + '%');
                             var payLabel = (typeof payment === 'number' && isFinite(payment))
                                 ? payment.toLocaleString('ru-RU')
                                 : String(payment || '0');
-                            sendChatMessage('manager', app.client, 'Прескоринг завершён! Ставка: ' + rate + '%, платёж: ~' + payLabel + ' ₽.', app.client);
+                            sendChatMessage('manager', app.client, 'Прескоринг пройден по заявке №' + appId + '. Предварительно: ставка ' + rate + '%, платёж ~' + payLabel + ' ₽. Это ещё не финальное одобрение.', app.client);
                         }
                     } catch (errS) {
                         console.error('startScoring timeout', errS);

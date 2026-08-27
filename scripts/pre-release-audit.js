@@ -420,6 +420,8 @@ console.log('\n=== 5. Manager app selection ===');
 
   ctx.selectManagerApp('4421-И');
   assert(ctx._els.mAppDetail.innerHTML.includes('data-m-action'), 'action buttons have data-m-action');
+  assert(ctx._els.mAppDetail.innerHTML.indexOf('Полный скоринг') === -1,
+    'processing app does not show full scoring next to prescoring');
   assert(ctx._els.mAppDetail._bgfActionBound === true, 'detail action delegation bound');
 
   // switchManagerTab must not wipe #m-tab-applications (that kills the list listener)
@@ -569,6 +571,17 @@ console.log('\n=== 8. TrustGate lab app is manager-only ===');
     'lab timeline marks collateral done');
   assert(steps.find(s => s.id === 'docs') && steps.find(s => s.id === 'docs').done === false,
     'lab timeline keeps EGRN as an open docs step');
+  assert(steps.find(s => s.id === 'prescore') && steps.find(s => s.id === 'scoring'),
+    'timeline splits prescoring and scoring');
+  assert(steps.find(s => s.id === 'prescore').done === false && steps.find(s => s.id === 'scoring').done === false,
+    'new lab app has neither prescore nor scoring done');
+
+  const procBtns = ctx.getActionButtons({ id: '4421-И', status: 'processing' });
+  assert(/прескоринг/i.test(procBtns) && procBtns.indexOf('Полный скоринг') === -1,
+    'processing shows prescoring only, not full scoring');
+  const decBtns = ctx.getActionButtons({ id: '4421-И', status: 'decision', rate: 12.5, termsKind: 'preliminary' });
+  assert(decBtns.indexOf('Полный скоринг') !== -1 && decBtns.indexOf('Запустить прескоринг') === -1,
+    'after prescore, only full scoring is offered');
 
   const scoringCode = fs.readFileSync(path.join(root, 'manager/js/scoring.js'), 'utf8');
   vm.runInNewContext(scoringCode, ctx, { filename: 'manager/js/scoring.js' });
@@ -579,6 +592,9 @@ console.log('\n=== 8. TrustGate lab app is manager-only ===');
   const fullSteps = ctx.scoringStepsForApp(fullApp);
   assert(fullSteps[6] && /3/.test(fullSteps[6].detail_ok),
     'scoring limit uses 4636 amount');
+  const preSteps = ctx.scoringStepsForApp(fullApp, 'prescore');
+  assert(preSteps.length === 3 && /Паспорт/.test(preSteps[0].name),
+    'prescoring is a 3-step passport+BKI check');
 
   const noNdfl = ctx.applyTrustGateToApplication(ctx.createFillInApplication(), 'no_ndfl');
   const noNdflHtml = ctx.renderCpCoverageHTML(noNdfl);

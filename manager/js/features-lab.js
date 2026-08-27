@@ -63,7 +63,9 @@ function getManagerAppTimelineSteps(app) {
     var accepted = app.packageStatus === 'accepted' || (app.rate != null && app.selectedPackageId);
     var approved = app.status === 'approved';
     var rejected = app.status === 'rejected';
-    var scoring = app.status === 'decision' || approved || rejected;
+    var termsKind = app.termsKind || (typeof appTermsKind === 'function' ? appTermsKind(app) : null);
+    var prescoreDone = app.status === 'valuation' || app.status === 'decision' || approved || rejected || termsKind === 'preliminary' || termsKind === 'final';
+    var scoringDone = approved || rejected || termsKind === 'final';
     var docs = Array.isArray(app.documents) ? app.documents : [];
     var docsDone = !docs.some(function(d) { return d && d.status === 'missing'; });
     var isLab = typeof isLkLabApplication === 'function' && isLkLabApplication(app);
@@ -76,7 +78,8 @@ function getManagerAppTimelineSteps(app) {
         { id: 'collateral', label: 'Залог', done: !!app.collateralValue },
         { id: 'package', label: 'Пакет', done: accepted },
         { id: 'docs', label: 'Документы', done: docsDone || approved },
-        { id: 'scoring', label: 'Скоринг', done: scoring },
+        { id: 'prescore', label: 'Прескоринг', done: prescoreDone },
+        { id: 'scoring', label: 'Скоринг', done: scoringDone },
         { id: 'decision', label: approved ? 'Одобрено' : (rejected ? 'Отказ' : 'Решение'), done: approved || rejected, fail: rejected }
     ];
 }

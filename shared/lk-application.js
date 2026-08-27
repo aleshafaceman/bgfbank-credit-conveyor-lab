@@ -595,6 +595,7 @@ function preserveLabWorkflow(prev, lab) {
     if (prev.selectedPackageLabel) lab.selectedPackageLabel = prev.selectedPackageLabel;
     if (prev.packageStatus) lab.packageStatus = prev.packageStatus;
     if (prev.offerValidUntil) lab.offerValidUntil = prev.offerValidUntil;
+    if (prev.termsKind) lab.termsKind = prev.termsKind;
     if (typeof prev.collateralValue === 'number' && isFinite(prev.collateralValue) && prev.collateralValue > 0) {
         lab.collateralValue = prev.collateralValue;
     }
