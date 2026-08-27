@@ -1,6 +1,6 @@
 // ========== ПОЛНЫЙ СКОРИНГ (МЕНЕДЖЕР) ==========
 
-var sSteps = [
+var sStepCatalog = [
     { name: 'Кредитная история (НБКИ)', source: 'НБКИ', time: '1.2 сек', detail_ok: 'Рейтинг: 720. Просрочек нет. 2 кредита.',
         issues: [{ type:'warning', title:'КИ не найдена', desc:'В НБКИ нет данных.', detail:'Рекомендация: продолжить с пометкой.', actions:['Продолжить','Отклонить'], prob:8 },
                  { type:'error', title:'Просрочки > 90 дней', desc:'Обнаружены просрочки > 90 дней.', detail:'Стоп-фактор.', actions:['Отклонить','Запросить объяснение'], prob:8 }] },
@@ -22,11 +22,47 @@ var sSteps = [
     { name: 'Финальное решение', source: 'Внутренний', time: '0.8 сек', detail_ok: 'Решение сформировано.', issues:[] }
 ];
 
+var sSteps = sStepCatalog;
 var sCurrent = 0;
 var sTimer = null;
 var sIssueLog = [];
 var sPendingIssue = null;
 var sPaused = false;
+
+function cloneScoringSteps(src) {
+    return (src || []).map(function(s) {
+        return Object.assign({}, s, {
+            issues: (s.issues || []).map(function(iss) { return Object.assign({}, iss); })
+        });
+    });
+}
+
+function scoringStepsForApp(app) {
+    var steps = cloneScoringSteps(sStepCatalog);
+    var amount = (app && Number(app.amount)) || 5400000;
+    var collateral = (app && typeof app.collateralValue === 'number' && isFinite(app.collateralValue) && app.collateralValue > 0)
+        ? app.collateralValue
+        : 8500000;
+    var income = 180000;
+    var ndflOk = true;
+    var cp = typeof getCpCoverage === 'function' ? getCpCoverage(app) : null;
+    if (cp && cp.scopes && cp.scopes.ndfl) ndflOk = cp.scopes.ndfl.status === 'ok';
+    if (app && app.lk && app.lk.borrowers && app.lk.borrowers[0] && app.lk.borrowers[0].incomes) {
+        income = app.lk.borrowers[0].incomes;
+    }
+    if (steps[2]) {
+        steps[2].detail_ok = ndflOk
+            ? ('Доход: ' + Number(income).toLocaleString('ru-RU') + ' ₽/мес. (2-НДФЛ из ЦП).')
+            : '2-НДФЛ в ЦП нет — ДУ тип 0, confirmation_income_summary = −1.';
+    }
+    if (steps[4]) {
+        steps[4].detail_ok = 'Стоимость: ' + collateral.toLocaleString('ru-RU') + ' ₽.';
+    }
+    if (steps[6]) {
+        steps[6].detail_ok = 'Ставка: 12.5%. Лимит: ' + amount.toLocaleString('ru-RU') + ' ₽.';
+    }
+    return steps;
+}
 
 function openManagerScoring() {
     document.getElementById('scoringOverlay').classList.remove('hidden');
@@ -37,6 +73,7 @@ function openManagerScoring() {
     var appId = (typeof selectedAppId !== 'undefined' && selectedAppId) ? selectedAppId : '4421-И';
     var apps = typeof getAllApplications === 'function' ? getAllApplications() : [];
     var app = apps.find(function(a) { return a.id === appId; });
+    sSteps = scoringStepsForApp(app);
     var titleEl = document.querySelector('#scoringOverlay .scoring-left h3');
     var subEl = document.querySelector('#scoringOverlay .scoring-left .subtitle');
     if (titleEl) titleEl.innerHTML = '<i class="fas fa-robot"></i> Скоринг заявки №' + appId;
@@ -169,7 +206,7 @@ function applyManagerScoringDecision(outcome) {
 
     if (outcome === 'approved') {
         var rate = (app.rate != null) ? app.rate : 12.5;
-        var amount = app.amount || 5000000;
+        var amount = app.amount || 3000000;
         var term = app.term || 15;
         var payment = (typeof calculatePayment === 'function')
             ? calculatePayment(amount, rate, term)

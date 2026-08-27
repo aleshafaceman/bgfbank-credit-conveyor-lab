@@ -201,6 +201,7 @@ console.log('\n=== 1. Syntax check ===');
   'manager/js/navigation.js',
   'manager/js/auth.js',
   'manager/js/manager.js',
+  'manager/js/features-lab.js',
   'manager/js/client-card.js',
   'manager/js/scoring.js',
   'manager/js/actions.js',
@@ -523,6 +524,13 @@ console.log('\n=== 8. TrustGate lab app is manager-only ===');
   assert(lab && /Крылатская/.test(lab.collateralAddress || ''), 'manager flatten has collateral address');
   assert(lab && lab.collateralValue === 8500000, '4636 has Krylatskaya valuation');
   assert(lab && lab.date === '27.08.2026', '4636 date is pinned');
+  const szi = (lab.documents || []).find(d => /СЗИ-6/.test(d.name || ''));
+  assert(szi && szi.status === 'skipped', 'SZI-6 is skipped, not a hole');
+  const egrn = (lab.documents || []).find(d => /ЕГРН/.test(d.name || ''));
+  assert(egrn && egrn.status === 'missing', 'EGRN stays a real hole');
+  const kuzClient = ctx.getAllClients()['Александр Кузнецов'];
+  assert(kuzClient && /4508/.test(kuzClient.passport || ''), 'Kuznetsov passport from TrustGate');
+  assert(kuzClient && /1988/.test(kuzClient.birthDate || ''), 'Kuznetsov birth from TrustGate');
   assert(lab && lab.statusLabel && lab.statusLabel.indexOf('FILL_IN') === -1,
     'manager card label is not raw FILL_IN');
 
@@ -549,6 +557,28 @@ console.log('\n=== 8. TrustGate lab app is manager-only ===');
   assert(mgrHtml.includes('Состояние движка'), 'manager CP block labels FILL_IN as engine state');
   assert(mgrHtml.includes('кадастр'), 'manager CP block maps realty hole to cadastral');
   assert(mgrHtml.includes('не ждём'), 'manager CP block says family is not a hole');
+  assert(mgrHtml.includes('doc-skipped') || mgrHtml.includes('Не пришёл — это норма'),
+    'manager detail does not paint SZI-6 as a red hole');
+
+  const featCode = fs.readFileSync(path.join(root, 'manager/js/features-lab.js'), 'utf8');
+  vm.runInNewContext(featCode, ctx, { filename: 'manager/js/features-lab.js' });
+  const steps = ctx.getManagerAppTimelineSteps(lab);
+  assert(steps.find(s => s.id === 'esia') && steps.find(s => s.id === 'esia').label === 'ЦП',
+    'lab timeline labels CP instead of ESIA');
+  assert(steps.find(s => s.id === 'collateral') && steps.find(s => s.id === 'collateral').done,
+    'lab timeline marks collateral done');
+  assert(steps.find(s => s.id === 'docs') && steps.find(s => s.id === 'docs').done === false,
+    'lab timeline keeps EGRN as an open docs step');
+
+  const scoringCode = fs.readFileSync(path.join(root, 'manager/js/scoring.js'), 'utf8');
+  vm.runInNewContext(scoringCode, ctx, { filename: 'manager/js/scoring.js' });
+  const noNdflSteps = ctx.scoringStepsForApp(ctx.applyTrustGateToApplication(ctx.createFillInApplication(), 'no_ndfl'));
+  assert(noNdflSteps[2] && /ДУ тип 0/.test(noNdflSteps[2].detail_ok),
+    'scoring income step mentions DU type 0 without 2-НДФЛ');
+  const fullApp = ctx.getAllApplications().find(a => a.id === '4636-И');
+  const fullSteps = ctx.scoringStepsForApp(fullApp);
+  assert(fullSteps[6] && /3/.test(fullSteps[6].detail_ok),
+    'scoring limit uses 4636 amount');
 
   const noNdfl = ctx.applyTrustGateToApplication(ctx.createFillInApplication(), 'no_ndfl');
   const noNdflHtml = ctx.renderCpCoverageHTML(noNdfl);

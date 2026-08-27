@@ -84,6 +84,7 @@ body { background: #f0f4f8; min-height: 100vh; }
 .m-doc-item .doc-status { font-size: 11px; padding: 3px 8px; border-radius: 6px; font-weight: 600; }
 .doc-uploaded { background: #d1fae5; color: #065f46; }
 .doc-missing { background: #fee2e2; color: #991b1b; }
+.doc-skipped { background: #f1f5f9; color: #64748b; }
 .m-actions { display: flex; flex-wrap: wrap; gap: 10px; }
 .m-btn { padding: 12px 20px; border-radius: 10px; font-weight: 700; font-size: 13px; cursor: pointer; border: none; transition: 0.2s; display: flex; align-items: center; gap: 6px; }
 .m-btn-primary { background: #003b6f; color: white; }

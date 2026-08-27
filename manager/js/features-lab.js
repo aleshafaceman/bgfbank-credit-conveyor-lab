@@ -66,10 +66,13 @@ function getManagerAppTimelineSteps(app) {
     var scoring = app.status === 'decision' || approved || rejected;
     var docs = Array.isArray(app.documents) ? app.documents : [];
     var docsDone = !docs.some(function(d) { return d && d.status === 'missing'; });
+    var isLab = typeof isLkLabApplication === 'function' && isLkLabApplication(app);
+    var cp = typeof getCpCoverage === 'function' ? getCpCoverage(app) : null;
+    var cpDone = !!(cp && cp.scopes && cp.scopes.passport && cp.scopes.passport.status === 'ok');
 
     return [
         { id: 'create', label: 'Заявка', done: true },
-        { id: 'esia', label: 'ЕСИА', done: true },
+        { id: 'esia', label: isLab ? 'ЦП' : 'ЕСИА', done: isLab ? cpDone : true },
         { id: 'collateral', label: 'Залог', done: !!app.collateralValue },
         { id: 'package', label: 'Пакет', done: accepted },
         { id: 'docs', label: 'Документы', done: docsDone || approved },

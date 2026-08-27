@@ -19,7 +19,9 @@ function openClientCard(clientName) {
     document.getElementById('mAppDetail').classList.add('hidden');
     document.getElementById('mClientDetail').classList.remove('hidden');
     
-    const allDocs = [...new Set(apps.flatMap(a => (Array.isArray(a.documents) ? a.documents : []).map(d => d.name)))];
+    const allDocs = [...new Set(apps.flatMap(a => (Array.isArray(a.documents) ? a.documents : [])
+        .filter(d => d && d.status !== 'skipped')
+        .map(d => d.name)))];
     const docsSummary = allDocs.map(docName => ({
         name: docName,
         uploaded: apps.some(a => (Array.isArray(a.documents) ? a.documents : []).find(d => d.name === docName && d.status === 'uploaded'))
@@ -122,7 +124,9 @@ function openClientCard(clientName) {
     if (detail && !detail._bgfAppClickBound) {
         detail._bgfAppClickBound = true;
         detail.addEventListener('click', function(e) {
-            var card = e.target.closest('[data-select-app]');
+            var el = e.target;
+            if (el && el.nodeType !== 1) el = el.parentElement;
+            var card = el && el.closest ? el.closest('[data-select-app]') : null;
             if (!card) return;
             var id = card.getAttribute('data-select-app');
             if (!id) return;

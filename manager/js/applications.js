@@ -170,13 +170,17 @@ function renderApplicationDetail(appId) {
         <div class="m-section">
             <h4><i class="fas fa-file-alt"></i> Документы клиента</h4>
             <div class="m-doc-list">
-                ${docs.length ? docs.map(d => `
+                ${docs.length ? docs.map(d => {
+                    var st = d.status === 'uploaded' ? 'uploaded' : (d.status === 'skipped' ? 'skipped' : 'missing');
+                    var icon = st === 'uploaded' ? 'fa-check-circle' : (st === 'skipped' ? 'fa-minus-circle' : 'fa-times-circle');
+                    var color = st === 'uploaded' ? '#10b981' : (st === 'skipped' ? '#94a3b8' : '#ef4444');
+                    return `
                     <div class="m-doc-item">
-                        <i class="fas ${d.status === 'uploaded' ? 'fa-check-circle' : 'fa-times-circle'}" style="color:${d.status === 'uploaded' ? '#10b981' : '#ef4444'};"></i>
+                        <i class="fas ${icon}" style="color:${color};"></i>
                         <span class="doc-name">${d.name || ''}</span>
-                        <span class="doc-status ${d.status === 'uploaded' ? 'doc-uploaded' : 'doc-missing'}">${d.statusLabel || d.status || ''}</span>
-                    </div>
-                `).join('') : '<div style="color:#94a3b8;font-size:13px;">Документы не загружены</div>'}
+                        <span class="doc-status ${st === 'uploaded' ? 'doc-uploaded' : (st === 'skipped' ? 'doc-skipped' : 'doc-missing')}">${d.statusLabel || d.status || ''}</span>
+                    </div>`;
+                }).join('') : '<div style="color:#94a3b8;font-size:13px;">Документы не загружены</div>'}
             </div>
         </div>
         

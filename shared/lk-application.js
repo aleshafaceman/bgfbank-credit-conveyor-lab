@@ -386,19 +386,17 @@ function formatLkPhone(raw) {
 
 function documentsFromCp(lk) {
     var scopes = (lk && lk.extra_data && lk.extra_data.cp && lk.extra_data.cp.scopes) || {};
-    function doc(name, scope, okLabel, missLabel) {
+    function doc(name, scope, okLabel, missLabel, skipLabel) {
         var st = scope && scope.status === 'ok';
-        return {
-            name: name,
-            status: st ? 'uploaded' : 'missing',
-            statusLabel: st ? okLabel : missLabel
-        };
+        if (st) return { name: name, status: 'uploaded', statusLabel: okLabel };
+        if (skipLabel) return { name: name, status: 'skipped', statusLabel: skipLabel };
+        return { name: name, status: 'missing', statusLabel: missLabel };
     }
     return [
         doc('Паспорт (разворот)', scopes.passport, 'Из ЦП (TrustGate)', 'Нет в ЦП'),
         doc('ИНН / СНИЛС', scopes.inn, 'Из ЦП (TrustGate)', 'Нет в ЦП'),
         doc('Данные о доходе (2-НДФЛ)', scopes.ndfl, 'INCOME_REFERENCE из ЦП', 'ЦП не вернул — ДУ тип 0'),
-        doc('СЗИ-6', scopes.szi6, 'Из ЦП (редко)', 'Не пришёл — это норма'),
+        doc('СЗИ-6', scopes.szi6, 'Из ЦП (редко)', 'Не пришёл — это норма', 'Не пришёл — это норма'),
         { name: 'Выписка ЕГРН', status: 'missing', statusLabel: 'Нужен кадастр, не ЦП' }
     ];
 }
