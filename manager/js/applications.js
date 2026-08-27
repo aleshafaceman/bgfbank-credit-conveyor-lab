@@ -28,7 +28,7 @@ function renderApplicationList(filteredApps) {
             var amount = (typeof app.amount === 'number' && isFinite(app.amount)) ? app.amount : (Number(app.amount) || 0);
             return '<div class="m-app-card' + (app.id === selectedAppId ? ' active' : '') + '" data-app-id="' + String(app.id).replace(/"/g, '&quot;') + '">' +
                 '<div class="m-card-row">' +
-                    '<span class="m-card-id">№' + app.id + '</span>' +
+                    '<span><span class="m-card-id">№' + app.id + '</span>' + appOriginBadgeHTML(app) + '</span>' +
                     '<span class="m-card-date">' + (app.date || '') + '</span>' +
                 '</div>' +
                 '<div class="m-card-client">' + (app.client || '') + '</div>' +
@@ -149,7 +149,7 @@ function renderApplicationDetail(appId) {
         container.innerHTML = `
         <div class="m-detail-header">
             <div>
-                <div class="m-detail-id">№${app.id}</div>
+                <div class="m-detail-id">№${app.id}${appOriginBadgeHTML(app)}</div>
                 <div class="m-detail-product">${app.product || 'Кредит под залог недвижимости'}</div>
             </div>
             <span class="m-badge ${statusClasses[app.status] || 'badge-processing'}">${app.statusLabel || app.status || ''}</span>
@@ -257,11 +257,14 @@ function bindManagerDetailActions(root) {
         if (el.closest('[data-cp-profile]')) return;
         var btn = el.closest('[data-m-action]');
         if (!btn) return;
+        if (e && e.stopPropagation) e.stopPropagation();
         var act = btn.getAttribute('data-m-action');
         var appId = btn.getAttribute('data-app-id');
         try {
             if (act === 'openScoring' && typeof openManagerScoring === 'function') {
                 openManagerScoring();
+            } else if (act === 'requestExternalDU' && typeof requestExternalDU === 'function') {
+                requestExternalDU(appId, btn.getAttribute('data-du-id'));
             } else if (act && appId && typeof managerAction === 'function') {
                 managerAction(appId, act);
             }
@@ -286,14 +289,63 @@ function appTermsKind(app) {
     return null;
 }
 
-function mActionsHint(text) {
-    return '<div class="m-actions-hint">' + text + '</div>';
+function mActionsHint(text, extraClass) {
+    return '<div class="m-actions-hint' + (extraClass ? ' ' + extraClass : '') + '">' + text + '</div>';
+}
+
+function managerNotify(message) {
+    if (typeof showManagerToast === 'function') {
+        try { showManagerToast(String(message || '')); return; } catch (e) {}
+    }
+    try { alert(String(message || '')); } catch (e2) {}
+}
+
+var ORIGINAL_DU_IDS = { du00: true, du01: true, du04: true, du19: true };
+
+function appOriginKind(app) {
+    if (typeof isLkLabApplication === 'function' && isLkLabApplication(app)) return 'lab';
+    return 'conveyor';
+}
+
+function appOriginBadgeHTML(app) {
+    if (appOriginKind(app) === 'lab') {
+        return '<span class="m-card-origin m-card-origin--lab">Лаб. ЦП</span>';
+    }
+    return '<span class="m-card-origin m-card-origin--conveyor">Конвейер</span>';
+}
+
+function missingOriginals(app) {
+    var items = [];
+    var seen = {};
+    function add(name) {
+        var label = String(name || '').trim();
+        if (!label) return;
+        var key = label.toLowerCase();
+        if (seen[key]) return;
+        seen[key] = true;
+        items.push(label);
+    }
+    ((app && app.documents) || []).forEach(function(d) {
+        if (d && d.status === 'missing') add(d.name);
+    });
+    if (typeof getRequiredDU === 'function') {
+        var duList = [];
+        try { duList = getRequiredDU(app, true) || []; } catch (eDu) { duList = []; }
+        duList.forEach(function(d) {
+            if (!d || !ORIGINAL_DU_IDS[d.id]) return;
+            if (d.status === 'auto_received' || d.status === 'ext_received' || d.status === 'uploaded') return;
+            add(d.name);
+        });
+    }
+    return items;
 }
 
 function getActionButtons(app) {
     var id = String((app && app.id) || '').replace(/'/g, "\\'");
-    var scoring = '<button type="button" class="m-btn m-btn-primary" data-m-action="openScoring" data-app-id="' + id +
+    var scoringPrimary = '<button type="button" class="m-btn m-btn-primary" data-m-action="openScoring" data-app-id="' + id +
         '" onclick="openManagerScoring()"><i class="fas fa-flask"></i> Полный скоринг</button>';
+    var scoringSkip = '<button type="button" class="m-btn m-btn-outline" data-m-action="openScoring" data-app-id="' + id +
+        '" onclick="openManagerScoring()"><i class="fas fa-flask"></i> Полный скоринг без комплекта</button>';
     var prescore = mActionButton(id, 'startScoring', 'm-btn-warning', 'fa-robot', 'Запустить прескоринг');
     switch(app.status) {
         case 'new':
@@ -308,14 +360,20 @@ function getActionButtons(app) {
                     prescore +
                     mActionButton(id, 'requestDocs', 'm-btn-outline', 'fa-file-upload', 'Запросить документы');
         case 'decision':
-            return mActionsHint('Прескоринг пройден. Итоговые условия — полный скоринг, обычно нужны оригиналы документов.') +
-                    scoring +
-                    mActionButton(id, 'requestDocs', 'm-btn-outline', 'fa-file-upload', 'Запросить оригиналы') +
+            var missing = missingOriginals(app);
+            if (missing.length) {
+                return mActionsHint('Прескоринг пройден. Для полного скоринга не хватает оригиналов: ' + missing.join('; ') + '.', 'm-actions-hint--warn') +
+                    mActionButton(id, 'requestDocs', 'm-btn-primary', 'fa-file-upload', 'Запросить оригиналы') +
+                    scoringSkip +
+                    mActionButton(id, 'reject', 'm-btn-danger', 'fa-times', 'Клиент не подходит');
+            }
+            return mActionsHint('Прескоринг пройден. Комплект оригиналов собран — можно запускать полный скоринг.') +
+                    scoringPrimary +
                     mActionButton(id, 'reject', 'm-btn-danger', 'fa-times', 'Клиент не подходит');
         case 'approved':
-            return `<button type="button" class="m-btn m-btn-outline" onclick="alert('Договор отправлен клиенту')"><i class="fas fa-signature"></i> Отправить договор</button>`;
+            return mActionButton(id, 'sendContract', 'm-btn-outline', 'fa-signature', 'Отправить договор');
         case 'rejected':
-            return `<button type="button" class="m-btn m-btn-outline" onclick="alert('Клиент уведомлён')"><i class="fas fa-redo"></i> Предложить изменить параметры</button>`;
+            return mActionButton(id, 'suggestParams', 'm-btn-outline', 'fa-redo', 'Предложить изменить параметры');
         default:
             return mActionsHint('Сначала прескоринг (паспорт + БКИ), затем полный скоринг по оригиналам.') + prescore;
     }
@@ -474,7 +532,7 @@ function requestDUFromClient(appId, duId, clientName) {
     refreshData();
     renderApplicationDetail(appId);
     
-    alert('Клиенту ' + clientName + ' отправлен запрос на предоставление документа:\n\n' + du.name + '\n\nСообщение отправлено в чат.');
+    managerNotify('Клиенту ' + clientName + ' запрошен документ: «' + du.name + '»');
 }
 
 function requestAllDUFromClient(appId, clientName) {
@@ -485,7 +543,7 @@ function requestAllDUFromClient(appId, clientName) {
     var pendingDUs = duList.filter(function(d) { return d.status === 'pending' && d.source === 'client'; });
     
     if (pendingDUs.length === 0) {
-        alert('Все документы уже получены или запрошены.');
+        managerNotify('Все документы уже получены или запрошены.');
         return;
     }
     
@@ -508,7 +566,75 @@ function requestAllDUFromClient(appId, clientName) {
     renderApplicationDetail(appId);
     renderApplicationList();
     
-    alert('Клиенту ' + clientName + ' отправлен запрос на ' + pendingDUs.length + ' документов.\n\nСообщение отправлено в чат.');
+    managerNotify('Клиенту ' + clientName + ' запрошено документов: ' + pendingDUs.length);
+}
+
+function documentMatcherForDU(duId) {
+    if (duId === 'du00') return /2-ндфл|справка о доходе|данн(ые|ых) о доходе/i;
+    if (duId === 'du01') return /домов|поквартирн/i;
+    if (duId === 'du04' || duId === 'du19') return /егрн/i;
+    return null;
+}
+
+function patchDocumentsFromExternalDU(appId, duId) {
+    var apps = (typeof getAllApplications === 'function')
+        ? getAllApplications()
+        : (typeof managerApplications !== 'undefined' ? managerApplications : []);
+    var app = (apps || []).find(function(a) { return a && a.id === appId; });
+    if (!app) return;
+    var matcher = documentMatcherForDU(duId);
+    var docs = Array.isArray(app.documents) ? app.documents.slice() : [];
+    var changed = false;
+    if (matcher) {
+        docs = docs.map(function(d) {
+            if (d && matcher.test(d.name || '') && d.status === 'missing') {
+                changed = true;
+                return Object.assign({}, d, { status: 'uploaded', statusLabel: 'Получено по внешнему запросу' });
+            }
+            return d;
+        });
+        if ((duId === 'du04' || duId === 'du19') && !docs.some(function(d) { return /егрн/i.test((d && d.name) || ''); })) {
+            docs.push({ name: 'Выписка ЕГРН', status: 'uploaded', statusLabel: 'Получено по внешнему запросу' });
+            changed = true;
+        }
+        if (duId === 'du01' && !docs.some(function(d) { return /домов|поквартирн/i.test((d && d.name) || ''); })) {
+            docs.push({ name: 'Выписка из Домовой Книги', status: 'uploaded', statusLabel: 'Получено по внешнему запросу' });
+            changed = true;
+        }
+        if (duId === 'du00' && !docs.some(function(d) { return /2-ндфл|доход/i.test((d && d.name) || ''); })) {
+            docs.push({ name: 'Справка 2-НДФЛ', status: 'uploaded', statusLabel: 'Получено по внешнему запросу' });
+            changed = true;
+        }
+    }
+    if (changed && typeof updateApplication === 'function') {
+        updateApplication(appId, { documents: docs });
+    }
+}
+
+var __bgfExtDuBusy = false;
+
+function requestExternalDU(appId, duId) {
+    if (__bgfExtDuBusy) return;
+    __bgfExtDuBusy = true;
+    try {
+        var du = allDU.find(function(d) { return d.id === duId; });
+        if (!du) return;
+        duStorage[appId + '_' + duId] = 'ext_received';
+        patchDocumentsFromExternalDU(appId, duId);
+        var apps = (typeof getAllApplications === 'function')
+            ? getAllApplications()
+            : (typeof managerApplications !== 'undefined' ? managerApplications : []);
+        var app = (apps || []).find(function(a) { return a && a.id === appId; });
+        if (app && typeof updateApplicationStatus === 'function') {
+            updateApplicationStatus(appId, app.status, app.statusLabel, 'Внешний запрос: получено «' + du.name + '»');
+        }
+        if (typeof refreshData === 'function') refreshData();
+        if (typeof renderApplicationDetail === 'function') renderApplicationDetail(appId);
+        if (typeof renderApplicationList === 'function') renderApplicationList();
+        managerNotify('Получено: ' + du.name);
+    } finally {
+        setTimeout(function() { __bgfExtDuBusy = false; }, 0);
+    }
 }
 
 function getDUStatusFromProfile(duId, clientName) {
@@ -570,7 +696,7 @@ function renderDUSection(app) {
             
             if (du.status === 'pending') {
                 if (du.source === 'external') {
-                    h += '<button class="m-btn m-btn-outline" style="padding:4px 10px;font-size:10px;" onclick="alert(\'Запрос направлен в ' + du.name + '\')"><i class="fas fa-building"></i> Запросить</button>';
+                    h += '<button type="button" class="m-btn m-btn-outline" style="padding:4px 10px;font-size:10px;" data-m-action="requestExternalDU" data-app-id="' + String(app.id).replace(/"/g, '&quot;') + '" data-du-id="' + du.id + '" onclick="requestExternalDU(\'' + String(app.id).replace(/'/g, "\\'") + '\', \'' + du.id + '\')"><i class="fas fa-building"></i> Запросить</button>';
                 } else if (du.source === 'client') {
                     h += '<button class="m-btn m-btn-outline" style="padding:4px 10px;font-size:10px;white-space:nowrap;" onclick="requestDUFromClient(\'' + app.id + '\', \'' + du.id + '\', \'' + String(app.client || '').replace(/'/g, "\\'") + '\')"><i class="fas fa-comment-dots"></i> Запросить в чат</button>';
                 }
@@ -582,7 +708,6 @@ function renderDUSection(app) {
     
     h += '<div style="display:flex;gap:8px;margin-top:12px;">';
     h += '<button class="m-btn m-btn-primary" style="flex:1;padding:10px;font-size:12px;" onclick="requestAllDUFromClient(\'' + app.id + '\', \'' + String(app.client || '').replace(/'/g, "\\'") + '\')"><i class="fas fa-paper-plane"></i> Запросить все ДУ (в чат)</button>';
-    h += '<button class="m-btn m-btn-outline" style="flex:1;padding:10px;font-size:12px;" onclick="alert(\'Открывается выбор отдельных ДУ...\')"><i class="fas fa-list-check"></i> Выбрать отдельно</button>';
     h += '</div>';
     
     h += '</div>';

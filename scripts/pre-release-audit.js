@@ -81,10 +81,14 @@ function loadSharedContext() {
     'applicationDetail', 'applicationsList',     'mAppCards', 'mAppDetail', 'mClientDetail',
     'm-tab-applications', 'm-tab-clients', 'm-tab-chat', 'm-tab-reports',
     'st-1', 'st-2', 'st-3', 'st-4', 'st-5', 'res-limit', 'res-rate', 'res-term',
-    'res-payment', 'ltv-label', 'filterStatus', 'filterSearch'
+    'res-payment', 'ltv-label', 'filterStatus', 'filterSearch',
+    'scoringOverlay', 'sOverlayTitle', 'sOverlaySubtitle', 'sModeBadge', 'sRunBtn',
+    'sResultArea', 'sIssueCounters', 'sResultSubtitle', 'sProgressFill', 'sProgressLabel',
+    'sDetailTitle', 'sDetailContent', 'sStepList'
   ];
   needed.forEach(id => { documentEls[id] = makeEl(id); });
   documentEls.collateralSelect.tagName = 'SELECT';
+  documentEls.scoringOverlay.classList.add('hidden');
 
   const ctx = {
     console,
@@ -114,9 +118,12 @@ function loadSharedContext() {
     Set,
     Map,
     alert(msg) { ctx._alerts.push(String(msg)); },
+    confirm(msg) { ctx._confirms.push(String(msg)); return true; },
+    prompt() { return null; },
     setTimeout(fn) { if (typeof fn === 'function') fn(); return 0; },
     clearInterval() {},
     _alerts: [],
+    _confirms: [],
     _els: documentEls
   };
   ctx.window = ctx;
@@ -503,6 +510,8 @@ console.log('\n=== 7. HTML script order / critical refs ===');
     'selectManagerApp defined');
   assert(mgr.includes("closest('.m-app-card')"), 'manager index delegates m-app-card clicks');
   assert(mgr.includes('[data-m-action]'), 'manager index delegates data-m-action clicks');
+  assert(mgr.includes('sModeBadge'), 'scoring overlay has mode badge');
+  assert(mgr.includes('requestExternalDU'), 'manager index wires external DU requests');
   assert(fs.readFileSync(path.join(root, 'manager/js/applications.js'), 'utf8').includes('data-m-action'),
     'action buttons emit data-m-action');
   assert(fs.readFileSync(path.join(root, 'manager/js/navigation.js'), 'utf8').includes("tab === 'applications'"),
@@ -580,8 +589,8 @@ console.log('\n=== 8. TrustGate lab app is manager-only ===');
   assert(/прескоринг/i.test(procBtns) && procBtns.indexOf('Полный скоринг') === -1,
     'processing shows prescoring only, not full scoring');
   const decBtns = ctx.getActionButtons({ id: '4421-И', status: 'decision', rate: 12.5, termsKind: 'preliminary' });
-  assert(decBtns.indexOf('Полный скоринг') !== -1 && decBtns.indexOf('Запустить прескоринг') === -1,
-    'after prescore, only full scoring is offered');
+  assert(decBtns.indexOf('Запустить прескоринг') === -1, 'after prescore, prescoring is not offered');
+  assert(decBtns.indexOf('Полный скоринг') !== -1, 'after prescore, full scoring is offered');
 
   const scoringCode = fs.readFileSync(path.join(root, 'manager/js/scoring.js'), 'utf8');
   vm.runInNewContext(scoringCode, ctx, { filename: 'manager/js/scoring.js' });
@@ -636,6 +645,66 @@ console.log('\n=== 8. TrustGate lab app is manager-only ===');
   const app4421 = ctx.getAllApplications().find(a => a.id === '4421-И');
   assert(ctx.getRequiredDU(app4421, true).some(d => d.id === 'du14'),
     'other manager apps still include marriage DU');
+
+  ctx.renderApplicationList();
+  assert(ctx._els.mAppCards.innerHTML.includes('Лаб. ЦП'), 'list marks 4636 as lab CP');
+  assert(ctx._els.mAppCards.innerHTML.includes('Конвейер'), 'list marks conveyor apps');
+  ctx.selectManagerApp('4636-И');
+  assert(ctx._els.mAppDetail.innerHTML.includes('Лаб. ЦП'), '4636 detail shows lab badge');
+  ctx.selectManagerApp('4421-И');
+  assert(ctx._els.mAppDetail.innerHTML.includes('Конвейер'), '4421 detail shows conveyor badge');
+
+  const missingLab = ctx.missingOriginals(lab);
+  assert(missingLab.some(n => /ЕГРН/i.test(n)), '4636 missing originals include EGRN');
+  const labDecisionBtns = ctx.getActionButtons(Object.assign({}, lab, {
+    status: 'decision', termsKind: 'preliminary', rate: 12.5
+  }));
+  assert(labDecisionBtns.indexOf('Полный скоринг без комплекта') !== -1,
+    'decision with missing originals offers scoring without the set');
+  assert(labDecisionBtns.indexOf('Запросить оригиналы') !== -1,
+    'decision with missing originals makes request-originals primary');
+
+  const labDocsSnapshot = (ctx.getAllApplications().find(a => a.id === '4636-И').documents || [])
+    .map(d => Object.assign({}, d));
+
+  ['du01', 'du04', 'du19'].forEach(function(id) { ctx.requestExternalDU('4636-И', id); });
+  const labAfterDu = ctx.getAllApplications().find(a => a.id === '4636-И');
+  const egrnAfter = (labAfterDu.documents || []).find(d => /ЕГРН/i.test(d.name || ''));
+  assert(egrnAfter && egrnAfter.status === 'uploaded', 'external DU request marks EGRN uploaded');
+  assert(ctx.missingOriginals(labAfterDu).length === 0, 'originals empty after EGRN/house-book DUs');
+  const completeBtns = ctx.getActionButtons(Object.assign({}, labAfterDu, {
+    status: 'decision', termsKind: 'preliminary', rate: 12.5
+  }));
+  assert(completeBtns.indexOf('Полный скоринг без комплекта') === -1, 'complete set does not offer skip');
+  assert(completeBtns.indexOf('Полный скоринг') !== -1, 'complete set offers full scoring');
+
+  const overlay = ctx.document.getElementById('scoringOverlay');
+  ctx.scoringOverlayChrome('4636-И', labAfterDu, 'prescore');
+  assert(overlay.classList.contains('mode-prescore'), 'overlay gets prescore mode class');
+  assert(ctx._els.sModeBadge.textContent === 'Прескоринг', 'overlay badge says prescoring');
+  ctx.scoringOverlayChrome('4636-И', labAfterDu, 'full');
+  assert(overlay.classList.contains('mode-full'), 'overlay gets full mode class');
+  assert(!overlay.classList.contains('mode-prescore'), 'full mode drops prescore class');
+  assert(ctx._els.sModeBadge.textContent === 'Полный скоринг', 'overlay badge says full scoring');
+
+  ctx.duStorage = {};
+  ctx.updateApplication('4636-И', { documents: labDocsSnapshot.map(d => Object.assign({}, d)) });
+  const runs = [];
+  ctx.startScoringRun = function(mode) { runs.push(mode); };
+  ctx._confirms = [];
+  ctx.confirm = function(msg) { ctx._confirms.push(String(msg)); return false; };
+  ctx.selectedAppId = '4636-И';
+  ctx.openManagerScoring();
+  assert(ctx._confirms.length === 1, 'full scoring confirms when originals are missing');
+  assert(runs.length === 0, 'cancelled confirm does not start full scoring');
+  ctx.openManagerScoring(true);
+  assert(runs[0] === 'full', 'forced full scoring skips confirm');
+
+  const approvedBtns = ctx.getActionButtons({ id: '3890-И', status: 'approved' });
+  assert(approvedBtns.indexOf('sendContract') !== -1 && approvedBtns.indexOf("alert(") === -1,
+    'approved contract button is wired, not a dead alert');
+  assert(fs.readFileSync(path.join(root, 'manager/js/applications.js'), 'utf8').indexOf('Выбрать отдельно') === -1,
+    'dead DU picker button is removed');
 }
 
 console.log('\n=== Summary ===');

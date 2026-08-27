@@ -48,6 +48,20 @@ body { background: #f0f4f8; min-height: 100vh; }
 .m-app-card.active { border-color: #003b6f; background: #f4f9ff; }
 .m-app-card .m-card-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
 .m-app-card .m-card-id { font-weight: 700; font-size: 14px; color: #003b6f; }
+.m-card-origin {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 8px;
+    padding: 2px 7px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    vertical-align: middle;
+}
+.m-card-origin--lab { background: #ede9fe; color: #5b21b6; }
+.m-card-origin--conveyor { background: #e2e8f0; color: #475569; }
+.m-detail-id .m-card-origin { font-size: 11px; font-weight: 700; }
 .m-app-card .m-card-date { font-size: 11px; color: #94a3b8; }
 .m-app-card .m-card-client { font-size: 13px; color: #64748b; margin-bottom: 6px; }
 .m-app-card .m-card-bottom { display: flex; justify-content: space-between; align-items: center; }
@@ -87,6 +101,7 @@ body { background: #f0f4f8; min-height: 100vh; }
 .doc-skipped { background: #f1f5f9; color: #64748b; }
 .m-actions { display: flex; flex-wrap: wrap; gap: 10px; }
 .m-actions-hint { flex: 1 0 100%; font-size: 12px; color: #64748b; line-height: 1.45; margin-bottom: 2px; }
+.m-actions-hint--warn { color: #9a3412; background: #fff7ed; border-radius: 8px; padding: 8px 10px; }
 .m-btn { padding: 12px 20px; border-radius: 10px; font-weight: 700; font-size: 13px; cursor: pointer; border: none; transition: 0.2s; display: flex; align-items: center; gap: 6px; }
 .m-btn-primary { background: #003b6f; color: white; }
 .m-btn-primary:hover { background: #002d56; }

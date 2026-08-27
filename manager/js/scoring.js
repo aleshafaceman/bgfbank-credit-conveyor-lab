@@ -92,16 +92,25 @@ function scoringStepsForApp(app, mode) {
 }
 
 function scoringOverlayChrome(appId, app, mode) {
-    var titleEl = document.querySelector('#scoringOverlay .scoring-left h3');
-    var subEl = document.querySelector('#scoringOverlay .scoring-left .subtitle');
+    var overlay = document.getElementById('scoringOverlay');
+    var titleEl = document.getElementById('sOverlayTitle') || (overlay && overlay.querySelector && overlay.querySelector('.scoring-left h3'));
+    var subEl = document.getElementById('sOverlaySubtitle') || (overlay && overlay.querySelector && overlay.querySelector('.scoring-left .subtitle'));
+    var badgeEl = document.getElementById('sModeBadge');
     var runBtn = document.getElementById('sRunBtn');
+    if (overlay && overlay.classList) {
+        overlay.classList.remove('mode-prescore');
+        overlay.classList.remove('mode-full');
+        overlay.classList.add(mode === 'prescore' ? 'mode-prescore' : 'mode-full');
+    }
     if (mode === 'prescore') {
         if (titleEl) titleEl.innerHTML = '<i class="fas fa-robot"></i> Прескоринг заявки №' + appId;
         if (subEl) subEl.textContent = (app ? app.client + ' · ' : '') + 'Паспорт + БКИ · предварительные условия';
+        if (badgeEl) badgeEl.textContent = 'Прескоринг';
         if (runBtn) runBtn.innerHTML = '<i class="fas fa-play"></i> Запустить прескоринг';
     } else {
         if (titleEl) titleEl.innerHTML = '<i class="fas fa-flask"></i> Полный скоринг заявки №' + appId;
         if (subEl) subEl.textContent = (app ? app.client + ' · ' : '') + 'Итоговые условия · нужны оригиналы документов';
+        if (badgeEl) badgeEl.textContent = 'Полный скоринг';
         if (runBtn) runBtn.innerHTML = '<i class="fas fa-play"></i> Запустить скоринг';
     }
 }
@@ -140,8 +149,24 @@ function openManagerPrescoring() {
     startScoringRun('prescore');
 }
 
-function openManagerScoring() {
-    startScoringRun('full');
+var __bgfOpenScoringBusy = false;
+
+function openManagerScoring(force) {
+    if (__bgfOpenScoringBusy) return;
+    __bgfOpenScoringBusy = true;
+    try {
+        var appId = (typeof selectedAppId !== 'undefined' && selectedAppId) ? selectedAppId : null;
+        var apps = typeof getAllApplications === 'function' ? getAllApplications() : (typeof managerApplications !== 'undefined' ? managerApplications : []);
+        var app = (apps || []).find(function(a) { return a && a.id === appId; }) || null;
+        var missing = (typeof missingOriginals === 'function') ? missingOriginals(app || { id: appId, documents: [] }) : [];
+        if (!force && missing.length && typeof confirm === 'function') {
+            var ok = confirm('Нет полного комплекта оригиналов:\n• ' + missing.join('\n• ') + '\n\nЗапустить полный скоринг без комплекта?');
+            if (!ok) return;
+        }
+        startScoringRun('full');
+    } finally {
+        setTimeout(function() { __bgfOpenScoringBusy = false; }, 0);
+    }
 }
 
 function rerunManagerScoring() {
@@ -321,11 +346,11 @@ function applyManagerScoringDecision(outcome) {
 }
 
 function confirmManagerScoringDecision(outcome) {
-    if (outcome === 'approved') {
-        alert('Заявка №' + selectedAppId + ' одобрена');
-    } else {
-        alert('Заявка №' + selectedAppId + ' отклонена');
-    }
+    var msg = outcome === 'approved'
+        ? ('Заявка №' + selectedAppId + ' одобрена')
+        : ('Заявка №' + selectedAppId + ' отклонена');
+    if (typeof managerNotify === 'function') managerNotify(msg);
+    else alert(msg);
     closeManagerScoring();
 }
 
