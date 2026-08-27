@@ -521,6 +521,8 @@ console.log('\n=== 8. TrustGate lab app is manager-only ===');
   assert(lab && lab.amount === 3000000, 'manager flatten has demo amount');
   assert(lab && lab.term === 15, 'manager flatten has demo term');
   assert(lab && /Крылатская/.test(lab.collateralAddress || ''), 'manager flatten has collateral address');
+  assert(lab && lab.collateralValue === 8500000, '4636 has Krylatskaya valuation');
+  assert(lab && lab.date === '27.08.2026', '4636 date is pinned');
   assert(lab && lab.statusLabel && lab.statusLabel.indexOf('FILL_IN') === -1,
     'manager card label is not raw FILL_IN');
 
@@ -562,6 +564,32 @@ console.log('\n=== 8. TrustGate lab app is manager-only ===');
   const switchedFull = ctx.applyLkTrustGateProfile('full');
   assert(switchedFull && switchedFull.lk.extra_data.cp.profile === 'full',
     'manager profile switch writes full into store');
+
+  ctx.updateApplicationStatus('4636-И', 'processing', 'В обработке', 'Заявка принята в обработку');
+  const kept = ctx.applyLkTrustGateProfile('no_ndfl');
+  assert(kept && kept.status === 'processing', 'profile switch keeps processing status');
+  assert(kept && kept.statusLabel === 'В обработке', 'profile switch keeps statusLabel');
+  assert(kept && kept.collateralValue === 8500000, 'profile switch keeps collateral value');
+  assert(kept && kept.date === '27.08.2026', 'profile switch keeps pinned date');
+  assert(kept && Array.isArray(kept.history) && kept.history.some(function(h) {
+    return h && /принята в обработку/.test(h.text || '');
+  }), 'profile switch keeps manager history');
+  assert(kept && kept.lk.extra_data.cp.profile === 'no_ndfl', 'coverage still switches to no_ndfl');
+
+  const duLabNo = ctx.getRequiredDU(kept, true);
+  assert(duLabNo.some(d => d.id === 'du00'), 'no_ndfl lab DU includes type 0 income');
+  assert(duLabNo.some(d => d.id === 'du04' || d.id === 'du19'), 'lab DU still asks EGRN/cadastral');
+  assert(!duLabNo.some(d => d.id === 'du14' || d.id === 'du06' || d.id === 'du18' || d.id === 'du15'),
+    'lab DU skips family/marriage/children');
+
+  const restored = ctx.applyLkTrustGateProfile('full');
+  assert(restored && restored.status === 'processing', 'switching back to full keeps processing');
+  const duLabFull = ctx.getRequiredDU(restored, true);
+  assert(!duLabFull.some(d => d.id === 'du00'), 'full CP lab DU has no type-0 income');
+
+  const app4421 = ctx.getAllApplications().find(a => a.id === '4421-И');
+  assert(ctx.getRequiredDU(app4421, true).some(d => d.id === 'du14'),
+    'other manager apps still include marriage DU');
 }
 
 console.log('\n=== Summary ===');

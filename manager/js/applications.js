@@ -295,6 +295,7 @@ function getActionButtons(app) {
 // ========== ДОПОЛНИТЕЛЬНЫЕ УСЛОВИЯ (ДУ) ==========
 
 var allDU = [
+    { id:'du00', name:'Справка о доходе или 2-НДФЛ (ДУ тип 0)', cat:'client', trigger:'no_ndfl', source:'client', params:['FIO'] },
     { id:'du01', name:'Выписка из Домовой Книги / поквартирной карточки', cat:'object', trigger:'all', source:'external', params:[] },
     { id:'du02', name:'Документы БТИ по объекту недвижимости', cat:'object', trigger:'old_house', source:'external', params:['CadastralNumber'] },
     { id:'du03', name:'Справка из Росреестра о соответствии адресов', cat:'object', trigger:'address_mismatch', source:'external', params:['CadastralNumber'] },
@@ -338,7 +339,61 @@ var duStatuses = {
 
 var duStorage = {};
 
+function duParamsForApp(app, params) {
+    return (params || []).map(function(p) {
+        if (p === 'FIO') return (app && app.client) || 'Александр Кузнецов';
+        if (p === 'CadastralNumber') return (app && app.collateralAddress) || '77:07:0001075:1234';
+        return '';
+    });
+}
+
+function duItemFromCatalog(app, du, status) {
+    return {
+        id: du.id,
+        name: du.name,
+        cat: du.cat,
+        source: du.source,
+        status: status,
+        params: duParamsForApp(app, du.params)
+    };
+}
+
+function getRequiredDUForLabApp(app, clientEsiConnected) {
+    var required = [];
+    var cp = typeof getCpCoverage === 'function' ? getCpCoverage(app) : (app && app.lk && app.lk.extra_data && app.lk.extra_data.cp);
+    var scopes = (cp && cp.scopes) || {};
+    var ndflOk = !!(scopes.ndfl && scopes.ndfl.status === 'ok');
+    var passportOk = !!(scopes.passport && scopes.passport.status === 'ok');
+    var innOk = !!(scopes.inn && scopes.inn.status === 'ok');
+    var snilsOk = !!(scopes.snils && scopes.snils.status === 'ok');
+
+    var wanted = ['du01', 'du04', 'du19', 'du11'];
+    if (!ndflOk) wanted.push('du00');
+    wanted = wanted.concat(['du09', 'du10', 'du12', 'du20']);
+
+    wanted.forEach(function(id) {
+        var du = allDU.find(function(d) { return d.id === id; });
+        if (!du) return;
+        var storageKey = app.id + '_' + du.id;
+        var savedStatus = duStorage[storageKey];
+        var status = savedStatus || 'pending';
+        if (!savedStatus) {
+            if (id === 'du09' && innOk) status = 'auto_received';
+            else if (id === 'du10' && snilsOk) status = 'auto_received';
+            else if ((id === 'du12' || id === 'du20') && passportOk) status = 'auto_received';
+            else if (du.source === 'esia' && clientEsiConnected && (id === 'du09' || id === 'du10' || id === 'du12' || id === 'du20')) {
+                status = 'auto_received';
+            }
+        }
+        required.push(duItemFromCatalog(app, du, status));
+    });
+    return required;
+}
+
 function getRequiredDU(app, clientEsiConnected) {
+    if (typeof isLkLabApplication === 'function' && isLkLabApplication(app)) {
+        return getRequiredDUForLabApp(app, clientEsiConnected);
+    }
     var required = [];
     var alwaysRequired = ['du01','du04','du09','du10','du11','du12','du19','du20'];
     
@@ -359,18 +414,7 @@ function getRequiredDU(app, clientEsiConnected) {
                 status = 'auto_received';
             }
             
-            required.push({
-                id: du.id,
-                name: du.name,
-                cat: du.cat,
-                source: du.source,
-                status: status,
-                params: du.params.map(function(p) {
-                    if (p === 'FIO') return 'Александр Кузнецов';
-                    if (p === 'CadastralNumber') return app.collateralAddress || '77:07:0001075:1234';
-                    return '';
-                })
-            });
+            required.push(duItemFromCatalog(app, du, status));
         }
     });
     
