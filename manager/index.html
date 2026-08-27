@@ -62,7 +62,7 @@
                         <div class="m-list-header">
                             <h3>Список заявок</h3>
                             <div class="m-filter-row">
-                                <select id="filterStatus"><option value="all">Все статусы</option><option value="new">Новые</option><option value="processing">В обработке</option><option value="valuation">На оценке</option><option value="decision">Решение</option><option value="approved">Одобрено</option><option value="rejected">Отказ</option></select>
+                                <select id="filterStatus"><option value="all">Все статусы</option><option value="new">Новые</option><option value="processing">В обработке</option><option value="valuation">Прескоринг</option><option value="decision">Прескоринг пройден</option><option value="approved">Одобрено</option><option value="rejected">Отказ</option></select>
                                 <input type="text" id="filterSearch" placeholder="Поиск по № заявки или клиенту...">
                             </div>
                         </div>
@@ -83,8 +83,11 @@
 <div class="scoring-overlay hidden" id="scoringOverlay">
     <div class="scoring-panel">
         <div class="scoring-left">
-            <h3><i class="fas fa-robot"></i> Скоринг заявки №4421-И</h3>
-            <p class="subtitle">Александр Кузнецов</p>
+            <div class="s-overlay-heading">
+                <h3 id="sOverlayTitle"><i class="fas fa-robot"></i> Скоринг заявки №4421-И</h3>
+                <span class="s-mode-badge" id="sModeBadge">Скоринг</span>
+            </div>
+            <p class="subtitle" id="sOverlaySubtitle">Александр Кузнецов</p>
             <div class="s-progress-track"><div class="s-progress-fill" id="sProgressFill"></div></div>
             <div class="s-progress-label" id="sProgressLabel">0 из 8 шагов</div>
             <div class="s-step-list" id="sStepList"></div>
@@ -104,7 +107,7 @@
                 <div style="text-align:center;padding:30px;color:#94a3b8;"><i class="fas fa-hourglass-half" style="font-size:32px;margin-bottom:8px;"></i><p style="font-size:12px;">Ожидание запуска...</p></div>
             </div>
             <div class="s-btn-row">
-                <button class="s-btn s-btn-primary" onclick="openManagerScoring()"><i class="fas fa-play"></i> Запустить скоринг</button>
+                <button class="s-btn s-btn-primary" id="sRunBtn" onclick="rerunManagerScoring()"><i class="fas fa-play"></i> Запустить</button>
                 <button class="s-btn s-btn-outline" onclick="closeManagerScoring()"><i class="fas fa-times"></i> Закрыть</button>
             </div>
         </div>
@@ -196,6 +199,7 @@
             var appId = actionBtn.getAttribute('data-app-id');
             try {
                 if (act === 'openScoring' && typeof openManagerScoring === 'function') openManagerScoring();
+                else if (act === 'requestExternalDU' && typeof requestExternalDU === 'function') requestExternalDU(appId, actionBtn.getAttribute('data-du-id'));
                 else if (act && appId && typeof managerAction === 'function') managerAction(appId, act);
             } catch (err) { console.error('document data-m-action', err); }
             return;

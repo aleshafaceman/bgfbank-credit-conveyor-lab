@@ -1,6 +1,6 @@
 // ========== ПОЛНЫЙ СКОРИНГ (МЕНЕДЖЕР) ==========
 
-var sSteps = [
+var sStepCatalog = [
     { name: 'Кредитная история (НБКИ)', source: 'НБКИ', time: '1.2 сек', detail_ok: 'Рейтинг: 720. Просрочек нет. 2 кредита.',
         issues: [{ type:'warning', title:'КИ не найдена', desc:'В НБКИ нет данных.', detail:'Рекомендация: продолжить с пометкой.', actions:['Продолжить','Отклонить'], prob:8 },
                  { type:'error', title:'Просрочки > 90 дней', desc:'Обнаружены просрочки > 90 дней.', detail:'Стоп-фактор.', actions:['Отклонить','Запросить объяснение'], prob:8 }] },
@@ -22,14 +22,104 @@ var sSteps = [
     { name: 'Финальное решение', source: 'Внутренний', time: '0.8 сек', detail_ok: 'Решение сформировано.', issues:[] }
 ];
 
+var sPrescoreCatalog = [
+    { name: 'Паспорт', source: 'ЕСИА / ЦП', time: '0.4 сек', detail_ok: 'Паспорт действителен.', issues: [] },
+    { name: 'Кредитная история (БКИ)', source: 'НБКИ', time: '0.8 сек', detail_ok: 'Согласие есть, кредитный отчёт получен.', issues: [] },
+    { name: 'Рисковая модель', source: 'Loginom', time: '0.6 сек', detail_ok: 'Клиент предварительно подходит банку.', issues: [] }
+];
+
+var sSteps = sStepCatalog;
+var sMode = 'full';
 var sCurrent = 0;
 var sTimer = null;
 var sIssueLog = [];
 var sPendingIssue = null;
 var sPaused = false;
 
-function openManagerScoring() {
-    document.getElementById('scoringOverlay').classList.remove('hidden');
+function cloneScoringSteps(src) {
+    return (src || []).map(function(s) {
+        return Object.assign({}, s, {
+            issues: (s.issues || []).map(function(iss) { return Object.assign({}, iss); })
+        });
+    });
+}
+
+function scoringStepsForApp(app, mode) {
+    var isPrescore = mode === 'prescore';
+    var steps = cloneScoringSteps(isPrescore ? sPrescoreCatalog : sStepCatalog);
+    var amount = (app && Number(app.amount)) || 5400000;
+    var collateral = (app && typeof app.collateralValue === 'number' && isFinite(app.collateralValue) && app.collateralValue > 0)
+        ? app.collateralValue
+        : 8500000;
+    var income = 180000;
+    var ndflOk = true;
+    var passportOk = true;
+    var cp = typeof getCpCoverage === 'function' ? getCpCoverage(app) : null;
+    if (cp && cp.scopes && cp.scopes.ndfl) ndflOk = cp.scopes.ndfl.status === 'ok';
+    if (cp && cp.scopes && cp.scopes.passport) passportOk = cp.scopes.passport.status === 'ok';
+    if (app && app.lk && app.lk.borrowers && app.lk.borrowers[0] && app.lk.borrowers[0].incomes) {
+        income = app.lk.borrowers[0].incomes;
+    }
+    if (isPrescore) {
+        if (steps[0]) {
+            steps[0].detail_ok = passportOk
+                ? 'Паспорт из ЦП / ЕСИА действителен. Этого достаточно для прескоринга.'
+                : 'Паспорт ещё не подтверждён — прескоринг слабее, но модель всё равно считает риск.';
+        }
+        if (steps[1]) {
+            var bki = cp && cp.scopes && cp.scopes.credit_report;
+            steps[1].detail_ok = (bki && bki.status === 'ok')
+                ? 'Отчёт БКИ получен.'
+                : 'Согласие на БКИ есть, отчёт тянет Loginom / CREDIT Registry.';
+        }
+        if (steps[2]) {
+            steps[2].detail_ok = 'Клиент предварительно подходит. Условия ниже — не финальные.';
+        }
+        return steps;
+    }
+    if (steps[2]) {
+        steps[2].detail_ok = ndflOk
+            ? ('Доход: ' + Number(income).toLocaleString('ru-RU') + ' ₽/мес. (2-НДФЛ из ЦП).')
+            : '2-НДФЛ в ЦП нет — ДУ тип 0, confirmation_income_summary = −1.';
+    }
+    if (steps[4]) {
+        steps[4].detail_ok = 'Стоимость: ' + collateral.toLocaleString('ru-RU') + ' ₽.';
+    }
+    if (steps[6]) {
+        steps[6].detail_ok = 'Итоговая ставка: 12.5%. Лимит: ' + amount.toLocaleString('ru-RU') + ' ₽.';
+    }
+    return steps;
+}
+
+function scoringOverlayChrome(appId, app, mode) {
+    var overlay = document.getElementById('scoringOverlay');
+    var titleEl = document.getElementById('sOverlayTitle') || (overlay && overlay.querySelector && overlay.querySelector('.scoring-left h3'));
+    var subEl = document.getElementById('sOverlaySubtitle') || (overlay && overlay.querySelector && overlay.querySelector('.scoring-left .subtitle'));
+    var badgeEl = document.getElementById('sModeBadge');
+    var runBtn = document.getElementById('sRunBtn');
+    if (overlay && overlay.classList) {
+        overlay.classList.remove('mode-prescore');
+        overlay.classList.remove('mode-full');
+        overlay.classList.add(mode === 'prescore' ? 'mode-prescore' : 'mode-full');
+    }
+    if (mode === 'prescore') {
+        if (titleEl) titleEl.innerHTML = '<i class="fas fa-robot"></i> Прескоринг заявки №' + appId;
+        if (subEl) subEl.textContent = (app ? app.client + ' · ' : '') + 'Паспорт + БКИ · предварительные условия';
+        if (badgeEl) badgeEl.textContent = 'Прескоринг';
+        if (runBtn) runBtn.innerHTML = '<i class="fas fa-play"></i> Запустить прескоринг';
+    } else {
+        if (titleEl) titleEl.innerHTML = '<i class="fas fa-flask"></i> Полный скоринг заявки №' + appId;
+        if (subEl) subEl.textContent = (app ? app.client + ' · ' : '') + 'Итоговые условия · нужны оригиналы документов';
+        if (badgeEl) badgeEl.textContent = 'Полный скоринг';
+        if (runBtn) runBtn.innerHTML = '<i class="fas fa-play"></i> Запустить скоринг';
+    }
+}
+
+function startScoringRun(mode) {
+    sMode = mode === 'prescore' ? 'prescore' : 'full';
+    var overlay = document.getElementById('scoringOverlay');
+    if (!overlay) return;
+    overlay.classList.remove('hidden');
     sCurrent = 0;
     sIssueLog = [];
     sPaused = false;
@@ -37,22 +127,50 @@ function openManagerScoring() {
     var appId = (typeof selectedAppId !== 'undefined' && selectedAppId) ? selectedAppId : '4421-И';
     var apps = typeof getAllApplications === 'function' ? getAllApplications() : [];
     var app = apps.find(function(a) { return a.id === appId; });
-    var titleEl = document.querySelector('#scoringOverlay .scoring-left h3');
-    var subEl = document.querySelector('#scoringOverlay .scoring-left .subtitle');
-    if (titleEl) titleEl.innerHTML = '<i class="fas fa-robot"></i> Скоринг заявки №' + appId;
-    if (subEl) subEl.textContent = app ? app.client : 'Клиент';
+    sSteps = scoringStepsForApp(app, sMode);
+    scoringOverlayChrome(appId, app, sMode);
 
     renderSSteps();
     updateSProgress();
     updateSDetail(0);
     document.getElementById('sResultArea').innerHTML = '';
     document.getElementById('sIssueCounters').style.display = 'none';
-    document.getElementById('sResultSubtitle').textContent = 'Идёт проверка...';
-    
-    var delays = (typeof getScoringDelays === 'function')
-        ? getScoringDelays([1200, 800, 2100, 1500, 2800, 3200, 1000, 800])
-        : [1200, 800, 2100, 1500, 2800, 3200, 1000, 800];
+    document.getElementById('sResultSubtitle').textContent = sMode === 'prescore' ? 'Прескоринг…' : 'Идёт полный скоринг…';
+
+    var delays = sMode === 'prescore'
+        ? ((typeof getScoringDelays === 'function') ? getScoringDelays([400, 800, 600]) : [400, 800, 600])
+        : ((typeof getScoringDelays === 'function')
+            ? getScoringDelays([1200, 800, 2100, 1500, 2800, 3200, 1000, 800])
+            : [1200, 800, 2100, 1500, 2800, 3200, 1000, 800]);
     runSStep(0, delays);
+}
+
+function openManagerPrescoring() {
+    startScoringRun('prescore');
+}
+
+var __bgfOpenScoringBusy = false;
+
+function openManagerScoring(force) {
+    if (__bgfOpenScoringBusy) return;
+    __bgfOpenScoringBusy = true;
+    try {
+        var appId = (typeof selectedAppId !== 'undefined' && selectedAppId) ? selectedAppId : null;
+        var apps = typeof getAllApplications === 'function' ? getAllApplications() : (typeof managerApplications !== 'undefined' ? managerApplications : []);
+        var app = (apps || []).find(function(a) { return a && a.id === appId; }) || null;
+        var missing = (typeof missingOriginals === 'function') ? missingOriginals(app || { id: appId, documents: [] }) : [];
+        if (!force && missing.length && typeof confirm === 'function') {
+            var ok = confirm('Нет полного комплекта оригиналов:\n• ' + missing.join('\n• ') + '\n\nЗапустить полный скоринг без комплекта?');
+            if (!ok) return;
+        }
+        startScoringRun('full');
+    } finally {
+        setTimeout(function() { __bgfOpenScoringBusy = false; }, 0);
+    }
+}
+
+function rerunManagerScoring() {
+    startScoringRun(sMode === 'prescore' ? 'prescore' : 'full');
 }
 
 function runSStep(idx, delays) {
@@ -159,6 +277,39 @@ function isRejectScoringAction(actionLabel) {
     return /отклон|отказ/i.test(actionLabel || '');
 }
 
+function applyManagerPrescoringResult(outcome) {
+    var appId = (typeof selectedAppId !== 'undefined' && selectedAppId) ? selectedAppId : null;
+    if (!appId || typeof updateApplicationStatus !== 'function') return;
+    var apps = typeof getAllApplications === 'function' ? getAllApplications() : [];
+    var app = apps.find(function(a) { return a.id === appId; });
+    if (!app) return;
+
+    if (outcome === 'approved') {
+        var rate = (app.rate != null) ? app.rate : 12.5;
+        var amount = Number(app.amount) || 0;
+        var term = Number(app.term) || 15;
+        var payment = (typeof calculatePayment === 'function')
+            ? calculatePayment(amount, rate, term)
+            : Math.round(amount * (rate / 100) / 12 / (1 - Math.pow(1 + (rate / 100) / 12, -term * 12)));
+        if (typeof updateApplication === 'function') {
+            updateApplication(appId, { rate: rate, payment: payment, termsKind: 'preliminary' });
+        }
+        updateApplicationStatus(appId, 'decision', 'Прескоринг пройден', 'Прескоринг: клиент предварительно подходит. Ставка ' + rate + '% — не финальная.');
+        if (typeof sendChatMessage === 'function') {
+            sendChatMessage('manager', app.client, 'Прескоринг по заявке №' + appId + ' пройден. Предварительно: ставка ' + rate + '%, платёж ~' + (payment && payment.toLocaleString ? payment.toLocaleString('ru-RU') : payment) + ' ₽. Итоговые условия будут после полного скоринга по оригиналам.', app.client);
+        }
+    } else {
+        updateApplicationStatus(appId, 'rejected', 'Отказ', 'Прескоринг: клиент не подходит банку');
+        if (typeof sendChatMessage === 'function') {
+            sendChatMessage('manager', app.client, 'По заявке №' + appId + ' прескоринг показал, что клиент не проходит рисковую модель банка.', app.client);
+        }
+    }
+    if (typeof refreshData === 'function') refreshData();
+    if (typeof renderApplicationList === 'function') renderApplicationList();
+    if (typeof renderApplicationDetail === 'function') renderApplicationDetail(appId);
+    if (typeof updateStats === 'function') updateStats();
+}
+
 function applyManagerScoringDecision(outcome) {
     var appId = (typeof selectedAppId !== 'undefined' && selectedAppId) ? selectedAppId : null;
     if (!appId || typeof updateApplicationStatus !== 'function') return;
@@ -169,15 +320,15 @@ function applyManagerScoringDecision(outcome) {
 
     if (outcome === 'approved') {
         var rate = (app.rate != null) ? app.rate : 12.5;
-        var amount = app.amount || 5000000;
+        var amount = app.amount || 3000000;
         var term = app.term || 15;
         var payment = (typeof calculatePayment === 'function')
             ? calculatePayment(amount, rate, term)
             : Math.round(amount * (rate / 100) / 12 / (1 - Math.pow(1 + (rate / 100) / 12, -term * 12)));
         if (typeof updateApplication === 'function') {
-            updateApplication(appId, { rate: rate, payment: payment, amount: amount, term: term });
+            updateApplication(appId, { rate: rate, payment: payment, amount: amount, term: term, termsKind: 'final' });
         }
-        updateApplicationStatus(appId, 'approved', 'Одобрено', 'Полный скоринг завершён: кредит одобрен');
+        updateApplicationStatus(appId, 'approved', 'Одобрено', 'Полный скоринг: итоговые условия одобрены');
         if (typeof sendChatMessage === 'function') {
             sendChatMessage('manager', app.client, 'Поздравляю! По заявке №' + appId + ' полный скоринг завершён — кредит одобрен (ставка ' + rate + '%, платёж ~' + payment.toLocaleString('ru-RU') + ' ₽).', app.client);
         }
@@ -195,11 +346,11 @@ function applyManagerScoringDecision(outcome) {
 }
 
 function confirmManagerScoringDecision(outcome) {
-    if (outcome === 'approved') {
-        alert('Заявка №' + selectedAppId + ' одобрена');
-    } else {
-        alert('Заявка №' + selectedAppId + ' отклонена');
-    }
+    var msg = outcome === 'approved'
+        ? ('Заявка №' + selectedAppId + ' одобрена')
+        : ('Заявка №' + selectedAppId + ' отклонена');
+    if (typeof managerNotify === 'function') managerNotify(msg);
+    else alert(msg);
     closeManagerScoring();
 }
 
@@ -241,10 +392,11 @@ function showSResult(outcome) {
     document.getElementById('sDetailContent').innerHTML = '<span class="ok">✓ Система завершила обработку.</span>';
     renderSSteps();
     updateSIssueCounters();
-    applyManagerScoringDecision(outcome);
-    
+
+    if (sMode === 'prescore') applyManagerPrescoringResult(outcome);
+    else applyManagerScoringDecision(outcome);
+
     var h = '';
-    
     if (sIssueLog.length > 0) {
         h += '<div style="margin-bottom:14px;"><div style="font-weight:700;font-size:12px;color:#003b6f;margin-bottom:6px;">📋 Обнаруженные проблемы:</div>';
         sIssueLog.forEach(function(log) {
@@ -252,21 +404,30 @@ function showSResult(outcome) {
         });
         h += '</div>';
     }
-    
-    if (outcome === 'approved') {
-        document.getElementById('sResultSubtitle').textContent = 'Заявка одобрена';
-        var apps2 = typeof getAllApplications === 'function' ? getAllApplications() : [];
-        var app2 = apps2.find(function(a) { return a.id === selectedAppId; }) || {};
-        var lim = (app2.amount || 5400000).toLocaleString('ru-RU') + ' ₽';
-        var rt = (app2.rate != null ? app2.rate : 12.5) + '%';
-        var tm = (app2.term || 15) + ' лет';
-        var pay = '~ ' + (app2.payment != null ? app2.payment : 0).toLocaleString('ru-RU') + ' ₽';
-        h += '<div class="s-result approved"><div class="r-icon">✅</div><div class="r-title" style="color:#065f46;">Кредит одобрен</div><div class="r-desc">Все проверки пройдены. Статус заявки обновлён.</div><div class="r-params"><div class="r-param"><div class="r-label">Лимит</div><div class="r-value" style="color:#003b6f;">' + lim + '</div></div><div class="r-param"><div class="r-label">Ставка</div><div class="r-value" style="color:#10b981;">' + rt + '</div></div><div class="r-param"><div class="r-label">Срок</div><div class="r-value">' + tm + '</div></div><div class="r-param"><div class="r-label">Платёж</div><div class="r-value">' + pay + '</div></div></div><div class="s-btn-row"><button class="s-btn s-btn-success" onclick="confirmManagerScoringDecision(\'approved\')"><i class="fas fa-check"></i> Готово</button><button class="s-btn s-btn-outline" onclick="closeManagerScoring()"><i class="fas fa-times"></i> Закрыть</button></div></div>';
+
+    var apps2 = typeof getAllApplications === 'function' ? getAllApplications() : [];
+    var app2 = apps2.find(function(a) { return a.id === selectedAppId; }) || {};
+    var lim = (app2.amount || 5400000).toLocaleString('ru-RU') + ' ₽';
+    var rt = (app2.rate != null ? app2.rate : 12.5) + '%';
+    var tm = (app2.term || 15) + ' лет';
+    var pay = '~ ' + (app2.payment != null ? app2.payment : 0).toLocaleString('ru-RU') + ' ₽';
+
+    if (sMode === 'prescore') {
+        if (outcome === 'approved') {
+            document.getElementById('sResultSubtitle').textContent = 'Прескоринг пройден';
+            h += '<div class="s-result approved"><div class="r-icon">✅</div><div class="r-title" style="color:#065f46;">Клиент предварительно подходит</div><div class="r-desc">Паспорт и БКИ хватило для рисковой модели. Это ещё не финальное одобрение — условия могут измениться на полном скоринге.</div><div class="r-params"><div class="r-param"><div class="r-label">Лимит</div><div class="r-value" style="color:#003b6f;">' + lim + '</div></div><div class="r-param"><div class="r-label">Предв. ставка</div><div class="r-value" style="color:#b45309;">' + rt + '</div></div><div class="r-param"><div class="r-label">Срок</div><div class="r-value">' + tm + '</div></div><div class="r-param"><div class="r-label">Предв. платёж</div><div class="r-value">' + pay + '</div></div></div><div class="s-btn-row"><button class="s-btn s-btn-outline" onclick="closeManagerScoring()"><i class="fas fa-times"></i> Закрыть</button></div></div>';
+        } else {
+            document.getElementById('sResultSubtitle').textContent = 'Прескоринг не пройден';
+            h += '<div class="s-result rejected"><div class="r-icon">❌</div><div class="r-title" style="color:#991b1b;">Клиент не подходит банку</div><div class="r-desc">На прескоринге рисковая модель отклонила клиента. Полный скоринг не запускаем.</div><div class="s-btn-row"><button class="s-btn s-btn-outline" onclick="closeManagerScoring()"><i class="fas fa-times"></i> Закрыть</button></div></div>';
+        }
+    } else if (outcome === 'approved') {
+        document.getElementById('sResultSubtitle').textContent = 'Итоговые условия одобрены';
+        h += '<div class="s-result approved"><div class="r-icon">✅</div><div class="r-title" style="color:#065f46;">Кредит одобрен</div><div class="r-desc">Полный скоринг по оригиналам завершён. Статус заявки обновлён.</div><div class="r-params"><div class="r-param"><div class="r-label">Лимит</div><div class="r-value" style="color:#003b6f;">' + lim + '</div></div><div class="r-param"><div class="r-label">Итоговая ставка</div><div class="r-value" style="color:#10b981;">' + rt + '</div></div><div class="r-param"><div class="r-label">Срок</div><div class="r-value">' + tm + '</div></div><div class="r-param"><div class="r-label">Итоговый платёж</div><div class="r-value">' + pay + '</div></div></div><div class="s-btn-row"><button class="s-btn s-btn-success" onclick="confirmManagerScoringDecision(\'approved\')"><i class="fas fa-check"></i> Готово</button><button class="s-btn s-btn-outline" onclick="closeManagerScoring()"><i class="fas fa-times"></i> Закрыть</button></div></div>';
     } else {
         document.getElementById('sResultSubtitle').textContent = 'Заявка отклонена';
-        h += '<div class="s-result rejected"><div class="r-icon">❌</div><div class="r-title" style="color:#991b1b;">В кредите отказано</div><div class="r-desc">Обнаружены стоп-факторы. Статус заявки обновлён.</div><div class="s-btn-row"><button class="s-btn s-btn-danger" onclick="confirmManagerScoringDecision(\'rejected\')"><i class="fas fa-times"></i> Готово</button><button class="s-btn s-btn-outline" onclick="closeManagerScoring()"><i class="fas fa-comment-dots"></i> Закрыть</button></div></div>';
+        h += '<div class="s-result rejected"><div class="r-icon">❌</div><div class="r-title" style="color:#991b1b;">В кредите отказано</div><div class="r-desc">Полный скоринг выявил стоп-факторы. Статус заявки обновлён.</div><div class="s-btn-row"><button class="s-btn s-btn-danger" onclick="confirmManagerScoringDecision(\'rejected\')"><i class="fas fa-times"></i> Готово</button><button class="s-btn s-btn-outline" onclick="closeManagerScoring()"><i class="fas fa-comment-dots"></i> Закрыть</button></div></div>';
     }
-    
+
     document.getElementById('sResultArea').innerHTML = h;
 }
 

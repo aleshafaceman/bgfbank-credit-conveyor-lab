@@ -11,6 +11,31 @@
     animation: fadeIn 0.3s ease-out;
 }
 .scoring-overlay.hidden { display: none; }
+.scoring-overlay.mode-prescore .scoring-panel { border-top: 6px solid #f59e0b; }
+.scoring-overlay.mode-full .scoring-panel { border-top: 6px solid #003b6f; }
+
+.s-overlay-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 4px;
+}
+.s-overlay-heading h3 { margin-bottom: 0; }
+.s-mode-badge {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    background: #e2e8f0;
+    color: #475569;
+}
+.scoring-overlay.mode-prescore .s-mode-badge { background: #fef3c7; color: #92400e; }
+.scoring-overlay.mode-full .s-mode-badge { background: #dbeafe; color: #1e40af; }
 
 .scoring-panel {
     background: white;

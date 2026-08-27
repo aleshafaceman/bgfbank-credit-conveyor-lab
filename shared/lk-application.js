@@ -3,6 +3,8 @@
 var LK_LAB_ID = '4636-И';
 var LK_APP_UUID = '4636b13c-98ac-438b-8a06-cc8ceb2413a4';
 var LK_BORROWER_UUID = '6841322d-5350-4cd8-a752-796cc4b036fc';
+var LK_LAB_DATE = '27.08.2026';
+var LK_LAB_COLLATERAL_VALUE = 8500000;
 
 var TRUSTGATE_PERSON = {
     last_name: 'Кузнецов',
@@ -142,11 +144,11 @@ function createFillInApplication() {
             building_property: 'FLAT',
             building_type: null,
             building_price: 0.0,
-            appraisal_building_price: 0.0,
+            appraisal_building_price: 8500000,
             desired_monthly_payment: 0.0,
             expenses: 0.0,
             total_outstanding_balance: 0.0,
-            term: 0,
+            term: 15,
             credit_program: null,
             requirements: [],
             approved_offer: {},
@@ -207,7 +209,7 @@ function createFillInApplication() {
                 HabitationDuration: null, FullName: null, FIASHouse: null,
                 FIASStreet: null, BeltwayHit: null, BeltwayDistance: null,
                 FiasID: null, FlatArea: null, Kladr: null, RegionCode: null,
-                AddressString: null
+                AddressString: TRUSTGATE_PERSON.registration_address
             },
             cadastral_or_conditional_number: null,
             cadastral_number: null,
@@ -234,7 +236,7 @@ function createFillInApplication() {
             PermiseCondition: null,
             ConstructionYear: null,
             RoomQuantity: null,
-            AppraisalPledgeCost: null,
+            AppraisalPledgeCost: 8500000,
             Appraiser: null,
             EvaluatingCompany: null,
             OutAssessmentDate: null,
@@ -384,19 +386,17 @@ function formatLkPhone(raw) {
 
 function documentsFromCp(lk) {
     var scopes = (lk && lk.extra_data && lk.extra_data.cp && lk.extra_data.cp.scopes) || {};
-    function doc(name, scope, okLabel, missLabel) {
+    function doc(name, scope, okLabel, missLabel, skipLabel) {
         var st = scope && scope.status === 'ok';
-        return {
-            name: name,
-            status: st ? 'uploaded' : 'missing',
-            statusLabel: st ? okLabel : missLabel
-        };
+        if (st) return { name: name, status: 'uploaded', statusLabel: okLabel };
+        if (skipLabel) return { name: name, status: 'skipped', statusLabel: skipLabel };
+        return { name: name, status: 'missing', statusLabel: missLabel };
     }
     return [
         doc('Паспорт (разворот)', scopes.passport, 'Из ЦП (TrustGate)', 'Нет в ЦП'),
         doc('ИНН / СНИЛС', scopes.inn, 'Из ЦП (TrustGate)', 'Нет в ЦП'),
         doc('Данные о доходе (2-НДФЛ)', scopes.ndfl, 'INCOME_REFERENCE из ЦП', 'ЦП не вернул — ДУ тип 0'),
-        doc('СЗИ-6', scopes.szi6, 'Из ЦП (редко)', 'Не пришёл — это норма'),
+        doc('СЗИ-6', scopes.szi6, 'Из ЦП (редко)', 'Не пришёл — это норма', 'Не пришёл — это норма'),
         { name: 'Выписка ЕГРН', status: 'missing', statusLabel: 'Нужен кадастр, не ЦП' }
     ];
 }
@@ -428,20 +428,20 @@ function flattenLkToLabApp(lk) {
         rate: null,
         payment: null,
         collateralAddress: address,
-        collateralValue: null,
+        collateralValue: LK_LAB_COLLATERAL_VALUE,
         status: 'new',
         statusLabel: patched ? 'ЦП получен' : 'Заполнение',
-        date: new Date().toLocaleDateString('ru-RU'),
+        date: LK_LAB_DATE,
         documents: documentsFromCp(lk),
         history: [
             {
                 text: patched
                     ? ('TrustGate: ' + ((cp && cp.purposes) || []).join(', ') + (ndflOk ? '. 2-НДФЛ есть.' : '. 2-НДФЛ нет — ДУ тип 0.'))
                     : 'Создан каркас заявки FILL_IN, ЦП ещё не запрашивали',
-                date: new Date().toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+                date: LK_LAB_DATE,
                 current: true
             },
-            { text: 'Заявка создана в ЛК (CASHONBAIL / FLAT)', date: new Date().toLocaleDateString('ru-RU'), current: false }
+            { text: 'Заявка создана в ЛК (CASHONBAIL / FLAT)', date: LK_LAB_DATE, current: false }
         ],
         lk: lk,
         source: patched ? 'esia' : 'lk_fill_in'
@@ -580,20 +580,34 @@ function applyLkTrustGateProfile(profileId) {
 }
 if (typeof window !== 'undefined') window.applyLkTrustGateProfile = applyLkTrustGateProfile;
 
+function preserveLabWorkflow(prev, lab) {
+    if (!prev || !lab) return lab;
+    var keep = ['new', 'processing', 'valuation', 'decision', 'approved', 'rejected'];
+    if (prev.status && keep.indexOf(prev.status) !== -1) {
+        lab.status = prev.status;
+        if (prev.statusLabel && String(prev.statusLabel).indexOf('FILL_IN') === -1) {
+            lab.statusLabel = prev.statusLabel;
+        }
+    }
+    if (prev.rate != null) lab.rate = prev.rate;
+    if (prev.payment != null) lab.payment = prev.payment;
+    if (prev.selectedPackageId) lab.selectedPackageId = prev.selectedPackageId;
+    if (prev.selectedPackageLabel) lab.selectedPackageLabel = prev.selectedPackageLabel;
+    if (prev.packageStatus) lab.packageStatus = prev.packageStatus;
+    if (prev.offerValidUntil) lab.offerValidUntil = prev.offerValidUntil;
+    if (prev.termsKind) lab.termsKind = prev.termsKind;
+    if (typeof prev.collateralValue === 'number' && isFinite(prev.collateralValue) && prev.collateralValue > 0) {
+        lab.collateralValue = prev.collateralValue;
+    }
+    lab.date = LK_LAB_DATE;
+    if (Array.isArray(prev.history) && prev.history.length) {
+        lab.history = prev.history;
+    }
+    return lab;
+}
+
 function upsertLkLabApplication(profileId, requestedAmount) {
     if (typeof loadSharedData === 'function') loadSharedData();
-    var lk = createFillInApplication();
-    var amount = requestedAmount || 3000000;
-    lk.product.requested_amount = amount;
-    lk.product.current_amount = amount;
-    lk.product.credit_amount = amount;
-    if (!lk.product.term) lk.product.term = 15;
-    if (lk.product.object_address && !lk.product.object_address.AddressString) {
-        lk.product.object_address.AddressString = TRUSTGATE_PERSON.registration_address;
-        lk.product.address = TRUSTGATE_PERSON.registration_address;
-    }
-    applyTrustGateToApplication(lk, profileId || 'full');
-    var lab = flattenLkToLabApp(lk);
     var list = null;
     if (typeof getSharedApplicationsStore === 'function') {
         list = getSharedApplicationsStore();
@@ -608,6 +622,21 @@ function upsertLkLabApplication(profileId, requestedAmount) {
             break;
         }
     }
+    var prev = idx >= 0 ? list[idx] : null;
+
+    var lk = createFillInApplication();
+    var amount = requestedAmount || 3000000;
+    lk.product.requested_amount = amount;
+    lk.product.current_amount = amount;
+    lk.product.credit_amount = amount;
+    if (!lk.product.term) lk.product.term = 15;
+    if (lk.product.object_address && !lk.product.object_address.AddressString) {
+        lk.product.object_address.AddressString = TRUSTGATE_PERSON.registration_address;
+        lk.product.address = TRUSTGATE_PERSON.registration_address;
+    }
+    applyTrustGateToApplication(lk, profileId || 'full');
+    var lab = flattenLkToLabApp(lk);
+    lab = preserveLabWorkflow(prev, lab);
     if (idx >= 0) list[idx] = lab;
     else list.unshift(lab);
     if (typeof buildClientsFromApplications === 'function') buildClientsFromApplications();
@@ -647,6 +676,8 @@ function ensureLkDemoApplication() {
                 : 'full';
             var needsShape = !existing.term
                 || !existing.collateralAddress
+                || existing.collateralValue == null
+                || existing.date !== LK_LAB_DATE
                 || (existing.statusLabel && String(existing.statusLabel).indexOf('FILL_IN') === 0)
                 || !existing.lk
                 || !existing.lk.product

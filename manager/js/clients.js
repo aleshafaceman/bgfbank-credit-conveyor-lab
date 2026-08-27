@@ -68,6 +68,7 @@ function openClientProfile(clientName) {
     var docNames = [];
     apps.forEach(function(a) {
         (Array.isArray(a.documents) ? a.documents : []).forEach(function(d) {
+            if (!d || d.status === 'skipped') return;
             if (docNames.indexOf(d.name) === -1) {
                 docNames.push(d.name);
                 allDocs.push({ name: d.name, uploaded: d.status === 'uploaded' });

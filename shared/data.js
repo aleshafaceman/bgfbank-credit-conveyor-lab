@@ -218,6 +218,26 @@ function buildClientsFromApplications() {
         }
         newClients[app.client].applications.push(app);
     });
+
+    Object.keys(newClients).forEach(function(name) {
+        var c = newClients[name];
+        var lab = (c.applications || []).find(function(a) {
+            return a && a.lk && a.lk.borrowers && a.lk.borrowers[0];
+        });
+        if (!lab) return;
+        var b = lab.lk.borrowers[0];
+        if (b.series && b.number) c.passport = String(b.series) + ' ' + String(b.number);
+        if (b.birth_date) {
+            var parts = String(b.birth_date).split('-');
+            if (parts.length === 3) c.birthDate = parts[2] + '.' + parts[1] + '.' + parts[0];
+        }
+        if (b.email) c.email = b.email;
+        if (b.registration_address) c.address = b.registration_address;
+        if (b.jobs && b.jobs[0] && b.jobs[0].employer_name) c.workplace = b.jobs[0].employer_name;
+        if (b.jobs && b.jobs[0] && b.jobs[0].position) c.position = b.jobs[0].position;
+        if (b.incomes) c.income = b.incomes;
+        if (lab.phone) c.phone = lab.phone;
+    });
     
     if (newClients['Александр Кузнецов'] && Array.isArray(newClients['Александр Кузнецов'].properties) && newClients['Александр Кузнецов'].properties.length < 2) {
         newClients['Александр Кузнецов'].properties.push({

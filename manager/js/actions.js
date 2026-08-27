@@ -13,7 +13,8 @@ function managerAction(appId, action) {
             case 'requestDocs':
                 updateApplicationStatus(appId, app.status, app.statusLabel, 'Менеджер запросил документы');
                 sendChatMessage('manager', app.client, 'Пожалуйста, загрузите недостающие документы по заявке №' + appId + '.', app.client);
-                alert(`Клиенту ${app.client} отправлен запрос документов.`);
+                if (typeof managerNotify === 'function') managerNotify('Клиенту ' + app.client + ' отправлен запрос документов.');
+                else alert('Клиенту ' + app.client + ' отправлен запрос документов.');
                 break;
 
             case 'startReview':
@@ -22,13 +23,16 @@ function managerAction(appId, action) {
                 break;
 
             case 'startScoring':
-                updateApplicationStatus(appId, 'valuation', 'На оценке', 'Запущен прескоринг в Loginom');
-                sendChatMessage('manager', app.client, 'Запущен прескоринг по заявке №' + appId + '. Результат через 2 минуты.', app.client);
+                updateApplicationStatus(appId, 'valuation', 'Прескоринг', 'Запущен прескоринг: паспорт + БКИ');
+                sendChatMessage('manager', app.client, 'Запущен прескоринг по заявке №' + appId + ': паспорт и запрос в БКИ. Это предварительная проверка, условия могут отличаться от итоговых.', app.client);
                 try { refreshData(); } catch (e1) {}
                 try { renderApplicationDetail(appId); } catch (e2) {}
                 try { renderApplicationList(); } catch (e3) {}
                 try { if (typeof updateStats === 'function') updateStats(); } catch (e4) {}
-
+                if (typeof openManagerPrescoring === 'function') {
+                    openManagerPrescoring();
+                    break;
+                }
                 setTimeout(() => {
                     try {
                         refreshData();
@@ -45,14 +49,12 @@ function managerAction(appId, action) {
                                 : (typeof calculatePayment === 'function'
                                     ? calculatePayment(amount, rate, term)
                                     : Math.round(amount * (rate / 100) / 12 / (1 - Math.pow(1 + (rate / 100) / 12, -term * 12))));
-                            if (updatedApp.rate == null || updatedApp.payment == null) {
-                                updateApplication(appId, { rate, payment });
-                            }
-                            updateApplicationStatus(appId, 'decision', 'Решение', 'Прескоринг завершён. Ставка: ' + rate + '%');
+                            updateApplication(appId, { rate: rate, payment: payment, termsKind: 'preliminary' });
+                            updateApplicationStatus(appId, 'decision', 'Прескоринг пройден', 'Прескоринг завершён. Предварительная ставка: ' + rate + '%');
                             var payLabel = (typeof payment === 'number' && isFinite(payment))
                                 ? payment.toLocaleString('ru-RU')
                                 : String(payment || '0');
-                            sendChatMessage('manager', app.client, 'Прескоринг завершён! Ставка: ' + rate + '%, платёж: ~' + payLabel + ' ₽.', app.client);
+                            sendChatMessage('manager', app.client, 'Прескоринг пройден по заявке №' + appId + '. Предварительно: ставка ' + rate + '%, платёж ~' + payLabel + ' ₽. Это ещё не финальное одобрение.', app.client);
                         }
                     } catch (errS) {
                         console.error('startScoring timeout', errS);
@@ -72,7 +74,11 @@ function managerAction(appId, action) {
                 updateApplication(appId, { collateralValue: nv });
                 updateApplicationStatus(appId, app.status, app.statusLabel, `Оценка Ocenka.mobi: ${nv.toLocaleString('ru-RU')} ₽`);
                 sendChatMessage('manager', app.client, 'Обновлена оценка недвижимости: ' + nv.toLocaleString('ru-RU') + ' ₽.', app.client);
-                alert(`Оценка обновлена:\n${app.collateralAddress || '—'}\n${ov.toLocaleString('ru-RU')} → ${nv.toLocaleString('ru-RU')} ₽`);
+                if (typeof managerNotify === 'function') {
+                    managerNotify('Оценка обновлена: ' + nv.toLocaleString('ru-RU') + ' ₽');
+                } else {
+                    alert('Оценка обновлена:\n' + (app.collateralAddress || '—') + '\n' + ov.toLocaleString('ru-RU') + ' → ' + nv.toLocaleString('ru-RU') + ' ₽');
+                }
                 break;
 
             case 'approve':
@@ -85,7 +91,8 @@ function managerAction(appId, action) {
                     updateApplication(appId, { rate: defRate, payment: defPayment });
                 }
                 sendChatMessage('manager', app.client, 'Поздравляю! Ваша заявка №' + appId + ' одобрена! Договор отправлен на подписание.', app.client);
-                alert(`Заявка №${app.id} одобрена!\n\nКлиент: ${app.client}`);
+                if (typeof managerNotify === 'function') managerNotify('Заявка №' + app.id + ' одобрена');
+                else alert('Заявка №' + app.id + ' одобрена!\n\nКлиент: ' + app.client);
                 break;
 
             case 'reject':
@@ -93,13 +100,30 @@ function managerAction(appId, action) {
                 if (reason) {
                     updateApplicationStatus(appId, 'rejected', 'Отказ', 'Заявка отклонена: ' + reason);
                     sendChatMessage('manager', app.client, 'По заявке №' + appId + ' принято отрицательное решение. Причина: ' + reason, app.client);
-                    alert(`Заявка №${app.id} отклонена.\n\nПричина: ${reason}`);
+                    if (typeof managerNotify === 'function') managerNotify('Заявка №' + app.id + ' отклонена');
+                    else alert('Заявка №' + app.id + ' отклонена.\n\nПричина: ' + reason);
                 }
+                break;
+
+            case 'sendContract':
+                updateApplicationStatus(appId, app.status, app.statusLabel, 'Договор отправлен клиенту');
+                sendChatMessage('manager', app.client, 'Договор по заявке №' + appId + ' отправлен на подписание.', app.client);
+                if (typeof managerNotify === 'function') managerNotify('Договор отправлен клиенту ' + app.client);
+                break;
+
+            case 'suggestParams':
+                sendChatMessage('manager', app.client, 'По заявке №' + appId + ' предлагаем изменить сумму или срок и подать заявку заново. Напишите, какие параметры удобнее.', app.client);
+                if (typeof switchManagerTab === 'function') switchManagerTab('chat');
+                if (typeof openChatWithClient === 'function') openChatWithClient(app.client);
+                if (typeof managerNotify === 'function') managerNotify('Клиенту предложено изменить параметры заявки');
                 break;
         }
     } catch (err) {
         console.error('managerAction', appId, action, err);
-        try { alert('Не удалось выполнить действие. Сбросьте демо и попробуйте снова.'); } catch (eAlert) {}
+        try {
+            if (typeof managerNotify === 'function') managerNotify('Не удалось выполнить действие. Сбросьте демо и попробуйте снова.');
+            else alert('Не удалось выполнить действие. Сбросьте демо и попробуйте снова.');
+        } catch (eAlert) {}
     } finally {
         try { saveSharedData(); } catch (eSave) {}
         try { refreshData(); } catch (eRef) {}
