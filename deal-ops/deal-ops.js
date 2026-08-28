@@ -15,6 +15,10 @@ const BUS_CATALOG = [
   { id: "app_link", title: "AccountAppLinkSent", system: "SMS" },
   { id: "app_signed", title: "AccountAppSigned", system: "форма клиента" },
   { id: "elma_callback", title: "Callback в ELMA", system: "deal-ops → ELMA" },
+  { id: "request_ukep", title: "RequestUkep", system: "SmartDeal" },
+  { id: "create_signing_package", title: "CreateSigningPackage", system: "SmartDeal" },
+  { id: "start_signing", title: "StartSigning", system: "SmartDeal" },
+  { id: "signing_completed", title: "SigningCompleted", system: "SmartDeal" },
   { id: "kod_signed", title: "KodSigned", system: "ЦФТ" },
   { id: "open_account", title: "OpenAccount", system: "ЦФТ" },
   { id: "dbo_sms", title: "DboSms", system: "ЦФТ / ДБО" }
@@ -414,6 +418,10 @@ window.addEventListener("storage", function (e) {
   if (e.key === APP_STORE) syncClientSignature();
 });
 
+function kodPackTitles(d) {
+  return (d.kod.documents || []).map((doc) => doc.title);
+}
+
 async function signDeal() {
   const d = deal();
   const s = st();
@@ -422,12 +430,38 @@ async function signDeal() {
   if (d.application.signing_channel === "smartdeal" && !s.ukepOk) return;
   busy = true;
   const needAcc = needAccountApp(d);
-  showModal("Подписание КОД и ЦФТ", needAcc
-    ? "Заявление на счёт уже есть. Дальше KodSigned → OpenAccount → СМС ДБО."
-    : "КОД подписан. Новый счёт не открываем.");
+  const electronic = d.application.signing_channel === "smartdeal";
   s.step = "opening";
   save();
-  addModalLine("Клиент подписал КОД за столом ОЗС", "ok");
+
+  if (electronic) {
+    const titles = kodPackTitles(d);
+    showModal(
+      "SmartDeal · подписание КОД",
+      "Адаптер: УКЭП → пакет комплекта заключения (" + titles.length +
+        " файлов) → подпись. UI REST не вызывает. Затем KodSigned в ЦФТ."
+    );
+    addModalLine("Заявление на УКЭП на столе — выпускаем ЭП", "on");
+    await runSequence(["request_ukep"]);
+    addModalLine("RequestUkep · qualificationType=UKEP · READY", "ok");
+    addModalLine("CreateSigningPackage · " + titles.join("; "), "on");
+    await runSequence(["create_signing_package"]);
+    addModalLine("пакет файлов КОД (subscribe-request), не обращение в Росреестр", "ok");
+    await runSequence(["start_signing"]);
+    addModalLine("StartSigning · клиент подписывает файлы", "ok");
+    await runSequence(["signing_completed"]);
+    addModalLine("SigningCompleted · вебхук DOCUMENT_*", "ok");
+    addModalLine("Клиент подписал КОД — уведомляем ЦФТ", "ok");
+  } else {
+    showModal(
+      "Подписание КОД и ЦФТ",
+      needAcc
+        ? "Бумажный контур: SmartDeal не запускаем. Дальше KodSigned → OpenAccount → СМС ДБО."
+        : "Бумажный контур: SmartDeal не запускаем. КОД подписан, новый счёт не открываем."
+    );
+    addModalLine("Успех SmartDeal пустой — сразу факт подписания в ЦФТ", "ok");
+  }
+
   await runSequence(["kod_signed"]);
   addModalLine("KodSigned принят ЦФТ", "ok");
   if (needAcc) {

@@ -65,9 +65,18 @@ window.DEAL_OPS_MOCK = {
         ready_at: "2026-08-28T10:05:00+03:00",
         documents: [
           { code: "credit_agreement", title: "Кредитный договор" },
-          { code: "mortgage_agreement", title: "Договор об ипотеке" },
           { code: "payment_schedule", title: "График платежей" },
+          { code: "mortgage_agreement", title: "Договор об ипотеке" },
           { code: "anketa", title: "Заявление-анкета" },
+          { code: "tariff_consent", title: "Согласие с тарифами" },
+          { code: "periodic_transfer", title: "Заявление на периодическое перечисление" },
+          { code: "professional_judgment", title: "Профессиональное суждение" },
+          { code: "credit_load_notice", title: "Уведомление о кредитной нагрузке" },
+          { code: "credit_provision_order", title: "Распоряжение о предоставлении кредита" },
+          { code: "insurance_contract", title: "Договор страхования" },
+          { code: "sopd_full", title: "СОПД полное" },
+          { code: "account_application", title: "Заявление на открытие счёта" },
+          { code: "dbo_application", title: "Заявление на ДБО" },
           { code: "ukep", title: "Заявление на выпуск УКЭП" }
         ]
       },
