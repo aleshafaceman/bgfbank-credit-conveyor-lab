@@ -547,14 +547,15 @@ function renderWork() {
     "</div>" +
 
     '<div class="desk">' +
-    '<div class="panel"><div class="grid-4">' +
+    '<div class="panel span-2"><div class="grid-4">' +
     '<div class="param"><small>Продукт</small><b>' + d.application.product_name + "</b></div>" +
     '<div class="param"><small>Сумма</small><b>' + fmtMoney(d.application.amount) + "</b></div>" +
     '<div class="param"><small>Выдача</small><b>до госрегистрации</b></div>' +
     '<div class="param"><small>Вид сделки</small><b>' + dealKind(d) + "</b></div>" +
     "</div></div>" +
 
-    '<div class="panel"><h2>Идентификация</h2>' +
+    '<div class="panel span-2"><h2>Идентификация</h2>' +
+    '<div class="panel-id">' +
     '<div class="facts">' +
     '<div class="fact"><small>ФИО</small><b>' + c.full_name + "</b></div>" +
     '<div class="fact"><small>Паспорт</small><b>' + c.passport.series + " " + c.passport.number + "</b></div>" +
@@ -562,13 +563,14 @@ function renderWork() {
     '<div class="fact"><small>СНИЛС</small><b>' + c.snils + "</b></div>" +
     '<div class="fact"><small>Телефон</small><b>' + c.phone + "</b></div>" +
     "</div>" +
+    "<div>" +
     '<div class="consent-lock"><b>СОПД банка уже акцептовано</b><small>' +
     fmtDt(d.consents[0].accepted_at) + " · отдельного согласия на счёт нет.</small></div>" +
     esiaBlock +
     '<label class="check"><input type="checkbox" ' + (s.phoneOk ? "checked" : "") +
     ' onchange="togglePhone(this)"><span>Телефон подтверждён — SMS заявления и ДБО</span></label>' +
     '<button type="button" class="btn btn-primary" ' + (identityReady(d, s) && s.step === "snapshot" ? "" : "disabled") +
-    ' onclick="confirmIdentity()">Искать счёт в ЦФТ</button></div>' +
+    ' onclick="confirmIdentity()">Искать счёт в ЦФТ</button></div></div></div>' +
 
     '<div class="panel"><h2>ДУ</h2>' + duHtml +
     '<p class="hint">Часть ДУ до подписи КОД, часть можно на выдачу.</p></div>' +
@@ -593,7 +595,7 @@ function renderWork() {
     ' onclick="signDeal()">Клиент подписал КОД</button>' +
     '<p class="hint">Кнопка активна, когда заявление на счёт готово и ДУ «до подписи» сняты.</p></div>' +
 
-    '<div class="panel"><h2>ДБО и выдача</h2>' +
+    '<div class="panel span-2"><h2>ДБО и выдача</h2>' +
     '<button type="button" class="btn btn-primary" ' + (s.step === "dbo" ? "" : "disabled") +
     ' onclick="confirmDbo()">Клиент открыл ДБО по СМС</button>' +
     (s.step === "ready"
