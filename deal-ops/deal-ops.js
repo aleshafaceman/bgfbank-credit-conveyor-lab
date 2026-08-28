@@ -1197,9 +1197,13 @@ function renderWork() {
           '<button type="button" class="btn btn-ghost" onclick="openClientForm()">Открыть форму клиента</button>'
         : '<button type="button" class="btn btn-primary" ' + (s.step === "account_app" || s.step === "sign" ? "" : "disabled") +
           ' onclick="openPrint()">Печать шаблона</button>' +
-          '<label class="hint">Загрузить подписанный скан<br>' +
-          '<input type="file" ' + (s.step === "account_app" || s.step === "sign" ? "" : "disabled") +
-          ' onchange="onScan(this)"></label>') +
+          '<label class="file-pick' + (s.step === "account_app" || s.step === "sign" ? "" : " is-off") +
+          (s.accountAppScan ? " has-file" : "") + '">' +
+          '<input type="file" accept=".pdf,.jpg,.jpeg,.png,.tif,.tiff" ' +
+          (s.step === "account_app" || s.step === "sign" ? "" : "disabled") +
+          ' onchange="onScan(this)">' +
+          '<span class="file-pick-btn">' + (s.accountAppScan ? "Заменить скан" : "Загрузить скан") + "</span>" +
+          '<span class="file-pick-name">' + (s.accountAppScan || "файл не выбран") + "</span></label>") +
       "</div>" +
       '<p class="status-pill">' + appStatus + "</p>" + whenHtml + "</div>";
 
