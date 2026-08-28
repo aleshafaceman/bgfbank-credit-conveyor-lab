@@ -3,7 +3,7 @@ window.DEAL_OPS_MOCK = {
   deals: [
     {
       deal_id: "25BGFB00990001",
-      title: "ЕСИА · счёт не открыт · SMS-заявление",
+      title: "СОПД: SMS, полная электронная · ЕСИА · счёт не открыт",
       scenario: "open_account",
       esia_consent: true,
       verified_via: "esia",
@@ -45,10 +45,10 @@ window.DEAL_OPS_MOCK = {
           consent_id: "consent-lab-001",
           type: "PERSONAL_DATA",
           form: "full",
-          version: "банк 2025.4 полная",
+          version: "банк 2026.2 полная",
           accepted_at: "2026-03-11T16:49:00+03:00",
           valid_until: "2031-03-11",
-          channel: "form",
+          channel: "sms",
           file_name: "SOPD-25BGFB00990001-first.pdf"
         }
       ],
@@ -75,7 +75,7 @@ window.DEAL_OPS_MOCK = {
     },
     {
       deal_id: "25BGFB00990002",
-      title: "Без ЕСИА · короткая СОПД · бумага",
+      title: "СОПД: короткая с партнёром · без ЕСИА · счёт не открыт",
       scenario: "open_account",
       esia_consent: false,
       verified_via: "manual",
@@ -120,7 +120,7 @@ window.DEAL_OPS_MOCK = {
           version: "банк 2024.2 короткая",
           accepted_at: "2026-04-02T12:10:00+03:00",
           valid_until: "2027-04-02",
-          channel: "sales",
+          channel: "partner",
           file_name: "SOPD-25BGFB00990002-first.pdf"
         }
       ],
@@ -142,7 +142,7 @@ window.DEAL_OPS_MOCK = {
     },
     {
       deal_id: "25BGFB00990003",
-      title: "ЕСИА · счёт есть · СОПД просрочено",
+      title: "СОПД: полная менеджера, бумага, просрочена · ЕСИА · счёт есть",
       scenario: "account_exists",
       esia_consent: true,
       verified_via: "esia",
@@ -187,7 +187,7 @@ window.DEAL_OPS_MOCK = {
           version: "банк 2025.1 полная",
           accepted_at: "2025-02-02T11:20:00+03:00",
           valid_until: "2026-02-02",
-          channel: "form",
+          channel: "manager",
           file_name: "SOPD-25BGFB00990003-first.pdf"
         }
       ],

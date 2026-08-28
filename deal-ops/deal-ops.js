@@ -111,9 +111,9 @@ function formName(form) {
 }
 
 function channelName(ch) {
-  if (ch === "form") return "форма заявки";
-  if (ch === "sales") return "офис продаж";
-  if (ch === "b2b") return "партнёр";
+  if (ch === "partner") return "партнёр";
+  if (ch === "manager") return "менеджер, бумага";
+  if (ch === "sms") return "SMS / электронная форма";
   return ch || "—";
 }
 
@@ -123,16 +123,29 @@ function firstSopd(d) {
 
 function sopdState(d) {
   const c = firstSopd(d);
+  const tpl = MOCK.sopd_template || { version: "банк 2026.2 полная", form: "full" };
   const today = new Date("2026-08-28T12:00:00+03:00");
   const expired = !!(c.valid_until && new Date(c.valid_until) < today);
-  const wrong = (c.form || "full") !== (d.required_sopd_form || "full");
+  const shortOrWrong = (c.form || "full") !== (d.required_sopd_form || "full");
+  const wrongVersion = !!(c.version && tpl.version && c.version !== tpl.version);
   if (expired) {
-    return { code: "expired", text: "Срок первого СОПД истёк — нужна актуальная полная форма.", consent: c };
+    return { code: "expired", needTemplate: true, text: "Срок первого СОПД истёк — нужна актуальная полная форма.", consent: c };
   }
-  if (wrong) {
-    return { code: "wrong_form", text: "Подписана короткая форма, для сделки нужна полная.", consent: c };
+  if (shortOrWrong) {
+    const text = c.channel === "partner"
+      ? "Подписана короткая форма партнёра, для сделки нужна полная."
+      : "Подписана короткая форма, для сделки нужна полная.";
+    return { code: "wrong_form", needTemplate: true, text: text, consent: c };
   }
-  return { code: "ok", text: "Действует, форма совпадает с требуемой для сделки.", consent: c };
+  if (wrongVersion) {
+    return { code: "wrong_version", needTemplate: true, text: "Версия первого СОПД не актуальна — нужна текущая полная форма.", consent: c };
+  }
+  const text = c.channel === "manager"
+    ? "Действует, полная форма менеджера."
+    : c.channel === "sms"
+      ? "Действует, полная электронная форма."
+      : "Действует, полная форма.";
+  return { code: "ok", needTemplate: false, text: text, consent: c };
 }
 
 function openSopd(kind) {
@@ -552,18 +565,20 @@ function renderWork() {
     '<p class="' + (sopd.code === "ok" ? "hint" : "sopd-warn") + '">' + sopd.text + "</p>" +
     '<div class="actions">' +
     '<button type="button" class="btn btn-ghost" onclick="openSopd(\'first\')">Скачать и проверить</button>' +
-    '<button type="button" class="btn btn-primary" onclick="openSopd(\'template\')">Шаблон ' + formName(tpl.form) + " для подписания</button>" +
+    (sopd.needTemplate
+      ? '<button type="button" class="btn btn-primary" onclick="openSopd(\'template\')">Шаблон ' + formName(tpl.form) + " для подписания</button>"
+      : "") +
     "</div></div>";
 
   const esiaBlock = d.esia_consent
-    ? '<div class="consent-lock"><b>ЕСИА с заявки · повторного входа в Госуслуги нет</b><small>' +
+    ? '<div class="consent-lock esia-flag"><b>ЕСИА: да</b><small>Признак с заявки, повторного входа в Госуслуги нет. ' +
       (d.esia_purposes || []).map((p) => p.code + " · " + fmtDt(p.accepted_at)).join(" · ") +
-      ". Личность из ЦПГ. ОЗС только подтверждает явку.</small></div>" +
+      ". Личность из цифрового профиля (ФИО/паспорт — текст, без фото). ОЗС подтверждает явку.</small></div>" +
       '<label class="check"><input type="checkbox" ' + (s.presentOk ? "checked" : "") +
-      ' onchange="togglePresent(this)"><span>Клиент явился, лицо и паспорт совпали со снимком ЦПГ</span></label>'
-    : '<div class="consent-lock"><b>Без ЕСИА</b><small>Личность из анкеты ELMA, не из Госуслуг. Нужна полная очная сверка паспорта.</small></div>' +
+      ' onchange="togglePresent(this)"><span>Клиент явился, паспорт совпал с данными из цифрового профиля</span></label>'
+    : '<div class="consent-lock esia-flag"><b>ЕСИА: нет</b><small>Личность из ELMA/анкеты, не из Госуслуг. Нужна полная очная сверка паспорта.</small></div>' +
       '<label class="check"><input type="checkbox" ' + (s.passportOk ? "checked" : "") +
-      ' onchange="togglePassport(this)"><span>Паспорт в окне совпал со снимком (115-ФЗ, без повторного ввода)</span></label>';
+      ' onchange="togglePassport(this)"><span>Паспорт в окне совпал со снимком сделки (данные документа, не фото ЦПГ)</span></label>';
 
   const ch = s.accountAppChannel;
   const appStatus =

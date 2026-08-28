@@ -245,6 +245,9 @@ h1 { font-size: 22px; color: var(--navy); margin-bottom: 6px; letter-spacing: -.
 .filter.on { background: var(--navy); color: #fff; border-color: var(--navy); }
 .badge-esia { background: #dbeafe; color: #1e40af; margin-left: 6px; }
 .badge-noesia { background: #f1f5f9; color: #475569; margin-left: 6px; }
+.esia-flag { border: 1px solid #bfdbfe; }
+.esia-flag b { display: inline-block; margin-right: 8px; }
+.esia-flag small { display: block; margin-top: 4px; color: var(--muted); }
 h1 .badge { margin-top: 0; vertical-align: middle; }
 .channel-switch { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 4px; }
 .panel .lead { margin-bottom: 8px; }

@@ -6,11 +6,11 @@
   <title>СОПД · БЖФ</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="deal-ops.css?v=5">
+  <link rel="stylesheet" href="deal-ops.css?v=6">
 </head>
 <body class="print-body">
   <main class="print-sheet" id="sheet"></main>
-  <script src="mock.js?v=5"></script>
+  <script src="mock.js?v=6"></script>
   <script>
     const params = new URLSearchParams(location.search);
     const id = params.get("t");
@@ -26,24 +26,39 @@
     function formName(form) {
       return form === "short" ? "короткая" : "полная";
     }
+    function channelName(ch) {
+      if (ch === "partner") return "партнёр";
+      if (ch === "manager") return "менеджер, бумага";
+      if (ch === "sms") return "SMS / электронная форма";
+      return ch || "—";
+    }
 
     if (!d) {
       el.textContent = "Нет сделки";
     } else {
       const c = d.clients[0];
-      const sopd = (d.consents || [])[0];
+      const sopd = (d.consents || []).find((x) => x.type === "PERSONAL_DATA") || (d.consents || [])[0];
       const isFirst = kind === "first";
       const title = isFirst
         ? "Первое согласие на обработку персональных данных"
         : "Согласие на обработку персональных данных (шаблон для подписания)";
       const form = isFirst ? sopd.form : tpl.form;
       const version = isFirst ? sopd.version : tpl.version;
+      const channel = isFirst ? sopd.channel : "manager";
       document.title = (isFirst ? "Первое СОПД" : "Шаблон СОПД") + " · " + d.deal_id;
       el.innerHTML =
         "<h1>" + title + "</h1>" +
         "<p>Банк жилищного финансирования. Макет документа (не бланк ELMA).</p>" +
         "<p><b>Заявка:</b> " + d.deal_id + "</p>" +
         "<p><b>Форма / версия:</b> " + formName(form) + " · " + version + "</p>" +
+        "<p><b>Канал получения:</b> " + channelName(channel) +
+          (isFirst
+            ? (sopd.channel === "partner" ? " — короткая форма с партнёром и клиентом"
+              : sopd.channel === "manager" ? " — полная форма, бумажное подписание с менеджером банка"
+              : sopd.channel === "sms" ? " — полная электронная форма: SMS, клиент заполняет и подписывает"
+              : "")
+            : " — актуальная полная форма для подписания за столом") +
+        "</p>" +
         (isFirst
           ? "<p><b>Акцептовано:</b> " + fmtDate(sopd.accepted_at) + ", действует до " + fmtDate(sopd.valid_until) + "</p>" +
             "<p><b>Файл:</b> " + (sopd.file_name || "SOPD.pdf") + "</p>"
@@ -54,10 +69,10 @@
         "<p><b>Телефон:</b> " + c.phone + "</p>" +
         "<p>Прошу Банк БЖФ обрабатывать мои персональные данные в целях рассмотрения заявки и заключения кредитного договора.</p>" +
         (isFirst
-          ? "<p class=\"sign-line\">Документ уже подписан. Проверьте форму и срок.</p>"
+          ? "<p class=\"sign-line\">Документ уже подписан. Проверьте форму, канал и срок. Это не согласие ЕСИА.</p>"
           : "<p class=\"sign-line\">Подпись субъекта _____________________ / дата ____________</p>" +
             "<p class=\"sign-line\">Подпись сотрудника банка _____________________</p>") +
-        "<p class=\"hint no-print\">Дата создания лида в ELMA в этот документ не входит.</p>" +
+        "<p class=\"hint no-print\">Дата создания лида в ELMA в этот документ не входит. Канал СОПД не связан с ЕСИА.</p>" +
         '<p class="no-print"><button type="button" class="btn btn-primary" onclick="window.print()">' +
         (isFirst ? "Печать / сохранить PDF" : "Печать заполненного шаблона") +
         "</button></p>";
