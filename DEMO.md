@@ -9,6 +9,7 @@
 
 ### Эта копия (LAB — разработка)
 - **Форма happy-path v1 (ПК):** https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/form/
+- **АРМ сделки ОЗС/ОПЕРУ (мок открытия счёта):** https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/deal-ops/
 - Клиент (кабинет): https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/
 - Менеджер: https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/manager/
 - Split-view: https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/demo.html
@@ -24,7 +25,7 @@
 |--------|------------|
 | `/?demo=1` | Сброс данных + автологин клиента → заявки |
 | `/manager/?demo=1` | Сброс + автологин менеджера |
-| `/demo.html` | Split-view (iframe + `embed=1`, компактная вёрстка) |
+| `/deal-ops/?demo=1` | АРМ сделки: сброс мока, очередь ОЗС |
 | `/?demo=1&checklist=1` | + чеклист ведущего (не в split-view) |
 
 Клавиша **P** — режим проектора.
@@ -56,6 +57,17 @@ SMS/OTP — любой код. Госуслуги — имитация.
 
 ### Негативный скоринг (опционально)
 Снять галочку **«Зелёный скоринг»** в шапке менеджера — возможны проблемы/отказ на шагах.
+
+## АРМ сделки (открытие счёта, мок)
+
+`/deal-ops/` или `/deal-ops/?demo=1`. Это не ELMA: стол ОЗС после КОД.
+
+1. Заявка `25BGFB00990001` — сверка паспорта со снимком, подтверждение телефона (СОПД уже с датой акцепта).
+2. «Искать счёт в ЦФТ» — анимация `FindRetailAccount`, затем шесть автопроверок (все успех).
+3. «Клиент подписал пакет» — `KodSigned` → `OpenAccount` → СМС ДБО.
+4. «Клиент открыл ДБО» — готово к выдаче ОБУКО, без второго окна.
+5. Вторая заявка — счёт уже есть, проверки и заявление пропускаются.
+6. Вкладка ОПЕРУ — пустой exception desk.
 
 ## Не кликать на сцене
 

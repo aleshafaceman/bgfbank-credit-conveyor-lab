@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>БЖФ · АРМ сделки (ОЗС / ОПЕРУ)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="deal-ops.css">
+</head>
+<body>
+  <header class="header">
+    <div class="brand">
+      <div class="logo">Б</div>
+      <div>
+        <strong>БЖФ БАНК</strong>
+        <small>АРМ сделки · deal-ops после КОД</small>
+      </div>
+    </div>
+    <div class="roles" role="tablist">
+      <button type="button" class="role on" id="role-ozs" onclick="setRole('ozs')">ОЗС</button>
+      <button type="button" class="role" id="role-operu" onclick="setRole('operu')">ОПЕРУ</button>
+    </div>
+    <div class="header-actions">
+      <span id="officer-label"></span>
+      <button type="button" onclick="resetDemo()">Сбросить демо</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="inbox">
+      <h2 id="inbox-title">Очередь ОЗС</h2>
+      <div id="inbox-list"></div>
+    </aside>
+
+    <main class="work" id="work">
+      <p class="empty" id="work-empty">Выберите сделку слева. Клиент остаётся за этим столом — во второе окно не ходим.</p>
+      <div id="work-deal" class="hidden"></div>
+    </main>
+
+    <aside class="bus">
+      <h2>Шина интеграций</h2>
+      <p class="hint" style="margin-top:0;margin-bottom:12px">Мок: анимация успешного ответа. Живых ФНС/ЦФТ нет.</p>
+      <div id="bus-list"></div>
+    </aside>
+  </div>
+
+  <div class="overlay hidden" id="overlay">
+    <div class="modal">
+      <h3 id="modal-title">Интеграция</h3>
+      <p id="modal-lead"></p>
+      <ul class="log" id="modal-log" style="list-style:none"></ul>
+    </div>
+  </div>
+
+  <script src="mock.js"></script>
+  <script src="deal-ops.js"></script>
+</body>
+</html>

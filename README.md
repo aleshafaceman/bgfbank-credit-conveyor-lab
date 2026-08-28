@@ -18,6 +18,7 @@
 Стабильный демо-показ: https://aleshafaceman.github.io/bgfbank-credit-conveyor/  
 LAB Pages: https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/  
 Форма v1: https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/form/  
+АРМ сделки (ОЗС / ОПЕРУ, мок): https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/deal-ops/  
 Split-view кабинета: https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/demo.html  
 
 Быстрый показ кабинета: `/?demo=1`, `/manager/?demo=1`. Хранилище: `bgfbank_lab_*`.
