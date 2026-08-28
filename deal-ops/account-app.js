@@ -42,7 +42,7 @@ function renderClient() {
   }
   root.innerHTML =
     "<h1>Заявление на открытие текущего счёта</h1>" +
-    "<p class=\"lead\">Данные из снимка сделки. Менять поля нельзя. Это не Госуслуги — подпись по коду из SMS банка.</p>" +
+    "<p class=\"lead\">Данные из комплекта сделки. Менять поля нельзя. Это не Госуслуги — подпись по коду из СМС банка.</p>" +
     '<div class="panel">' +
     '<div class="row"><span>Заявка</span><b>' + deal.deal_id + "</b></div>" +
     '<div class="row"><span>ФИО</span><b>' + c.full_name + "</b></div>" +
@@ -53,7 +53,7 @@ function renderClient() {
     "</div>" +
     '<div class="panel"><label class="check"><input type="checkbox" id="agree">' +
     "<span>Подтверждаю сведения и прошу открыть текущий счёт в Банке БЖФ</span></label>" +
-    '<label for="otp">Код из SMS</label>' +
+    '<label for="otp">Код из СМС</label>' +
     '<input id="otp" type="text" inputmode="numeric" maxlength="4" placeholder="любые 4 цифры">' +
     '<p class="err" id="err"></p>' +
     '<button type="button" class="btn btn-primary" id="signBtn">Подписать заявление</button>' +
@@ -71,7 +71,7 @@ function signApp() {
   }
   const otp = document.getElementById("otp").value.trim();
   if (!/^\d{4}$/.test(otp)) {
-    err.textContent = "Введите 4 цифры из SMS.";
+    err.textContent = "Введите 4 цифры из СМС.";
     err.classList.add("on");
     return;
   }

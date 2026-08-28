@@ -5,27 +5,123 @@ const STORE_VER = 3;
 const MOCK = window.DEAL_OPS_MOCK;
 
 const BUS_CATALOG = [
-  { id: "elma_snapshot", title: "ELMA → снимок КОД", system: "ELMA export" },
-  { id: "cft_find", title: "FindRetailAccount", system: "ЦФТ" },
-  { id: "check_inn", title: "ИНН", system: "СМЭВ / ФНС" },
-  { id: "check_fns", title: "Приостановления ИФНС", system: "СМЭВ / ФНС" },
-  { id: "check_pass", title: "Паспорт", system: "СМЭВ МВД" },
+  { id: "elma_snapshot", title: "Комплект КОД получен", system: "ELMA" },
+  { id: "cft_find", title: "Поиск счёта", system: "ЦФТ" },
+  { id: "check_inn", title: "ИНН", system: "ФНС" },
+  { id: "check_fns", title: "Приостановления ИФНС", system: "ФНС" },
+  { id: "check_pass", title: "Паспорт", system: "МВД" },
   { id: "check_bankr", title: "Банкротство", system: "Федресурс" },
   { id: "check_rkl", title: "РКЛ", system: "ЦФТ" },
   { id: "check_customs", title: "Таможня", system: "ФТС" },
-  { id: "sopd_link", title: "SopdLinkSent", system: "SMS" },
-  { id: "sopd_signed", title: "SopdSigned", system: "форма клиента" },
-  { id: "app_link", title: "AccountAppLinkSent", system: "SMS" },
-  { id: "app_signed", title: "AccountAppSigned", system: "форма клиента" },
-  { id: "elma_callback", title: "Callback в ELMA", system: "deal-ops → ELMA" },
-  { id: "request_ukep", title: "RequestUkep", system: "SmartDeal" },
-  { id: "create_signing_package", title: "CreateSigningPackage", system: "SmartDeal" },
-  { id: "start_signing", title: "StartSigning", system: "SmartDeal" },
-  { id: "signing_completed", title: "SigningCompleted", system: "SmartDeal" },
-  { id: "kod_signed", title: "KodSigned", system: "ЦФТ" },
-  { id: "open_account", title: "OpenAccount", system: "ЦФТ" },
-  { id: "dbo_sms", title: "DboSms", system: "ЦФТ / ДБО" }
+  { id: "sopd_link", title: "Ссылка на согласие", system: "СМС" },
+  { id: "sopd_signed", title: "Согласие подписано", system: "форма клиента" },
+  { id: "app_link", title: "Ссылка на заявление", system: "СМС" },
+  { id: "app_signed", title: "Заявление подписано", system: "форма клиента" },
+  { id: "elma_callback", title: "Уведомление в ELMA", system: "стол ОЗС" },
+  { id: "request_ukep", title: "Выпуск электронной подписи", system: "электронное подписание" },
+  { id: "create_signing_package", title: "Пакет документов", system: "электронное подписание" },
+  { id: "start_signing", title: "Клиент подписывает", system: "электронное подписание" },
+  { id: "signing_completed", title: "Подписание завершено", system: "электронное подписание" },
+  { id: "kod_signed", title: "КОД подписан", system: "ЦФТ" },
+  { id: "open_account", title: "Счёт открыт", system: "ЦФТ" },
+  { id: "dbo_sms", title: "СМС на интернет-банк", system: "ЦФТ" }
 ];
+
+const STAGE_BAR = [
+  { id: "snapshot", name: "Клиент" },
+  { id: "account", name: "Счёт" },
+  { id: "checks", name: "Проверки" },
+  { id: "account_app", name: "Заявление" },
+  { id: "sign", name: "Подпись" },
+  { id: "opening", name: "АБС" },
+  { id: "dbo", name: "ДБО" }
+];
+
+const STAGE_TITLE = {
+  snapshot: "Идентификация клиента",
+  account: "Поиск счёта",
+  checks: "Проверки для открытия счёта",
+  operu: "Ошибка проверки — стол ОПЕРУ",
+  account_app: "Заявление на открытие счёта",
+  sign: "Подписание комплекта КОД",
+  opening: "Открытие счёта в АБС",
+  dbo: "Подключение интернет-банка",
+  ready: "Готово к выдаче",
+  stopped: "Сделка остановлена"
+};
+
+const ELMA_STATUS_RU = {
+  snapshot_received: "комплект получен",
+  phone_confirmed: "телефон подтверждён",
+  account_exists: "счёт уже есть",
+  checks_running: "проверки запущены",
+  checks_passed: "проверки пройдены",
+  checks_operu: "ошибка — на ОПЕРУ",
+  stop_factor: "стоп по проверке",
+  operu_approved: "ОПЕРУ согласовал",
+  operu_rejected: "ОПЕРУ отказал",
+  sopd_full_signed: "полная форма согласия подписана",
+  account_app_link_sent: "ссылка на заявление отправлена",
+  account_app_signed: "заявление на счёт подписано",
+  signing_completed: "КОД подписан",
+  account_opened: "счёт открыт",
+  dbo_sms_sent: "СМС на интернет-банк отправлено",
+  dbo_opened: "интернет-банк открыт",
+  deal_stopped: "сделка остановлена"
+};
+
+const HELP = {
+  inbox: {
+    title: "Очередь",
+    about: "Сделки, которые уже пришли на стол после готовности комплекта КОД. Клиент сидит здесь, во второе окно его не отправляем.",
+    next: "Откройте карточку слева и начните с идентификации."
+  },
+  bus: {
+    title: "Ход обмена",
+    about: "Что стол отправил во внешние системы: ELMA, ЦФТ, проверки, электронное подписание. Кнопки на карточке эти системы сами не вызывают.",
+    next: "Смотрите статус рядом с шагом на карточке — зелёный кружок значит, что ответ уже пришёл."
+  },
+  summary: {
+    title: "Сводка сделки",
+    about: "Продукт, сумма, когда выдаём деньги и как подписываем комплект: электронно или на бумаге.",
+    next: "Проверьте личность и согласие на обработку данных."
+  },
+  identity: {
+    title: "Идентификация",
+    about: "Сверка паспорта со снимком сделки, первое согласие на обработку данных и телефон для СМС. Госуслуги за столом не открываем.",
+    next: "Когда согласие достаточное и галочки стоят — ищите счёт в ЦФТ."
+  },
+  du: {
+    title: "Дополнительные условия",
+    about: "Условия из решения, которые нужно снять до подписи комплекта или можно оставить на выдачу.",
+    next: "Условия «до подписи КОД» должны быть отмечены до кнопки подписания."
+  },
+  checks: {
+    title: "Проверки открытия счёта",
+    about: "Автоматические запросы по клиенту, если текущего счёта ещё нет. Стол их не вызывает вручную.",
+    next: "Успех — заявление на счёт. Ошибка без стопа — ОПЕРУ, клиент остаётся у ОЗС. Стоп — сделку не подписываем."
+  },
+  account_app: {
+    title: "Заявление на счёт",
+    about: "Отдельный документ, не путать с КОД. Можно отправить форму по СМС или напечатать и загрузить скан.",
+    next: "Когда заявление готово, переходите к подписанию комплекта КОД."
+  },
+  kod: {
+    title: "Комплект КОД",
+    about: "Кредитный договор и связанные документы. Электронная сделка: сначала заявление на УКЭП, затем подпись пакета. Бумага: печать и сканы до конца следующего рабочего дня.",
+    next: "Кнопка «Клиент подписал КОД» — после заявления на счёт и снятых условий «до подписи»."
+  },
+  dbo: {
+    title: "Интернет-банк и выдача",
+    about: "После открытия счёта клиент ставит интернет-банк по СМС. Деньги переводит ОБУКО в ЦФТ, не это окно.",
+    next: "Отметьте, что клиент открыл ДБО — сделка готова к выдаче."
+  },
+  operu: {
+    title: "Стол ОПЕРУ",
+    about: "Только ошибки проверок, не второе окно для клиента. Паспорт заново не набиваем — смотрим снимок.",
+    next: "Согласовать — возврат ОЗС к заявлению на счёт. Отказать — стоп сделки."
+  }
+};
 
 const CHECK_BUS = {
   inn: "check_inn",
@@ -125,7 +221,7 @@ function formName(form) {
 function channelName(ch) {
   if (ch === "partner") return "партнёр";
   if (ch === "manager") return "менеджер, бумага";
-  if (ch === "sms") return "SMS / электронная форма";
+  if (ch === "sms") return "СМС / электронная форма";
   return ch || "—";
 }
 
@@ -326,7 +422,7 @@ function elmaCallback(status, extra) {
   }, extra || {});
   s.elmaLog = (s.elmaLog || []).concat(payload);
   setBus("elma_callback", "ok");
-  addModalLine("ELMA ← " + JSON.stringify({ deal_id: payload.deal_id, status: payload.status }), "ok");
+  addModalLine("В ELMA: " + elmaStatusRu(payload.status), "ok");
 }
 
 function checkOutcome(d, chkId) {
@@ -337,6 +433,52 @@ function lastElmaStatus(s) {
   const log = (s && s.elmaLog) || [];
   return log.length ? log[log.length - 1].status : "snapshot_received";
 }
+
+function elmaStatusRu(status) {
+  return ELMA_STATUS_RU[status] || status;
+}
+
+function checkStatusRu(cs, operuOk) {
+  if (operuOk) return "ошибка, ОПЕРУ согласовал";
+  if (cs === "pass") return "успех";
+  if (cs === "pending") return "запрос";
+  if (cs === "stop_factor") return "стоп";
+  if (cs === "error") return "ошибка";
+  return "не запускали";
+}
+
+function helpBtn(id) {
+  const h = HELP[id];
+  if (!h) return "";
+  return '<div class="help-wrap">' +
+    '<button type="button" class="help-btn" aria-label="О блоке: ' + h.title +
+    '" onclick="toggleHelp(event,\'' + id + '\')">i</button>' +
+    '<div class="help-pop hidden" id="help-' + id + '" role="dialog" onclick="event.stopPropagation()">' +
+    "<b>" + h.title + "</b><p>" + h.about + "</p>" +
+    '<p class="help-next">Следующий шаг: ' + h.next + "</p></div></div>";
+}
+
+function panelHead(title, helpId) {
+  return '<div class="panel-head"><h2>' + title + "</h2>" + helpBtn(helpId) + "</div>";
+}
+
+function toggleHelp(ev, id) {
+  ev.stopPropagation();
+  const pop = document.getElementById("help-" + id);
+  if (!pop) return;
+  const willOpen = pop.classList.contains("hidden");
+  closeAllHelp();
+  if (willOpen) pop.classList.remove("hidden");
+}
+
+function closeAllHelp() {
+  document.querySelectorAll(".help-pop").forEach((p) => p.classList.add("hidden"));
+}
+
+document.addEventListener("click", closeAllHelp);
+document.addEventListener("keydown", function (e) {
+  if (e.key === "Escape") closeAllHelp();
+});
 
 function operuQueue() {
   return MOCK.deals.filter((d) => {
@@ -375,7 +517,7 @@ async function confirmIdentity() {
   busy = true;
   s.step = "account";
   save();
-  showModal("ЦФТ · поиск счёта РКО", "FindRetailAccount по IDClientCFT из снимка. Паспорт заново не вводим.");
+  showModal("Поиск счёта в ЦФТ", "Ищем текущий счёт по клиенту из комплекта. Паспорт заново не вводим.");
   addModalLine("Запрос в ЦФТ…", "on");
   elmaCallback("phone_confirmed");
   setBus("cft_find", "pending");
@@ -406,7 +548,7 @@ async function startChecks() {
   busy = true;
   const d = deal();
   const s = st();
-  showModal("Автопроверки открытия счёта", "Параллельный outbox. UI их не вызывает.");
+  showModal("Проверки для открытия счёта", "Запросы уходят сами. Стол их не запускает по отдельности.");
   let hasStop = false;
   let hasError = false;
   for (const chk of MOCK.checks) {
@@ -419,15 +561,15 @@ async function startChecks() {
     s.checks[chk.id] = outcome;
     if (outcome === "pass") {
       setBus(CHECK_BUS[chk.id], "ok");
-      addModalLine("pass", "ok");
+      addModalLine("успех", "ok");
     } else if (outcome === "stop_factor") {
       hasStop = true;
       setBus(CHECK_BUS[chk.id], "fail");
-      addModalLine("stop_factor", "fail");
+      addModalLine("стоп", "fail");
     } else {
       hasError = true;
       setBus(CHECK_BUS[chk.id], "fail");
-      addModalLine("error · " + (outcome === "error" ? "таймаут / недоступность" : outcome), "fail");
+      addModalLine("ошибка: нет ответа сервиса", "fail");
     }
     save();
     render();
@@ -460,11 +602,11 @@ async function sendSopdLink() {
   setBus("sopd_link", "pending");
   save();
   render();
-  showModal("SMS · полная форма СОПД", "Ссылка на электронную полную форму банка. Не ЕСИА.");
-  addModalLine("SMS на " + d.clients[0].phone, "on");
+  showModal("СМС · полная форма согласия", "Ссылка на электронную полную форму банка. Это не Госуслуги.");
+  addModalLine("СМС на " + d.clients[0].phone, "on");
   await sleep(700);
   setBus("sopd_link", "ok");
-  addModalLine("SopdLinkSent", "ok");
+  addModalLine("Ссылка отправлена", "ok");
   save();
   hideModal();
   busy = false;
@@ -520,7 +662,7 @@ async function operuReject() {
   elmaCallback("stop_factor");
   s.step = "stopped";
   save();
-  addModalLine("deal_stopped для ОЗС", "fail");
+  addModalLine("Сделка остановлена для ОЗС", "fail");
   await sleep(500);
   hideModal();
   busy = false;
@@ -545,11 +687,11 @@ async function sendAppLink() {
   setBus("app_link", "pending");
   save();
   render();
-  showModal("SMS клиенту", "Ссылка на электронное заявление. Это не ЕСИА — OTP банка.");
-  addModalLine("SMS на " + d.clients[0].phone, "on");
+  showModal("СМС клиенту", "Ссылка на электронное заявление. Код из СМС банка, не Госуслуги.");
+  addModalLine("СМС на " + d.clients[0].phone, "on");
   await sleep(700);
   setBus("app_link", "ok");
-  addModalLine("AccountAppLinkSent", "ok");
+  addModalLine("Ссылка на заявление отправлена", "ok");
   elmaCallback("account_app_link_sent");
   save();
   hideModal();
@@ -640,41 +782,41 @@ async function signDeal() {
   if (electronic) {
     const titles = kodPackTitles(d);
     showModal(
-      "SmartDeal · подписание КОД",
-      "Адаптер: УКЭП → пакет комплекта заключения (" + titles.length +
-        " файлов) → подпись. UI REST не вызывает. Затем KodSigned в ЦФТ."
+      "Электронное подписание КОД",
+      "Выпуск подписи, пакет комплекта заключения (" + titles.length +
+        " файлов) и подпись клиентом. Затем факт подписания уходит в ЦФТ."
     );
-    addModalLine("Заявление на УКЭП на столе — выпускаем ЭП", "on");
+    addModalLine("Заявление на УКЭП на столе — выпускаем подпись", "on");
     await runSequence(["request_ukep"]);
-    addModalLine("RequestUkep · qualificationType=UKEP · READY", "ok");
-    addModalLine("CreateSigningPackage · " + titles.join("; "), "on");
+    addModalLine("Электронная подпись выпущена", "ok");
+    addModalLine("Пакет на подпись: " + titles.join("; "), "on");
     await runSequence(["create_signing_package"]);
-    addModalLine("пакет файлов КОД (subscribe-request), не обращение в Росреестр", "ok");
+    addModalLine("В пакет ушли файлы комплекта, не обращение в Росреестр", "ok");
     await runSequence(["start_signing"]);
-    addModalLine("StartSigning · клиент подписывает файлы", "ok");
+    addModalLine("Клиент подписывает файлы", "ok");
     await runSequence(["signing_completed"]);
-    addModalLine("SigningCompleted · вебхук DOCUMENT_*", "ok");
-    addModalLine("Клиент подписал КОД — уведомляем ЦФТ", "ok");
+    addModalLine("Подписание комплекта завершено", "ok");
+    addModalLine("Сообщаем в ЦФТ, что КОД подписан", "ok");
   } else {
     showModal(
-      "Подписание КОД и ЦФТ",
+      "Подписание КОД",
       needAcc
-        ? "Бумажный контур: SmartDeal не запускаем. Дальше KodSigned → OpenAccount → СМС ДБО."
-        : "Бумажный контур: SmartDeal не запускаем. КОД подписан, новый счёт не открываем."
+        ? "Бумажная сделка: электронное подписание не запускаем. Дальше — факт в ЦФТ, открытие счёта и СМС на интернет-банк."
+        : "Бумажная сделка: электронное подписание не запускаем. КОД подписан, новый счёт не открываем."
     );
-    addModalLine("Успех SmartDeal пустой — сразу факт подписания в ЦФТ", "ok");
+    addModalLine("Электронное подписание не требуется — сразу факт в ЦФТ", "ok");
   }
 
   await runSequence(["kod_signed"]);
-  addModalLine("KodSigned принят ЦФТ", "ok");
+  addModalLine("ЦФТ принял: КОД подписан", "ok");
   if (needAcc) {
     await runSequence(["open_account"]);
     s.accountId = s.accountId || "40817810100000007701";
     addModalLine("Счёт открыт: " + s.accountId, "ok");
     await runSequence(["dbo_sms"]);
-    addModalLine("СМС ДБО на " + d.clients[0].phone, "ok");
+    addModalLine("СМС на интернет-банк: " + d.clients[0].phone, "ok");
   } else {
-    addModalLine("OpenAccount пропущен — счёт уже был", "ok");
+    addModalLine("Открытие счёта пропущено — счёт уже был", "ok");
   }
   elmaCallback("signing_completed");
   if (needAcc && s.accountId) elmaCallback("account_opened", { cft_account_id: s.accountId });
@@ -708,7 +850,7 @@ function stepIndex(step) {
 
 function renderInbox() {
   const ozs = state.role === "ozs";
-  document.getElementById("inbox-title").textContent = ozs ? "Очередь ОЗС" : "Exception desk ОПЕРУ";
+  document.getElementById("inbox-title").innerHTML = (ozs ? "Очередь ОЗС" : "Очередь ОПЕРУ") + helpBtn("inbox");
   document.getElementById("role-ozs").classList.toggle("on", ozs);
   document.getElementById("role-operu").classList.toggle("on", !ozs);
   document.getElementById("officer-label").textContent = ozs
@@ -719,7 +861,7 @@ function renderInbox() {
   if (!ozs) {
     const q = operuQueue();
     if (!q.length) {
-      list.innerHTML = '<p class="empty">Очередь пуста. ОПЕРУ берёт только error без stop_factor. Клиента во второе окно не зовём.</p>';
+      list.innerHTML = '<p class="empty">Очередь пуста. Сюда попадают только ошибки проверок, не стоп. Клиента во второе окно не зовём.</p>';
       return;
     }
     list.innerHTML = q.map((d) => {
@@ -750,12 +892,14 @@ function renderInbox() {
 
 function renderBus() {
   const s = state.selectedId ? st() : null;
+  const head = document.getElementById("bus-head");
+  if (head) head.innerHTML = "<h2>Ход обмена</h2>" + helpBtn("bus");
   document.getElementById("bus-list").innerHTML = BUS_CATALOG.map((item) => {
     const stt = (s && s.bus[item.id]) || "idle";
     const cls = stt === "ok" ? "ok" : stt === "pending" ? "pending" : stt === "fail" ? "fail" : "";
     let label = stt === "ok" ? "успех" : stt === "pending" ? "запрос…" : stt === "fail" ? "ошибка" : "ожидание";
     if (item.id === "elma_callback" && s && (s.elmaLog || []).length) {
-      label = lastElmaStatus(s);
+      label = elmaStatusRu(lastElmaStatus(s));
     }
     return '<div class="int ' + cls + '"><i class="dot-i"></i><div><b>' + item.title +
       "</b><span>" + item.system + " · " + label + "</span></div></div>";
@@ -771,7 +915,8 @@ function renderWork() {
     const q = operuQueue();
     const d = q.find((x) => x.deal_id === state.selectedId) || q[0];
     if (!d) {
-      box.innerHTML = '<div class="work-inner"><h1>ОПЕРУ</h1><p class="lead">Exception desk failed-check. Клиента сюда не пересаживаем — он остаётся у ОЗС.</p></div>';
+      box.innerHTML = '<div class="work-inner">' + panelHead("ОПЕРУ", "operu") +
+        "<p class=\"lead\">Стол ошибок проверок. Клиента сюда не пересаживаем — он остаётся у ОЗС.</p></div>";
       return;
     }
     if (state.selectedId !== d.deal_id) state.selectedId = d.deal_id;
@@ -781,22 +926,22 @@ function renderWork() {
     const checksHtml = MOCK.checks.map((chk) => {
       const cs = s.checks[chk.id];
       const tile = cs === "pass" ? "ok" : cs === "pending" ? "pending" : cs === "stop_factor" ? "stop" : cs && cs !== "pass" ? "error" : "";
-      const stLabel = cs === "pass" ? "pass" : cs === "pending" ? "запрос" : cs === "stop_factor" ? "stop_factor" : cs === "error" ? "error" : "не запускали";
+      const stLabel = checkStatusRu(cs, false);
       return '<div class="check-tile ' + tile + '"><b>' + chk.title + "</b><div class=\"sys\">" + chk.system +
         "</div><div class=\"st\">" + stLabel + "</div></div>";
     }).join("");
     box.innerHTML =
       '<div class="work-inner"><h1>' + d.deal_id + " " + esiaBadge(d) + "</h1>" +
-      "<p class=\"lead\">Снимок сделок. Паспорт заново не вводим. Согласовать — возврат ОЗС; отказать — стоп-фактор.</p>" +
+      "<p class=\"lead\">Снимок сделки. Паспорт заново не вводим. Согласовать — возврат ОЗС; отказать — стоп.</p>" +
       '<div class="desk"><div class="panel span-2"><div class="grid-4">' +
       '<div class="param"><small>Клиент</small><b>' + c.full_name + "</b></div>" +
       '<div class="param"><small>Паспорт</small><b>' + c.passport.series + " " + c.passport.number + "</b></div>" +
       '<div class="param"><small>ИНН</small><b>' + c.inn + "</b></div>" +
-      '<div class="param"><small>Последний callback</small><b>' + lastElmaStatus(s) + "</b></div>" +
+      '<div class="param"><small>Последнее уведомление</small><b>' + elmaStatusRu(lastElmaStatus(s)) + "</b></div>" +
       "</div></div>" +
-      '<div class="panel span-2"><h2>Проверки</h2><div class="checks">' + checksHtml + "</div>" +
-      "<p class=\"hint\">Ошибки: " + (failed.map((x) => x.title).join(", ") || "нет") + ". Stop_factor сюда не попадает.</p></div>" +
-      '<div class="panel span-2"><h2>Решение ОПЕРУ</h2>' +
+      '<div class="panel span-2">' + panelHead("Проверки", "checks") + '<div class="checks">' + checksHtml + "</div>" +
+      "<p class=\"hint\">Ошибки: " + (failed.map((x) => x.title).join(", ") || "нет") + ". Стоп на этот стол не попадает.</p></div>" +
+      '<div class="panel span-2">' + panelHead("Решение", "operu") +
       '<label class="hint">Комментарий<br><textarea class="operu-note" rows="3" oninput="noteOperuComment(this)">' +
       (s.operuComment || "").replace(/</g, "&lt;") + "</textarea></label>" +
       '<div class="actions">' +
@@ -818,20 +963,16 @@ function renderWork() {
   syncClientSignature();
   syncSopdSignature();
   const idx = stepIndex(s.step);
-  const dots = [0, 1, 2, 3, 4, 5, 6].map((i) =>
-    '<i class="dot ' + (i < idx ? "done" : i === idx ? "on" : "") + '"></i>'
+  const dots = STAGE_BAR.map((st, i) =>
+    '<span class="step-item"><i class="dot ' + (i < idx ? "done" : i === idx ? "on" : "") +
+    '"></i><small>' + st.name + "</small></span>"
   ).join("");
 
   const checksHtml = MOCK.checks.map((chk) => {
     const cs = s.checks[chk.id];
     const operuOk = cs === "error" && s.operuDecision === "approved";
     const tile = cs === "pass" || operuOk ? "ok" : cs === "pending" ? "pending" : cs === "stop_factor" ? "stop" : (cs && cs !== "pass" ? "error" : "");
-    const stLabel = operuOk ? "error · ОПЕРУ согласовал"
-      : cs === "pass" ? "pass"
-      : cs === "pending" ? "запрос"
-      : cs === "stop_factor" ? "stop_factor"
-      : cs === "error" ? "error"
-      : "не запускали";
+    const stLabel = checkStatusRu(cs, operuOk);
     return '<div class="check-tile ' + tile + '"><b>' + chk.title + "</b><div class=\"sys\">" + chk.system +
       "</div><div class=\"st\">" + stLabel + "</div></div>";
   }).join("");
@@ -863,7 +1004,7 @@ function renderWork() {
     '<button type="button" class="btn btn-ghost" onclick="openSopd(\'first\')">Скачать и проверить</button>' +
     (sopd.needTemplate
       ? '<button type="button" class="btn btn-ghost" onclick="openSopd(\'template\')">Шаблон ' + formName(tpl.form) + " · бумага</button>" +
-        '<button type="button" class="btn btn-primary" onclick="sendSopdLink()">Отправить полную форму SMS</button>' +
+        '<button type="button" class="btn btn-primary" onclick="sendSopdLink()">Отправить полную форму СМС</button>' +
         '<button type="button" class="btn btn-ghost" onclick="openSopdClient()">Открыть форму клиента</button>'
       : "") +
     "</div>" +
@@ -878,7 +1019,7 @@ function renderWork() {
 
   const esiaBlock = d.esia_consent
     ? '<div class="consent-lock esia-flag"><b>ЕСИА: да</b><small>Признак с заявки, повторного входа в Госуслуги нет. ' +
-      (d.esia_purposes || []).map((p) => p.code + " · " + fmtDt(p.accepted_at)).join(" · ") +
+      (d.esia_purposes || []).map((p) => (p.title || p.code) + " · " + fmtDt(p.accepted_at)).join(" · ") +
       ". Личность из цифрового профиля (ФИО/паспорт — текст, без фото). ОЗС подтверждает явку.</small></div>" +
       '<label class="check"><input type="checkbox" ' + (s.presentOk ? "checked" : "") +
       ' onchange="togglePresent(this)"><span>Клиент явился, паспорт совпал с данными из цифрового профиля</span></label>'
@@ -893,12 +1034,13 @@ function renderWork() {
     s.accountAppStatus === "link_sent" ? "Ссылка отправлена, ждём подпись клиента" : "не готово";
 
   const appPanel = !needAccountApp(d)
-    ? '<div class="panel"><h2>Заявление на счёт</h2><p class="hint">Счёт уже есть — заявление на открытие не нужно.</p></div>'
-    : '<div class="panel"><h2>Заявление на открытие счёта</h2>' +
-      "<p class=\"lead\">Отдельно от КОД. Дефолт: " +
-      (d.esia_consent ? "SMS (клиент с ЕСИА)" : "печать (без ЕСИА)") + ".</p>" +
+    ? '<div class="panel">' + panelHead("Заявление на счёт", "account_app") +
+      '<p class="hint">Счёт уже есть — заявление на открытие не нужно.</p></div>'
+    : '<div class="panel">' + panelHead("Заявление на открытие счёта", "account_app") +
+      "<p class=\"lead\">Отдельно от комплекта КОД. По умолчанию: " +
+      (d.esia_consent ? "СМС (есть Госуслуги на заявке)" : "печать (без Госуслуг)") + ".</p>" +
       '<div class="channel-switch">' +
-      '<button type="button" class="filter' + (ch === "sms" ? " on" : "") + '" onclick="setAppChannel(\'sms\')">Электронно · SMS</button>' +
+      '<button type="button" class="filter' + (ch === "sms" ? " on" : "") + '" onclick="setAppChannel(\'sms\')">Электронно · СМС</button>' +
       '<button type="button" class="filter' + (ch === "paper" ? " on" : "") + '" onclick="setAppChannel(\'paper\')">Бумага · печать и скан</button>' +
       "</div>" +
       '<div class="actions">' +
@@ -920,20 +1062,21 @@ function renderWork() {
   box.innerHTML =
     '<div class="work-inner">' +
     '<div class="work-head">' +
-    '<div class="steps" aria-hidden="true">' + dots + "</div>" +
+    '<div class="steps" aria-label="Этапы">' + dots + "</div>" +
     "<h1>" + d.deal_id + " " + esiaBadge(d) + "</h1>" +
-    "<p class=\"lead\">Снимок после КОД. Госуслуги на сделке не открываем. СОПД проверяем по первому согласию.</p>" +
+    '<p class="stage-now">' + (STAGE_TITLE[s.step] || "В работе") + "</p>" +
+    "<p class=\"lead\">После комплекта КОД. Госуслуги за столом не открываем. Сначала проверяем согласие на обработку данных.</p>" +
     "</div>" +
 
     '<div class="desk">' +
-    '<div class="panel span-2"><div class="grid-4">' +
+    '<div class="panel span-2">' + panelHead("Сделка", "summary") + '<div class="grid-4">' +
     '<div class="param"><small>Продукт</small><b>' + d.application.product_name + "</b></div>" +
     '<div class="param"><small>Сумма</small><b>' + fmtMoney(d.application.amount) + "</b></div>" +
     '<div class="param"><small>Выдача</small><b>до госрегистрации</b></div>' +
     '<div class="param"><small>Вид сделки</small><b>' + dealKind(d) + "</b></div>" +
     "</div></div>" +
 
-    '<div class="panel span-2"><h2>Идентификация</h2>' +
+    '<div class="panel span-2">' + panelHead("Идентификация", "identity") +
     '<div class="panel-id">' +
     '<div class="facts">' +
     '<div class="fact"><small>ФИО</small><b>' + c.full_name + "</b></div>" +
@@ -946,19 +1089,19 @@ function renderWork() {
     sopdBlock +
     esiaBlock +
     '<label class="check"><input type="checkbox" ' + (s.phoneOk ? "checked" : "") +
-    ' onchange="togglePhone(this)"><span>Телефон подтверждён — SMS заявления и ДБО</span></label>' +
+    ' onchange="togglePhone(this)"><span>Телефон подтверждён — СМС заявления и интернет-банка</span></label>' +
     '<button type="button" class="btn btn-primary" ' + (identityReady(d, s) && !sopd.needTemplate && s.step === "snapshot" ? "" : "disabled") +
     ' onclick="confirmIdentity()">Искать счёт в ЦФТ</button></div></div></div>' +
 
-    '<div class="panel"><h2>ДУ</h2>' + duHtml +
-    '<p class="hint">Часть ДУ до подписи КОД, часть можно на выдачу.</p></div>' +
+    '<div class="panel">' + panelHead("Доп. условия", "du") + duHtml +
+    '<p class="hint">Часть условий — до подписи комплекта, часть можно оставить на выдачу.</p></div>' +
 
-    '<div class="panel"><h2>Автопроверки</h2>' +
+    '<div class="panel">' + panelHead("Проверки", "checks") +
     (s.step === "operu"
-      ? "<p class=\"hint\">error без стопа — очередь ОПЕРУ. Клиент остаётся за этим столом.</p>"
+      ? "<p class=\"hint\">Ошибка без стопа — очередь ОПЕРУ. Клиент остаётся за этим столом.</p>"
       : "") +
     (s.step === "stopped"
-      ? "<p class=\"sopd-warn\">Стоп-фактор. Подписание закрыто. Во второе окно не идём.</p>"
+      ? "<p class=\"sopd-warn\">Стоп по проверке. Подписание закрыто. Во второе окно не идём.</p>"
       : "") +
     (d.scenario === "account_exists"
       ? "<p class=\"hint\">Счёт уже есть — проверки открытия не запускаем.</p>"
@@ -968,7 +1111,7 @@ function renderWork() {
 
     appPanel +
 
-    '<div class="panel"><h2>КОД</h2>' + kodDocs +
+    '<div class="panel">' + panelHead("Комплект КОД", "kod") + kodDocs +
     (d.application.signing_channel === "smartdeal"
       ? '<label class="check"><input type="checkbox" ' + (s.ukepOk ? "checked" : "") +
         ' onchange="toggleUkep(this)"><span>Заявление на УКЭП подписано (электронная сделка)</span></label>'
@@ -977,16 +1120,16 @@ function renderWork() {
     ' onchange="toggleDboApp(this)"><span>Заявление на ДБО + приложение 1 (безакцепт) на столе</span></label>' +
     '<button type="button" class="btn btn-primary" ' + (signDisabled ? "disabled" : "") +
     ' onclick="signDeal()">Клиент подписал КОД</button>' +
-    '<p class="hint">Кнопка активна, когда заявление на счёт готово и ДУ «до подписи» сняты.</p></div>' +
+    '<p class="hint">Кнопка активна, когда заявление на счёт готово и доп. условия «до подписи» сняты.</p></div>' +
 
-    '<div class="panel span-2"><h2>ДБО и выдача</h2>' +
+    '<div class="panel span-2">' + panelHead("Интернет-банк и выдача", "dbo") +
     '<button type="button" class="btn btn-primary" ' + (s.step === "dbo" ? "" : "disabled") +
-    ' onclick="confirmDbo()">Клиент открыл ДБО по СМС</button>' +
+    ' onclick="confirmDbo()">Клиент открыл интернет-банк по СМС</button>' +
     (s.step === "ready"
       ? '<div class="done-banner">Готово к выдаче ОБУКО в ЦФТ на счёт ' + (s.accountId || "—") +
         ". Клиента в соседнее окно не отправляем. Сканы КОД — до конца следующего рабочего дня.</div>"
       : s.step === "stopped"
-        ? '<div class="stop-banner">Сделка остановлена. Callback ELMA: ' + lastElmaStatus(s) + ".</div>"
+        ? '<div class="stop-banner">Сделка остановлена. В ELMA: ' + elmaStatusRu(lastElmaStatus(s)) + ".</div>"
         : '<p class="hint">ОБУКО переводит в ЦФТ. Календарь паспорта сделки в этот АРМ не входит.</p>') +
     "</div></div></div>";
 }

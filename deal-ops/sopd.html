@@ -6,11 +6,11 @@
   <title>СОПД · БЖФ</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="deal-ops.css?v=8">
+  <link rel="stylesheet" href="deal-ops.css?v=9">
 </head>
 <body class="print-body">
   <main class="print-sheet" id="sheet"></main>
-  <script src="mock.js?v=8"></script>
+  <script src="mock.js?v=9"></script>
   <script>
     const params = new URLSearchParams(location.search);
     const id = params.get("t");
@@ -29,7 +29,7 @@
     function channelName(ch) {
       if (ch === "partner") return "партнёр";
       if (ch === "manager") return "менеджер, бумага";
-      if (ch === "sms") return "SMS / электронная форма";
+      if (ch === "sms") return "СМС / электронная форма";
       return ch || "—";
     }
 
@@ -55,7 +55,7 @@
           (isFirst
             ? (sopd.channel === "partner" ? " — короткая форма с партнёром и клиентом"
               : sopd.channel === "manager" ? " — полная форма, бумажное подписание с менеджером банка"
-              : sopd.channel === "sms" ? " — полная электронная форма: SMS, клиент заполняет и подписывает"
+              : sopd.channel === "sms" ? " — полная электронная форма: СМС, клиент заполняет и подписывает"
               : "")
             : " — актуальная полная форма для подписания за столом") +
         "</p>" +

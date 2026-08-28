@@ -39,7 +39,7 @@ function renderClient() {
   }
   root.innerHTML =
     "<h1>Согласие на обработку персональных данных</h1>" +
-    "<p class=\"lead\">Полная форма банка. Поля из снимка сделки, менять нельзя. Подпись по коду из SMS банка — это не Госуслуги.</p>" +
+    "<p class=\"lead\">Полная форма банка. Поля из комплекта сделки, менять нельзя. Подпись по коду из СМС банка — это не Госуслуги.</p>" +
     '<div class="panel">' +
     '<div class="row"><span>Заявка</span><b>' + deal.deal_id + "</b></div>" +
     '<div class="row"><span>Форма</span><b>полная · ' + tpl.version + "</b></div>" +
@@ -52,7 +52,7 @@ function renderClient() {
     '<div class="panel"><p class="hint" style="margin-top:0">Прошу Банк БЖФ обрабатывать мои персональные данные в целях рассмотрения заявки и заключения кредитного договора. Дата создания лида в документ не входит.</p>' +
     '<label class="check"><input type="checkbox" id="agree">' +
     "<span>Подтверждаю полную форму СОПД и подписываю её</span></label>" +
-    '<label for="otp">Код из SMS</label>' +
+    '<label for="otp">Код из СМС</label>' +
     '<input id="otp" type="text" inputmode="numeric" maxlength="4" placeholder="любые 4 цифры">' +
     '<p class="err" id="err"></p>' +
     '<button type="button" class="btn btn-primary" id="signBtn">Подписать СОПД</button>' +
@@ -70,7 +70,7 @@ function signSopd() {
   }
   const otp = document.getElementById("otp").value.trim();
   if (!/^\d{4}$/.test(otp)) {
-    err.textContent = "Введите 4 цифры из SMS.";
+    err.textContent = "Введите 4 цифры из СМС.";
     err.classList.add("on");
     return;
   }

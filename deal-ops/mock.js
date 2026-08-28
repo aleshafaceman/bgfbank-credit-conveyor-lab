@@ -3,7 +3,7 @@ window.DEAL_OPS_MOCK = {
   deals: [
     {
       deal_id: "25BGFB00990001",
-      title: "СОПД: SMS, полная электронная · ЕСИА · счёт не открыт",
+      title: "СОПД: полная, СМС · Госуслуги · счёт не открыт",
       scenario: "open_account",
       esia_consent: true,
       verified_via: "esia",
@@ -218,7 +218,7 @@ window.DEAL_OPS_MOCK = {
     },
     {
       deal_id: "25BGFB00990004",
-      title: "Проверки: ошибка ИНН → ОПЕРУ · СОПД полное · без ЕСИА",
+      title: "Проверки: ошибка ИНН → ОПЕРУ · СОПД полное · без Госуслуг",
       scenario: "open_account",
       esia_consent: false,
       verified_via: "manual",
@@ -285,9 +285,9 @@ window.DEAL_OPS_MOCK = {
     }
   ],
   checks: [
-    { id: "inn", title: "ИНН ФНС", system: "СМЭВ / ФНС" },
-    { id: "fns_suspension", title: "Приостановления ИФНС", system: "СМЭВ / ФНС" },
-    { id: "passport_valid", title: "Действительность паспорта", system: "СМЭВ МВД" },
+    { id: "inn", title: "ИНН ФНС", system: "ФНС" },
+    { id: "fns_suspension", title: "Приостановления ИФНС", system: "ФНС" },
+    { id: "passport_valid", title: "Действительность паспорта", system: "МВД" },
     { id: "bankruptcy", title: "Банкротство", system: "Федресурс" },
     { id: "rkl", title: "РКЛ", system: "ЦФТ" },
     { id: "customs_debt", title: "Таможенные платежи", system: "ФТС" }
