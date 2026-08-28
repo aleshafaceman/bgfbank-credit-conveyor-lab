@@ -95,9 +95,48 @@ function dealKind(d) {
   return d.application.signing_channel === "smartdeal" ? "электронная" : "бумажная";
 }
 
+function fmtDate(iso) {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleDateString("ru-RU");
+}
+
 function fmtDt(iso) {
+  if (!iso) return "—";
   const d = new Date(iso);
   return d.toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
+function formName(form) {
+  return form === "short" ? "короткая" : "полная";
+}
+
+function channelName(ch) {
+  if (ch === "form") return "форма заявки";
+  if (ch === "sales") return "офис продаж";
+  if (ch === "b2b") return "партнёр";
+  return ch || "—";
+}
+
+function firstSopd(d) {
+  return ((d.consents || []).find((x) => x.type === "PERSONAL_DATA") || d.consents[0]);
+}
+
+function sopdState(d) {
+  const c = firstSopd(d);
+  const today = new Date("2026-08-28T12:00:00+03:00");
+  const expired = !!(c.valid_until && new Date(c.valid_until) < today);
+  const wrong = (c.form || "full") !== (d.required_sopd_form || "full");
+  if (expired) {
+    return { code: "expired", text: "Срок первого СОПД истёк — нужна актуальная полная форма.", consent: c };
+  }
+  if (wrong) {
+    return { code: "wrong_form", text: "Подписана короткая форма, для сделки нужна полная.", consent: c };
+  }
+  return { code: "ok", text: "Действует, форма совпадает с требуемой для сделки.", consent: c };
+}
+
+function openSopd(kind) {
+  window.open("sopd.html?t=" + encodeURIComponent(state.selectedId) + "&kind=" + encodeURIComponent(kind), "bgf_sopd_" + kind);
 }
 
 function needAccountApp(d) {
@@ -497,6 +536,25 @@ function renderWork() {
       "</span></label>").join(""))
     : "<p class=\"hint\">Открытых ДУ нет.</p>";
 
+  const sopd = sopdState(d);
+  const tpl = MOCK.sopd_template || { version: "банк 2026.2 полная", form: "full" };
+  const sopdBlock =
+    '<div class="consent-lock' + (sopd.code === "ok" ? "" : " warn") + '">' +
+    "<b>Первое СОПД</b>" +
+    '<div class="facts sopd-facts">' +
+    '<div class="fact"><small>Касание</small><b>' + fmtDate(d.lead_created_at) + "</b></div>" +
+    '<div class="fact"><small>Форма</small><b>' + formName(sopd.consent.form) + " · " + sopd.consent.version + "</b></div>" +
+    '<div class="fact"><small>Акцепт</small><b>' + fmtDt(sopd.consent.accepted_at) + "</b></div>" +
+    '<div class="fact"><small>Срок</small><b>до ' + fmtDate(sopd.consent.valid_until) + "</b></div>" +
+    '<div class="fact"><small>Канал</small><b>' + channelName(sopd.consent.channel) + "</b></div>" +
+    "</div>" +
+    "<small>Дата первого касания — создание лида в ELMA. В шаблон СОПД не подставляется. Отдельного согласия на счёт нет.</small>" +
+    '<p class="' + (sopd.code === "ok" ? "hint" : "sopd-warn") + '">' + sopd.text + "</p>" +
+    '<div class="actions">' +
+    '<button type="button" class="btn btn-ghost" onclick="openSopd(\'first\')">Скачать и проверить</button>' +
+    '<button type="button" class="btn btn-primary" onclick="openSopd(\'template\')">Шаблон ' + formName(tpl.form) + " для подписания</button>" +
+    "</div></div>";
+
   const esiaBlock = d.esia_consent
     ? '<div class="consent-lock"><b>ЕСИА с заявки · повторного входа в Госуслуги нет</b><small>' +
       (d.esia_purposes || []).map((p) => p.code + " · " + fmtDt(p.accepted_at)).join(" · ") +
@@ -543,7 +601,7 @@ function renderWork() {
     '<div class="work-head">' +
     '<div class="steps" aria-hidden="true">' + dots + "</div>" +
     "<h1>" + d.deal_id + " " + esiaBadge(d) + "</h1>" +
-    "<p class=\"lead\">Снимок после КОД. Госуслуги на сделке не открываем. СОПД не переподписываем.</p>" +
+    "<p class=\"lead\">Снимок после КОД. Госуслуги на сделке не открываем. СОПД проверяем по первому согласию.</p>" +
     "</div>" +
 
     '<div class="desk">' +
@@ -564,8 +622,7 @@ function renderWork() {
     '<div class="fact"><small>Телефон</small><b>' + c.phone + "</b></div>" +
     "</div>" +
     "<div>" +
-    '<div class="consent-lock"><b>СОПД банка уже акцептовано</b><small>' +
-    fmtDt(d.consents[0].accepted_at) + " · отдельного согласия на счёт нет.</small></div>" +
+    sopdBlock +
     esiaBlock +
     '<label class="check"><input type="checkbox" ' + (s.phoneOk ? "checked" : "") +
     ' onchange="togglePhone(this)"><span>Телефон подтверждён — SMS заявления и ДБО</span></label>' +

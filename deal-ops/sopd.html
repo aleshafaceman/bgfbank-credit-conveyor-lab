@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>СОПД · БЖФ</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="deal-ops.css?v=5">
+</head>
+<body class="print-body">
+  <main class="print-sheet" id="sheet"></main>
+  <script src="mock.js?v=5"></script>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const id = params.get("t");
+    const kind = params.get("kind") || "first";
+    const d = window.DEAL_OPS_MOCK.deals.find((x) => x.deal_id === id);
+    const tpl = window.DEAL_OPS_MOCK.sopd_template;
+    const el = document.getElementById("sheet");
+
+    function fmtDate(iso) {
+      if (!iso) return "—";
+      return new Date(iso).toLocaleDateString("ru-RU");
+    }
+    function formName(form) {
+      return form === "short" ? "короткая" : "полная";
+    }
+
+    if (!d) {
+      el.textContent = "Нет сделки";
+    } else {
+      const c = d.clients[0];
+      const sopd = (d.consents || [])[0];
+      const isFirst = kind === "first";
+      const title = isFirst
+        ? "Первое согласие на обработку персональных данных"
+        : "Согласие на обработку персональных данных (шаблон для подписания)";
+      const form = isFirst ? sopd.form : tpl.form;
+      const version = isFirst ? sopd.version : tpl.version;
+      document.title = (isFirst ? "Первое СОПД" : "Шаблон СОПД") + " · " + d.deal_id;
+      el.innerHTML =
+        "<h1>" + title + "</h1>" +
+        "<p>Банк жилищного финансирования. Макет документа (не бланк ELMA).</p>" +
+        "<p><b>Заявка:</b> " + d.deal_id + "</p>" +
+        "<p><b>Форма / версия:</b> " + formName(form) + " · " + version + "</p>" +
+        (isFirst
+          ? "<p><b>Акцептовано:</b> " + fmtDate(sopd.accepted_at) + ", действует до " + fmtDate(sopd.valid_until) + "</p>" +
+            "<p><b>Файл:</b> " + (sopd.file_name || "SOPD.pdf") + "</p>"
+          : "<p><b>Дата подписания:</b> ______________ (заполняет клиент за столом)</p>") +
+        "<p><b>Субъект:</b> " + c.full_name + ", " + c.birth_date + "</p>" +
+        "<p><b>Паспорт:</b> " + c.passport.series + " " + c.passport.number + ", выдан " + c.passport.issued_at + ", " + c.passport.issued_by + "</p>" +
+        "<p><b>ИНН / СНИЛС:</b> " + c.inn + " / " + c.snils + "</p>" +
+        "<p><b>Телефон:</b> " + c.phone + "</p>" +
+        "<p>Прошу Банк БЖФ обрабатывать мои персональные данные в целях рассмотрения заявки и заключения кредитного договора.</p>" +
+        (isFirst
+          ? "<p class=\"sign-line\">Документ уже подписан. Проверьте форму и срок.</p>"
+          : "<p class=\"sign-line\">Подпись субъекта _____________________ / дата ____________</p>" +
+            "<p class=\"sign-line\">Подпись сотрудника банка _____________________</p>") +
+        "<p class=\"hint no-print\">Дата создания лида в ELMA в этот документ не входит.</p>" +
+        '<p class="no-print"><button type="button" class="btn btn-primary" onclick="window.print()">' +
+        (isFirst ? "Печать / сохранить PDF" : "Печать заполненного шаблона") +
+        "</button></p>";
+    }
+  </script>
+</body>
+</html>

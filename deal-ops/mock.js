@@ -8,6 +8,8 @@ window.DEAL_OPS_MOCK = {
       esia_consent: true,
       verified_via: "esia",
       account_app_channel_default: "sms",
+      lead_created_at: "2026-03-10T09:14:00+03:00",
+      required_sopd_form: "full",
       exported_at: "2026-08-28T10:12:00+03:00",
       application: {
         product_name: "Кредит под залог своей квартиры",
@@ -42,9 +44,12 @@ window.DEAL_OPS_MOCK = {
         {
           consent_id: "consent-lab-001",
           type: "PERSONAL_DATA",
-          version: "банк 2025.4",
+          form: "full",
+          version: "банк 2025.4 полная",
           accepted_at: "2026-03-11T16:49:00+03:00",
-          channel: "form"
+          valid_until: "2031-03-11",
+          channel: "form",
+          file_name: "SOPD-25BGFB00990001-first.pdf"
         }
       ],
       esia_purposes: [
@@ -70,11 +75,13 @@ window.DEAL_OPS_MOCK = {
     },
     {
       deal_id: "25BGFB00990002",
-      title: "Без ЕСИА · счёт не открыт · бумага",
+      title: "Без ЕСИА · короткая СОПД · бумага",
       scenario: "open_account",
       esia_consent: false,
       verified_via: "manual",
       account_app_channel_default: "paper",
+      lead_created_at: "2026-04-01T11:02:00+03:00",
+      required_sopd_form: "full",
       exported_at: "2026-08-28T09:40:00+03:00",
       application: {
         product_name: "Кредит под залог своей квартиры",
@@ -109,9 +116,12 @@ window.DEAL_OPS_MOCK = {
         {
           consent_id: "consent-lab-002",
           type: "PERSONAL_DATA",
-          version: "банк 2025.4",
+          form: "short",
+          version: "банк 2024.2 короткая",
           accepted_at: "2026-04-02T12:10:00+03:00",
-          channel: "sales"
+          valid_until: "2027-04-02",
+          channel: "sales",
+          file_name: "SOPD-25BGFB00990002-first.pdf"
         }
       ],
       esia_purposes: [],
@@ -132,11 +142,13 @@ window.DEAL_OPS_MOCK = {
     },
     {
       deal_id: "25BGFB00990003",
-      title: "ЕСИА · счёт РКО уже есть",
+      title: "ЕСИА · счёт есть · СОПД просрочено",
       scenario: "account_exists",
       esia_consent: true,
       verified_via: "esia",
       account_app_channel_default: "sms",
+      lead_created_at: "2025-02-01T10:05:00+03:00",
+      required_sopd_form: "full",
       exported_at: "2026-08-28T08:15:00+03:00",
       application: {
         product_name: "Кредит под залог своей квартиры",
@@ -171,9 +183,12 @@ window.DEAL_OPS_MOCK = {
         {
           consent_id: "consent-lab-003",
           type: "PERSONAL_DATA",
-          version: "банк 2025.4",
-          accepted_at: "2026-02-02T11:20:00+03:00",
-          channel: "form"
+          form: "full",
+          version: "банк 2025.1 полная",
+          accepted_at: "2025-02-02T11:20:00+03:00",
+          valid_until: "2026-02-02",
+          channel: "form",
+          file_name: "SOPD-25BGFB00990003-first.pdf"
         }
       ],
       esia_purposes: [
@@ -200,5 +215,10 @@ window.DEAL_OPS_MOCK = {
     { id: "bankruptcy", title: "Банкротство", system: "Федресурс" },
     { id: "rkl", title: "РКЛ", system: "ЦФТ" },
     { id: "customs_debt", title: "Таможенные платежи", system: "ФТС" }
-  ]
+  ],
+  sopd_template: {
+    form: "full",
+    version: "банк 2026.2 полная",
+    as_of: "2026-08-01"
+  }
 };

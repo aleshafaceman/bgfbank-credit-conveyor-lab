@@ -147,7 +147,10 @@ h1 { font-size: 22px; color: var(--navy); margin-bottom: 6px; letter-spacing: -.
   background: var(--sky); border-radius: 10px; padding: 10px 12px; margin: 0 0 10px;
   font-size: 13px; line-height: 1.4;
 }
-.consent-lock small { display: block; color: var(--muted); margin-top: 4px; font-size: 12px; }
+.consent-lock.warn { background: #fff7ed; }
+.sopd-facts { margin: 10px 0 6px; }
+.sopd-warn { color: #9a3412; font-weight: 600; font-size: 13px; margin: 8px 0 0; line-height: 1.4; }
+.consent-lock .actions { margin-top: 8px; }
 .grid-4 {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
