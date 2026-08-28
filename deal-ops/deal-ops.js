@@ -1,6 +1,7 @@
 const STORE = "bgfbank_lab_dealops";
 const APP_STORE = "bgfbank_lab_account_app";
-const STORE_VER = 2;
+const SOPD_STORE = "bgfbank_lab_sopd";
+const STORE_VER = 3;
 const MOCK = window.DEAL_OPS_MOCK;
 
 const BUS_CATALOG = [
@@ -12,6 +13,8 @@ const BUS_CATALOG = [
   { id: "check_bankr", title: "Банкротство", system: "Федресурс" },
   { id: "check_rkl", title: "РКЛ", system: "ЦФТ" },
   { id: "check_customs", title: "Таможня", system: "ФТС" },
+  { id: "sopd_link", title: "SopdLinkSent", system: "SMS" },
+  { id: "sopd_signed", title: "SopdSigned", system: "форма клиента" },
   { id: "app_link", title: "AccountAppLinkSent", system: "SMS" },
   { id: "app_signed", title: "AccountAppSigned", system: "форма клиента" },
   { id: "elma_callback", title: "Callback в ELMA", system: "deal-ops → ELMA" },
@@ -44,12 +47,17 @@ function defaultDealState(d) {
     ukepOk: false,
     dboAppOk: false,
     bus: { elma_snapshot: "ok" },
+    elmaLog: [{ deal_id: d.deal_id, status: "snapshot_received", occurred_at: d.exported_at }],
     checks: {},
     du: du,
     accountId: d.retail_account.cft_account_id,
     accountAppChannel: d.account_app_channel_default,
     accountAppStatus: "none",
     accountAppScan: "",
+    sopdAppStatus: "none",
+    sopdDeskOk: false,
+    operuComment: "",
+    operuDecision: "",
     dboOpened: false
   };
 }
@@ -125,8 +133,39 @@ function firstSopd(d) {
   return ((d.consents || []).find((x) => x.type === "PERSONAL_DATA") || d.consents[0]);
 }
 
+function loadSopdApps() {
+  try { return JSON.parse(localStorage.getItem(SOPD_STORE) || "{}"); }
+  catch (e) { return {}; }
+}
+
+function effectiveFirstSopd(d) {
+  const s = state.deals && state.deals[d.deal_id];
+  const tpl = MOCK.sopd_template || { version: "банк 2026.2 полная" };
+  const base = firstSopd(d);
+  if (s && s.sopdDeskOk) {
+    return Object.assign({}, base, {
+      form: "full",
+      version: tpl.version,
+      channel: "manager",
+      accepted_at: s.sopdDeskAt || new Date().toISOString(),
+      valid_until: "2031-08-28",
+      file_name: "SOPD-" + d.deal_id + "-full-desk.pdf"
+    });
+  }
+  const rec = loadSopdApps()[d.deal_id];
+  if (!rec || rec.status !== "signed") return base;
+  return Object.assign({}, base, {
+    form: "full",
+    version: rec.version || tpl.version,
+    channel: "sms",
+    accepted_at: rec.signed_at,
+    valid_until: rec.valid_until || "2031-08-28",
+    file_name: "SOPD-" + d.deal_id + "-full-sms.pdf"
+  });
+}
+
 function sopdState(d) {
-  const c = firstSopd(d);
+  const c = effectiveFirstSopd(d);
   const tpl = MOCK.sopd_template || { version: "банк 2026.2 полная", form: "full" };
   const today = new Date("2026-08-28T12:00:00+03:00");
   const expired = !!(c.valid_until && new Date(c.valid_until) < today);
@@ -177,6 +216,7 @@ function identityReady(d, s) {
 function badge(step) {
   if (step === "ready") return '<i class="badge badge-ok">к выдаче</i>';
   if (step === "stopped") return '<i class="badge badge-stop">стоп</i>';
+  if (step === "operu") return '<i class="badge badge-run">на ОПЕРУ</i>';
   if (step === "snapshot") return '<i class="badge badge-wait">на столе ОЗС</i>';
   return '<i class="badge badge-run">в работе</i>';
 }
@@ -189,6 +229,12 @@ function esiaBadge(d) {
 
 function setRole(role) {
   state.role = role;
+  if (role === "operu") {
+    const q = operuQueue();
+    if (q.length && !q.some((d) => d.deal_id === state.selectedId)) {
+      state.selectedId = q[0].deal_id;
+    }
+  }
   save();
   render();
 }
@@ -220,6 +266,7 @@ function selectDeal(id) {
 function resetDemo() {
   localStorage.removeItem(STORE);
   localStorage.removeItem(APP_STORE);
+  localStorage.removeItem(SOPD_STORE);
   state = defaultState();
   save();
   render();
@@ -257,13 +304,50 @@ function hideModal() {
 
 function addModalLine(text, cls) {
   const ul = document.getElementById("modal-log");
+  if (!ul) return;
+  const overlay = document.getElementById("overlay");
+  if (overlay && overlay.classList.contains("hidden")) return;
   const li = document.createElement("li");
   li.textContent = text;
   li.style.padding = "8px 0";
   li.style.borderBottom = "1px solid #e1e9f1";
   li.style.fontWeight = "600";
-  li.style.color = cls === "ok" ? "#059669" : "#003b6f";
+  li.style.color = cls === "ok" ? "#059669" : cls === "fail" ? "#b91c1c" : "#003b6f";
   ul.appendChild(li);
+}
+
+function elmaCallback(status, extra) {
+  const d = deal();
+  const s = st();
+  const payload = Object.assign({
+    deal_id: d.deal_id,
+    status: status,
+    occurred_at: new Date().toISOString()
+  }, extra || {});
+  s.elmaLog = (s.elmaLog || []).concat(payload);
+  setBus("elma_callback", "ok");
+  addModalLine("ELMA ← " + JSON.stringify({ deal_id: payload.deal_id, status: payload.status }), "ok");
+}
+
+function checkOutcome(d, chkId) {
+  return (d.check_results && d.check_results[chkId]) || "pass";
+}
+
+function lastElmaStatus(s) {
+  const log = (s && s.elmaLog) || [];
+  return log.length ? log[log.length - 1].status : "snapshot_received";
+}
+
+function operuQueue() {
+  return MOCK.deals.filter((d) => {
+    const ds = state.deals[d.deal_id];
+    return ds && ds.step === "operu";
+  });
+}
+
+function noteOperuComment(el) {
+  st().operuComment = el.value;
+  save();
 }
 
 function togglePresent(el) { st().presentOk = el.checked; save(); render(); }
@@ -271,17 +355,29 @@ function togglePassport(el) { st().passportOk = el.checked; save(); render(); }
 function togglePhone(el) { st().phoneOk = el.checked; save(); render(); }
 function toggleUkep(el) { st().ukepOk = el.checked; save(); render(); }
 function toggleDboApp(el) { st().dboAppOk = el.checked; save(); render(); }
+function toggleSopdDesk(el) {
+  const s = st();
+  s.sopdDeskOk = el.checked;
+  if (el.checked) {
+    s.sopdDeskAt = s.sopdDeskAt || new Date().toISOString();
+    elmaCallback("sopd_full_signed", { channel: "manager" });
+  }
+  save();
+  render();
+}
 function toggleDu(id, el) { st().du[id] = el.checked; save(); render(); }
 
 async function confirmIdentity() {
   const d = deal();
   const s = st();
   if (!identityReady(d, s) || busy || s.step !== "snapshot") return;
+  if (sopdState(d).needTemplate) return;
   busy = true;
   s.step = "account";
   save();
   showModal("ЦФТ · поиск счёта РКО", "FindRetailAccount по IDClientCFT из снимка. Паспорт заново не вводим.");
   addModalLine("Запрос в ЦФТ…", "on");
+  elmaCallback("phone_confirmed");
   setBus("cft_find", "pending");
   renderBus();
   await sleep(900);
@@ -290,11 +386,11 @@ async function confirmIdentity() {
   if (exists) {
     s.accountId = d.retail_account.cft_account_id;
     addModalLine("Счёт найден: " + s.accountId, "ok");
-    setBus("elma_callback", "ok");
-    addModalLine("ELMA: account_exists", "ok");
+    elmaCallback("account_exists", { cft_account_id: s.accountId });
     s.step = "sign";
   } else {
     addModalLine("Счёта нет — запускаем автопроверки", "ok");
+    elmaCallback("checks_running");
     s.step = "checks";
   }
   save();
@@ -308,24 +404,123 @@ async function confirmIdentity() {
 async function startChecks() {
   if (busy) return;
   busy = true;
-  showModal("Автопроверки открытия счёта", "Параллельный outbox. UI их не вызывает.");
+  const d = deal();
   const s = st();
+  showModal("Автопроверки открытия счёта", "Параллельный outbox. UI их не вызывает.");
+  let hasStop = false;
+  let hasError = false;
   for (const chk of MOCK.checks) {
+    const outcome = checkOutcome(d, chk.id);
     s.checks[chk.id] = "pending";
     setBus(CHECK_BUS[chk.id], "pending");
     addModalLine(chk.system + " · " + chk.title, "on");
     render();
     await sleep(420);
-    s.checks[chk.id] = "pass";
-    setBus(CHECK_BUS[chk.id], "ok");
-    addModalLine("успех", "ok");
+    s.checks[chk.id] = outcome;
+    if (outcome === "pass") {
+      setBus(CHECK_BUS[chk.id], "ok");
+      addModalLine("pass", "ok");
+    } else if (outcome === "stop_factor") {
+      hasStop = true;
+      setBus(CHECK_BUS[chk.id], "fail");
+      addModalLine("stop_factor", "fail");
+    } else {
+      hasError = true;
+      setBus(CHECK_BUS[chk.id], "fail");
+      addModalLine("error · " + (outcome === "error" ? "таймаут / недоступность" : outcome), "fail");
+    }
     save();
     render();
   }
-  setBus("elma_callback", "ok");
-  addModalLine("ELMA: checks_passed", "ok");
+  if (hasStop) {
+    elmaCallback("stop_factor");
+    s.step = "stopped";
+    addModalLine("Подписание закрыто. Клиент остаётся за столом ОЗС.", "fail");
+  } else if (hasError) {
+    elmaCallback("checks_operu");
+    s.step = "operu";
+    addModalLine("Очередь ОПЕРУ. Второе окно для клиента не открываем.", "on");
+  } else {
+    elmaCallback("checks_passed");
+    s.step = "account_app";
+  }
+  save();
+  await sleep(700);
+  hideModal();
+  busy = false;
+  render();
+}
+
+async function sendSopdLink() {
+  const d = deal();
+  const s = st();
+  if (busy || !sopdState(d).needTemplate) return;
+  busy = true;
+  s.sopdAppStatus = "link_sent";
+  setBus("sopd_link", "pending");
+  save();
+  render();
+  showModal("SMS · полная форма СОПД", "Ссылка на электронную полную форму банка. Не ЕСИА.");
+  addModalLine("SMS на " + d.clients[0].phone, "on");
+  await sleep(700);
+  setBus("sopd_link", "ok");
+  addModalLine("SopdLinkSent", "ok");
+  save();
+  hideModal();
+  busy = false;
+  render();
+  startPoll();
+}
+
+function openSopdClient() {
+  window.open("sopd-app.html?t=" + encodeURIComponent(state.selectedId), "bgf_sopd_app");
+}
+
+function syncSopdSignature() {
+  const d = deal();
+  const s = st();
+  if (!d) return;
+  const rec = loadSopdApps()[d.deal_id];
+  if (rec && rec.status === "signed" && s.sopdAppStatus !== "signed") {
+    s.sopdAppStatus = "signed";
+    setBus("sopd_signed", "ok");
+    elmaCallback("sopd_full_signed", { channel: "sms", version: rec.version });
+    save();
+    render();
+  }
+}
+
+async function operuApprove() {
+  const s = st();
+  if (busy || s.step !== "operu") return;
+  busy = true;
+  showModal("ОПЕРУ · согласование", "Клиент сидит у ОЗС. Сюда его не зовём.");
+  addModalLine("Комментарий: " + (s.operuComment || "без комментария"), "on");
+  await sleep(600);
+  s.operuDecision = "approved";
+  elmaCallback("operu_approved", { comment: s.operuComment || "" });
   s.step = "account_app";
   save();
+  addModalLine("Возврат на стол ОЗС — заявление на счёт", "ok");
+  await sleep(500);
+  hideModal();
+  busy = false;
+  render();
+}
+
+async function operuReject() {
+  const s = st();
+  if (busy || s.step !== "operu") return;
+  busy = true;
+  showModal("ОПЕРУ · отказ", "Стоп-фактор. Клиент остаётся за столом ОЗС.");
+  addModalLine("Комментарий: " + (s.operuComment || "без комментария"), "fail");
+  await sleep(600);
+  s.operuDecision = "rejected";
+  elmaCallback("operu_rejected", { comment: s.operuComment || "" });
+  elmaCallback("stop_factor");
+  s.step = "stopped";
+  save();
+  addModalLine("deal_stopped для ОЗС", "fail");
   await sleep(500);
   hideModal();
   busy = false;
@@ -355,6 +550,7 @@ async function sendAppLink() {
   await sleep(700);
   setBus("app_link", "ok");
   addModalLine("AccountAppLinkSent", "ok");
+  elmaCallback("account_app_link_sent");
   save();
   hideModal();
   busy = false;
@@ -378,6 +574,7 @@ function onScan(el) {
   s.accountAppStatus = "uploaded";
   s.accountAppChannel = "paper";
   setBus("app_signed", "ok");
+  elmaCallback("account_app_signed", { channel: "paper" });
   save();
   maybeAdvanceToSign();
   render();
@@ -397,6 +594,7 @@ function syncClientSignature() {
     s.accountAppStatus = "signed";
     s.accountAppChannel = "sms";
     setBus("app_signed", "ok");
+    elmaCallback("account_app_signed", { channel: "sms" });
     save();
     maybeAdvanceToSign();
     render();
@@ -411,11 +609,15 @@ function maybeAdvanceToSign() {
 
 function startPoll() {
   if (pollTimer) clearInterval(pollTimer);
-  pollTimer = setInterval(syncClientSignature, 800);
+  pollTimer = setInterval(function () {
+    syncClientSignature();
+    syncSopdSignature();
+  }, 800);
 }
 
 window.addEventListener("storage", function (e) {
   if (e.key === APP_STORE) syncClientSignature();
+  if (e.key === SOPD_STORE) syncSopdSignature();
 });
 
 function kodPackTitles(d) {
@@ -427,6 +629,7 @@ async function signDeal() {
   const s = st();
   if (busy || s.step !== "sign") return;
   if (!appReady(d, s) || !duSigningDone(d, s)) return;
+  if (sopdState(d).needTemplate) return;
   if (d.application.signing_channel === "smartdeal" && !s.ukepOk) return;
   busy = true;
   const needAcc = needAccountApp(d);
@@ -473,8 +676,9 @@ async function signDeal() {
   } else {
     addModalLine("OpenAccount пропущен — счёт уже был", "ok");
   }
-  setBus("elma_callback", "ok");
-  addModalLine("ELMA: signing_completed", "ok");
+  elmaCallback("signing_completed");
+  if (needAcc && s.accountId) elmaCallback("account_opened", { cft_account_id: s.accountId });
+  if (needAcc) elmaCallback("dbo_sms_sent");
   s.step = "dbo";
   save();
   await sleep(600);
@@ -488,6 +692,7 @@ function confirmDbo() {
   if (s.step !== "dbo") return;
   s.dboOpened = true;
   s.step = "ready";
+  elmaCallback("dbo_opened");
   save();
   render();
 }
@@ -496,6 +701,7 @@ function stepIndex(step) {
   const d = deal();
   const order = ["snapshot", "account", "checks", "account_app", "sign", "opening", "dbo", "ready"];
   let s = step;
+  if (s === "operu" || s === "stopped") s = "checks";
   if (d.scenario === "account_exists" && (s === "checks" || s === "account_app")) s = "sign";
   return Math.max(0, order.indexOf(s));
 }
@@ -511,7 +717,19 @@ function renderInbox() {
 
   const list = document.getElementById("inbox-list");
   if (!ozs) {
-    list.innerHTML = '<p class="empty">Очередь пуста. Автопроверки на демо без error. ОПЕРУ не зовёт клиента во второе окно.</p>';
+    const q = operuQueue();
+    if (!q.length) {
+      list.innerHTML = '<p class="empty">Очередь пуста. ОПЕРУ берёт только error без stop_factor. Клиента во второе окно не зовём.</p>';
+      return;
+    }
+    list.innerHTML = q.map((d) => {
+      const ds = state.deals[d.deal_id];
+      const on = d.deal_id === state.selectedId ? " on" : "";
+      return '<button type="button" class="card-deal' + on + '" onclick="selectDeal(\'' + d.deal_id + '\')">' +
+        "<b>" + d.deal_id + "</b>" + esiaBadge(d) +
+        "<span>" + d.clients[0].full_name + "</span><span>" + d.title + "</span>" +
+        badge(ds.step) + "</button>";
+    }).join("");
     return;
   }
   const filters =
@@ -534,8 +752,11 @@ function renderBus() {
   const s = state.selectedId ? st() : null;
   document.getElementById("bus-list").innerHTML = BUS_CATALOG.map((item) => {
     const stt = (s && s.bus[item.id]) || "idle";
-    const cls = stt === "ok" ? "ok" : stt === "pending" ? "pending" : "";
-    const label = stt === "ok" ? "успех" : stt === "pending" ? "запрос…" : "ожидание";
+    const cls = stt === "ok" ? "ok" : stt === "pending" ? "pending" : stt === "fail" ? "fail" : "";
+    let label = stt === "ok" ? "успех" : stt === "pending" ? "запрос…" : stt === "fail" ? "ошибка" : "ожидание";
+    if (item.id === "elma_callback" && s && (s.elmaLog || []).length) {
+      label = lastElmaStatus(s);
+    }
     return '<div class="int ' + cls + '"><i class="dot-i"></i><div><b>' + item.title +
       "</b><span>" + item.system + " · " + label + "</span></div></div>";
   }).join("");
@@ -547,7 +768,41 @@ function renderWork() {
   if (state.role !== "ozs") {
     empty.classList.add("hidden");
     box.classList.remove("hidden");
-    box.innerHTML = '<div class="work-inner"><h1>ОПЕРУ</h1><p class="lead">Exception desk failed-check. На демо очередь пустая.</p></div>';
+    const q = operuQueue();
+    const d = q.find((x) => x.deal_id === state.selectedId) || q[0];
+    if (!d) {
+      box.innerHTML = '<div class="work-inner"><h1>ОПЕРУ</h1><p class="lead">Exception desk failed-check. Клиента сюда не пересаживаем — он остаётся у ОЗС.</p></div>';
+      return;
+    }
+    if (state.selectedId !== d.deal_id) state.selectedId = d.deal_id;
+    const s = st();
+    const c = d.clients[0];
+    const failed = MOCK.checks.filter((chk) => s.checks[chk.id] && s.checks[chk.id] !== "pass" && s.checks[chk.id] !== "pending");
+    const checksHtml = MOCK.checks.map((chk) => {
+      const cs = s.checks[chk.id];
+      const tile = cs === "pass" ? "ok" : cs === "pending" ? "pending" : cs === "stop_factor" ? "stop" : cs && cs !== "pass" ? "error" : "";
+      const stLabel = cs === "pass" ? "pass" : cs === "pending" ? "запрос" : cs === "stop_factor" ? "stop_factor" : cs === "error" ? "error" : "не запускали";
+      return '<div class="check-tile ' + tile + '"><b>' + chk.title + "</b><div class=\"sys\">" + chk.system +
+        "</div><div class=\"st\">" + stLabel + "</div></div>";
+    }).join("");
+    box.innerHTML =
+      '<div class="work-inner"><h1>' + d.deal_id + " " + esiaBadge(d) + "</h1>" +
+      "<p class=\"lead\">Снимок сделок. Паспорт заново не вводим. Согласовать — возврат ОЗС; отказать — стоп-фактор.</p>" +
+      '<div class="desk"><div class="panel span-2"><div class="grid-4">' +
+      '<div class="param"><small>Клиент</small><b>' + c.full_name + "</b></div>" +
+      '<div class="param"><small>Паспорт</small><b>' + c.passport.series + " " + c.passport.number + "</b></div>" +
+      '<div class="param"><small>ИНН</small><b>' + c.inn + "</b></div>" +
+      '<div class="param"><small>Последний callback</small><b>' + lastElmaStatus(s) + "</b></div>" +
+      "</div></div>" +
+      '<div class="panel span-2"><h2>Проверки</h2><div class="checks">' + checksHtml + "</div>" +
+      "<p class=\"hint\">Ошибки: " + (failed.map((x) => x.title).join(", ") || "нет") + ". Stop_factor сюда не попадает.</p></div>" +
+      '<div class="panel span-2"><h2>Решение ОПЕРУ</h2>' +
+      '<label class="hint">Комментарий<br><textarea class="operu-note" rows="3" oninput="noteOperuComment(this)">' +
+      (s.operuComment || "").replace(/</g, "&lt;") + "</textarea></label>" +
+      '<div class="actions">' +
+      '<button type="button" class="btn btn-primary" onclick="operuApprove()">Согласовать открытие → ОЗС</button>' +
+      '<button type="button" class="btn btn-danger" onclick="operuReject()">Отказать · стоп-фактор</button>' +
+      "</div></div></div></div>";
     return;
   }
   if (!state.selectedId) {
@@ -561,6 +816,7 @@ function renderWork() {
   const s = st();
   const c = d.clients[0];
   syncClientSignature();
+  syncSopdSignature();
   const idx = stepIndex(s.step);
   const dots = [0, 1, 2, 3, 4, 5, 6].map((i) =>
     '<i class="dot ' + (i < idx ? "done" : i === idx ? "on" : "") + '"></i>'
@@ -568,8 +824,14 @@ function renderWork() {
 
   const checksHtml = MOCK.checks.map((chk) => {
     const cs = s.checks[chk.id];
-    const tile = cs === "pass" ? "ok" : cs === "pending" ? "pending" : "";
-    const stLabel = cs === "pass" ? "pass" : cs === "pending" ? "запрос" : "не запускали";
+    const operuOk = cs === "error" && s.operuDecision === "approved";
+    const tile = cs === "pass" || operuOk ? "ok" : cs === "pending" ? "pending" : cs === "stop_factor" ? "stop" : (cs && cs !== "pass" ? "error" : "");
+    const stLabel = operuOk ? "error · ОПЕРУ согласовал"
+      : cs === "pass" ? "pass"
+      : cs === "pending" ? "запрос"
+      : cs === "stop_factor" ? "stop_factor"
+      : cs === "error" ? "error"
+      : "не запускали";
     return '<div class="check-tile ' + tile + '"><b>' + chk.title + "</b><div class=\"sys\">" + chk.system +
       "</div><div class=\"st\">" + stLabel + "</div></div>";
   }).join("");
@@ -600,9 +862,19 @@ function renderWork() {
     '<div class="actions">' +
     '<button type="button" class="btn btn-ghost" onclick="openSopd(\'first\')">Скачать и проверить</button>' +
     (sopd.needTemplate
-      ? '<button type="button" class="btn btn-primary" onclick="openSopd(\'template\')">Шаблон ' + formName(tpl.form) + " для подписания</button>"
+      ? '<button type="button" class="btn btn-ghost" onclick="openSopd(\'template\')">Шаблон ' + formName(tpl.form) + " · бумага</button>" +
+        '<button type="button" class="btn btn-primary" onclick="sendSopdLink()">Отправить полную форму SMS</button>' +
+        '<button type="button" class="btn btn-ghost" onclick="openSopdClient()">Открыть форму клиента</button>'
       : "") +
-    "</div></div>";
+    "</div>" +
+    (sopd.needTemplate
+      ? '<label class="check"><input type="checkbox" ' + (s.sopdDeskOk ? "checked" : "") +
+        ' onchange="toggleSopdDesk(this)"><span>Полная форма подписана за столом (бумага)</span></label>'
+      : "") +
+    (s.sopdAppStatus === "link_sent" && sopd.needTemplate
+      ? '<p class="status-pill">Ссылка на СОПД отправлена, ждём подпись</p>'
+      : "") +
+    "</div>";
 
   const esiaBlock = d.esia_consent
     ? '<div class="consent-lock esia-flag"><b>ЕСИА: да</b><small>Признак с заявки, повторного входа в Госуслуги нет. ' +
@@ -675,13 +947,19 @@ function renderWork() {
     esiaBlock +
     '<label class="check"><input type="checkbox" ' + (s.phoneOk ? "checked" : "") +
     ' onchange="togglePhone(this)"><span>Телефон подтверждён — SMS заявления и ДБО</span></label>' +
-    '<button type="button" class="btn btn-primary" ' + (identityReady(d, s) && s.step === "snapshot" ? "" : "disabled") +
+    '<button type="button" class="btn btn-primary" ' + (identityReady(d, s) && !sopd.needTemplate && s.step === "snapshot" ? "" : "disabled") +
     ' onclick="confirmIdentity()">Искать счёт в ЦФТ</button></div></div></div>' +
 
     '<div class="panel"><h2>ДУ</h2>' + duHtml +
     '<p class="hint">Часть ДУ до подписи КОД, часть можно на выдачу.</p></div>' +
 
     '<div class="panel"><h2>Автопроверки</h2>' +
+    (s.step === "operu"
+      ? "<p class=\"hint\">error без стопа — очередь ОПЕРУ. Клиент остаётся за этим столом.</p>"
+      : "") +
+    (s.step === "stopped"
+      ? "<p class=\"sopd-warn\">Стоп-фактор. Подписание закрыто. Во второе окно не идём.</p>"
+      : "") +
     (d.scenario === "account_exists"
       ? "<p class=\"hint\">Счёт уже есть — проверки открытия не запускаем.</p>"
       : '<div class="checks">' + checksHtml + "</div>") +
@@ -707,7 +985,9 @@ function renderWork() {
     (s.step === "ready"
       ? '<div class="done-banner">Готово к выдаче ОБУКО в ЦФТ на счёт ' + (s.accountId || "—") +
         ". Клиента в соседнее окно не отправляем. Сканы КОД — до конца следующего рабочего дня.</div>"
-      : '<p class="hint">ОБУКО переводит в ЦФТ. Календарь паспорта сделки в этот АРМ не входит.</p>') +
+      : s.step === "stopped"
+        ? '<div class="stop-banner">Сделка остановлена. Callback ELMA: ' + lastElmaStatus(s) + ".</div>"
+        : '<p class="hint">ОБУКО переводит в ЦФТ. Календарь паспорта сделки в этот АРМ не входит.</p>') +
     "</div></div></div>";
 }
 
@@ -720,6 +1000,7 @@ function render() {
 if (new URLSearchParams(location.search).get("demo") === "1") {
   localStorage.removeItem(STORE);
   localStorage.removeItem(APP_STORE);
+  localStorage.removeItem(SOPD_STORE);
   state = defaultState();
   save();
 }

@@ -200,9 +200,21 @@ h1 { font-size: 22px; color: var(--navy); margin-bottom: 6px; letter-spacing: -.
   background: var(--navy);
   animation: pulse 1s ease-in-out infinite;
 }
-.int.ok .dot-i { background: var(--ok); animation: none; }
-.int.pending b { color: var(--navy); }
-.int.ok { color: var(--ok); }
+.int.fail .dot-i { background: var(--danger); animation: none; }
+.int.fail b { color: var(--danger); }
+.check-tile.error { border-color: #f59e0b; background: #fffbeb; }
+.check-tile.error .st { color: #b45309; }
+.check-tile.stop { border-color: var(--danger); background: #fef2f2; }
+.check-tile.stop .st { color: var(--danger); }
+.btn-danger { background: #991b1b; color: #fff; }
+.operu-note {
+  width: 100%; margin-top: 6px; padding: 10px 12px; border: 1px solid var(--line);
+  border-radius: 10px; font: inherit; resize: vertical; min-height: 72px;
+}
+.stop-banner {
+  background: #fef2f2; border: 1px solid #fecaca; border-radius: 14px;
+  padding: 16px 18px; color: #991b1b; font-weight: 600; margin-top: 12px;
+}
 .int span { display: block; color: var(--muted); font-weight: 500; font-size: 12px; }
 @keyframes pulse {
   0%, 100% { transform: scale(1); opacity: 1; }

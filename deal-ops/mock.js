@@ -215,6 +215,73 @@ window.DEAL_OPS_MOCK = {
         ]
       },
       retail_account: { known_in_elma: true, cft_account_id: "40817810100000009902" }
+    },
+    {
+      deal_id: "25BGFB00990004",
+      title: "Проверки: ошибка ИНН → ОПЕРУ · СОПД полное · без ЕСИА",
+      scenario: "open_account",
+      esia_consent: false,
+      verified_via: "manual",
+      account_app_channel_default: "paper",
+      lead_created_at: "2026-05-18T10:40:00+03:00",
+      required_sopd_form: "full",
+      exported_at: "2026-08-28T11:05:00+03:00",
+      check_results: { inn: "error" },
+      application: {
+        product_name: "Кредит под залог своей квартиры",
+        credit_purpose: "cash_on_pledge",
+        amount: "2200000.00",
+        currency: "RUB",
+        term_months: 144,
+        disbursement: "before_state_registration",
+        signing_channel: "paper",
+        region_code: "77"
+      },
+      clients: [
+        {
+          role: "borrower",
+          full_name: "Белов Павел Николаевич",
+          birth_date: "1986-09-21",
+          inn: "770321098765",
+          snils: "334-455-667 12",
+          phone: "+7 905 222-33-44",
+          email: "p.belov@example.com",
+          id_client_cft: "CFT-100904",
+          passport: {
+            series: "4514",
+            number: "112233",
+            issued_at: "2013-11-09",
+            issued_by: "ОУФМС России по г. Москве",
+            division_code: "770-008"
+          }
+        }
+      ],
+      consents: [
+        {
+          consent_id: "consent-lab-004",
+          type: "PERSONAL_DATA",
+          form: "full",
+          version: "банк 2026.2 полная",
+          accepted_at: "2026-05-19T12:00:00+03:00",
+          valid_until: "2031-05-19",
+          channel: "sms",
+          file_name: "SOPD-25BGFB00990004-first.pdf"
+        }
+      ],
+      esia_purposes: [],
+      additional_conditions: [
+        { id: "du_egrn", title: "Выписка ЕГРН не старше 30 дней", when: "issue" }
+      ],
+      kod: {
+        ready_at: "2026-08-28T10:55:00+03:00",
+        documents: [
+          { code: "credit_agreement", title: "Кредитный договор" },
+          { code: "mortgage_agreement", title: "Договор об ипотеке" },
+          { code: "payment_schedule", title: "График платежей" },
+          { code: "anketa", title: "Заявление-анкета" }
+        ]
+      },
+      retail_account: { known_in_elma: false, cft_account_id: null }
     }
   ],
   checks: [
