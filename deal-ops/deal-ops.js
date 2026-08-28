@@ -91,6 +91,10 @@ function fmtMoney(v) {
   return Number(v).toLocaleString("ru-RU") + " ₽";
 }
 
+function dealKind(d) {
+  return d.application.signing_channel === "smartdeal" ? "электронная" : "бумажная";
+}
+
 function fmtDt(iso) {
   const d = new Date(iso);
   return d.toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
@@ -457,7 +461,7 @@ function renderWork() {
   if (state.role !== "ozs") {
     empty.classList.add("hidden");
     box.classList.remove("hidden");
-    box.innerHTML = "<h1>ОПЕРУ</h1><p class=\"lead\">Exception desk failed-check. На демо очередь пустая.</p>";
+    box.innerHTML = '<div class="work-inner"><h1>ОПЕРУ</h1><p class="lead">Exception desk failed-check. На демо очередь пустая.</p></div>';
     return;
   }
   if (!state.selectedId) {
@@ -484,7 +488,7 @@ function renderWork() {
       "</div><div class=\"st\">" + stLabel + "</div></div>";
   }).join("");
 
-  const kodDocs = d.kod.documents.map((doc) => '<div class="doc">' + doc.title + "</div>").join("");
+  const kodDocs = '<div class="docs">' + d.kod.documents.map((doc) => '<span class="doc">' + doc.title + "</span>").join("") + "</div>";
   const duHtml = (d.additional_conditions || []).length
     ? (d.additional_conditions.map((x) =>
       '<label class="check"><input type="checkbox" ' + (s.du[x.id] ? "checked" : "") +
@@ -512,12 +516,13 @@ function renderWork() {
   const appPanel = !needAccountApp(d)
     ? '<div class="panel"><h2>Заявление на счёт</h2><p class="hint">Счёт уже есть — заявление на открытие не нужно.</p></div>'
     : '<div class="panel"><h2>Заявление на открытие счёта</h2>' +
-      "<p class=\"lead\" style=\"margin-bottom:8px\">Отдельно от КОД. Дефолт: " +
+      "<p class=\"lead\">Отдельно от КОД. Дефолт: " +
       (d.esia_consent ? "SMS (клиент с ЕСИА)" : "печать (без ЕСИА)") + ".</p>" +
       '<div class="channel-switch">' +
       '<button type="button" class="filter' + (ch === "sms" ? " on" : "") + '" onclick="setAppChannel(\'sms\')">Электронно · SMS</button>' +
       '<button type="button" class="filter' + (ch === "paper" ? " on" : "") + '" onclick="setAppChannel(\'paper\')">Бумага · печать и скан</button>' +
       "</div>" +
+      '<div class="actions">' +
       (ch === "sms"
         ? '<button type="button" class="btn btn-primary" ' + (s.step === "account_app" ? "" : "disabled") +
           ' onclick="sendAppLink()">Отправить ссылку</button>' +
@@ -527,28 +532,36 @@ function renderWork() {
           '<label class="hint">Загрузить подписанный скан<br>' +
           '<input type="file" ' + (s.step === "account_app" || s.step === "sign" ? "" : "disabled") +
           ' onchange="onScan(this)"></label>') +
-      '<p class="hint">Статус: <b>' + appStatus + "</b></p></div>";
+      "</div>" +
+      '<p class="status-pill">' + appStatus + "</p></div>";
 
   const signDisabled = !(s.step === "sign" && appReady(d, s) && duSigningDone(d, s) &&
     (d.application.signing_channel !== "smartdeal" || s.ukepOk));
 
   box.innerHTML =
+    '<div class="work-inner">' +
+    '<div class="work-head">' +
     '<div class="steps" aria-hidden="true">' + dots + "</div>" +
     "<h1>" + d.deal_id + " " + esiaBadge(d) + "</h1>" +
     "<p class=\"lead\">Снимок после КОД. Госуслуги на сделке не открываем. СОПД не переподписываем.</p>" +
+    "</div>" +
 
-    '<div class="panel"><div class="grid-2">' +
+    '<div class="desk">' +
+    '<div class="panel"><div class="grid-4">' +
     '<div class="param"><small>Продукт</small><b>' + d.application.product_name + "</b></div>" +
     '<div class="param"><small>Сумма</small><b>' + fmtMoney(d.application.amount) + "</b></div>" +
     '<div class="param"><small>Выдача</small><b>до госрегистрации</b></div>' +
-    '<div class="param"><small>КОД</small><b>' + (d.application.signing_channel === "smartdeal" ? "SmartDeal" : "бумага") + "</b></div>" +
+    '<div class="param"><small>Вид сделки</small><b>' + dealKind(d) + "</b></div>" +
     "</div></div>" +
 
     '<div class="panel"><h2>Идентификация</h2>' +
-    '<div class="row"><span>ФИО</span><b>' + c.full_name + "</b></div>" +
-    '<div class="row"><span>Паспорт</span><b>' + c.passport.series + " " + c.passport.number + "</b></div>" +
-    '<div class="row"><span>ИНН / СНИЛС</span><b>' + c.inn + " · " + c.snils + "</b></div>" +
-    '<div class="row"><span>Телефон</span><b>' + c.phone + "</b></div>" +
+    '<div class="facts">' +
+    '<div class="fact"><small>ФИО</small><b>' + c.full_name + "</b></div>" +
+    '<div class="fact"><small>Паспорт</small><b>' + c.passport.series + " " + c.passport.number + "</b></div>" +
+    '<div class="fact"><small>ИНН</small><b>' + c.inn + "</b></div>" +
+    '<div class="fact"><small>СНИЛС</small><b>' + c.snils + "</b></div>" +
+    '<div class="fact"><small>Телефон</small><b>' + c.phone + "</b></div>" +
+    "</div>" +
     '<div class="consent-lock"><b>СОПД банка уже акцептовано</b><small>' +
     fmtDt(d.consents[0].accepted_at) + " · отдельного согласия на счёт нет.</small></div>" +
     esiaBlock +
@@ -558,7 +571,7 @@ function renderWork() {
     ' onclick="confirmIdentity()">Искать счёт в ЦФТ</button></div>' +
 
     '<div class="panel"><h2>ДУ</h2>' + duHtml +
-    '<p class="hint">Как в Visio: часть ДУ до подписи КОД, часть можно на выдачу.</p></div>' +
+    '<p class="hint">Часть ДУ до подписи КОД, часть можно на выдачу.</p></div>' +
 
     '<div class="panel"><h2>Автопроверки</h2>' +
     (d.scenario === "account_exists"
@@ -572,8 +585,8 @@ function renderWork() {
     '<div class="panel"><h2>КОД</h2>' + kodDocs +
     (d.application.signing_channel === "smartdeal"
       ? '<label class="check"><input type="checkbox" ' + (s.ukepOk ? "checked" : "") +
-        ' onchange="toggleUkep(this)"><span>Заявление на УКЭП подписано (ветка SmartDeal)</span></label>'
-      : '<p class="hint">Бумага: печать комплекта и сканы — до конца следующего рабочего дня (инструкция УЗС).</p>') +
+        ' onchange="toggleUkep(this)"><span>Заявление на УКЭП подписано (электронная сделка)</span></label>'
+      : '<p class="hint">Бумага: печать комплекта и сканы — до конца следующего рабочего дня.</p>') +
     '<label class="check"><input type="checkbox" ' + (s.dboAppOk ? "checked" : "") +
     ' onchange="toggleDboApp(this)"><span>Заявление на ДБО + приложение 1 (безакцепт) на столе</span></label>' +
     '<button type="button" class="btn btn-primary" ' + (signDisabled ? "disabled" : "") +
@@ -587,7 +600,7 @@ function renderWork() {
       ? '<div class="done-banner">Готово к выдаче ОБУКО в ЦФТ на счёт ' + (s.accountId || "—") +
         ". Клиента в соседнее окно не отправляем. Сканы КОД — до конца следующего рабочего дня.</div>"
       : '<p class="hint">ОБУКО переводит в ЦФТ. Календарь паспорта сделки в этот АРМ не входит.</p>') +
-    "</div>";
+    "</div></div></div>";
 }
 
 function render() {
