@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Заявление на открытие счёта · печать</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="deal-ops.css">
+</head>
+<body class="print-body">
+  <main class="print-sheet" id="sheet"></main>
+  <script src="mock.js"></script>
+  <script>
+    const id = new URLSearchParams(location.search).get("t");
+    const d = window.DEAL_OPS_MOCK.deals.find((x) => x.deal_id === id);
+    const el = document.getElementById("sheet");
+    if (!d) { el.textContent = "Нет сделки"; }
+    else {
+      const c = d.clients[0];
+      el.innerHTML =
+        "<h1>Заявление на открытие текущего счёта</h1>" +
+        "<p>Банк жилищного финансирования. Макет для печати (не бланк ЦФТ).</p>" +
+        "<p><b>Заявка:</b> " + d.deal_id + "</p>" +
+        "<p><b>Заявитель:</b> " + c.full_name + ", " + c.birth_date + "</p>" +
+        "<p><b>Паспорт:</b> " + c.passport.series + " " + c.passport.number + ", выдан " + c.passport.issued_at + ", " + c.passport.issued_by + "</p>" +
+        "<p><b>ИНН / СНИЛС:</b> " + c.inn + " / " + c.snils + "</p>" +
+        "<p><b>Телефон:</b> " + c.phone + "</p>" +
+        "<p>Прошу открыть текущий счёт для расчётов по кредитному договору на сумму " +
+        Number(d.application.amount).toLocaleString("ru-RU") + " ₽.</p>" +
+        "<p class=\"sign-line\">Подпись заявителя _____________________ / дата ____________</p>" +
+        "<p class=\"sign-line\">Подпись сотрудника банка _____________________</p>" +
+        '<p class="no-print"><button type="button" class="btn btn-primary" onclick="window.print()">Печать</button></p>';
+    }
+  </script>
+</body>
+</html>

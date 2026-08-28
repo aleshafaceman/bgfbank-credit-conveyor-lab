@@ -161,6 +161,33 @@ h1 { font-size: 24px; color: var(--navy); margin-bottom: 6px; }
   padding: 16px 18px; color: #065f46; font-weight: 600; margin-top: 12px;
 }
 .hidden { display: none !important; }
+.err { color: var(--danger); font-size: 13px; margin-top: 8px; display: none; }
+.err.on { display: block; }
+.client-shell { min-height: 100%; }
+.client-main { max-width: 640px; margin: 0 auto; padding: 28px 20px 48px; }
+.client-main label { display: block; font-size: 13px; font-weight: 600; color: var(--navy); margin-top: 12px; }
+.client-main input[type="text"] {
+  width: 100%; max-width: 240px; height: 46px; padding: 0 14px;
+  border: 1px solid #cbd5e1; border-radius: 12px; font-size: 15px; margin-top: 8px;
+}
+.filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.filter {
+  height: 32px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--line);
+  background: #fff; font-size: 12px; font-weight: 700; color: var(--navy); cursor: pointer;
+}
+.filter.on { background: var(--navy); color: #fff; border-color: var(--navy); }
+.badge-esia { background: #dbeafe; color: #1e40af; margin-left: 6px; }
+.badge-noesia { background: #f1f5f9; color: #475569; margin-left: 6px; }
+h1 .badge { margin-top: 0; vertical-align: middle; }
+.channel-switch { display: flex; gap: 8px; margin: 10px 0; }
+.print-body { background: #fff; }
+.print-sheet { max-width: 720px; margin: 32px auto; padding: 24px; line-height: 1.55; }
+.print-sheet h1 { font-size: 22px; }
+.sign-line { margin-top: 32px; }
+@media print {
+  .header, .no-print, .btn { display: none !important; }
+  .print-sheet { margin: 0; }
+}
 @media (max-width: 1100px) {
   .layout { grid-template-columns: 240px 1fr; }
   .bus { display: none; }
