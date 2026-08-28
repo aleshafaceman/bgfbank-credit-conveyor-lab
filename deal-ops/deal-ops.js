@@ -81,7 +81,7 @@ const HELP = {
   },
   bus: {
     title: "Ход обмена",
-    about: "Что стол отправил во внешние системы: ELMA, ЦФТ, проверки, электронное подписание. Кнопки на карточке эти системы сами не вызывают.",
+    about: "Что стол отправил во внешние системы. Зелёный — шаг выполнен или для этой сделки не нужен. Серый «ожидание» — шаг ещё впереди или его надо запустить.",
     next: "Смотрите статус рядом с шагом на карточке — зелёный кружок значит, что ответ уже пришёл."
   },
   summary: {
@@ -1020,19 +1020,68 @@ function renderInbox() {
   }).join("");
 }
 
-function renderBus() {
-  const s = state.selectedId ? st() : null;
-  const head = document.getElementById("bus-head");
-  if (head) head.innerHTML = "<h2>Ход обмена</h2>" + helpBtn("bus");
-  document.getElementById("bus-list").innerHTML = BUS_CATALOG.map((item) => {
-    const stt = (s && s.bus[item.id]) || "idle";
-    const cls = stt === "ok" ? "ok" : stt === "pending" ? "pending" : stt === "fail" ? "fail" : "";
-    let label = stt === "ok" ? "успех" : stt === "pending" ? "запрос…" : stt === "fail" ? "ошибка" : "ожидание";
+function busRow(item, d, s) {
+  const raw = (s && s.bus[item.id]) || "idle";
+  if (raw === "pending") return { cls: "pending", label: "запрос…" };
+  if (raw === "fail") return { cls: "fail", label: "ошибка" };
+  if (raw === "ok") {
+    let label = "успех";
     if (item.id === "elma_callback" && s && (s.elmaLog || []).length) {
       label = elmaStatusRu(lastElmaStatus(s));
     }
-    return '<div class="int ' + cls + '"><i class="dot-i"></i><div><b>' + item.title +
-      "</b><span>" + item.system + " · " + label + "</span></div></div>";
+    return { cls: "ok", label: label };
+  }
+  if (!d || !s) return { cls: "", label: "ожидание" };
+
+  const sopdOk = !sopdState(d).needTemplate;
+  const electronic = d.application.signing_channel === "smartdeal";
+  const smartdeal = {
+    request_ukep: 1,
+    create_signing_package: 1,
+    start_signing: 1,
+    bank_signed: 1,
+    signing_completed: 1
+  };
+  const checks = {
+    check_inn: 1, check_fns: 1, check_pass: 1, check_bankr: 1, check_rkl: 1, check_customs: 1
+  };
+
+  if ((item.id === "sopd_link" || item.id === "sopd_signed") && sopdOk) {
+    return { cls: "ok", label: item.id === "sopd_signed" ? "уже в снимке" : "не нужна" };
+  }
+  if (item.id === "app_link") {
+    if (!needAccountApp(d)) return { cls: "ok", label: "не нужна" };
+    if (s.accountAppStatus === "uploaded") return { cls: "ok", label: "не нужна · бумага" };
+  }
+  if (item.id === "app_signed" && !needAccountApp(d)) {
+    return { cls: "ok", label: "не требовалось" };
+  }
+  if (item.id === "request_ukep" && electronic && s.ukepExists) {
+    return { cls: "ok", label: "уже есть" };
+  }
+  if (smartdeal[item.id] && !electronic) {
+    return { cls: "ok", label: "не нужно" };
+  }
+  if (checks[item.id] && !Object.keys(s.checks || {}).length &&
+      (s.cftStatus === "open" || (d.retail_account && d.retail_account.status === "open"))) {
+    return { cls: "ok", label: "не требовалась" };
+  }
+  if (item.id === "open_account" && !needAccountApp(d) && s.bus.cft_find === "ok") {
+    return { cls: "ok", label: "уже открыт" };
+  }
+
+  return { cls: "", label: "ожидание" };
+}
+
+function renderBus() {
+  const s = state.selectedId ? st() : null;
+  const d = state.selectedId ? deal() : null;
+  const head = document.getElementById("bus-head");
+  if (head) head.innerHTML = "<h2>Ход обмена</h2>" + helpBtn("bus");
+  document.getElementById("bus-list").innerHTML = BUS_CATALOG.map((item) => {
+    const row = busRow(item, d, s);
+    return '<div class="int ' + row.cls + '"><i class="dot-i"></i><div><b>' + item.title +
+      "</b><span>" + item.system + " · " + row.label + "</span></div></div>";
   }).join("");
 }
 
