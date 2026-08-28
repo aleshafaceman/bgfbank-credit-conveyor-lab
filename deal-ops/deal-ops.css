@@ -255,8 +255,11 @@ h1 { font-size: 22px; color: var(--navy); margin-bottom: 6px; letter-spacing: -.
   background: var(--navy);
   animation: pulse 1s ease-in-out infinite;
 }
+.int.ok .dot-i { background: var(--ok); }
+.int.ok span { color: var(--ok); }
 .int.fail .dot-i { background: var(--danger); animation: none; }
 .int.fail b { color: var(--danger); }
+.int.fail span { color: var(--danger); }
 .check-tile.error { border-color: #f59e0b; background: #fffbeb; }
 .check-tile.error .st { color: #b45309; }
 .check-tile.stop { border-color: var(--danger); background: #fef2f2; }
