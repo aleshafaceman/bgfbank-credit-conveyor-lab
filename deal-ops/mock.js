@@ -81,8 +81,7 @@ window.DEAL_OPS_MOCK = {
         { code: "CPG_BKI", title: "Запрос кредитного отчёта", accepted_at: "2026-03-11T16:50:00+03:00" }
       ],
       additional_conditions: [
-        { id: "du_18", elma_type: 18, when: "signing" },
-        { id: "du_0", elma_type: 0, when: "signing" }
+        { id: "du_18", elma_type: 18, when: "signing" }
       ],
       kod: {
         ready_at: "2026-08-28T10:05:00+03:00",

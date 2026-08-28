@@ -1,7 +1,7 @@
 const STORE = "bgfbank_lab_dealops";
 const APP_STORE = "bgfbank_lab_account_app";
 const SOPD_STORE = "bgfbank_lab_sopd";
-const STORE_VER = 5;
+const STORE_VER = 6;
 const MOCK = window.DEAL_OPS_MOCK;
 
 const BUS_CATALOG = [
