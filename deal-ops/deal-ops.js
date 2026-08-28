@@ -1,7 +1,7 @@
 const STORE = "bgfbank_lab_dealops";
 const APP_STORE = "bgfbank_lab_account_app";
 const SOPD_STORE = "bgfbank_lab_sopd";
-const STORE_VER = 3;
+const STORE_VER = 5;
 const MOCK = window.DEAL_OPS_MOCK;
 
 const BUS_CATALOG = [
@@ -21,6 +21,7 @@ const BUS_CATALOG = [
   { id: "request_ukep", title: "Выпуск электронной подписи", system: "электронное подписание" },
   { id: "create_signing_package", title: "Пакет документов", system: "электронное подписание" },
   { id: "start_signing", title: "Клиент подписывает", system: "электронное подписание" },
+  { id: "bank_signed", title: "Банк подписал", system: "электронное подписание" },
   { id: "signing_completed", title: "Подписание завершено", system: "электронное подписание" },
   { id: "kod_signed", title: "КОД подписан", system: "ЦФТ" },
   { id: "open_account", title: "Счёт открыт", system: "ЦФТ" },
@@ -67,6 +68,8 @@ const ELMA_STATUS_RU = {
   account_opened: "счёт открыт",
   dbo_sms_sent: "СМС на интернет-банк отправлено",
   dbo_opened: "интернет-банк открыт",
+  kod_revision: "возврат на процессинг КОД",
+  client_refused: "отказ клиента от подписи",
   deal_stopped: "сделка остановлена"
 };
 
@@ -83,7 +86,7 @@ const HELP = {
   },
   summary: {
     title: "Сводка сделки",
-    about: "Продукт, сумма, когда выдаём деньги и как подписываем комплект: электронно или на бумаге.",
+    about: "Продукт, сумма, когда выдаём деньги (до или после госрегистрации) и как подписываем комплект: электронно или на бумаге. Статус счёта в ЦФТ — с подготовки: нет объекта, к подписанию или уже открыт.",
     next: "Проверьте личность и согласие на обработку данных."
   },
   identity: {
@@ -93,28 +96,28 @@ const HELP = {
   },
   du: {
     title: "Дополнительные условия",
-    about: "Условия из решения, которые нужно снять до подписи комплекта или можно оставить на выдачу.",
+    about: "Виды из справочника ELMA (0–18), которые выставил АНД или АПЗ. Не свободный список. Снять до подписи комплекта или оставить на выдачу — как в Visio «ДУ сняты?». Тип 14 по названию — после сделки.",
     next: "Условия «до подписи КОД» должны быть отмечены до кнопки подписания."
   },
   checks: {
     title: "Проверки открытия счёта",
-    about: "Автоматические запросы по клиенту, если текущего счёта ещё нет. Стол их не вызывает вручную.",
+    about: "Автоматические запросы по клиенту, если счёт ещё не открыт. Объект «к подписанию» — не открытый счёт, проверки всё равно нужны. Стол их не вызывает вручную.",
     next: "Успех — заявление на счёт. Ошибка без стопа — ОПЕРУ, клиент остаётся у ОЗС. Стоп — сделку не подписываем."
   },
   account_app: {
     title: "Заявление на счёт",
-    about: "Отдельный документ, не путать с КОД. Можно отправить форму по СМС или напечатать и загрузить скан.",
-    next: "Когда заявление готово, переходите к подписанию комплекта КОД."
+    about: "Отдельный документ, не путать с КОД. Можно отправить форму по СМС или напечатать и загрузить скан. Счёт открывают до подписи КОД или после — два равноправных варианта Visio.",
+    next: "Когда заявление готово, выберите: открыть счёт сейчас или после подписи комплекта."
   },
   kod: {
     title: "Комплект КОД",
-    about: "Кредитный договор и связанные документы. Электронная сделка: сначала заявление на УКЭП, затем подпись пакета. Бумага: печать и сканы до конца следующего рабочего дня.",
-    next: "Кнопка «Клиент подписал КОД» — после заявления на счёт и снятых условий «до подписи»."
+    about: "Кредитный договор и связанные документы. Электронная сделка — подпись комплекта, не обращение в Росреестр. Если УКЭП уже есть, выпуск не запускаем. Бумага: сначала печать и сшив, сканы — после подписи до конца следующего рабочего дня.",
+    next: "Снять ДУ «до подписи», затем «Клиент подписал КОД». Правки комплекта — возврат на процессинг."
   },
   dbo: {
     title: "Интернет-банк и выдача",
-    about: "После открытия счёта клиент ставит интернет-банк по СМС. Деньги переводит ОБУКО в ЦФТ, не это окно.",
-    next: "Отметьте, что клиент открыл ДБО — сделка готова к выдаче."
+    about: "Заявление на ДБО и приложение 1 — отдельный документ со стола, не КОД. Без него стол не готов к подключению. СМС уходит после открытия счёта. Деньги переводит ОБУКО в ЦФТ.",
+    next: "Отметьте заявление ДБО и что клиент открыл интернет-банк."
   },
   operu: {
     title: "Стол ОПЕРУ",
@@ -141,7 +144,14 @@ function defaultDealState(d) {
     passportOk: false,
     phoneOk: false,
     ukepOk: false,
+    ukepExists: false,
     dboAppOk: false,
+    packReady: false,
+    kodScansOk: false,
+    accountOpenWhen: d.account_open_when || "after_kod",
+    cftStatus: (d.retail_account && d.retail_account.status) || (d.scenario === "account_exists" ? "open" : "none"),
+    accountOpened: !!(d.retail_account && d.retail_account.status === "open"),
+    dboSmsSent: false,
     bus: { elma_snapshot: "ok" },
     elmaLog: [{ deal_id: d.deal_id, status: "snapshot_received", occurred_at: d.exported_at }],
     checks: {},
@@ -201,6 +211,38 @@ function fmtMoney(v) {
 
 function dealKind(d) {
   return d.application.signing_channel === "smartdeal" ? "электронная" : "бумажная";
+}
+
+function fmtDisbursement(d) {
+  return d.application.disbursement === "after_state_registration"
+    ? "после госрегистрации"
+    : "до госрегистрации";
+}
+
+function cftStatusLabel(d, s) {
+  const status = (s && s.cftStatus) || (d.retail_account && d.retail_account.status) || "none";
+  const id = (s && s.accountId) || (d.retail_account && d.retail_account.cft_account_id);
+  if (status === "open") return "открыт" + (id ? " · " + id : "");
+  if (status === "reserved") return "к подписанию" + (id ? " · " + id : "");
+  return "нет объекта";
+}
+
+function accountAlreadyOpen(d, s) {
+  return s.cftStatus === "open" || (d.retail_account && d.retail_account.status === "open" && s.accountOpened);
+}
+
+function ukepReady(d, s) {
+  if (d.application.signing_channel !== "smartdeal") return true;
+  return !!(s.ukepExists || s.ukepOk);
+}
+
+function packReadyForSign(d, s) {
+  if (d.application.signing_channel === "smartdeal") return true;
+  return !!s.packReady;
+}
+
+function accountOpenLocked(d, s) {
+  return accountAlreadyOpen(d, s) || (d.retail_account && d.retail_account.status === "open");
 }
 
 function fmtDate(iso) {
@@ -298,6 +340,11 @@ function needAccountApp(d) {
 function appReady(d, s) {
   if (!needAccountApp(d)) return true;
   return s.accountAppStatus === "signed" || s.accountAppStatus === "uploaded";
+}
+
+function duTitle(x) {
+  const cat = MOCK.du_catalog || {};
+  return cat[x.elma_type] || x.title || ("вид " + x.elma_type);
 }
 
 function duSigningDone(d, s) {
@@ -496,7 +543,10 @@ function togglePresent(el) { st().presentOk = el.checked; save(); render(); }
 function togglePassport(el) { st().passportOk = el.checked; save(); render(); }
 function togglePhone(el) { st().phoneOk = el.checked; save(); render(); }
 function toggleUkep(el) { st().ukepOk = el.checked; save(); render(); }
+function toggleUkepExists(el) { st().ukepExists = el.checked; save(); render(); }
 function toggleDboApp(el) { st().dboAppOk = el.checked; save(); render(); }
+function togglePack(el) { st().packReady = el.checked; save(); render(); }
+function toggleKodScans(el) { st().kodScansOk = el.checked; save(); render(); }
 function toggleSopdDesk(el) {
   const s = st();
   s.sopdDeskOk = el.checked;
@@ -523,15 +573,25 @@ async function confirmIdentity() {
   setBus("cft_find", "pending");
   renderBus();
   await sleep(900);
-  const exists = d.scenario === "account_exists";
+  const exists = d.retail_account && d.retail_account.status === "open";
   setBus("cft_find", "ok");
   if (exists) {
     s.accountId = d.retail_account.cft_account_id;
-    addModalLine("Счёт найден: " + s.accountId, "ok");
+    s.cftStatus = "open";
+    s.accountOpened = true;
+    addModalLine("Счёт открыт: " + s.accountId, "ok");
     elmaCallback("account_exists", { cft_account_id: s.accountId });
     s.step = "sign";
   } else {
-    addModalLine("Счёта нет — запускаем автопроверки", "ok");
+    const reserved = d.retail_account && d.retail_account.status === "reserved";
+    s.cftStatus = reserved ? "reserved" : "none";
+    if (d.retail_account && d.retail_account.cft_account_id) s.accountId = d.retail_account.cft_account_id;
+    addModalLine(
+      reserved
+        ? "Объект счёта к подписанию, не открыт" + (s.accountId ? ": " + s.accountId : "") + " — проверки открытия всё равно нужны"
+        : "Объекта счёта в ЦФТ нет — запускаем автопроверки",
+      "ok"
+    );
     elmaCallback("checks_running");
     s.step = "checks";
   }
@@ -766,16 +826,78 @@ function kodPackTitles(d) {
   return (d.kod.documents || []).map((doc) => doc.title);
 }
 
+function setAccountOpenWhen(v) {
+  const d = deal();
+  const s = st();
+  if (accountOpenLocked(d, s)) return;
+  s.accountOpenWhen = v;
+  save();
+  render();
+}
+
+async function runOpenAccount(d, s) {
+  await runSequence(["open_account"]);
+  s.accountId = s.accountId || (d.retail_account && d.retail_account.cft_account_id) || "40817810100000007701";
+  s.cftStatus = "open";
+  s.accountOpened = true;
+  addModalLine("Счёт открыт: " + s.accountId, "ok");
+  elmaCallback("account_opened", { cft_account_id: s.accountId });
+  await runSequence(["dbo_sms"]);
+  s.dboSmsSent = true;
+  addModalLine("СМС на интернет-банк: " + d.clients[0].phone, "ok");
+  elmaCallback("dbo_sms_sent");
+}
+
+async function openAccountBeforeKod() {
+  const d = deal();
+  const s = st();
+  if (busy || !needAccountApp(d) || !appReady(d, s)) return;
+  if (accountAlreadyOpen(d, s)) return;
+  if (s.accountOpenWhen !== "before_kod") return;
+  if (s.step !== "sign" && s.step !== "account_app") return;
+  busy = true;
+  showModal("Открытие счёта до подписи КОД", "Вариант Visio: клиент открывает счёт до подписания комплекта.");
+  addModalLine("Заявление на счёт готово — открываем объект в ЦФТ", "on");
+  await runOpenAccount(d, s);
+  s.step = "sign";
+  save();
+  await sleep(500);
+  hideModal();
+  busy = false;
+  render();
+}
+
+function returnKodRevision() {
+  const s = st();
+  if (busy || (s.step !== "sign" && s.step !== "account_app")) return;
+  elmaCallback("kod_revision");
+  s.step = "stopped";
+  save();
+  render();
+}
+
+function refuseClient() {
+  const s = st();
+  if (busy || (s.step !== "sign" && s.step !== "account_app")) return;
+  elmaCallback("client_refused");
+  elmaCallback("deal_stopped");
+  s.step = "stopped";
+  save();
+  render();
+}
+
 async function signDeal() {
   const d = deal();
   const s = st();
   if (busy || s.step !== "sign") return;
   if (!appReady(d, s) || !duSigningDone(d, s)) return;
   if (sopdState(d).needTemplate) return;
-  if (d.application.signing_channel === "smartdeal" && !s.ukepOk) return;
+  if (!ukepReady(d, s) || !packReadyForSign(d, s)) return;
+  if (needAccountApp(d) && s.accountOpenWhen === "before_kod" && !accountAlreadyOpen(d, s)) return;
   busy = true;
   const needAcc = needAccountApp(d);
   const electronic = d.application.signing_channel === "smartdeal";
+  const alreadyOpen = accountAlreadyOpen(d, s);
   s.step = "opening";
   save();
 
@@ -783,44 +905,52 @@ async function signDeal() {
     const titles = kodPackTitles(d);
     showModal(
       "Электронное подписание КОД",
-      "Выпуск подписи, пакет комплекта заключения (" + titles.length +
-        " файлов) и подпись клиентом. Затем факт подписания уходит в ЦФТ."
+      "Подпись комплекта заключения (" + titles.length +
+        " файлов). Это не обращение в Росреестр и не электронная регистрация."
     );
-    addModalLine("Заявление на УКЭП на столе — выпускаем подпись", "on");
-    await runSequence(["request_ukep"]);
-    addModalLine("Электронная подпись выпущена", "ok");
+    if (s.ukepExists) {
+      addModalLine("УКЭП уже есть — берём из канала подписания, выпуск не запускаем", "ok");
+    } else {
+      addModalLine("Заявление на УКЭП на столе — выпускаем подпись", "on");
+      await runSequence(["request_ukep"]);
+      addModalLine("Электронная подпись выпущена", "ok");
+    }
     addModalLine("Пакет на подпись: " + titles.join("; "), "on");
     await runSequence(["create_signing_package"]);
     addModalLine("В пакет ушли файлы комплекта, не обращение в Росреестр", "ok");
     await runSequence(["start_signing"]);
     addModalLine("Клиент подписывает файлы", "ok");
+    await runSequence(["bank_signed"]);
+    addModalLine("Банк подписал комплект", "ok");
     await runSequence(["signing_completed"]);
     addModalLine("Подписание комплекта завершено", "ok");
     addModalLine("Сообщаем в ЦФТ, что КОД подписан", "ok");
   } else {
     showModal(
       "Подписание КОД",
-      needAcc
-        ? "Бумажная сделка: электронное подписание не запускаем. Дальше — факт в ЦФТ, открытие счёта и СМС на интернет-банк."
-        : "Бумажная сделка: электронное подписание не запускаем. КОД подписан, новый счёт не открываем."
+      alreadyOpen
+        ? "Бумажная сделка: электронное подписание не запускаем. Счёт уже открыт."
+        : needAcc
+          ? "Бумажная сделка: электронное подписание не запускаем. Дальше — факт в ЦФТ и открытие счёта."
+          : "Бумажная сделка: электронное подписание не запускаем. Новый счёт не открываем."
     );
     addModalLine("Электронное подписание не требуется — сразу факт в ЦФТ", "ok");
   }
 
   await runSequence(["kod_signed"]);
   addModalLine("ЦФТ принял: КОД подписан", "ok");
-  if (needAcc) {
-    await runSequence(["open_account"]);
-    s.accountId = s.accountId || "40817810100000007701";
-    addModalLine("Счёт открыт: " + s.accountId, "ok");
-    await runSequence(["dbo_sms"]);
-    addModalLine("СМС на интернет-банк: " + d.clients[0].phone, "ok");
-  } else {
-    addModalLine("Открытие счёта пропущено — счёт уже был", "ok");
+  if (needAcc && !alreadyOpen) {
+    await runOpenAccount(d, s);
+  } else if (alreadyOpen) {
+    addModalLine("Открытие счёта пропущено — счёт уже открыт", "ok");
+    if (needAcc && !s.dboSmsSent) {
+      await runSequence(["dbo_sms"]);
+      s.dboSmsSent = true;
+      addModalLine("СМС на интернет-банк: " + d.clients[0].phone, "ok");
+      elmaCallback("dbo_sms_sent");
+    }
   }
   elmaCallback("signing_completed");
-  if (needAcc && s.accountId) elmaCallback("account_opened", { cft_account_id: s.accountId });
-  if (needAcc) elmaCallback("dbo_sms_sent");
   s.step = "dbo";
   save();
   await sleep(600);
@@ -831,7 +961,7 @@ async function signDeal() {
 
 function confirmDbo() {
   const s = st();
-  if (s.step !== "dbo") return;
+  if (s.step !== "dbo" || !s.dboAppOk) return;
   s.dboOpened = true;
   s.step = "ready";
   elmaCallback("dbo_opened");
@@ -981,7 +1111,7 @@ function renderWork() {
   const duHtml = (d.additional_conditions || []).length
     ? (d.additional_conditions.map((x) =>
       '<label class="check"><input type="checkbox" ' + (s.du[x.id] ? "checked" : "") +
-      ' onchange="toggleDu(\'' + x.id + '\', this)"><span>' + x.title +
+      ' onchange="toggleDu(\'' + x.id + '\', this)"><span>' + duTitle(x) +
       (x.when === "issue" ? " · можно на выдачу" : " · до подписи КОД") +
       "</span></label>").join(""))
     : "<p class=\"hint\">Открытых ДУ нет.</p>";
@@ -1033,9 +1163,26 @@ function renderWork() {
     s.accountAppStatus === "uploaded" ? "Скан загружен: " + (s.accountAppScan || "файл") :
     s.accountAppStatus === "link_sent" ? "Ссылка отправлена, ждём подпись клиента" : "не готово";
 
+  const appWhenLocked = accountOpenLocked(d, s);
+  const whenPick = s.accountOpenWhen || "after_kod";
+  const whenHtml = !needAccountApp(d)
+    ? ""
+    : '<p class="hint">Когда открывать счёт (Visio: до или после подписи КОД)</p>' +
+      '<div class="channel-switch">' +
+      '<button type="button" class="filter' + (whenPick === "before_kod" ? " on" : "") + '" ' +
+      (appWhenLocked ? "disabled" : "") + ' onclick="setAccountOpenWhen(\'before_kod\')">До подписи КОД</button>' +
+      '<button type="button" class="filter' + (whenPick === "after_kod" ? " on" : "") + '" ' +
+      (appWhenLocked ? "disabled" : "") + ' onclick="setAccountOpenWhen(\'after_kod\')">После подписи КОД</button>' +
+      "</div>" +
+      (whenPick === "before_kod" && !accountAlreadyOpen(d, s) && appReady(d, s) && (s.step === "account_app" || s.step === "sign")
+        ? '<div class="actions"><button type="button" class="btn btn-primary" onclick="openAccountBeforeKod()">Открыть счёт до подписи КОД</button></div>'
+        : "") +
+      (accountAlreadyOpen(d, s) ? '<p class="status-pill">Счёт открыт</p>' : "");
+
   const appPanel = !needAccountApp(d)
     ? '<div class="panel">' + panelHead("Заявление на счёт", "account_app") +
-      '<p class="hint">Счёт уже есть — заявление на открытие не нужно.</p></div>'
+      '<p class="hint">Счёт уже открыт — заявление на открытие не нужно.</p>' +
+      '<p class="hint">ЦФТ: <b>' + cftStatusLabel(d, s) + "</b></p></div>"
     : '<div class="panel">' + panelHead("Заявление на открытие счёта", "account_app") +
       "<p class=\"lead\">Отдельно от комплекта КОД. По умолчанию: " +
       (d.esia_consent ? "СМС (есть Госуслуги на заявке)" : "печать (без Госуслуг)") + ".</p>" +
@@ -1054,10 +1201,36 @@ function renderWork() {
           '<input type="file" ' + (s.step === "account_app" || s.step === "sign" ? "" : "disabled") +
           ' onchange="onScan(this)"></label>') +
       "</div>" +
-      '<p class="status-pill">' + appStatus + "</p></div>";
+      '<p class="status-pill">' + appStatus + "</p>" + whenHtml + "</div>";
 
+  const needOpenFirst = needAccountApp(d) && whenPick === "before_kod" && !accountAlreadyOpen(d, s);
   const signDisabled = !(s.step === "sign" && appReady(d, s) && duSigningDone(d, s) &&
-    (d.application.signing_channel !== "smartdeal" || s.ukepOk));
+    ukepReady(d, s) && packReadyForSign(d, s) && !sopd.needTemplate && !needOpenFirst);
+
+  const electronic = d.application.signing_channel === "smartdeal";
+  const kodGates = electronic
+    ? '<label class="check"><input type="checkbox" ' + (s.ukepExists ? "checked" : "") +
+      ' onchange="toggleUkepExists(this)"><span>УКЭП уже есть — выпуск не нужен</span></label>' +
+      '<label class="check"><input type="checkbox" ' + (s.ukepOk ? "checked" : "") +
+      (s.ukepExists ? " disabled" : "") +
+      ' onchange="toggleUkep(this)"><span>Заявление на УКЭП подписано (выпуск подписи)</span></label>' +
+      '<p class="hint">Электронное заключение — подпись комплекта. Обращение в Росреестр в этом столе не запускаем.</p>'
+    : '<label class="check"><input type="checkbox" ' + (s.packReady ? "checked" : "") +
+      ' onchange="togglePack(this)"><span>Пакет напечатан и сшит</span></label>' +
+      ((s.step === "dbo" || s.step === "ready")
+        ? '<label class="check"><input type="checkbox" ' + (s.kodScansOk ? "checked" : "") +
+          ' onchange="toggleKodScans(this)"><span>Сканы подписанного комплекта в ELMA (до конца следующего рабочего дня)</span></label>'
+        : '<p class="hint">Сканы — после подписи, до конца следующего рабочего дня. Подпись КОД не блокируют.</p>');
+
+  const deskActions = (s.step === "sign" || s.step === "account_app")
+    ? '<div class="actions">' +
+      '<button type="button" class="btn btn-ghost" onclick="returnKodRevision()">Правки КОД → процессинг</button>' +
+      '<button type="button" class="btn btn-danger" onclick="refuseClient()">Отказ клиента от подписи</button>' +
+      "</div>"
+    : "";
+
+  const stopKind = lastElmaStatus(s);
+  const stopOnChecks = s.step === "stopped" && (stopKind === "stop_factor" || stopKind === "operu_rejected");
 
   box.innerHTML =
     '<div class="work-inner">' +
@@ -1072,9 +1245,10 @@ function renderWork() {
     '<div class="panel span-2">' + panelHead("Сделка", "summary") + '<div class="grid-4">' +
     '<div class="param"><small>Продукт</small><b>' + d.application.product_name + "</b></div>" +
     '<div class="param"><small>Сумма</small><b>' + fmtMoney(d.application.amount) + "</b></div>" +
-    '<div class="param"><small>Выдача</small><b>до госрегистрации</b></div>' +
+    '<div class="param"><small>Выдача</small><b>' + fmtDisbursement(d) + "</b></div>" +
     '<div class="param"><small>Вид сделки</small><b>' + dealKind(d) + "</b></div>" +
-    "</div></div>" +
+    "</div>" +
+    '<p class="hint">Счёт в ЦФТ: <b>' + cftStatusLabel(d, s) + "</b></p></div>" +
 
     '<div class="panel span-2">' + panelHead("Идентификация", "identity") +
     '<div class="panel-id">' +
@@ -1100,36 +1274,46 @@ function renderWork() {
     (s.step === "operu"
       ? "<p class=\"hint\">Ошибка без стопа — очередь ОПЕРУ. Клиент остаётся за этим столом.</p>"
       : "") +
-    (s.step === "stopped"
+    (stopOnChecks
       ? "<p class=\"sopd-warn\">Стоп по проверке. Подписание закрыто. Во второе окно не идём.</p>"
-      : "") +
-    (d.scenario === "account_exists"
-      ? "<p class=\"hint\">Счёт уже есть — проверки открытия не запускаем.</p>"
+      : s.step === "stopped"
+        ? "<p class=\"sopd-warn\">Сделка остановлена. В ELMA: " + elmaStatusRu(stopKind) + ".</p>"
+        : "") +
+    (d.retail_account && d.retail_account.status === "open"
+      ? "<p class=\"hint\">Счёт уже открыт — проверки открытия не запускаем.</p>"
       : '<div class="checks">' + checksHtml + "</div>") +
-    (s.accountId ? '<p class="hint">Счёт РКО: <b>' + s.accountId + "</b></p>" : "") +
+    '<p class="hint">ЦФТ: <b>' + cftStatusLabel(d, s) + "</b></p>" +
     "</div>" +
 
     appPanel +
 
     '<div class="panel">' + panelHead("Комплект КОД", "kod") + kodDocs +
-    (d.application.signing_channel === "smartdeal"
-      ? '<label class="check"><input type="checkbox" ' + (s.ukepOk ? "checked" : "") +
-        ' onchange="toggleUkep(this)"><span>Заявление на УКЭП подписано (электронная сделка)</span></label>'
-      : '<p class="hint">Бумага: печать комплекта и сканы — до конца следующего рабочего дня.</p>') +
+    kodGates +
     '<label class="check"><input type="checkbox" ' + (s.dboAppOk ? "checked" : "") +
     ' onchange="toggleDboApp(this)"><span>Заявление на ДБО + приложение 1 (безакцепт) на столе</span></label>' +
     '<button type="button" class="btn btn-primary" ' + (signDisabled ? "disabled" : "") +
     ' onclick="signDeal()">Клиент подписал КОД</button>' +
-    '<p class="hint">Кнопка активна, когда заявление на счёт готово и доп. условия «до подписи» сняты.</p></div>' +
+    deskActions +
+    '<p class="hint">' +
+    (needOpenFirst
+      ? "Сначала откройте счёт (вариант «до подписи КОД») или переключите на открытие после подписи."
+      : "Кнопка активна, когда заявление на счёт готово, ДУ «до подписи» сняты" +
+        (electronic ? " и УКЭП готова." : " и пакет сшит.")) +
+    "</p></div>" +
 
     '<div class="panel span-2">' + panelHead("Интернет-банк и выдача", "dbo") +
-    '<button type="button" class="btn btn-primary" ' + (s.step === "dbo" ? "" : "disabled") +
+    '<button type="button" class="btn btn-primary" ' + (s.step === "dbo" && s.dboAppOk ? "" : "disabled") +
     ' onclick="confirmDbo()">Клиент открыл интернет-банк по СМС</button>' +
+    (s.step === "dbo" && !s.dboAppOk
+      ? '<p class="hint">Сначала отметьте заявление на ДБО и приложение 1 в блоке комплекта.</p>'
+      : "") +
     (s.step === "ready"
       ? '<div class="done-banner">Готово к выдаче ОБУКО в ЦФТ на счёт ' + (s.accountId || "—") +
-        ". Клиента в соседнее окно не отправляем. Сканы КОД — до конца следующего рабочего дня.</div>"
+        " · " + fmtDisbursement(d) +
+        ". Клиента в соседнее окно не отправляем." +
+        (s.kodScansOk || electronic ? "" : " Сканы КОД — до конца следующего рабочего дня.") + "</div>"
       : s.step === "stopped"
-        ? '<div class="stop-banner">Сделка остановлена. В ELMA: ' + elmaStatusRu(lastElmaStatus(s)) + ".</div>"
+        ? '<div class="stop-banner">Сделка остановлена. В ELMA: ' + elmaStatusRu(stopKind) + ".</div>"
         : '<p class="hint">ОБУКО переводит в ЦФТ. Календарь паспорта сделки в этот АРМ не входит.</p>') +
     "</div></div></div>";
 }

@@ -318,6 +318,7 @@ h1 { font-size: 22px; color: var(--navy); margin-bottom: 6px; letter-spacing: -.
   background: #fff; font-size: 12px; font-weight: 700; color: var(--navy); cursor: pointer;
 }
 .filter.on { background: var(--navy); color: #fff; border-color: var(--navy); }
+.filter:disabled { opacity: .45; cursor: not-allowed; }
 .badge-esia { background: #dbeafe; color: #1e40af; margin-left: 6px; }
 .badge-noesia { background: #f1f5f9; color: #475569; margin-left: 6px; }
 .esia-flag { border: 1px solid #bfdbfe; }
