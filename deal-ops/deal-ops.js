@@ -455,7 +455,7 @@ function addModalLine(text, cls) {
   li.style.padding = "8px 0";
   li.style.borderBottom = "1px solid #e1e9f1";
   li.style.fontWeight = "600";
-  li.style.color = cls === "ok" ? "#059669" : cls === "fail" ? "#b91c1c" : "#003b6f";
+  li.style.color = cls === "ok" ? "#13A538" : cls === "fail" ? "#b91c1c" : "#0B4697";
   ul.appendChild(li);
 }
 
