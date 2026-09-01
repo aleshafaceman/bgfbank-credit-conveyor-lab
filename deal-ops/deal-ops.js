@@ -514,18 +514,50 @@ function toggleHelp(ev, id) {
   const pop = document.getElementById("help-" + id);
   if (!pop) return;
   const willOpen = pop.classList.contains("hidden");
+  const btn = ev.currentTarget;
   closeAllHelp();
-  if (willOpen) pop.classList.remove("hidden");
+  if (!willOpen) return;
+  if (!pop._home) pop._home = pop.parentNode;
+  document.body.appendChild(pop);
+  pop.classList.remove("hidden");
+  placeHelp(pop, btn);
+}
+
+function placeHelp(pop, btn) {
+  const r = btn.getBoundingClientRect();
+  const gap = 8;
+  const margin = 12;
+  const w = Math.min(280, window.innerWidth - margin * 2);
+  pop.style.width = w + "px";
+  pop.style.right = "auto";
+  let left = r.left;
+  if (left + w > window.innerWidth - margin) left = r.right - w;
+  left = Math.max(margin, Math.min(left, window.innerWidth - w - margin));
+  pop.style.left = left + "px";
+  pop.style.top = (r.bottom + gap) + "px";
+  const h = pop.getBoundingClientRect().height;
+  if (r.bottom + gap + h > window.innerHeight - margin) {
+    const above = r.top - h - gap;
+    if (above >= margin) pop.style.top = above + "px";
+  }
 }
 
 function closeAllHelp() {
-  document.querySelectorAll(".help-pop").forEach((p) => p.classList.add("hidden"));
+  document.querySelectorAll(".help-pop").forEach((p) => {
+    p.classList.add("hidden");
+    p.style.left = "";
+    p.style.top = "";
+    p.style.width = "";
+    if (p._home && p.parentNode !== p._home) p._home.appendChild(p);
+  });
 }
 
 document.addEventListener("click", closeAllHelp);
 document.addEventListener("keydown", function (e) {
   if (e.key === "Escape") closeAllHelp();
 });
+window.addEventListener("resize", closeAllHelp);
+document.addEventListener("scroll", closeAllHelp, true);
 
 function operuQueue() {
   return MOCK.deals.filter((d) => {
@@ -1372,6 +1404,7 @@ function renderWork() {
 }
 
 function render() {
+  closeAllHelp();
   renderInbox();
   renderWork();
   renderBus();
