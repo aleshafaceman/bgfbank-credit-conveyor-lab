@@ -7,11 +7,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,700;1,400&family=Roboto+Condensed:wght@600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="deal-ops.css?v=16">
+  <link rel="stylesheet" href="deal-ops.css?v=18">
 </head>
 <body class="print-body">
   <main class="print-sheet" id="sheet"></main>
-  <script src="mock.js?v=16"></script>
+  <script src="mock.js?v=18"></script>
   <script>
     const id = new URLSearchParams(location.search).get("t");
     const d = window.DEAL_OPS_MOCK.deals.find((x) => x.deal_id === id);
@@ -20,7 +20,7 @@
     else {
       const c = d.clients[0];
       el.innerHTML =
-        '<img class="print-logo" src="brand/logo-on-light.svg" alt="БЖФ Банк">' +
+        '<img class="print-logo" src="brand/logo-on-light.png" alt="БЖФ Банк">' +
         "<h1>Заявление на открытие текущего счёта</h1>" +
         "<p>Банк жилищного финансирования. Макет для печати (не бланк ЦФТ).</p>" +
         "<p><b>Заявка:</b> " + d.deal_id + "</p>" +
