@@ -167,7 +167,7 @@ function renderApplicationDetail(appId) {
             <div class="m-detail-param"><div class="m-param-label">${rateLabel}</div><div class="m-param-value ${app.rate ? '' : 'pending'}">${app.rate ? app.rate + '%' : 'ожидается'}</div></div>
             <div class="m-detail-param"><div class="m-param-label">${payLabel}</div><div class="m-param-value ${app.payment ? '' : 'pending'}">${app.payment ? '~ ' + Number(app.payment).toLocaleString('ru-RU') + ' ₽' : 'ожидается'}</div></div>
             ${termsNote}
-            ${app.selectedPackageLabel ? '<div class="m-detail-param"><div class="m-param-label">Рекомендуемый пакет условий</div><div class="m-param-value">' + app.selectedPackageLabel + (app.offerValidUntil ? ' <span style="font-size:11px;color:#7e9bb6;">(до ' + app.offerValidUntil + ')</span>' : '') + '</div></div>' : ''}
+            ${packageSummaryHTML(app)}
         </div>
         
         <div class="m-section">
@@ -300,7 +300,81 @@ function managerNotify(message) {
     try { alert(String(message || '')); } catch (e2) {}
 }
 
-var ORIGINAL_DU_IDS = { du00: true, du01: true, du04: true, du19: true };
+function isPackageAccepted(app) {
+    if (!app) return false;
+    if (app.packageStatus === 'accepted') return true;
+    if (app.status === 'approved' || app.status === 'rejected') return true;
+    return false;
+}
+
+function defaultPackageId(app) {
+    return (app && (app.selectedPackageId || app.preApprovedPackageId)) || 'PKG_RECOMMENDED';
+}
+
+function packageLabelForId(pkgId, app) {
+    if (app && app.selectedPackageLabel) return app.selectedPackageLabel;
+    if (typeof getPackageCatalogInfo === 'function') {
+        var catalog = getPackageCatalogInfo(pkgId);
+        if (catalog && catalog.title) return catalog.title;
+    }
+    if (pkgId === 'PKG_SPEC_4_0') return 'Снижение ставки (Спец. опция 4.0)';
+    if (pkgId === 'PKG_NO_INSURANCE') return 'Без страхования жизни заёмщика';
+    return 'Со страхованием и цифровым профилем';
+}
+
+function packageStatusLine(app) {
+    if (isPackageAccepted(app) && app.packageStatus === 'accepted') return 'Принят';
+    if (isPackageAccepted(app)) return 'Не требовался / заявка закрыта';
+    if (app && (app.packageStatus === 'proposed' || app.selectedPackageId || app.preApprovedPackageId)) {
+        return 'Предложен, клиент ещё не принял';
+    }
+    return 'После прескоринга';
+}
+
+function packageSummaryHTML(app) {
+    var pkgId = defaultPackageId(app);
+    var label = packageLabelForId(pkgId, app);
+    var st = packageStatusLine(app);
+    var until = app && app.offerValidUntil
+        ? ' <span style="font-size:11px;color:#7e9bb6;">(до ' + app.offerValidUntil + ')</span>'
+        : '';
+    return '<div class="m-detail-param"><div class="m-param-label">Пакет условий</div>' +
+        '<div class="m-param-value" style="font-size:13px;">' + label + until +
+        '<div style="font-size:11px;font-weight:600;margin-top:4px;color:' +
+        (isPackageAccepted(app) ? '#047857' : '#b45309') + ';">' + st + '</div></div></div>';
+}
+
+function acceptManagerPackage(appId) {
+    var apps = (typeof getAllApplications === 'function')
+        ? getAllApplications()
+        : (typeof managerApplications !== 'undefined' ? managerApplications : []);
+    var app = (apps || []).find(function(a) { return a && a.id === appId; });
+    if (!app) return null;
+    if (app.packageStatus === 'accepted') {
+        managerNotify('Пакет уже принят.');
+        return app;
+    }
+    var pkgId = defaultPackageId(app);
+    var label = packageLabelForId(pkgId, app);
+    if (typeof updateApplication === 'function') {
+        updateApplication(appId, {
+            selectedPackageId: pkgId,
+            selectedPackageLabel: label,
+            packageStatus: 'accepted'
+        });
+    }
+    var nextLabel = (app.status === 'decision') ? 'Пакет принят' : (app.statusLabel || app.status);
+    if (typeof updateApplicationStatus === 'function') {
+        updateApplicationStatus(appId, app.status, nextLabel, 'Пакет условий принят: «' + label + '»');
+    }
+    if (typeof sendChatMessage === 'function') {
+        sendChatMessage('manager', app.client, 'Зафиксировали пакет условий «' + label + '» по заявке №' + appId + '. Дальше — полный скоринг и оригиналы.', app.client);
+    }
+    managerNotify('Пакет «' + label + '» принят. Можно запускать полный скоринг.');
+    return (typeof getAllApplications === 'function')
+        ? getAllApplications().find(function(a) { return a && a.id === appId; })
+        : app;
+}
 
 function appOriginKind(app) {
     if (typeof isLkLabApplication === 'function' && isLkLabApplication(app)) return 'lab';
@@ -313,6 +387,8 @@ function appOriginBadgeHTML(app) {
     }
     return '<span class="m-card-origin m-card-origin--conveyor">Конвейер</span>';
 }
+
+var ORIGINAL_DU_IDS = { du00: true, du01: true, du04: true, du19: true };
 
 function missingOriginals(app) {
     var items = [];
@@ -352,14 +428,19 @@ function getActionButtons(app) {
             return mActionButton(id, 'requestDocs', 'm-btn-primary', 'fa-file-upload', 'Запросить документы') +
                     mActionButton(id, 'startReview', 'm-btn-outline', 'fa-play', 'Начать рассмотрение');
         case 'processing':
-            return mActionsHint('Прескоринг — первый этап: паспорт и запрос в БКИ. Предварительные условия, не финальное одобрение.') +
+            return mActionsHint('Прескоринг — первый этап: паспорт и БКИ. Пакет условий клиент принимает после предварительного решения, полное одобрение — только после пакета.') +
                     prescore +
                     mActionButton(id, 'requestDocs', 'm-btn-outline', 'fa-file-upload', 'Запросить документы');
         case 'valuation':
-            return mActionsHint('Идёт прескоринг (паспорт + БКИ). Полный скоринг станет доступен после предварительного решения.') +
+            return mActionsHint('Идёт прескоринг (паспорт + БКИ). Пакет условий и полный скоринг — после предварительного решения.') +
                     prescore +
                     mActionButton(id, 'requestDocs', 'm-btn-outline', 'fa-file-upload', 'Запросить документы');
         case 'decision':
+            if (!isPackageAccepted(app)) {
+                return mActionsHint('Прескоринг пройден. Пока пакет условий не принят, полный скоринг (одобрение) не запускаем — в лабе можно зафиксировать пакет за клиента.', 'm-actions-hint--warn') +
+                    mActionButton(id, 'acceptPackage', 'm-btn-primary', 'fa-box-open', 'Пакет принят') +
+                    mActionButton(id, 'reject', 'm-btn-danger', 'fa-times', 'Клиент не подходит');
+            }
             var missing = missingOriginals(app);
             if (missing.length) {
                 return mActionsHint('Прескоринг пройден. Для полного скоринга не хватает оригиналов: ' + missing.join('; ') + '.', 'm-actions-hint--warn') +

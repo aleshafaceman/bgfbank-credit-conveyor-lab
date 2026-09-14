@@ -158,6 +158,11 @@ function openManagerScoring(force) {
         var appId = (typeof selectedAppId !== 'undefined' && selectedAppId) ? selectedAppId : null;
         var apps = typeof getAllApplications === 'function' ? getAllApplications() : (typeof managerApplications !== 'undefined' ? managerApplications : []);
         var app = (apps || []).find(function(a) { return a && a.id === appId; }) || null;
+        if (typeof isPackageAccepted === 'function' && app && !isPackageAccepted(app)) {
+            if (typeof managerNotify === 'function') managerNotify('Сначала зафиксируйте пакет условий — «Пакет принят».');
+            else if (typeof alert === 'function') alert('Сначала зафиксируйте пакет условий.');
+            return;
+        }
         var missing = (typeof missingOriginals === 'function') ? missingOriginals(app || { id: appId, documents: [] }) : [];
         if (!force && missing.length && typeof confirm === 'function') {
             var ok = confirm('Нет полного комплекта оригиналов:\n• ' + missing.join('\n• ') + '\n\nЗапустить полный скоринг без комплекта?');

@@ -117,6 +117,10 @@ function managerAction(appId, action) {
                 if (typeof openChatWithClient === 'function') openChatWithClient(app.client);
                 if (typeof managerNotify === 'function') managerNotify('Клиенту предложено изменить параметры заявки');
                 break;
+
+            case 'acceptPackage':
+                if (typeof acceptManagerPackage === 'function') acceptManagerPackage(appId);
+                break;
         }
     } catch (err) {
         console.error('managerAction', appId, action, err);
