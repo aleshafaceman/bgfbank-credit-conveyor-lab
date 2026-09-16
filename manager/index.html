@@ -210,6 +210,7 @@
             var appId = actionBtn.getAttribute('data-app-id');
             try {
                 if (act === 'openScoring' && typeof openManagerScoring === 'function') openManagerScoring();
+                else if (act === 'openPrescoring' && typeof openManagerPrescoring === 'function') openManagerPrescoring();
                 else if (act === 'requestExternalDU' && typeof requestExternalDU === 'function') requestExternalDU(appId, actionBtn.getAttribute('data-du-id'));
                 else if (act === 'open-artifact' && typeof openArtifact === 'function') openArtifact(actionBtn.getAttribute('data-art-id'));
                 else if (act === 'open-artifact-kind' && typeof openArtifactByKind === 'function') {

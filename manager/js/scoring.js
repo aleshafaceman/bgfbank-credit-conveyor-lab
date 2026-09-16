@@ -80,7 +80,7 @@ function scoringStepsForApp(app, mode) {
     if (steps[2]) {
         steps[2].detail_ok = ndflOk
             ? ('Доход: ' + Number(income).toLocaleString('ru-RU') + ' ₽/мес. (2-НДФЛ из ЦП).')
-            : '2-НДФЛ в ЦП нет — ДУ тип 0, confirmation_income_summary = −1.';
+            : '2-НДФЛ в цифровом профиле нет — нужен ДУ тип 0 (справка о доходе).';
     }
     if (steps[4]) {
         steps[4].detail_ok = 'Стоимость: ' + collateral.toLocaleString('ru-RU') + ' ₽.';
@@ -146,7 +146,15 @@ function startScoringRun(mode) {
 }
 
 function openManagerPrescoring() {
-    startScoringRun('prescore');
+    if (typeof window !== 'undefined' && window.__bgfOpenPrescoreBusy) return;
+    if (typeof window !== 'undefined') window.__bgfOpenPrescoreBusy = true;
+    try {
+        startScoringRun('prescore');
+    } finally {
+        if (typeof window !== 'undefined') {
+            setTimeout(function() { window.__bgfOpenPrescoreBusy = false; }, 0);
+        }
+    }
 }
 
 var __bgfOpenScoringBusy = false;
