@@ -12,10 +12,9 @@
 - **АРМ сделки ОЗС/ОПЕРУ (мок открытия счёта):** https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/deal-ops/
 - Клиент (кабинет): https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/
 - Менеджер: https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/manager/
-- Split-view: https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/demo.html
 - Репозиторий: https://github.com/aleshafaceman/bgfbank-credit-conveyor-lab
 
-Открывать **только клиент + менеджер** (или `demo.html`). Не использовать `mob_*.html` и standalone scoring HTML.
+Открывать **только клиент + менеджер** (две вкладки). Не использовать `mob_*.html` и standalone scoring HTML.
 
 Хранилище LAB: ключи `bgfbank_lab_*` (отдельно от freeze).
 
@@ -26,7 +25,7 @@
 | `/?demo=1` | Сброс данных + автологин клиента → заявки |
 | `/manager/?demo=1` | Сброс + автологин менеджера |
 | `/deal-ops/?demo=1` | АРМ сделки: сброс мока, очередь ОЗС |
-| `/?demo=1&checklist=1` | + чеклист ведущего (не в split-view) |
+| `/?demo=1&checklist=1` | + чеклист ведущего |
 
 Клавиша **P** — режим проектора.
 
@@ -43,7 +42,7 @@ SMS/OTP — любой код. Госуслуги — имитация.
 
 1. `/?demo=1` и `/manager/?demo=1` **или** кнопки «Сбросить демо».
 2. При сомнениях — **Ctrl+F5**.
-3. Один браузер, две вкладки / split-view (общий `localStorage`).
+3. Один браузер, две вкладки (общий `localStorage`).
 
 Проверка: `node scripts/pre-release-audit.js` (Failed: 0).
 

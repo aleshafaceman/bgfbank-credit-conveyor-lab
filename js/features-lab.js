@@ -14,24 +14,7 @@ function getDemoQuery() {
     }
 }
 
-function isEmbedContext() {
-    var q = getDemoQuery();
-    if (q.get('embed') === '1') return true;
-    try {
-        return window.self !== window.top;
-    } catch (e) {
-        return true;
-    }
-}
-
-function applyEmbedMode() {
-    if (!isEmbedContext()) return;
-    document.documentElement.classList.add('embed-mode');
-    document.body.classList.add('embed-mode');
-}
-
 function runClientDemoBoot() {
-    applyEmbedMode();
     var q = getDemoQuery();
     var mode = q.get('demo');
     var auto = q.get('autologin');
@@ -42,7 +25,6 @@ function runClientDemoBoot() {
         url.searchParams.delete('demo');
         url.searchParams.set('autologin', '1');
         if (q.get('checklist') === '1') url.searchParams.set('checklist', '1');
-        if (q.get('embed') === '1' || isEmbedContext()) url.searchParams.set('embed', '1');
         window.location.replace(url.toString());
         return;
     }
@@ -50,7 +32,6 @@ function runClientDemoBoot() {
     if (auto === '1') {
         var url2 = new URL(window.location.href);
         url2.searchParams.delete('autologin');
-        if (isEmbedContext()) url2.searchParams.set('embed', '1');
         history.replaceState({}, '', url2.toString());
         setTimeout(function() {
             if (typeof loginWithPassword === 'function') {
@@ -61,12 +42,11 @@ function runClientDemoBoot() {
                 if (typeof showDemoToast === 'function') {
                     showDemoToast('Режим показа готов', { icon: 'fa-play', duration: 2500 });
                 }
-                // В iframe онбординг мешает и ломает восприятие — только чеклист при запросе
-                if (!isEmbedContext()) maybeShowOnboarding();
+                maybeShowOnboarding();
                 if (q.get('checklist') === '1') maybeShowPresenterChecklist(true);
             }, 500);
         }, 250);
-    } else if (q.get('checklist') === '1' && !isEmbedContext()) {
+    } else if (q.get('checklist') === '1') {
         maybeShowPresenterChecklist(true);
     }
 }
@@ -196,15 +176,11 @@ function maybeShowOnboarding() {
         '<li>Напишите менеджеру в чат</li>' +
         '<li>На вкладке менеджера запустите скоринг</li></ol>' +
         '<button type="button" class="btn btn-primary" id="bgfOnboardOk">Понятно</button>' +
-        '<button type="button" class="btn btn-outline" id="bgfOnboardSplit" style="margin-top:8px;">Открыть split-view</button>' +
         '</div>';
     document.body.appendChild(el);
     document.getElementById('bgfOnboardOk').onclick = function() {
         try { localStorage.setItem('bgf_lab_onboarded', '1'); } catch (e) {}
         el.remove();
-    };
-    document.getElementById('bgfOnboardSplit').onclick = function() {
-        window.open('demo.html', '_blank');
     };
 }
 
@@ -222,19 +198,15 @@ function maybeShowPresenterChecklist(force) {
         '<label><input type="checkbox"> Чат → менеджер</label>' +
         '<label><input type="checkbox"> Скоринг → одобрение</label>' +
         '<label><input type="checkbox"> Тост «Одобрено»</label>' +
-        '<a href="demo.html" target="_blank">Split-view</a>' +
-        '<a href="manager/?demo=1" target="_blank">Менеджер ?demo=1</a>';
+        '<a href="manager/?autologin=1" target="_blank">Кабинет менеджера</a>';
     document.body.appendChild(el);
     document.getElementById('bgfChecklistClose').onclick = function() { el.remove(); };
 }
 
 document.addEventListener('DOMContentLoaded', function() {
     if (!document.getElementById('appShell')) return;
-    applyEmbedMode();
     runClientDemoBoot();
-    // soft onboarding after normal login too (once) — не в split-view iframe
     setTimeout(function() {
-        if (isEmbedContext()) return;
         var auth = document.getElementById('authFullscreen');
         if (auth && auth.classList.contains('hidden')) maybeShowOnboarding();
     }, 1500);
