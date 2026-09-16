@@ -326,3 +326,45 @@ body.embed-mode .app-timeline-step {
 .m-pkg-change select { flex: 1; min-width: 180px; padding: 8px 10px; border: 1px solid #dbe5ef; border-radius: 8px; font-size: 13px; color: #08356e; background: #fff; }
 .m-pkg-change-hint { flex: 1 0 100%; margin: 0; font-size: 11px; color: #94a3b8; }
 .art-chip-all { font-weight: 700; }
+.art-strip-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.art-chip {
+    display: inline-flex; align-items: center;
+    margin: 0; padding: 8px 12px; border-radius: 8px;
+    border: 1px solid #dbe5ef; background: #f8fbff; color: #0B4697;
+    font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit;
+}
+.art-chip:hover { border-color: #0B4697; }
+button.art-doc-row {
+    width: 100%; text-align: left; font: inherit; cursor: pointer;
+    border: 1px solid #e1e9f1;
+}
+button.art-doc-row:hover { border-color: #0B4697; }
+.art-strip-all { margin-top: 12px; }
+.art-modal-overlay {
+    position: fixed; inset: 0; z-index: 4000;
+    background: rgba(8, 53, 110, 0.45);
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px;
+}
+.art-modal-overlay.hidden { display: none; }
+.art-modal {
+    position: relative; background: #fff; border-radius: 16px;
+    max-width: 720px; width: 100%; max-height: min(88vh, 900px);
+    overflow: auto; padding: 28px 32px 20px; color: #08356e;
+    box-shadow: 0 24px 60px rgba(8, 53, 110, 0.25);
+}
+.art-modal-close {
+    position: absolute; top: 12px; right: 14px;
+    border: 0; background: none; font-size: 28px; line-height: 1;
+    color: #7e9bb6; cursor: pointer; padding: 4px 8px;
+}
+.art-modal-body h1 { color: #0B4697; font-size: 22px; margin: 8px 0 12px; }
+.art-modal-body .box { border: 1px solid #dbe5ef; border-radius: 12px; padding: 20px; margin: 16px 0; }
+.art-modal-body .row { display: flex; justify-content: space-between; gap: 16px; padding: 8px 0; border-bottom: 1px solid #eef2f7; }
+.art-modal-body .muted { color: #64748b; font-size: 13px; }
+.art-modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
+.art-modal-footer button, .art-modal-print, .art-modal-ok {
+    padding: 10px 16px; border-radius: 10px; font-weight: 700; font-size: 13px; cursor: pointer; font-family: inherit;
+}
+.art-modal-print { border: 0; background: #0B4697; color: #fff; }
+.art-modal-ok { border: 1px solid #cbd5e1; background: #fff; color: #0B4697; }

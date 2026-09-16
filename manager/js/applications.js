@@ -279,7 +279,7 @@ function bindManagerDetailActions(root) {
                 var pkgId = sel ? sel.value : btn.getAttribute('data-package-id');
                 var next = applyManagerEligiblePackage(appId, pkgId);
                 if (!next) {
-                    if (typeof managerNotify === 'function') managerNotify('Пакет недоступен: только из снимка eligible');
+                        if (typeof managerNotify === 'function') managerNotify('Этот пакет клиенту не предлагали');
                 } else {
                     if (typeof managerNotify === 'function') managerNotify('Пакет сменён: ' + (next.selectedPackageLabel || pkgId));
                     if (typeof renderApplicationDetail === 'function') renderApplicationDetail(appId);
@@ -340,8 +340,9 @@ function renderManagerRateBreakdownHTML(app) {
     var catalog = (typeof getPackageCatalogInfo === 'function') ? getPackageCatalogInfo(app.selectedPackageId) : null;
     var ltv = (app.collateralValue && app.amount) ? Math.round((app.amount / app.collateralValue) * 100) : null;
     var h = '<div class="m-section"><h4><i class="fas fa-percentage"></i> Разбор ставки</h4>';
-    h += '<p style="font-size:13px;color:#334155;">Турбо 2.0 → база − ЕСИА − опции = <b>' + (app.rate != null ? app.rate + '%' : '—') + '</b>';
-    if (ltv != null) h += ' · LTV ' + ltv + '%';
+    h += '<p style="font-size:13px;color:#334155;line-height:1.55;">Тариф «Турбо 2.0»: базовая ставка минус скидка за Госуслуги минус опции = <b>' +
+        (app.rate != null ? app.rate + '%' : '—') + '</b>';
+    if (ltv != null) h += '. Кредит — ' + ltv + '% от оценки';
     h += '</p>';
     if (catalog) {
         h += '<p style="font-size:12px;color:#7e9bb6;">' + catalog.title + (catalog.insurance ? ' · ' + catalog.insurance : '') + '</p>';
@@ -352,7 +353,7 @@ function renderManagerRateBreakdownHTML(app) {
         return p && (typeof LAB_ELIGIBLE_PACKAGE_IDS === 'undefined' || LAB_ELIGIBLE_PACKAGE_IDS.indexOf(p.id) !== -1);
     }) : [];
     if (snap.length) {
-        h += '<div class="m-pkg-change"><label>Смена пакета из eligible</label>';
+        h += '<div class="m-pkg-change"><label>Сменить пакет из предложенных клиенту</label>';
         h += '<select data-eligible-package="' + String(app.id).replace(/"/g, '&quot;') + '">';
         snap.forEach(function(p) {
             var sel = p.id === app.selectedPackageId ? ' selected' : '';
@@ -362,7 +363,7 @@ function renderManagerRateBreakdownHTML(app) {
         h += '</select>';
         h += '<button type="button" class="m-btn m-btn-outline" data-m-action="changePackage" data-app-id="' +
             String(app.id).replace(/"/g, '&quot;') + '">Применить пакет</button>';
-        h += '<p class="m-pkg-change-hint">Только id из снимка C10. Solver не вызывается.</p></div>';
+        h += '<p class="m-pkg-change-hint">Только те пакеты, которые видел клиент. Калькулятор заново не запускаем.</p></div>';
     }
     if (typeof openArtifactByKind === 'function') {
         h += '<button type="button" class="m-btn m-btn-outline" style="margin-top:8px;" data-m-action="open-artifact-kind" data-art-kind="rate_breakdown" data-app-id="' + String(app.id).replace(/"/g, '&quot;') + '">Протокол</button>';
@@ -434,7 +435,7 @@ function getActionButtons(app) {
             return mActionsHint('Прескоринг пройден. Комплект оригиналов собран — можно запускать полный скоринг.') +
                     scoringPrimary +
                     (typeof openArtifactByKind === 'function'
-                        ? '<button type="button" class="m-btn m-btn-outline" data-m-action="open-artifact-kind" data-art-kind="prescore_protocol" data-app-id="' + id + '"><i class="fas fa-file-alt"></i> Протокол preScore</button>'
+                        ? '<button type="button" class="m-btn m-btn-outline" data-m-action="open-artifact-kind" data-art-kind="prescore_protocol" data-app-id="' + id + '"><i class="fas fa-file-alt"></i> Протокол прескоринга</button>'
                         : '') +
                     mActionButton(id, 'reject', 'm-btn-danger', 'fa-times', 'Клиент не подходит');
         case 'approved':
@@ -443,7 +444,7 @@ function getActionButtons(app) {
                 (typeof openArtifactByKind === 'function'
                     ? '<button type="button" class="m-btn m-btn-outline" data-m-action="open-artifact-kind" data-art-kind="decision_protocol" data-app-id="' + id + '"><i class="fas fa-file-alt"></i> Протокол</button>' +
                       '<button type="button" class="m-btn m-btn-outline" data-m-action="open-artifact-kind" data-art-kind="bank_decision" data-app-id="' + id + '"><i class="fas fa-stamp"></i> Решение банка</button>' +
-                      '<button type="button" class="m-btn m-btn-outline" data-m-action="open-artifact-kind" data-art-kind="kod_inventory" data-app-id="' + id + '"><i class="fas fa-folder"></i> Опись КОД</button>'
+                      '<button type="button" class="m-btn m-btn-outline" data-m-action="open-artifact-kind" data-art-kind="kod_inventory" data-app-id="' + id + '"><i class="fas fa-folder"></i> Комплект на подпись</button>'
                     : '');
         case 'rejected':
             return mActionButton(id, 'suggestParams', 'm-btn-outline', 'fa-redo', 'Предложить изменить параметры');
