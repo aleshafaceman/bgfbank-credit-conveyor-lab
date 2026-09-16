@@ -606,7 +606,10 @@ console.log('\n=== 8. TrustGate lab app is manager-only ===');
   ctx.selectManagerApp('4636-И');
   const mgrHtml = ctx._els.mAppDetail.innerHTML;
   assert(mgrHtml.includes('cp-coverage'), 'manager 4636 shows CP coverage block');
-  assert(mgrHtml.includes('Состояние движка'), 'manager CP block labels FILL_IN as engine state');
+  assert(mgrHtml.includes('Анкета') && mgrHtml.includes('Заполняется'),
+    'manager CP block shows application status in Russian');
+  assert(!mgrHtml.includes('Состояние движка') && !/FILL_IN/.test(mgrHtml) && !mgrHtml.includes('borrowers['),
+    'manager CP block does not show engine field names');
   assert(mgrHtml.includes('Заёмщик') && !mgrHtml.includes('borrowers[0]'),
     'manager CP borrower row is human-readable');
   assert(mgrHtml.includes('лабораторный цифровой профиль'), 'lab detail explains origin vs conveyor');
