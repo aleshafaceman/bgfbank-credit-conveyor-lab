@@ -133,31 +133,14 @@ function uploadMissingDocDemo(docName, appId) {
             sendChatMessage('client', name, 'Загрузил документ: «' + docName + '».', name);
         }
         if (typeof refreshClientApplicationsUI === 'function') refreshClientApplicationsUI(id);
-        var sizeHint = file && file.size ? (' · ' + file.size + ' Б') : '';
+        var fname = (file && file.name) || (docName.replace(/\s+/g, '_') + '.pdf');
+        var fsize = (file && file.size) || 18432;
         if (typeof showDemoToast === 'function') {
-            showDemoToast('Документ «' + docName + '» принят' + sizeHint, { icon: 'fa-file-upload', duration: 2500 });
+            showDemoToast('Документ «' + docName + '» принят · ' + fname + ' · ' + fsize + ' Б', { icon: 'fa-file-upload', duration: 2500 });
         }
     }
 
-    try {
-        finish(null);
-        var input = document.createElement('input');
-        input.type = 'file';
-        input.accept = '.pdf,.jpg,.jpeg,.png';
-        input.style.display = 'none';
-        input.onchange = function() {
-            if (input.files && input.files[0] && typeof ingestDocumentMeta === 'function') {
-                ingestDocumentMeta(id, docName, input.files[0]);
-                if (typeof showDemoToast === 'function') {
-                    showDemoToast('Файл «' + input.files[0].name + '» · ' + input.files[0].size + ' Б', { icon: 'fa-file', duration: 2200 });
-                }
-                if (typeof refreshClientApplicationsUI === 'function') refreshClientApplicationsUI(id);
-            }
-            if (input.parentNode) input.parentNode.removeChild(input);
-        };
-        document.body.appendChild(input);
-        input.click();
-    } catch (e) {}
+    finish(null);
 }
 
 function printOfferPackage() {
