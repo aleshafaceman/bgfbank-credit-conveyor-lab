@@ -1,8 +1,8 @@
 # База знаний LK (кредитный конвейер БЖФ)
 
-Версия: 2026-09-16 (rev. 8, + Express OpenAPI МО). Продукт кабинетов: **залог** (`CASHONBAIL` / `FLAT`). Happy-path только.
+Версия: 2026-09-16 (rev. 9, + внешние интеграции ЛК). Продукт кабинетов: **залог** (`CASHONBAIL` / `FLAT`). Happy-path только.
 
-Цитаты: `[repo:…]` — код LAB; `[src:…]` — `docs/sources/`; `[src:skill/…]` — скилл; `[src:lk-arch/…]` — схемы прод-ЛК. ЦФТ 10–15, ТЗ ПДН v.4, `to-be-process.md` **по-прежнему нет**.
+Цитаты: `[repo:…]` — код LAB; `[src:…]` — `docs/sources/`; `[src:skill/…]` — скилл; `[src:lk-arch/…]` — схемы прод-ЛК. ЦФТ 10–15, ТЗ ПДН v.4, `to-be-process.md`, спека MFMS **по-прежнему нет**.
 
 ---
 
@@ -110,7 +110,19 @@ Visio после одобрения: «Подготовка паспорта с�
 
 ## 2. Внешние системы и ответы / коллбэки
 
-Ниже — **имена и payload’ы, которые уже есть в коде**, плюс схемы прод-ЛК. Схемы глав ЦФТ 10–15 / `to-be-process.md` / ТЗ ПДН v.4 **отсутствуют**.
+### 2.0. Граница ЛК (AS-IS, 28.08.2026)
+
+`[src:lk-arch/lk-external-integrations.html]` (AS-IS, 28.08.2026). ЛК = `cabinet` / `admin-cabinet` + `partner-api`. Loginom, ЦФТ и SmartDeal **из ЛК не вызываются**. Solver — внутренний сервис платформы (LTV/пакеты), «не СПР банка»; скоринг/БКИ/АНД считает Loginom внутри ELMA.
+
+Прямо из `partner-api`: ELMA3, DaData (адрес, **не** оценка), МО lookup (`api.ocenka.mobi`, без задачи в админке) + express (`express.ocenka.mobi`, задача есть), **MFMS SMPP** (OTP входа), почта банка. Входящие webhook ELMA `/api/elma/…`: статус лида/заявки, официальная цена залога, чеклист, дубли, архив, UID. Через них ЛК узнаёт `PRIOR_APPROVE` / `PRIOR_FAIL`, не вызывая Loginom.
+
+PublicAPI из HTML (имена, не тела): `LoginWith`, `LeadCreator/CreateLead`, `CabinetB2B/CreateFullApplication`, `CreateCreditProduct`, `CreateRealEstate`, `RequestExpressEvaluation`, `SalePreparation`, `CreatePartner` / `PartnerAccreditation`, `CreatePaymentAct` / `KVStatus` / `SendActInvoice`, `ClientRefusal`, `ReturnToStage`, `StartUrgentLCSigning`, `RemoveLead`. Без `elma_id` в кабинет не пускают.
+
+TrustGate и шлюз Open Banking **нет в дистрибутиве ЛК**. TrustGate: ссылка с экрана 1 → Госуслуги → согласие ЦПГ (фин./нефин. услуги, кредитный отчёт; частичный отказ → ручная анкета) + ФИО, ДР, паспорт, ИНН/СНИЛС, id ЕСИА; квартиру ЕСИА **не** отдаёт. Open Banking: чужой JSON вендора → ETL шлюза → заявка ЛК → оффер Solver (не Loginom) → статус; не `reception` / `extpartner` / `consent`.
+
+Соседи: Basis OCR (`api.doc.basis.center`) через `recognition` — паспорт/ЕГРН/2-НДФЛ, **ЕГРН AS-IS = файл+OCR, не СМЭВ**. Reception: AmoCRM, Calltouch, Skorozvon, Банки.ру, VK, Метрика — B2C-лиды, не Open Banking. `consent`: ELMA `ECRequest` + SMS (ПДн/БКИ банка). CIAN — отдельный канал.
+
+За ELMA: Loginom `preScore`/`getDecision`/ФССП/ПДН; ЦФТ — клиент, КД, аккредитив, закладная; SmartDeal — ЭП КОД и регистрация (**в репозитории ЛК следов нет**). Из ЛК от ЦФТ видно `IDClientCFT` и флаг отправки отказа, не тела гл. 10–15. БКИ — через Loginom после согласия.
 
 ### 2.1. TrustGate / ЕСИА / цифровой профиль
 
@@ -290,18 +302,23 @@ du_catalog: {
 
 Статусы счёта с подготовки: «нет объекта, к подписанию или уже открыт» `[repo:deal-ops/deal-ops.js]` HELP.summary. Объект «к подписанию» ≠ открытый счёт, проверки всё равно нужны.
 
-### 2.6. СМС / SMSTraffic / формы клиента
+### 2.6. СМС: MFMS (OTP кабинета) ≠ SMSTraffic (исходящие) ≠ ЦФТ DboSms
 
-Провайдер исходящих SMS банка: **SMSTraffic HTTP API v2** `[src:smstraffic/README.md]`. Host `https://api.smstraffic.ru` (резерв `api2`). `POST /v2/send` + `Authorization: Bearer`; ответ `destinations[].id` (= callback `sms_id`). Статусы: `POST /v2/statuses/list`; push — JSON-массив на URL клиента (`sms_id`, `status`, `tracking_data`). Happy-path статус `Delivered`. Ключ в LAB не хранить.
+Три разных канала. Не склеивать в один провайдер.
+
+| Канал | Источник | Что это | L3 |
+|-------|----------|---------|----|
+| OTP входа / регистрации кабинета | AS-IS 28.08.2026: **MFMS SMPP** `[src:lk-arch/lk-external-integrations.html]` §3, §9 | прямая исходящая из `partner-api`; «критичность: логин в кабинет» | LAB: любой код `[repo:DEMO.md]`. Спеки SMPP **нет** — не писать PDU, не подменять SMSTraffic |
+| Согласие ПДн/БКИ (`consent`) | HTML §7: «ELMA ECRequest + SMS» | не TrustGate и не OTP входа | тексты СОПД/БКИ — артефакты C1/C2, не SMS-провайдер |
+| Исходящие SMS банка (брокеру и т.п.) | **SMSTraffic HTTP API v2** `[src:smstraffic/README.md]` — страница прислана отдельно, в HTML интеграций **имени SMSTraffic нет** | Host `https://api.smstraffic.ru` (резерв `api2`). `POST /v2/send` + `Authorization: Bearer`; `destinations[].id` (= callback `sms_id`). Статусы: `POST /v2/statuses/list` или push (`sms_id`, `status`, `tracking_data`). Happy-path `Delivered` | persist `smsId`+`Delivered` на M10 («СМС брокеру» СПР). Ключ / Bearer / текст OTP **не** хранить |
+| ДБО после открытия счёта | ЦФТ `DboSms` `[src:skill/systems.md]` | шина стола `dbo_sms` / `dbo_sms_sent` | стол, не кабинет P0 |
 
 На столе канал «СМС» в LAB пока абстракция:
 
 - `sopd_link` / `sopd_signed` → `deal-ops/sopd-app.html`, store `bgfbank_lab_sopd`
 - `app_link` / `app_signed` → `deal-ops/account-app.html`, store `bgfbank_lab_account_app`
 
-В кабинете OTP логина — «любой код», без вызова провайдера `[repo:DEMO.md]`. L3 может дописать метаданные `smsId`+`Delivered`, не OTP-текст.
-
-**Не SMSTraffic:** шина `dbo_sms` / callback `dbo_sms_sent` — это ЦФТ `DboSms` после открытия счёта `[src:skill/systems.md]`.
+TrustGate «не путать с SMS-согласием сервиса consent … и с OTP входа в кабинет (MFMS)» `[src:lk-arch/lk-external-integrations.html]` §5.
 
 **Skorozvon** `[src:skorozvon/skorozvon-api.txt]`: base `https://api.skorozvon.ru/api/v2`; `POST /oauth/token` (`grant_type=password`, Bearer 2 ч, 10 rps, HTTP 429). Лиды `GET|POST /leads`, звонки `GET /calls/{id}` и `{id}.mp3`, `recording_url`. Webhooks: `call_result`, `form_response`, `call_project_case_failed`; заголовок `Idempotency-Key`; retry 5 мин / 30 мин / 1 ч / 3 ч / 6 ч. Поля лида: `id`, `phones`, `inn`, `external_id`, `custom_fields` (`FIELD_{id}`), … В Visio/СПР имя «Скорозвон» **не встречается** — связки с ELMA в этих файлах нет.
 
@@ -539,13 +556,13 @@ JSON-модель каталога `[repo:docs/katalog-opcij-zalog.md]` §10:
 - Закладная, аккредитив/ячейка, ОЗС, паспорт сделки как залоговый экран, договор ипотеки, госрегистрация, опция ПИК
 - Visio: «Вид кредита Покупка» вручную шлёт в МО; «Залоговый кредит? Нет → Light»
 
-**Смешанное:** ПДН (`getPdn`) не требует залога в описании метода. SMSTraffic v2 есть; исходящие SMS кабинета/стола — `smsId`+`Delivered`, не ДБО ЦФТ.
+**Смешанное:** ПДН (`getPdn`) не требует залога в описании метода. OTP кабинета AS-IS = MFMS (спеки нет). SMSTraffic v2 — исходящие (брокер), не логин. `dbo_sms` — ЦФТ после счёта.
 
 ---
 
 ## 7. Расхождения и пробелы
 
-1. Скилл, схемы ЛК, Gate lookup, **Express OpenAPI**, SMSTraffic v2 **есть**. ЦФТ 10–15 / `to-be-integrations.md`, ТЗ ПДН v.4, `to-be-process.md` (ELMA 0–52) — нет. Enum `STAGE`/`DECISION` Loginom в выгрузке ТЗ не разобран. СПР «формирование лида» **есть**.
+1. Скилл, схемы ЛК, **`lk-external-integrations.html` (28.08.2026)**, Gate lookup, Express OpenAPI, SMSTraffic v2 **есть**. ЦФТ 10–15 / `to-be-integrations.md`, ТЗ ПДН v.4, `to-be-process.md` (ELMA 0–52), **спека MFMS SMPP** — нет. Enum `STAGE`/`DECISION` Loginom в выгрузке ТЗ не разобран. СПР «формирование лида» **есть**.
 2. **Два справочника ДУ:** ELMA 0–18 vs кабинетный `allDU`. L3 — только enum 0–18.
 3. Overlay скоринга пишет PTI/DTI; в ТЗ — **ПДН `getPdn`**, не DTI. Не тащить PTI в артефакт как «поле СПР».
 4. `SURCH_FSSP` каталога ≈ правило `FSSP_001` ТЗ; в заявке надбавка не хранится.
@@ -575,4 +592,4 @@ JSON-модель каталога `[repo:docs/katalog-opcij-zalog.md]` §10:
 - паспорт сделки: поля заявки (ОЗС, дата, ДУ, участники) — без выдуманного календаря
 - каталог `TURBO_*` / `PKG_*` / `INS_*`
 
-Не собирать: PTI как поле СПР, сырой `EVALUATION_REPORT`, отказные ветки, звонок Skorozvon на P0 кабинетов, Bearer SMSTraffic, текст OTP.
+Не собирать: PTI как поле СПР, сырой `EVALUATION_REPORT`, отказные ветки, звонок Skorozvon на P0 кабинетов, Bearer SMSTraffic, текст OTP, PDU MFMS, payload СМЭВ ЕГРН (AS-IS — файл+OCR).

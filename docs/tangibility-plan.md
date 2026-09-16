@@ -4,7 +4,7 @@
 
 Продукт: залог (`CASHONBAIL` / `FLAT`). Отказ не трогаем. Презентер-флаги («Зелёный скоринг», «Быстрый скоринг», «Сбросить демо», автологин) **не прячем**.
 
-Источники полей: `docs/_LK_KNOWLEDGE_BASE.md`, `docs/katalog-opcij-zalog.md`, `shared/lk-application.js`, выгрузки в `docs/sources/` (СПР, Visio, Loginom, Skorozvon, скилл, МО, SMSTraffic, **схемы ЛК `lk-arch/`**). Код кабинетов **не меняется**, пока нет ОК на этот план.
+Источники полей: `docs/_LK_KNOWLEDGE_BASE.md`, `docs/katalog-opcij-zalog.md`, `shared/lk-application.js`, выгрузки в `docs/sources/` (СПР, Visio, Loginom, Skorozvon, скилл, МО, SMSTraffic, **схемы ЛК `lk-arch/`** включая **AS-IS интеграции 28.08.2026**). Код кабинетов **не меняется**, пока нет ОК на этот план.
 
 Стол сделки (`deal-ops/`) не расширяем. Паспорт сделки по СПР — экран ОЗС **без внешних интеграций**; в кабинете P2 = карточка из полей заявки, не календарь.
 
@@ -98,7 +98,7 @@
 | C5 | ИНН / СНИЛС | «ИНН / СНИЛС» | `scopes.inn.value`, `scopes.snils.value` | `documentsFromCp` | P0 | S |
 | C6 | 2-НДФЛ из ЦП (happy-path full) | «Справка о доходах (INCOME_REFERENCE)» | `scopes.ndfl.years`, `borrowers[0].revenue[]`, `incomes`, `confirmation_income_summary` | `applyTrustGateToApplication`; не ставить ДУ type 0 | P0 | S |
 | C7 | Выбор объекта / оценка | «Экспресс-оценка МО» (lookup; не альбом `/orders`) | Партнёрский as-is: `stats.price` → цена, BGF-3457 не перезаписывать Express `price`. LAB: lookup `stats.price` → `AppraisalPledgeCost`. Менеджерский контур: `_id`, `status=accepted`, `price`, `expressId` — без `files[].url` и без base64 `[src:ocenka/express-api.md]` | `onCollateralSelect`; `[src:lk-arch/mobile-appraiser-integration.md]` | P0 | M |
-| C8 | Кадастр / ЕГРН | «Выписка ЕГРН» | кадастр если появится; адрес; `documents[]` имя «Выписка ЕГРН» | `uploadMissingDocDemo` заменить на `ingestDocumentMeta` + генератор; внешний запрос менеджера уже патчит тот же name | P0 | M |
+| C8 | Кадастр / ЕГРН | «Выписка ЕГРН» | кадастр если появится; адрес; `documents[]` имя «Выписка ЕГРН». AS-IS прод: **файл + Basis OCR**, не СМЭВ `[src:lk-arch/lk-external-integrations.html]` §7. Не выдумывать payload `FetchEgrnByCadastral` (это TO-BE `form/`, не кабинет P0). OCR: метаданные «файл принят», не сырой XML Росреестра | `uploadMissingDocDemo` → `ingestDocumentMeta` + генератор; внешний запрос менеджера патчит тот же name | P0 | M |
 | C9 | Прескоринг Loginom (клиентский лог) | «Протокол preScore» | каркас вызова: `STAGE`, `APPLICATION_ID`; шаги как `#log-1…`; итог amount/term/LTV. Не писать PTI/DTI как поля СПР (в ТЗ — `getPdn`) | `startFlow`; после менеджерского прескоринга `termsKind=preliminary` | P1 | M |
 | C10 | Карточки пакетов | «Сравнение пакетов» | `eligiblePackages` snapshot на момент показа: id, rate, payment, ltv, limit, insurance, commission | `buildEligiblePackages` + `initPackageSelection`; **persist snapshot**, иначе после reload карточки пересоберутся | P0 | M |
 | C11 | Принять условия | «Предварительные условия (не оферта)» | поля `acceptOfferPackage`: packageId/label, rate, payment, amount, term, offerValidUntil, insurance, commission; разбор как в карточке: база − ЕСИА | `acceptOfferPackage`; заменить голый `printOfferPackage` на open из реестра | P0 | S |
@@ -122,10 +122,10 @@
 | M4 | Пакет клиента | «Разбор ставки» (каталог §9) | `selectedPackageId`, `TURBO_2_0`, база − ЕСИА, ККС, LTV=`amount/collateralValue` | блок в `manager/js/applications.js` | P0 | M |
 | M5 | Смена пакета из eligible | не в этом показе | только id из snapshot C10 | каталог §9 | P2 | S |
 | M6 | Запрос ДУ клиенту | «Запрос ДУ» | ELMA `type` + `du_catalog`; persist вместо RAM `duStorage` | `requestDUFromClient` | P1 | M |
-| M7 | Внешний запрос ЕГРН | «Ответ сервиса» | тот же name, что `patchDocumentsFromExternalDU` | `requestExternalDU` | P0 | S |
+| M7 | Внешний запрос ЕГРН | «Ответ сервиса» | тот же name, что `patchDocumentsFromExternalDU`. В LAB это патч комплекта, **не** СМЭВ: AS-IS = файл+OCR. Не писать кадастровый запрос как отдельный гос.канал | `requestExternalDU` | P0 | S |
 | M8 | Комплект оригиналов | «Опись документов» | `app.documents` + `missingOriginals`; Visio: «минимальный перечень» | `missingOriginals` | P0 | S |
 | M9 | Полный скоринг | «Протокол getDecision» (+ строка getPdn) | overlay-шаги; `lk.decision` из `DECISION`/`SCORE`; **не** писать PTI как поле СПР; залог = C7/`getEval` | `applyManagerScoringDecision` | P0 | M |
-| M10 | Одобрение | «Решение банка» | `approved` + `termsKind=final`; СПР «клиент одобрен». SMS брокеру: `POST /v2/send` → persist `smsId` + `trackingData` + `status=Delivered` `[src:smstraffic/README.md]`. Не ЦФТ `dbo_sms` | `applyManagerScoringDecision('approved')` | P0 | S |
+| M10 | Одобрение | «Решение банка» | `approved` + `termsKind=final`; СПР «клиент одобрен». SMS **брокеру** (не OTP кабинета): SMSTraffic `POST /v2/send` → persist `smsId` + `trackingData` + `status=Delivered` `[src:smstraffic/README.md]`. OTP входа AS-IS = **MFMS SMPP**, спеки нет — в LAB любой код, без артефакта PDU. Не ЦФТ `dbo_sms` | `applyManagerScoringDecision('approved')` | P0 | S |
 | M11 | Оценка залога | тот же C7 / задача Express | lookup vs `GET /express/{id}` `price`; не `/orders` | `requestValuation` | P1 | S |
 | M12 | Отправить договор | не тост-only | создать C16 / опись КОД | `sendContract` | P1 | S |
 | M13 | Паспорт сделки | карточка из полей заявки | СПР: ОЗС, «внешних интеграций нет», общий экран с КОД. Не календарь АРМ | generator | P2 | L |
@@ -201,7 +201,7 @@ Persist ДУ: писать в `lk.additional_conditions[]` (уже есть) + �
 1. **P2 (паспорт сделки / КОД в кабинете)** — делать в этой итерации кабинетов или оставить столу? Стол явно выносит паспорт из АРМ.
 2. **Заявка 4636-И** (TrustGate lab) скрыта от клиента. Показывать клиенту человеческие артефакты ЦП на **4421-И**, а 4636 оставить менеджерским стендом?
 3. **Три пакета runtime** vs полный каталог `PKG_*` — L3 фиксирует то, что реально выбирается сейчас (`RECOMMENDED` / `SPEC_4_0` / `NO_INSURANCE`), без новых карточек.
-4. Скилл, схемы ЛК, Gate lookup, Express OpenAPI, SMSTraffic v2 доехали. Когда доедут ЦФТ 10–15 / `to-be-process.md` — не ломая P0. Express: `_id`+`accepted`+`price`; PDF только через оркестратор, не localStorage. JWT не кэшировать в LAB.
+4. Скилл, схемы ЛК + **`lk-external-integrations.html`**, Gate lookup, Express OpenAPI, SMSTraffic v2 доехали. Когда доедут ЦФТ 10–15 / `to-be-process.md` / спека MFMS — не ломая P0. OTP кабинета не переводить на SMSTraffic. Express: `_id`+`accepted`+`price`; PDF только через оркестратор, не localStorage. JWT не кэшировать в LAB. ЕГРН кабинета = файл+OCR, не СМЭВ.
 5. Overlay сейчас показывает PTI/DTI — в протоколе L3 писать **ПДН `getPdn`**, не выдавать PTI за поле СПР.
 6. Лабораторный клиентский ЛК **не** копировать в макет прод-кабинета партнёра (скилл: CTA «Получить пре-оффер», без ИНН на шаге 1, «Заполнить вручную» только у менеджера). L3 этой итерации — текущие кабинеты LAB.
 

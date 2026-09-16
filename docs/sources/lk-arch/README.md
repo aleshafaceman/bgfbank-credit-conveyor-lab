@@ -4,7 +4,7 @@
 
 Канон скилла ссылает сюда же: `elma-strangler.md`, `account-opening-strangler.md`, `esia-screens.md`. В этом репо их раньше не было.
 
-`_print_pdf.py` — скрипт печати `lk-external-integrations.html` → PDF. HTML/PDF **не приехали**.
+`_print_pdf.py` — печать `lk-external-integrations.html` (AS-IS 28.08.2026). HTML **есть**. `vendor/mermaid.min.js` в выгрузке нет — для git-источника не нужен.
 
 ## Индекс
 
@@ -26,8 +26,8 @@
 | `productolog-business-logic.md` | productolog | вне кабинетов LAB |
 | `cian-business-logic.md` | CIAN | вне P0 |
 | `findsign-business-logic.md` | findsign | вне P0 |
-| `message-bot-business-logic.md` | Telegram-бот, SMS consent | OTP через partner `/api/auth/sms_*` |
+| `lk-external-integrations.html` | AS-IS внешние системы ЛК (28.08.2026) | Loginom/ЦФТ/SD только за ELMA; OTP кабинета = **MFMS SMPP**; ЕГРН = файл+OCR |
 
 ## Ссылки из этих файлов, которых **нет** в выгрузке
 
-`to-be-process.md` (таблица ELMA 0–52), `to-be-integrations.md` (адаптеры ЦФТ), `to-be-overview.md`, `mobile-appraiser-business-logic.md`, `LTV_Analysis_solver_api.md`, `lk-external-integrations.html`.
+`to-be-process.md` (таблица ELMA 0–52), `to-be-integrations.md` (адаптеры ЦФТ), `to-be-overview.md`, `mobile-appraiser-business-logic.md`, `LTV_Analysis_solver_api.md`, `vendor/mermaid.min.js`.

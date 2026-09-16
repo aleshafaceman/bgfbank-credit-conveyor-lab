@@ -2,7 +2,7 @@
 
 Положены 2026-09-16 из вложений облачного агента. Имена кириллицей в uploads съехали в `_`; ниже — канонические имена.
 
-**Ещё нет на диске:** ЦФТ гл. 10–15 / `to-be-integrations.md`, ТЗ ПДН v.4, `to-be-process.md` (ELMA 0–52), HTML внешних интеграций ЛК.
+**Ещё нет на диске:** ЦФТ гл. 10–15 / `to-be-integrations.md`, ТЗ ПДН v.4, `to-be-process.md` (ELMA 0–52), спека MFMS SMPP.
 
 Схемы ЛК — **есть**: `docs/sources/lk-arch/`.  
 Gate API МО + Express OpenAPI — **есть**: `docs/sources/ocenka/`.  
@@ -49,7 +49,8 @@ SMSTraffic HTTP API v2 — **есть**: `docs/sources/smstraffic/`.
 | `ocenka/express-api.md` | та же спека | POST/GET `/express`, `/orders`, JWT |
 | `smstraffic/README.md` | smstraffic.ru/api | HTTP API v2: `/v2/send`, статусы, callback `sms_id` |
 | `smstraffic/api-page.redacted.md` | та же страница | полный дамп, пример Bearer затёрт |
-| `lk-arch/README.md` | схемы ЛК | индекс 18 md + `_print_pdf.py` |
+| `lk-arch/README.md` | схемы ЛК | индекс |
+| `lk-arch/lk-external-integrations.html` | схема интеграций 28.08.2026 | прямые vs за ELMA; OTP=MFMS |
 | `lk-arch/mobile-appraiser-integration.md` | as-is МО в cabinet | lookup / express / ELMA `AppraisalPledgeCost` |
 | `lk-arch/application-status-transitions.md` | ApplicationStatus | FILL_IN → PRIOR_* → ACCEPTED / DEAL / LOAN_ISSUED |
 | `lk-arch/esia-screens.md` | форма B2C | `form/`, не партнёрский кабинет |
