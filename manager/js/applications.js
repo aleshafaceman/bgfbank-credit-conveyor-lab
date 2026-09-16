@@ -103,6 +103,12 @@ function selectManagerApp(appId) {
 }
 
 function renderApplicationDetail(appId) {
+    if (window.__bgfRenderingDetail) {
+        window.__bgfQueuedDetailId = appId;
+        return;
+    }
+    window.__bgfRenderingDetail = true;
+    try {
     try { refreshData(); } catch (e) {}
     const app = (managerApplications || []).find(function(a) { return a && a.id === appId; });
     const container = document.getElementById('mAppDetail');
@@ -237,6 +243,12 @@ function renderApplicationDetail(appId) {
     } catch (err) {
         console.error('renderApplicationDetail failed', appId, err);
         container.innerHTML = '<div class="m-detail-empty"><p>Не удалось открыть заявку №' + appId + '</p><p style="font-size:12px;color:#94a3b8;">' + (err && err.message ? err.message : '') + '</p><p style="margin-top:12px;"><button type="button" class="m-btn m-btn-outline" onclick="resetManagerDemoData()">Сбросить демо</button></p></div>';
+    }
+    } finally {
+        window.__bgfRenderingDetail = false;
+        var queued = window.__bgfQueuedDetailId;
+        window.__bgfQueuedDetailId = null;
+        if (queued && queued !== appId) renderApplicationDetail(queued);
     }
 }
 

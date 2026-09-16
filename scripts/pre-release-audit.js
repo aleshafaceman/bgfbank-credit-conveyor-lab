@@ -70,8 +70,9 @@ function makeEl(id, tag) {
   return el;
 }
 
-function loadSharedContext() {
-  const localStorage = makeLocalStorage();
+function loadSharedContext(opts) {
+  opts = opts || {};
+  const localStorage = opts.localStorage || makeLocalStorage();
   const documentEls = {};
   const needed = [
     'view-applications', 'view-dashboard', 'view-conveyor', 'view-choice',
@@ -124,10 +125,15 @@ function loadSharedContext() {
     clearInterval() {},
     _alerts: [],
     _confirms: [],
-    _els: documentEls
+    _els: documentEls,
+    _listeners: { storage: [] }
   };
   ctx.window = ctx;
   ctx.global = ctx;
+  ctx.addEventListener = function(type, fn) {
+    if (!ctx._listeners[type]) ctx._listeners[type] = [];
+    ctx._listeners[type].push(fn);
+  };
 
   // Load shared/data.js
   const dataCode = fs.readFileSync(path.join(root, 'shared/data.js'), 'utf8');
@@ -1210,6 +1216,71 @@ console.log('\n=== 10. L3 P2 passport / КОД / package ===');
   const clientSrc = fs.readFileSync(path.join(root, 'js/applications.js'), 'utf8');
   assert(/open-kod-kit/.test(clientSrc) && !/Переход к подписанию договора/.test(clientSrc),
     'C16 client sign button opens КОД kit, not a dead alert');
+}
+
+console.log('\n=== 11. Manager storage does not ping-pong ===');
+{
+  const ctx = loadSharedContext();
+  ctx.loadSharedData();
+  const writes = [];
+  const origSet = ctx.localStorage.setItem.bind(ctx.localStorage);
+  ctx.localStorage.setItem = function(k, v) {
+    writes.push(k);
+    origSet(k, v);
+  };
+  ctx.getAllClients();
+  ctx.loadSharedData();
+  ctx.getAllClients();
+  ctx.getAllClients();
+  assert(writes.length === 0, 'repeat load/getAllClients does not rewrite localStorage (' + writes.length + ': ' + writes.join(',') + ')');
+
+  const rawClients = ctx.localStorage.getItem('bgfbank_lab_clients');
+  const parsedClients = rawClients ? JSON.parse(rawClients) : {};
+  const kuzStored = parsedClients['Александр Кузнецов'];
+  const storedApps = kuzStored && kuzStored.applications;
+  assert(Array.isArray(storedApps) && storedApps.length >= 1, 'clients storage has application ids');
+  assert(storedApps.every(function(a) { return typeof a === 'string'; }),
+    'clients storage keeps application ids, not nested заявки');
+  const liveKuz = ctx.getAllClients()['Александр Кузнецов'];
+  assert(liveKuz && Array.isArray(liveKuz.applications) && liveKuz.applications.some(function(a) {
+    return a && typeof a === 'object' && a.id === '4421-И';
+  }), 'in-memory clients still expose live application objects');
+
+  const pairStore = new Map();
+  const pairCtxs = [];
+  function linkedStorage(idx) {
+    return {
+      getItem(k) { return pairStore.has(k) ? pairStore.get(k) : null; },
+      setItem(k, v) {
+        const old = pairStore.has(k) ? pairStore.get(k) : null;
+        const next = String(v);
+        pairStore.set(k, next);
+        if (old === next) return;
+        pairCtxs.forEach(function(other, i) {
+          if (i === idx || !other) return;
+          (other._listeners.storage || []).forEach(function(fn) {
+            fn({ key: k, oldValue: old, newValue: next });
+          });
+        });
+      },
+      removeItem(k) { pairStore.delete(k); },
+      clear() { pairStore.clear(); },
+      _store: pairStore
+    };
+  }
+  const tabA = loadSharedContext({ localStorage: linkedStorage(0) });
+  pairCtxs.push(tabA);
+  const tabB = loadSharedContext({ localStorage: linkedStorage(1) });
+  pairCtxs.push(tabB);
+  let hops = 0;
+  tabA.initSharedDataSync(function() { hops++; });
+  tabB.initSharedDataSync(function() { hops++; });
+  tabA.getAllClients();
+  tabB.getAllClients();
+  tabA.updateApplicationStatus('4421-И', 'processing', 'В обработке', 'пинг-понг проверка');
+  assert(hops <= 4, 'two cabinets sync a status write without looping (' + hops + ' hops)');
+  assert(tabB.getAllApplications().find(function(a) { return a && a.id === '4421-И'; }).history[0].text === 'пинг-понг проверка',
+    'peer tab picks up the history line once');
 }
 
 console.log('\n=== Summary ===');

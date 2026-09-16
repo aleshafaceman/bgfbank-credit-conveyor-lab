@@ -105,6 +105,13 @@ var DEAL_PASSPORT_APP_KEYS = [
 var LAB_ELIGIBLE_PACKAGE_IDS = ['PKG_RECOMMENDED', 'PKG_SPEC_4_0', 'PKG_NO_INSURANCE'];
 
 var _artifactStore = null;
+var __seedingArtifacts = false;
+var __holdArtifactSave = false;
+var __heldArtifactDirty = false;
+
+function invalidateArtifactStore() {
+    _artifactStore = null;
+}
 
 function artEscape(s) {
     return String(s == null ? '' : s)
@@ -132,9 +139,16 @@ function loadArtifactStore() {
 }
 
 function saveArtifactStore() {
+    if (__holdArtifactSave) {
+        __heldArtifactDirty = true;
+        return;
+    }
     var store = loadArtifactStore();
+    var json = JSON.stringify(store);
     try {
-        localStorage.setItem(artifactsStorageKey(), JSON.stringify(store));
+        var prev = localStorage.getItem(artifactsStorageKey());
+        if (prev === json) return;
+        localStorage.setItem(artifactsStorageKey(), json);
         if (typeof bumpSharedSync === 'function') bumpSharedSync('artifacts');
     } catch (e) {}
 }
@@ -176,6 +190,7 @@ function upsertArtifact(partial) {
     }
     if (idx >= 0) store.items[idx] = next;
     else store.items.unshift(next);
+    if (store.items.length > 250) store.items.length = 250;
     saveArtifactStore();
     return next;
 }
@@ -1061,23 +1076,28 @@ function recordDecisionAndApproval(appId) {
     });
 }
 
-var __seedingArtifacts = false;
 function seedDemoArtifacts() {
     if (__seedingArtifacts) return;
     __seedingArtifacts = true;
+    __holdArtifactSave = true;
+    __heldArtifactDirty = false;
     try {
-    var apps = typeof getAllApplications === 'function' ? getAllApplications() : [];
-    apps.forEach(function(app) {
-        if (!app || !app.id) return;
-        if (typeof isLkLabApplication === 'function' && isLkLabApplication(app)) {
-            if (!getArtifact(artStableId(app.id, 'cp_coverage'))) recordCpArtifactsFromApp(app, 'manager');
-            return;
-        }
-        if (app.id === '4421-И' && !getArtifact(artStableId(app.id, 'short_application'))) {
-            recordShortApplication(app);
-        }
-    });
+        _artifactStore = null;
+        loadArtifactStore();
+        var apps = typeof getAllApplications === 'function' ? getAllApplications() : [];
+        apps.forEach(function(app) {
+            if (!app || !app.id) return;
+            if (typeof isLkLabApplication === 'function' && isLkLabApplication(app)) {
+                if (!getArtifact(artStableId(app.id, 'cp_coverage'))) recordCpArtifactsFromApp(app, 'manager');
+                return;
+            }
+            if (app.id === '4421-И' && !getArtifact(artStableId(app.id, 'short_application'))) {
+                recordShortApplication(app);
+            }
+        });
     } finally {
+        __holdArtifactSave = false;
+        if (__heldArtifactDirty) saveArtifactStore();
         __seedingArtifacts = false;
     }
 }
@@ -1417,4 +1437,7 @@ if (typeof window !== 'undefined') {
     window.ARTIFACT_KIND_LABEL = ARTIFACT_KIND_LABEL;
     window.CLIENT_VISIBLE_KINDS = CLIENT_VISIBLE_KINDS;
     window.clientVisibleArtifacts = clientVisibleArtifacts;
+    window.invalidateArtifactStore = invalidateArtifactStore;
 }
+
+try { seedDemoArtifacts(); } catch (eSeedInit) {}
