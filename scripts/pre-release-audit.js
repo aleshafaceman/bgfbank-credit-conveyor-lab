@@ -512,6 +512,13 @@ console.log('\n=== 7. HTML script order / critical refs ===');
   const acceptedCss = fs.readFileSync(path.join(root, 'css/styles.css'), 'utf8');
   assert(/\.offer-accepted-actions\s*\{[^}]*gap:\s*16px/.test(acceptedCss),
     'accepted offer actions have 16px gap');
+  const artSrc = fs.readFileSync(path.join(root, 'shared/lk-artifacts.js'), 'utf8');
+  assert(!/Не бланк ELMA/.test(artSrc) && !/Байты файла не хранятся/.test(artSrc),
+    'artifact preview has no ELMA/bytes lab disclaimer');
+  assert(/art-doc-row/.test(artSrc) && /artifactPreviewModal/.test(artSrc),
+    'manager docs list is rows and opens in-page modal');
+  assert(!/Протокол preScore/.test(artSrc) && !/Протокол getDecision/.test(artSrc),
+    'artifact labels do not show preScore/getDecision');
   assert(fs.readFileSync(path.join(root, 'js/applications.js'), 'utf8').includes('isLkLabApplication'),
     'client list filters manager-only TrustGate app');
   assert(!fs.readFileSync(path.join(root, 'js/applications.js'), 'utf8').includes('renderCpCoverageHTML'),
