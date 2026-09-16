@@ -6,17 +6,17 @@
     <title>БЖФ Банк · Скоринг (менеджер) — полная версия</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Roboto', sans-serif; }
         body { background: #f0f4f8; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
         
         .container { width: 100%; max-width: 960px; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
         
         .card { background: white; border-radius: 20px; padding: 28px; box-shadow: 0 10px 30px rgba(0,45,80,0.08); }
-        .card h3 { font-size: 17px; color: #003b6f; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+        .card h3 { font-size: 17px; color: #0B4697; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
         .card .subtitle { font-size: 12px; color: #7e9bb6; margin-bottom: 20px; }
         
         .progress-track { width: 100%; height: 6px; background: #e1e9f1; border-radius: 3px; overflow: hidden; margin-bottom: 6px; }
-        .progress-fill { height: 100%; background: linear-gradient(90deg, #003b6f, #00509e); border-radius: 3px; transition: width 0.5s; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #0B4697, #00509e); border-radius: 3px; transition: width 0.5s; }
         .progress-label { font-size: 11px; color: #64748b; text-align: right; }
         
         .step-list { display: flex; flex-direction: column; gap: 3px; }
@@ -29,28 +29,28 @@
         
         .step-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
         .step-dot.waiting { background: #cbd5e1; }
-        .step-dot.active { background: #003b6f; width: 12px; height: 12px; }
-        .step-dot.done { background: #10b981; }
+        .step-dot.active { background: #0B4697; width: 12px; height: 12px; }
+        .step-dot.done { background: #13A538; }
         .step-dot.warn { background: #f59e0b; }
-        .step-dot.error { background: #ef4444; }
+        .step-dot.error { background: #dc2626; }
         
         .step-name { flex: 1; font-weight: 600; color: #1e293b; }
         .step-source { font-size: 10px; color: #94a3b8; }
         .step-time { font-size: 10px; color: #64748b; }
         
         .detail-section { margin-top: 16px; }
-        .detail-title { font-size: 13px; font-weight: 700; color: #003b6f; margin-bottom: 8px; }
+        .detail-title { font-size: 13px; font-weight: 700; color: #0B4697; margin-bottom: 8px; }
         .detail-list { font-size: 11px; color: #64748b; line-height: 1.8; }
-        .detail-list .ok { color: #10b981; }
-        .detail-list .curr { color: #003b6f; font-weight: 600; }
+        .detail-list .ok { color: #13A538; }
+        .detail-list .curr { color: #0B4697; font-weight: 600; }
         .detail-list .warn { color: #f59e0b; }
-        .detail-list .err { color: #ef4444; }
+        .detail-list .err { color: #dc2626; }
         
         .btn { padding: 10px 18px; border-radius: 10px; font-weight: 700; font-size: 12px; cursor: pointer; border: none; transition: 0.2s; display: flex; align-items: center; gap: 6px; }
-        .btn-primary { background: #003b6f; color: white; }
+        .btn-primary { background: #0B4697; color: white; }
         .btn-outline { background: white; border: 1px solid #cbd5e1; color: #64748b; }
-        .btn-success { background: #10b981; color: white; }
-        .btn-danger { background: #ef4444; color: white; }
+        .btn-success { background: #13A538; color: white; }
+        .btn-danger { background: #dc2626; color: white; }
         .btn-warning { background: #f59e0b; color: white; }
         .btn:hover { opacity: 0.9; }
         .btn-row { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
@@ -68,19 +68,19 @@
         .full-width { grid-column: 1 / -1; }
         .reset-btn { text-align: center; }
         .reset-btn button { background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 13px; text-decoration: underline; }
-        .reset-btn button:hover { color: #003b6f; }
+        .reset-btn button:hover { color: #0B4697; }
         
         .alert-card { background: #fef3c7; border: 1px solid #f59e0b; border-radius: 14px; padding: 14px 16px; margin-bottom: 10px; font-size: 11px; }
         .alert-card h4 { font-size: 13px; color: #92400e; margin-bottom: 4px; }
         .alert-card p { color: #92400e; line-height: 1.5; }
-        .error-card { background: #fef2f2; border: 1px solid #ef4444; }
+        .error-card { background: #fef2f2; border: 1px solid #dc2626; }
         .error-card h4 { color: #991b1b; }
         .error-card p { color: #991b1b; }
 
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,30,60,0.7); z-index: 100; display: flex; align-items: center; justify-content: center; }
         .modal-overlay.hidden { display: none; }
         .modal { background: white; border-radius: 20px; padding: 32px; max-width: 500px; width: 90%; }
-        .modal h3 { font-size: 18px; color: #003b6f; margin-bottom: 8px; }
+        .modal h3 { font-size: 18px; color: #0B4697; margin-bottom: 8px; }
         .modal .issue-desc { font-size: 13px; color: #64748b; margin-bottom: 16px; line-height: 1.6; }
         .modal .issue-detail { background: #f8fbff; border-radius: 10px; padding: 12px; margin-bottom: 16px; font-size: 12px; }
         .modal .issue-detail .row { display: flex; justify-content: space-between; padding: 4px 0; }
@@ -352,7 +352,7 @@ function showFinalResult(outcome) {
     // Сводка проблем
     if (issueLog.length > 0) {
         h += '<div style="margin-bottom:16px;">';
-        h += '<div style="font-weight:700;font-size:13px;color:#003b6f;margin-bottom:8px;">📋 Обнаруженные проблемы:</div>';
+        h += '<div style="font-weight:700;font-size:13px;color:#0B4697;margin-bottom:8px;">📋 Обнаруженные проблемы:</div>';
         issueLog.forEach(function(log) {
             var cls = log.type === 'error' ? 'error-card' : '';
             h += '<div class="alert-card ' + cls + '">';
@@ -368,8 +368,8 @@ function showFinalResult(outcome) {
         document.getElementById('resultSubtitle').textContent = 'Заявка одобрена';
         h += '<div class="result-badge approved"><i class="fas fa-check-circle"></i> Кредит одобрен</div>';
         h += '<div class="params-grid">';
-        h += '<div class="param-item"><div class="param-label">Лимит</div><div class="param-value" style="color:#003b6f;">5 400 000 ₽</div></div>';
-        h += '<div class="param-item"><div class="param-label">Ставка</div><div class="param-value" style="color:#10b981;">12.5%</div></div>';
+        h += '<div class="param-item"><div class="param-label">Лимит</div><div class="param-value" style="color:#0B4697;">5 400 000 ₽</div></div>';
+        h += '<div class="param-item"><div class="param-label">Ставка</div><div class="param-value" style="color:#13A538;">12.5%</div></div>';
         h += '<div class="param-item"><div class="param-label">Срок</div><div class="param-value">15 лет</div></div>';
         h += '<div class="param-item"><div class="param-label">Платёж</div><div class="param-value">~ 54 000 ₽</div></div>';
         h += '</div>';

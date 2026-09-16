@@ -141,8 +141,8 @@ function showScoringResult() {
     h += '<div class="r-title" style="color:#065f46;">Кредит одобрен</div>';
     h += '<div class="r-desc">Все проверки пройдены успешно. Кредитный рейтинг 720 (хороший).</div>';
     h += '<div class="r-params">';
-    h += '<div class="r-param"><div class="r-label">Лимит</div><div class="r-value" style="color:#003b6f;">' + snap.amount.toLocaleString('ru-RU') + ' ₽</div></div>';
-    h += '<div class="r-param"><div class="r-label">Ставка</div><div class="r-value" style="color:#10b981;">' + Number(snap.rate).toFixed(1) + '%</div></div>';
+    h += '<div class="r-param"><div class="r-label">Лимит</div><div class="r-value" style="color:#0B4697;">' + snap.amount.toLocaleString('ru-RU') + ' ₽</div></div>';
+    h += '<div class="r-param"><div class="r-label">Ставка</div><div class="r-value" style="color:#13A538;">' + Number(snap.rate).toFixed(1) + '%</div></div>';
     h += '<div class="r-param"><div class="r-label">Срок</div><div class="r-value">' + snap.term + ' ' + termLabel + '</div></div>';
     h += '<div class="r-param"><div class="r-label">Платёж / мес.</div><div class="r-value">~ ' + snap.payment.toLocaleString('ru-RU') + ' ₽</div></div>';
     h += '</div>';

@@ -149,7 +149,7 @@ function printOfferPackage() {
         return;
     }
     w.document.write('<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8"><title>Оффер №' + appId + '</title>');
-    w.document.write('<style>body{font-family:Inter,Arial,sans-serif;padding:40px;color:#0f2740}h1{color:#003b6f}.box{border:1px solid #dbe5ef;border-radius:12px;padding:20px;margin:16px 0}.row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #eef2f7}.muted{color:#64748b;font-size:13px}</style></head><body>');
+    w.document.write('<style>body{font-family:Inter,Arial,sans-serif;padding:40px;color:#08356e}h1{color:#0B4697}.box{border:1px solid #dbe5ef;border-radius:12px;padding:20px;margin:16px 0}.row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #eef2f7}.muted{color:#64748b;font-size:13px}</style></head><body>');
     w.document.write('<div class="muted">БЖФ Банк · кредит под залог недвижимости</div>');
     w.document.write('<h1>Предварительные условия</h1>');
     w.document.write('<p>Заявка <b>№' + appId + '</b> · ' + (app.client || 'Александр Кузнецов') + '</p>');

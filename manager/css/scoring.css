@@ -12,7 +12,7 @@
 }
 .scoring-overlay.hidden { display: none; }
 .scoring-overlay.mode-prescore .scoring-panel { border-top: 6px solid #f59e0b; }
-.scoring-overlay.mode-full .scoring-panel { border-top: 6px solid #003b6f; }
+.scoring-overlay.mode-full .scoring-panel { border-top: 6px solid #0B4697; }
 
 .s-overlay-heading {
     display: flex;
@@ -53,7 +53,7 @@
 
 .scoring-left h3, .scoring-right h3 {
     font-size: 18px;
-    color: #003b6f;
+    color: #0B4697;
     margin-bottom: 4px;
     display: flex;
     align-items: center;
@@ -66,7 +66,7 @@
 }
 
 .s-progress-track { width: 100%; height: 5px; background: #e1e9f1; border-radius: 3px; overflow: hidden; margin-bottom: 6px; }
-.s-progress-fill { height: 100%; background: linear-gradient(90deg, #003b6f, #00509e); border-radius: 3px; transition: width 0.4s; width: 0%; }
+.s-progress-fill { height: 100%; background: linear-gradient(90deg, #0B4697, #00509e); border-radius: 3px; transition: width 0.4s; width: 0%; }
 .s-progress-label { font-size: 11px; color: #64748b; text-align: right; margin-bottom: 16px; }
 
 .s-step-list { display: flex; flex-direction: column; gap: 3px; margin-bottom: 16px; }
@@ -78,17 +78,17 @@
 .s-step.error { background: #fef2f2; opacity: 1; }
 .s-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
 .s-dot.waiting { background: #cbd5e1; }
-.s-dot.active { background: #003b6f; width: 11px; height: 11px; }
-.s-dot.done { background: #10b981; }
+.s-dot.active { background: #0B4697; width: 11px; height: 11px; }
+.s-dot.done { background: #13A538; }
 .s-dot.warn { background: #f59e0b; }
-.s-dot.error { background: #ef4444; }
+.s-dot.error { background: #dc2626; }
 .s-name { flex: 1; font-weight: 600; color: #1e293b; }
 .s-source { font-size: 10px; color: #94a3b8; }
 .s-time { font-size: 10px; color: #64748b; }
 
 .s-detail-box { background: #f8fbff; border-radius: 12px; padding: 14px 16px; margin-bottom: 16px; font-size: 12px; color: #64748b; line-height: 1.7; }
-.s-detail-box .ok { color: #10b981; }
-.s-detail-box .curr { color: #003b6f; font-weight: 600; }
+.s-detail-box .ok { color: #13A538; }
+.s-detail-box .curr { color: #0B4697; font-weight: 600; }
 
 .s-issue-counters { display: flex; gap: 8px; margin-bottom: 12px; font-size: 11px; }
 .s-issue-counters span { padding: 4px 8px; border-radius: 6px; }
@@ -97,12 +97,12 @@
 
 .s-alert { border-radius: 10px; padding: 12px; margin-bottom: 8px; font-size: 11px; }
 .s-alert.warn { background: #fef3c7; border: 1px solid #f59e0b; color: #92400e; }
-.s-alert.error { background: #fef2f2; border: 1px solid #ef4444; color: #991b1b; }
+.s-alert.error { background: #fef2f2; border: 1px solid #dc2626; color: #991b1b; }
 .s-alert h4 { font-size: 12px; margin-bottom: 4px; }
 
 .s-result { text-align: center; padding: 20px; border-radius: 14px; margin-top: 8px; }
-.s-result.approved { background: #f0fdf6; border: 2px solid #10b981; }
-.s-result.rejected { background: #fef2f2; border: 2px solid #ef4444; }
+.s-result.approved { background: #f0fdf6; border: 2px solid #13A538; }
+.s-result.rejected { background: #fef2f2; border: 2px solid #dc2626; }
 .s-result.needs-info { background: #fffdf5; border: 2px solid #f59e0b; }
 .s-result .r-icon { font-size: 36px; margin-bottom: 6px; }
 .s-result .r-title { font-size: 18px; font-weight: 800; margin-bottom: 4px; }
@@ -114,16 +114,16 @@
 
 .s-btn-row { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
 .s-btn { padding: 10px 18px; border-radius: 10px; font-weight: 700; font-size: 12px; cursor: pointer; border: none; display: flex; align-items: center; gap: 6px; transition: 0.2s; }
-.s-btn-primary { background: #003b6f; color: white; }
+.s-btn-primary { background: #0B4697; color: white; }
 .s-btn-outline { background: white; border: 1px solid #cbd5e1; color: #64748b; }
-.s-btn-success { background: #10b981; color: white; }
-.s-btn-danger { background: #ef4444; color: white; }
+.s-btn-success { background: #13A538; color: white; }
+.s-btn-danger { background: #dc2626; color: white; }
 .s-btn-warning { background: #f59e0b; color: white; }
 .s-btn:hover { opacity: 0.9; }
 
 .s-close { text-align: center; margin-top: 16px; grid-column: 1 / -1; }
 .s-close button { background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 13px; text-decoration: underline; }
-.s-close button:hover { color: #003b6f; }
+.s-close button:hover { color: #0B4697; }
 
 /* Мини-модалка проблемы */
 .s-issue-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,30,60,0.7); z-index: 2600; display: flex; align-items: center; justify-content: center; }

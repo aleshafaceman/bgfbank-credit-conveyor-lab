@@ -404,7 +404,7 @@ function getApprovedApplicationHTML(app) {
     const payment = app.payment != null ? '~ ' + app.payment.toLocaleString('ru-RU') + ' ₽' : '—';
     return `<div class="detail-header"><div><div class="detail-number">№${app.id}</div><div class="detail-product">${app.product || 'Кредит под залог недвижимости'}</div></div><div class="detail-date">Одобрена: ${app.date || ''}</div></div>
     <div class="approved-badge"><i class="fas fa-check-circle"></i> Кредит одобрен</div>
-    <div class="detail-params"><div class="detail-param"><div class="param-label">Одобренный лимит</div><div class="param-value">${amount}</div></div><div class="detail-param"><div class="param-label">Ставка</div><div class="param-value" style="color:#10b981;">${rate}</div></div><div class="detail-param"><div class="param-label">Срок</div><div class="param-value">${term}</div></div><div class="detail-param"><div class="param-label">Платёж / мес.</div><div class="param-value">${payment}</div></div></div>
+    <div class="detail-params"><div class="detail-param"><div class="param-label">Одобренный лимит</div><div class="param-value">${amount}</div></div><div class="detail-param"><div class="param-label">Ставка</div><div class="param-value" style="color:#13A538;">${rate}</div></div><div class="detail-param"><div class="param-label">Срок</div><div class="param-value">${term}</div></div><div class="detail-param"><div class="param-label">Платёж / мес.</div><div class="param-value">${payment}</div></div></div>
     <div style="display:flex;gap:12px;margin-top:24px;flex-wrap:wrap;">
         <button class="btn btn-primary" style="flex:1;min-width:180px;" onclick="alert('Переход к подписанию договора...')"><i class="fas fa-signature" style="margin-right:8px;"></i> Подписать договор</button>
         <button class="btn btn-outline" style="flex:1;min-width:180px;margin-top:0;" onclick="startNewApplicationDemo()"><i class="fas fa-plus" style="margin-right:8px;"></i> Новая заявка</button>
@@ -450,8 +450,8 @@ var duStatuses = {
     auto_received: { icon:'fa-check-circle', label:'Получено (ЕСИА)', color:'#1e40af', bg:'#dbeafe' },
     ext_received: { icon:'fa-check-circle', label:'Получено банком', color:'#5b21b6', bg:'#ede9fe' },
     requested: { icon:'fa-clock', label:'Запрошено', color:'#f59e0b', bg:'#fef3c7' },
-    uploaded: { icon:'fa-check-circle', label:'Загружено', color:'#10b981', bg:'#d1fae5' },
-    problem: { icon:'fa-exclamation-circle', label:'Проблема', color:'#ef4444', bg:'#fee2e2' }
+    uploaded: { icon:'fa-check-circle', label:'Загружено', color:'#13A538', bg:'#d1fae5' },
+    problem: { icon:'fa-exclamation-circle', label:'Проблема', color:'#dc2626', bg:'#fee2e2' }
 };
 
 function getRequiredDU(app, clientEsiConnected) {

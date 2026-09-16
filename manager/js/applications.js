@@ -122,7 +122,7 @@ function renderApplicationDetail(appId) {
             unreadCount = typeof getUnreadCount === 'function' ? getUnreadCount(app.client) : 0;
         } catch (eUnread) { unreadCount = 0; }
         const unreadBadge = unreadCount > 0
-            ? `<span style="background:#ef4444;color:white;font-size:10px;padding:2px 6px;border-radius:8px;margin-left:6px;">${unreadCount}</span>`
+            ? `<span style="background:#dc2626;color:white;font-size:10px;padding:2px 6px;border-radius:8px;margin-left:6px;">${unreadCount}</span>`
             : '';
 
         const docs = Array.isArray(app.documents) ? app.documents.filter(Boolean) : [];
@@ -154,7 +154,7 @@ function renderApplicationDetail(appId) {
             </div>
             <span class="m-badge ${statusClasses[app.status] || 'badge-processing'}">${app.statusLabel || app.status || ''}</span>
         </div>
-        <div class="m-detail-client" style="cursor:pointer;color:#003b6f;" onclick="openClientCard('${safeClient}')">
+        <div class="m-detail-client" style="cursor:pointer;color:#0B4697;" onclick="openClientCard('${safeClient}')">
             ${app.client || '—'} <i class="fas fa-external-link-alt" style="font-size:10px;opacity:0.5;"></i>
         </div>
         <div class="m-detail-phone"><i class="fas fa-phone" style="margin-right:4px;"></i> ${app.phone || '—'}</div>
@@ -182,7 +182,7 @@ function renderApplicationDetail(appId) {
                 ${docs.length ? docs.map(d => {
                     var st = d.status === 'uploaded' ? 'uploaded' : (d.status === 'skipped' ? 'skipped' : 'missing');
                     var icon = st === 'uploaded' ? 'fa-check-circle' : (st === 'skipped' ? 'fa-minus-circle' : 'fa-times-circle');
-                    var color = st === 'uploaded' ? '#10b981' : (st === 'skipped' ? '#94a3b8' : '#ef4444');
+                    var color = st === 'uploaded' ? '#13A538' : (st === 'skipped' ? '#94a3b8' : '#dc2626');
                     return `
                     <div class="m-doc-item">
                         <i class="fas ${icon}" style="color:${color};"></i>
@@ -420,8 +420,8 @@ var duStatuses = {
     auto_received: { icon:'fa-check-circle', label:'Получено (ЕСИА)', color:'#1e40af', bg:'#dbeafe' },
     ext_received: { icon:'fa-check-circle', label:'Получено (сервис)', color:'#5b21b6', bg:'#ede9fe' },
     requested: { icon:'fa-clock', label:'Запрошено у клиента', color:'#f59e0b', bg:'#fef3c7' },
-    uploaded: { icon:'fa-check-circle', label:'Загружено', color:'#10b981', bg:'#d1fae5' },
-    problem: { icon:'fa-exclamation-circle', label:'Проблема', color:'#ef4444', bg:'#fee2e2' }
+    uploaded: { icon:'fa-check-circle', label:'Загружено', color:'#13A538', bg:'#d1fae5' },
+    problem: { icon:'fa-exclamation-circle', label:'Проблема', color:'#dc2626', bg:'#fee2e2' }
 };
 
 var duStorage = {};

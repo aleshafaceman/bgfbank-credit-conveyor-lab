@@ -6,14 +6,14 @@
     <title>БЖФ Банк · Прескоринг (менеджер)</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Roboto', sans-serif; }
         body { background: #f0f4f8; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
         
         .container { width: 100%; max-width: 800px; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
         .panel { background: white; border-radius: 20px; padding: 28px; box-shadow: 0 12px 30px rgba(0,45,80,0.08); }
         
         .panel-header { margin-bottom: 20px; }
-        .panel-header h3 { font-size: 17px; color: #003b6f; display: flex; align-items: center; gap: 8px; }
+        .panel-header h3 { font-size: 17px; color: #0B4697; display: flex; align-items: center; gap: 8px; }
         .panel-header p { font-size: 12px; color: #7e9bb6; margin-top: 4px; }
         
         .log-list { display: flex; flex-direction: column; gap: 6px; }
@@ -26,10 +26,10 @@
         
         .log-icon { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0; }
         .log-icon.pending { background: #f1f5f9; color: #94a3b8; }
-        .log-icon.active { background: #003b6f; color: white; }
-        .log-icon.done { background: #d1fae5; color: #10b981; }
+        .log-icon.active { background: #0B4697; color: white; }
+        .log-icon.done { background: #d1fae5; color: #13A538; }
         .log-icon.warning { background: #fef3c7; color: #f59e0b; }
-        .log-icon.error { background: #fee2e2; color: #ef4444; }
+        .log-icon.error { background: #fee2e2; color: #dc2626; }
         
         .log-info { flex: 1; }
         .log-name { font-size: 13px; color: #1e293b; }
@@ -39,11 +39,11 @@
         .progress-wrap { margin-bottom: 16px; }
         .progress-text { display: flex; justify-content: space-between; font-size: 11px; color: #64748b; margin-bottom: 6px; }
         .progress-bar { width: 100%; height: 4px; background: #e1e9f1; border-radius: 2px; overflow: hidden; }
-        .progress-fill { height: 100%; background: #003b6f; border-radius: 2px; transition: width 0.4s; width: 0%; }
+        .progress-fill { height: 100%; background: #0B4697; border-radius: 2px; transition: width 0.4s; width: 0%; }
         
         .result-card { border-radius: 16px; padding: 20px; text-align: center; margin-top: 8px; }
-        .result-card.approved { background: #f0fdf6; border: 2px solid #10b981; }
-        .result-card.declined { background: #fef2f2; border: 2px solid #ef4444; }
+        .result-card.approved { background: #f0fdf6; border: 2px solid #13A538; }
+        .result-card.declined { background: #fef2f2; border: 2px solid #dc2626; }
         .result-card.review { background: #fffdf5; border: 2px solid #f59e0b; }
         .result-icon { font-size: 40px; margin-bottom: 8px; }
         .result-title { font-size: 18px; font-weight: 800; margin-bottom: 4px; }
@@ -55,17 +55,17 @@
         .result-param .rvalue { font-size: 15px; font-weight: 700; color: #1e293b; }
         
         .btn { display: block; width: 100%; padding: 10px; border-radius: 10px; font-weight: 700; font-size: 12px; cursor: pointer; border: none; text-align: center; transition: 0.2s; }
-        .btn-primary { background: #003b6f; color: white; }
+        .btn-primary { background: #0B4697; color: white; }
         .btn-outline { background: white; border: 1px solid #cbd5e1; color: #64748b; margin-top: 6px; }
-        .btn-success { background: #10b981; color: white; }
-        .btn-danger { background: #ef4444; color: white; margin-top: 6px; }
+        .btn-success { background: #13A538; color: white; }
+        .btn-danger { background: #dc2626; color: white; margin-top: 6px; }
         .btn-warning { background: #f59e0b; color: white; }
         .btn-primary:hover { background: #002d56; }
-        .btn-outline:hover { border-color: #003b6f; color: #003b6f; }
+        .btn-outline:hover { border-color: #0B4697; color: #0B4697; }
         
         .reset-btn { grid-column: 1 / -1; text-align: center; }
         .reset-btn button { background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 12px; text-decoration: underline; }
-        .reset-btn button:hover { color: #003b6f; }
+        .reset-btn button:hover { color: #0B4697; }
 
         .detail-row { display: flex; justify-content: space-between; font-size: 11px; padding: 4px 0; color: #64748b; }
         .detail-row b { color: #1e293b; }
@@ -181,10 +181,10 @@ function showResult(outcome) {
         resultHTML += '<div class="result-title" style="color:#065f46;">Прескоринг пройден</div>';
         resultHTML += '<div class="result-subtitle">Клиент может быть направлен на полный скоринг</div>';
         resultHTML += '<div class="result-params">';
-        resultHTML += '<div class="result-param"><div class="rlabel">Предв. лимит</div><div class="rvalue" style="color:#003b6f;">5 400 000 ₽</div></div>';
-        resultHTML += '<div class="result-param"><div class="rlabel">Предв. ставка</div><div class="rvalue" style="color:#10b981;">12.5%</div></div>';
-        resultHTML += '<div class="result-param"><div class="rlabel">PTI</div><div class="rvalue" style="color:#10b981;">38%</div></div>';
-        resultHTML += '<div class="result-param"><div class="rlabel">LTV</div><div class="rvalue" style="color:#10b981;">60%</div></div>';
+        resultHTML += '<div class="result-param"><div class="rlabel">Предв. лимит</div><div class="rvalue" style="color:#0B4697;">5 400 000 ₽</div></div>';
+        resultHTML += '<div class="result-param"><div class="rlabel">Предв. ставка</div><div class="rvalue" style="color:#13A538;">12.5%</div></div>';
+        resultHTML += '<div class="result-param"><div class="rlabel">PTI</div><div class="rvalue" style="color:#13A538;">38%</div></div>';
+        resultHTML += '<div class="result-param"><div class="rlabel">LTV</div><div class="rvalue" style="color:#13A538;">60%</div></div>';
         resultHTML += '</div></div>';
         
         actionHTML = '<button class="btn btn-success" onclick="alert(\'Заявка направлена на полный скоринг\')"><i class="fas fa-robot"></i> Запустить полный скоринг</button>';
