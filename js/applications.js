@@ -379,7 +379,7 @@ function getActiveApplicationHTML(app) {
     </div>
     ${pkgBlock}
     <div class="app-detail-actions-row">${continueCta}${printBtn}</div>
-    ${renderClientDUSection({ collateralAddress: app.collateralAddress || '' })}
+    ${renderClientDUSection(app)}
     ${actions}`;
 }
 
@@ -501,7 +501,9 @@ function getRequiredDU(app, clientEsiConnected) {
         if (!du) return;
         var saved = (typeof persistedDuStatus === 'function') ? persistedDuStatus(app, du.id) : null;
         var status = saved || 'pending';
-        if (!saved && du.source === 'esia' && clientEsiConnected) status = 'auto_received';
+        if (status === 'received') status = 'uploaded';
+        if (typeof documentSatisfiesDu === 'function' && documentSatisfiesDu(app, du.id)) status = 'uploaded';
+        if (!saved && du.source === 'esia' && clientEsiConnected && status === 'pending') status = 'auto_received';
         required.push({
             id: du.id,
             name: du.name,
@@ -520,10 +522,11 @@ function getRequiredDU(app, clientEsiConnected) {
 
 function renderClientDUSection(app) {
     var duList = getRequiredDU(app, true);
+    var doneStatuses = { uploaded: true, auto_received: true, ext_received: true, received: true };
     var counts = {
         total: duList.length,
         auto: duList.filter(function(d){return d.status==='auto_received';}).length,
-        need: duList.filter(function(d){return d.status!=='auto_received';}).length
+        need: duList.filter(function(d){return !doneStatuses[d.status];}).length
     };
     
     var h = '<div class="app-detail-section app-detail-du">';
@@ -537,13 +540,9 @@ function renderClientDUSection(app) {
     }
     h += '</div>';
 
-    var clientDUs = duList.filter(function(d) {
-        return d.source === 'client' || d.status === 'uploaded' || d.status === 'requested' || d.status === 'received';
-    });
-
-    clientDUs.forEach(function(du) {
+    duList.forEach(function(du) {
         var st = duStatuses[du.status] || duStatuses.pending;
-        var isDone = du.status === 'uploaded' || du.status === 'auto_received';
+        var isDone = !!(doneStatuses[du.status]);
 
         h += '<div class="client-du-item' + (isDone ? ' client-du-item--done' : ' client-du-item--pending') + '">';
         h += '<i class="fas ' + st.icon + ' client-du-icon"></i>';
@@ -554,7 +553,7 @@ function renderClientDUSection(app) {
         }
         h += '<span class="client-du-status" style="background:' + st.bg + ';color:' + st.color + ';">' + st.label + '</span>';
         h += '</div>';
-        if (!isDone && du.source === 'client') {
+        if (!isDone && du.source !== 'esia') {
             h += '<button type="button" class="client-du-upload" data-action="upload-doc" data-doc-name="' + String(du.name).replace(/"/g, '&quot;') + '"><i class="fas fa-upload"></i> Загрузить</button>';
         }
         h += '</div>';

@@ -349,6 +349,21 @@ console.log('\n=== 4. Client applications HTML / CTA ===');
   const dashSrc = fs.readFileSync(path.join(root, 'js/applications.js'), 'utf8');
   assert(/dashboard-card \.mini-stepper/.test(dashSrc) && /getStepperHTML\(app\)/.test(dashSrc),
     'dashboard refresh rewrites the status stepper from the live application');
+  assert(/renderClientDUSection\(app\)/.test(dashSrc) &&
+    !/renderClientDUSection\(\{ collateralAddress/.test(dashSrc),
+    'client DU section is rendered from the live application');
+
+  const beforeDu = ctx.renderClientDUSection(ctx.getAllApplications().find(a => a.id === '4421-И'));
+  ctx.ingestDocumentMeta('4421-И', 'Справка о доходе или 2-НДФЛ', { name: 'Справка_о_доходе_или_2-НДФЛ.pdf', size: 18432 });
+  const afterApp = ctx.getAllApplications().find(a => a.id === '4421-И');
+  const afterDu = ctx.renderClientDUSection(afterApp);
+  assert(/Справка о доходе или 2-НДФЛ/.test(afterDu) && /client-du-item--done/.test(afterDu),
+    'uploaded 2-НДФЛ stays visible as a green card');
+  assert(/Загружено/.test(afterDu), 'uploaded 2-НДФЛ shows status Загружено');
+  const needAfter = Number((afterDu.match(/Требуется загрузить: <b>(\d+)/) || [0, '0'])[1]);
+  assert(needAfter <= 1, 'required-upload count is not stuck at 2 after a successful upload');
+  assert(/Выписка из ЕГРН/.test(afterDu) && /client-du-item--pending/.test(afterDu),
+    'EGRN stays in the list as still pending');
 }
 
 console.log('\n=== 5. Manager app selection ===');

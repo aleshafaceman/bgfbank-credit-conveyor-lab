@@ -789,7 +789,9 @@ function ingestDocumentMeta(appId, docName, file) {
     var app = apps.find(function(a) { return a.id === id; });
     if (!app) return null;
     if (!Array.isArray(app.documents)) app.documents = [];
-    var doc = app.documents.find(function(d) { return d.name === docName; });
+    var doc = (typeof findMatchingAppDocument === 'function')
+        ? findMatchingAppDocument(app.documents, docName)
+        : app.documents.find(function(d) { return d.name === docName; });
     if (doc) {
         doc.status = 'uploaded';
         doc.statusLabel = 'Загружен';
@@ -803,8 +805,12 @@ function ingestDocumentMeta(appId, docName, file) {
     };
     if (typeof updateApplication === 'function') updateApplication(id, { documents: app.documents });
     if (typeof persistDuStatus === 'function') {
-        if (/егрн/i.test(docName || '')) persistDuStatus(id, 'du04', 'received', { title: docName });
-        if (/ндфл|доход/i.test(docName || '')) persistDuStatus(id, 'du00', 'received', { title: docName });
+        if (typeof isClientEgrnFile === 'function' ? isClientEgrnFile(docName) : /егрн/i.test(docName || '')) {
+            persistDuStatus(id, 'du04', 'uploaded', { title: docName });
+        }
+        if (typeof isClientIncomeFile === 'function' ? isClientIncomeFile(docName) : /ндфл|справка о доходе/i.test(docName || '')) {
+            persistDuStatus(id, 'du00', 'uploaded', { title: docName });
+        }
     }
     var isEgrn = /егрн/i.test(docName || '');
     var kind = isEgrn ? 'egrn' : 'file_meta';

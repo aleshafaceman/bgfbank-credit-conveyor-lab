@@ -790,6 +790,39 @@ function persistedDuStatus(app, duId) {
     return row && row.status ? row.status : null;
 }
 
+function isClientIncomeFile(name) {
+    var n = String(name || '');
+    return /ндфл|справка о доходе/i.test(n) && !/есиа|госуслуг/i.test(n);
+}
+
+function isClientEgrnFile(name) {
+    return /егрн/i.test(String(name || ''));
+}
+
+function findMatchingAppDocument(docs, docName) {
+    docs = Array.isArray(docs) ? docs : [];
+    var exact = docs.find(function(d) { return d && d.name === docName; });
+    if (exact) return exact;
+    if (isClientIncomeFile(docName)) {
+        return docs.find(function(d) { return d && isClientIncomeFile(d.name); });
+    }
+    if (isClientEgrnFile(docName)) {
+        return docs.find(function(d) { return d && isClientEgrnFile(d.name); });
+    }
+    return null;
+}
+
+function documentSatisfiesDu(app, duId) {
+    var docs = (app && app.documents) || [];
+    if (duId === 'du00') {
+        return docs.some(function(d) { return d && d.status === 'uploaded' && isClientIncomeFile(d.name); });
+    }
+    if (duId === 'du04' || duId === 'du19') {
+        return docs.some(function(d) { return d && d.status === 'uploaded' && isClientEgrnFile(d.name); });
+    }
+    return false;
+}
+
 function persistDuStatus(appId, duId, status, extra) {
     extra = extra || {};
     var apps = typeof getAllApplications === 'function' ? getAllApplications() : [];
@@ -822,9 +855,10 @@ function happyPathDuIds(app) {
     var ndflOk = !!(cp && cp.scopes && cp.scopes.ndfl && cp.scopes.ndfl.status === 'ok');
     var docs = (app && app.documents) || [];
     var ndflDoc = docs.some(function(d) {
-        return d && /ндфл|доход/i.test(d.name || '') && d.status === 'uploaded';
+        return d && d.status === 'uploaded' && isClientIncomeFile(d.name);
     });
-    if (!ndflOk && !ndflDoc) ids.push('du00');
+    if (!ndflOk) ids.push('du00');
+    if (ndflDoc && ids.indexOf('du00') === -1) ids.push('du00');
     if (maritalStatusOfApp(app) === 'married') {
         ids.push('du14');
         ids.push('du15');
