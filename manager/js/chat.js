@@ -5,9 +5,9 @@ function renderChatTab() {
     var chatList = getManagerChatList ? getManagerChatList() : [];
     
     document.getElementById('m-tab-chat').innerHTML = '';
-    var h = '<div style="display:grid;grid-template-columns:320px 1fr;gap:30px;height:600px;">';
+    var h = '<div class="m-split-layout">';
     
-    h += '<div style="background:white;border-radius:20px;border:1px solid #e1e9f1;padding:20px;overflow-y:auto;">';
+    h += '<div class="m-split-scroll" style="padding:20px;">';
     h += '<h3 style="font-size:16px;color:#0B4697;margin-bottom:16px;"><i class="fas fa-comment-dots"></i> Диалоги (' + chatList.length + ')</h3>';
     chatList.forEach(function(c) {
         h += '<div style="padding:14px;background:' + (selectedChatClient === c.clientName ? '#f4f9ff' : '#f8fbff') + ';border-radius:12px;margin-bottom:10px;cursor:pointer;border:1px solid ' + (selectedChatClient === c.clientName ? '#0B4697' : '#e1e9f1') + ';" onclick="openChatWithClient(\'' + c.clientName.replace(/'/g, "\\'") + '\')">';
@@ -22,7 +22,7 @@ function renderChatTab() {
     if (chatList.length === 0) h += '<div style="text-align:center;padding:40px;color:#94a3b8;">Нет диалогов</div>';
     h += '</div>';
     
-    h += '<div id="mChatWindow" style="background:white;border-radius:20px;border:1px solid #e1e9f1;display:flex;flex-direction:column;overflow:hidden;">';
+    h += '<div id="mChatWindow" class="m-split-fill">';
     if (selectedChatClient) {
         h += renderChatMessages(selectedChatClient);
     } else {

@@ -7,10 +7,10 @@ function renderClientsTab() {
         return c && typeof c === 'object' && c.name;
     });
     
-    var h = '<div style="display:grid;grid-template-columns:320px 1fr;gap:30px;height:600px;">';
+    var h = '<div class="m-split-layout">';
     
     // Левая панель: список клиентов
-    h += '<div style="background:white;border-radius:20px;border:1px solid #e1e9f1;padding:20px;overflow-y:auto;">';
+    h += '<div class="m-split-scroll" style="padding:20px;">';
     h += '<h3 style="font-size:16px;color:#0B4697;margin-bottom:16px;"><i class="fas fa-users"></i> Клиенты (' + clientList.length + ')</h3>';
     h += '<input type="text" id="clientSearch" placeholder="Поиск по имени..." style="width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:10px;font-size:13px;margin-bottom:12px;" oninput="filterClients()">';
     h += '<div id="clientListContainer">';
@@ -28,7 +28,7 @@ function renderClientsTab() {
     h += '</div></div>';
     
     // Правая панель: профиль клиента
-    h += '<div style="background:white;border-radius:20px;border:1px solid #e1e9f1;padding:32px;overflow-y:auto;" id="clientProfileContainer">';
+    h += '<div class="m-split-scroll" id="clientProfileContainer" style="padding:32px;">';
     h += '<div style="text-align:center;padding:60px;color:#94a3b8;"><i class="fas fa-user-circle" style="font-size:48px;margin-bottom:16px;"></i><p>Выберите клиента для просмотра профиля</p></div>';
     h += '</div>';
     
@@ -94,7 +94,7 @@ function openClientProfile(clientName) {
     h += '<div><div class="m-client-name" style="font-size:20px;font-weight:800;">' + (client.name || clientName) + '</div><div class="m-client-id" style="font-size:12px;color:#94a3b8;">' + apps.length + ' заявок</div></div>';
     h += '</div>';
     
-    h += '<div class="m-client-section" style="margin-bottom:24px;"><h4 style="font-size:15px;color:#0B4697;margin-bottom:12px;"><i class="fas fa-id-card"></i> Личные данные</h4><div class="m-info-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">';
+    h += '<div class="m-client-section" style="margin-bottom:24px;"><h4 style="font-size:15px;color:#0B4697;margin-bottom:12px;"><i class="fas fa-id-card"></i> Личные данные</h4><div class="m-info-grid">';
     h += '<div class="m-info-item" style="background:#f8fbff;padding:10px;border-radius:10px;"><div class="m-info-label" style="font-size:10px;color:#7e9bb6;">Телефон</div><div class="m-info-value" style="font-weight:600;">' + (client.phone || '—') + '</div></div>';
     h += '<div class="m-info-item" style="background:#f8fbff;padding:10px;border-radius:10px;"><div class="m-info-label" style="font-size:10px;color:#7e9bb6;">Email</div><div class="m-info-value" style="font-weight:600;">' + (client.email || '—') + '</div></div>';
     h += '<div class="m-info-item" style="background:#f8fbff;padding:10px;border-radius:10px;"><div class="m-info-label" style="font-size:10px;color:#7e9bb6;">Дата рождения</div><div class="m-info-value" style="font-weight:600;">' + (client.birthDate || '—') + '</div></div>';
@@ -103,7 +103,7 @@ function openClientProfile(clientName) {
     h += '<div class="m-info-item" style="background:#f8fbff;padding:10px;border-radius:10px;"><div class="m-info-label" style="font-size:10px;color:#7e9bb6;">Источник</div><div class="m-info-value" style="font-weight:600;">' + (client.source === 'esia' ? 'Госуслуги (ЕСИА)' : 'Ручной ввод') + '</div></div>';
     h += '</div></div>';
     
-    h += '<div class="m-client-section" style="margin-bottom:24px;"><h4 style="font-size:15px;color:#0B4697;margin-bottom:12px;"><i class="fas fa-briefcase"></i> Финансовый профиль</h4><div class="m-info-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">';
+    h += '<div class="m-client-section" style="margin-bottom:24px;"><h4 style="font-size:15px;color:#0B4697;margin-bottom:12px;"><i class="fas fa-briefcase"></i> Финансовый профиль</h4><div class="m-info-grid">';
     h += '<div class="m-info-item" style="background:#f8fbff;padding:10px;border-radius:10px;"><div class="m-info-label" style="font-size:10px;color:#7e9bb6;">Место работы</div><div class="m-info-value" style="font-weight:600;">' + (client.workplace || '—') + '</div></div>';
     h += '<div class="m-info-item" style="background:#f8fbff;padding:10px;border-radius:10px;"><div class="m-info-label" style="font-size:10px;color:#7e9bb6;">Должность</div><div class="m-info-value" style="font-weight:600;">' + (client.position || '—') + '</div></div>';
     h += '<div class="m-info-item" style="background:#f8fbff;padding:10px;border-radius:10px;"><div class="m-info-label" style="font-size:10px;color:#7e9bb6;">Доход</div><div class="m-info-value" style="font-weight:600;">' + income.toLocaleString('ru-RU') + ' ₽</div></div>';

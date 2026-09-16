@@ -140,10 +140,37 @@ body { background: #f0f4f8; min-height: 100vh; }
 .m-back-link:hover { text-decoration: underline; }
 .m-client-section { margin-bottom: 24px; }
 .m-client-section h4 { font-size: 15px; color: #0B4697; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
-.m-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.m-info-item { background: #f8fbff; border-radius: 10px; padding: 10px 14px; }
+.m-split-layout {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: 24px;
+  height: calc(100vh - 210px);
+  min-height: 420px;
+}
+.m-split-layout > .m-split-scroll {
+  min-height: 0;
+  overflow-y: auto;
+  background: white;
+  border-radius: 20px;
+  border: 1px solid #e1e9f1;
+}
+.m-split-layout > .m-split-fill {
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: white;
+  border-radius: 20px;
+  border: 1px solid #e1e9f1;
+}
+.m-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+}
+.m-info-item { background: #f8fbff; border-radius: 10px; padding: 10px 14px; min-width: 0; }
 .m-info-item .m-info-label { font-size: 10px; color: #7e9bb6; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
-.m-info-item .m-info-value { font-size: 14px; font-weight: 600; color: #1e293b; }
+.m-info-item .m-info-value { font-size: 14px; font-weight: 600; color: #1e293b; overflow-wrap: anywhere; }
 .m-client-app-card { background: #f8fbff; border: 1px solid #e1e9f1; border-radius: 12px; padding: 14px 16px; margin-bottom: 8px; cursor: pointer; transition: 0.2s; display: flex; justify-content: space-between; align-items: center; }
 .m-client-app-card:hover { border-color: #0B4697; }
 .m-client-app-card .m-app-info { flex: 1; }
@@ -159,6 +186,7 @@ body { background: #f0f4f8; min-height: 100vh; }
   .m-applications-layout { grid-template-columns: 1fr !important; }
   .m-app-list { max-height: 280px; overflow-y: auto; }
   .m-info-grid { grid-template-columns: 1fr; }
+  .m-split-layout { grid-template-columns: 1fr; height: auto; min-height: 0; }
   #m-tab-chat > div { grid-template-columns: 1fr !important; height: auto !important; }
 }
 

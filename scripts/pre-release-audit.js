@@ -592,6 +592,18 @@ console.log('\n=== 7. HTML script order / critical refs ===');
     'cabinet has no split-view or embed-mode');
   assert(/max-width:\s*1680px/.test(extrasCss) && /1040px/.test(extrasCss),
     'client cabinet window is 1680×1040');
+  const clientsSrc = fs.readFileSync(path.join(root, 'manager/js/clients.js'), 'utf8');
+  const chatSrc = fs.readFileSync(path.join(root, 'manager/js/chat.js'), 'utf8');
+  assert(/m-split-layout/.test(clientsSrc) && !/height:600px/.test(clientsSrc),
+    'clients tab is not clipped to 600px');
+  assert(/m-split-layout/.test(chatSrc) && !/height:600px/.test(chatSrc),
+    'chat tab is not clipped to 600px');
+  assert(/auto-fill,\s*minmax\(220px/.test(mgrCss),
+    'manager info fields do not stretch across half the screen');
+  assert(/Личные данные/.test(clientsSrc) && /client\.passport/.test(clientsSrc) &&
+    /client\.workplace/.test(clientsSrc) && /Недвижимость/.test(clientsSrc) &&
+    /Документы/.test(clientsSrc),
+    'client profile still renders personal, work, property and document fields');
 }
 
 console.log('\n=== 8. TrustGate lab app is manager-only ===');
