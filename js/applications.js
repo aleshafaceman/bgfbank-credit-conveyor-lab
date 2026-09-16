@@ -404,6 +404,17 @@ function bindApplicationDetailActions() {
         if (action === 'goto-documents') {
             e.preventDefault();
             if (typeof navigateTo === 'function') navigateTo('documents');
+            return;
+        }
+        if (action === 'open-kod-kit') {
+            e.preventDefault();
+            var kitAppId = (typeof state !== 'undefined' && state.selectedApp) || null;
+            if (!kitAppId) {
+                var num = c.querySelector('.detail-number');
+                if (num) kitAppId = String(num.textContent || '').replace(/^№/, '').trim();
+            }
+            if (typeof openClientKodKit === 'function') openClientKodKit(kitAppId);
+            else if (typeof openArtifactByKind === 'function') openArtifactByKind(kitAppId, 'kod_inventory');
         }
     });
 }
@@ -418,7 +429,7 @@ function getApprovedApplicationHTML(app) {
     ${typeof renderAppArtifactsStrip === 'function' ? renderAppArtifactsStrip(app.id) : ''}
     <div class="detail-params"><div class="detail-param"><div class="param-label">Одобренный лимит</div><div class="param-value">${amount}</div></div><div class="detail-param"><div class="param-label">Ставка</div><div class="param-value" style="color:#13A538;">${rate}</div></div><div class="detail-param"><div class="param-label">Срок</div><div class="param-value">${term}</div></div><div class="detail-param"><div class="param-label">Платёж / мес.</div><div class="param-value">${payment}</div></div></div>
     <div style="display:flex;gap:12px;margin-top:24px;flex-wrap:wrap;">
-        <button class="btn btn-primary" style="flex:1;min-width:180px;" onclick="alert('Переход к подписанию договора...')"><i class="fas fa-signature" style="margin-right:8px;"></i> Подписать договор</button>
+        <button type="button" class="btn btn-primary" style="flex:1;min-width:180px;" data-action="open-kod-kit"><i class="fas fa-signature" style="margin-right:8px;"></i> Подписать договор</button>
         <button class="btn btn-outline" style="flex:1;min-width:180px;margin-top:0;" onclick="startNewApplicationDemo()"><i class="fas fa-plus" style="margin-right:8px;"></i> Новая заявка</button>
     </div>`;
 }
