@@ -859,10 +859,29 @@ console.log('\n=== 8. TrustGate lab app is manager-only ===');
   ctx.scoringOverlayChrome('4636-И', labAfterDu, 'prescore');
   assert(overlay.classList.contains('mode-prescore'), 'overlay gets prescore mode class');
   assert(ctx._els.sModeBadge.textContent === 'Прескоринг', 'overlay badge says prescoring');
+  assert(/Запустить прескоринг/.test(ctx._els.sRunBtn.innerHTML) &&
+    !/повторно/.test(ctx._els.sRunBtn.innerHTML),
+    'first prescore run is not labeled повторно');
   ctx.scoringOverlayChrome('4636-И', labAfterDu, 'full');
   assert(overlay.classList.contains('mode-full'), 'overlay gets full mode class');
   assert(!overlay.classList.contains('mode-prescore'), 'full mode drops prescore class');
   assert(ctx._els.sModeBadge.textContent === 'Полный скоринг', 'overlay badge says full scoring');
+  assert(/Запустить скоринг/.test(ctx._els.sRunBtn.innerHTML) &&
+    !/повторно/.test(ctx._els.sRunBtn.innerHTML),
+    'first full scoring run is not labeled повторно');
+  ctx.scoringOverlayChrome('4636-И', Object.assign({}, labAfterDu, {
+    status: 'decision', termsKind: 'preliminary'
+  }), 'prescore');
+  assert(/Запустить прескоринг повторно/.test(ctx._els.sRunBtn.innerHTML),
+    'after prescore the overlay offers a repeat run');
+  ctx.scoringOverlayChrome('4636-И', Object.assign({}, labAfterDu, {
+    status: 'approved', termsKind: 'final'
+  }), 'full');
+  assert(/Запустить скоринг повторно/.test(ctx._els.sRunBtn.innerHTML),
+    'after full scoring the overlay offers a repeat run');
+  ctx.setScoringRunButton('full', true);
+  assert(/Запустить скоринг повторно/.test(ctx._els.sRunBtn.innerHTML),
+    'result screen relabels the run button as повторно');
 
   ctx.duStorage = {};
   ctx.updateApplication('4636-И', { documents: labDocsSnapshot.map(d => Object.assign({}, d)) });

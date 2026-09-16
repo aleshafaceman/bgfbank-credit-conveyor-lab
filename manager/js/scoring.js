@@ -91,12 +91,31 @@ function scoringStepsForApp(app, mode) {
     return steps;
 }
 
+function scoringRunIsRepeat(app, mode) {
+    if (!app) return false;
+    var terms = app.termsKind || (typeof appTermsKind === 'function' ? appTermsKind(app) : null);
+    if (mode === 'prescore') {
+        return terms === 'preliminary' || terms === 'final' || app.status === 'decision'
+            || app.status === 'approved' || app.status === 'rejected'
+            || (typeof clientAcceptedOffer === 'function' && clientAcceptedOffer(app));
+    }
+    return terms === 'final' || app.status === 'approved' || app.status === 'rejected';
+}
+
+function setScoringRunButton(mode, again) {
+    var runBtn = document.getElementById('sRunBtn');
+    if (!runBtn) return;
+    var label = mode === 'prescore'
+        ? (again ? 'Запустить прескоринг повторно' : 'Запустить прескоринг')
+        : (again ? 'Запустить скоринг повторно' : 'Запустить скоринг');
+    runBtn.innerHTML = '<i class="fas fa-play"></i> ' + label;
+}
+
 function scoringOverlayChrome(appId, app, mode) {
     var overlay = document.getElementById('scoringOverlay');
     var titleEl = document.getElementById('sOverlayTitle') || (overlay && overlay.querySelector && overlay.querySelector('.scoring-left h3'));
     var subEl = document.getElementById('sOverlaySubtitle') || (overlay && overlay.querySelector && overlay.querySelector('.scoring-left .subtitle'));
     var badgeEl = document.getElementById('sModeBadge');
-    var runBtn = document.getElementById('sRunBtn');
     if (overlay && overlay.classList) {
         overlay.classList.remove('mode-prescore');
         overlay.classList.remove('mode-full');
@@ -106,13 +125,12 @@ function scoringOverlayChrome(appId, app, mode) {
         if (titleEl) titleEl.innerHTML = '<i class="fas fa-robot"></i> Прескоринг заявки №' + appId;
         if (subEl) subEl.textContent = (app ? app.client + ' · ' : '') + 'Паспорт + БКИ · предварительные условия';
         if (badgeEl) badgeEl.textContent = 'Прескоринг';
-        if (runBtn) runBtn.innerHTML = '<i class="fas fa-play"></i> Запустить прескоринг';
     } else {
         if (titleEl) titleEl.innerHTML = '<i class="fas fa-flask"></i> Полный скоринг заявки №' + appId;
         if (subEl) subEl.textContent = (app ? app.client + ' · ' : '') + 'Итоговые условия · нужны оригиналы документов';
         if (badgeEl) badgeEl.textContent = 'Полный скоринг';
-        if (runBtn) runBtn.innerHTML = '<i class="fas fa-play"></i> Запустить скоринг';
     }
+    setScoringRunButton(mode, scoringRunIsRepeat(app, mode));
 }
 
 function startScoringRun(mode) {
@@ -449,6 +467,7 @@ function showSResult(outcome) {
     }
 
     document.getElementById('sResultArea').innerHTML = h;
+    setScoringRunButton(sMode, true);
 }
 
 function closeManagerScoring() {
