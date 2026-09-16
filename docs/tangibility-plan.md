@@ -4,9 +4,9 @@
 
 Продукт: залог (`CASHONBAIL` / `FLAT`). Отказ не трогаем. Презентер-флаги («Зелёный скоринг», «Быстрый скоринг», «Сбросить демо», автологин) **не прячем**.
 
-Источники полей: `docs/_LK_KNOWLEDGE_BASE.md`, `docs/katalog-opcij-zalog.md`, `shared/lk-application.js`. Первичные СПР/Visio/ЦФТ/API **не прочитаны** (`docs/_SOURCES_INVENTORY.md`) — план не вводит полей сверх репозитория.
+Источники полей: `docs/_LK_KNOWLEDGE_BASE.md`, `docs/katalog-opcij-zalog.md`, `shared/lk-application.js`, выгрузки в `docs/sources/` (СПР `.doc`, Visio, ТЗ Loginom, Skorozvon). Код кабинетов **не меняется**, пока нет ОК на этот план.
 
-Стол сделки (`deal-ops/`) в эту итерацию **не расширяем**; в плане только мост «кабинет → те же поля, из которых стол уже умеет показать КОД», без UI ОЗС.
+Стол сделки (`deal-ops/`) не расширяем. Паспорт сделки по СПР — экран ОЗС **без внешних интеграций**; в кабинете P2 = карточка из полей заявки, не календарь.
 
 ---
 
@@ -95,9 +95,9 @@
 | C4 | Паспорт из ЦП | «Паспорт (разворот)» | `borrowers[0].{series,number,issue_date,issued_by,authority_code,last_name,…}` | `documentsFromCp` → status `uploaded`; preview из полей, не скан | P0 | S |
 | C5 | ИНН / СНИЛС | «ИНН / СНИЛС» | `scopes.inn.value`, `scopes.snils.value` | `documentsFromCp` | P0 | S |
 | C6 | 2-НДФЛ из ЦП (happy-path full) | «Справка о доходах (INCOME_REFERENCE)» | `scopes.ndfl.years`, `borrowers[0].revenue[]`, `incomes`, `confirmation_income_summary` | `applyTrustGateToApplication`; не ставить ДУ type 0 | P0 | S |
-| C7 | Выбор объекта / оценка | «Отчёт оценки залога» | `collateralAddress`, `collateralValue`, `pledge_evaluation.AppraisalPledgeCost`, `product.object_address`, `product.building_property` | `onCollateralSelect` + запись в `pledge_evaluation` (сейчас оценка живёт только в RAM `propertyPortfolio`) | P0 | M |
+| C7 | Выбор объекта / оценка | «Отчёт оценки залога» (`getEval` / Express МО) | `pledge_evaluation` ← `RESULT_EVALUATION`: `AppraisalPledgeCost`, `Appraiser`, `EvaluatingCompany`, `OutAssessmentDate`, `OutEvaluationReportNumber`, `EvaluationStatus`; адрес/`CADNUM` если есть. **Не** хранить `EVALUATION_REPORT` base64 | `onCollateralSelect` + запись в `pledge_evaluation`; превью из полей | P0 | M |
 | C8 | Кадастр / ЕГРН | «Выписка ЕГРН» | кадастр если появится; адрес; `documents[]` имя «Выписка ЕГРН» | `uploadMissingDocDemo` заменить на `ingestDocumentMeta` + генератор; внешний запрос менеджера уже патчит тот же name | P0 | M |
-| C9 | Прескоринг Loginom (клиентский лог) | «Протокол прескоринга» | шаги как в `#log-1…` + итог: amount/term/baseRate/LTV | `startFlow` / конвейер; на 4421 поля заявки после прескоринга менеджера: `termsKind=preliminary` | P1 | M |
+| C9 | Прескоринг Loginom (клиентский лог) | «Протокол preScore» | каркас вызова: `STAGE`, `APPLICATION_ID`; шаги как `#log-1…`; итог amount/term/LTV. Не писать PTI/DTI как поля СПР (в ТЗ — `getPdn`) | `startFlow`; после менеджерского прескоринга `termsKind=preliminary` | P1 | M |
 | C10 | Карточки пакетов | «Сравнение пакетов» | `eligiblePackages` snapshot на момент показа: id, rate, payment, ltv, limit, insurance, commission | `buildEligiblePackages` + `initPackageSelection`; **persist snapshot**, иначе после reload карточки пересоберутся | P0 | M |
 | C11 | Принять условия | «Предварительные условия (не оферта)» | поля `acceptOfferPackage`: packageId/label, rate, payment, amount, term, offerValidUntil, insurance, commission; разбор как в карточке: база − ЕСИА | `acceptOfferPackage`; заменить голый `printOfferPackage` на open из реестра | P0 | S |
 | C12 | Модификаторы (LTV boost, созаёмщик, фикс.) | строка в том же оффере, не отдельный файл | `state.packageModifiers` → сохранить на заявке (`packageModifiers`) | `applyPackageModifiers` | P1 | S |
@@ -115,19 +115,20 @@
 |----|--------|-------------|------|----------|---|---|
 | M1 | Открыл заявку / начал рассмотрение | «Карточка принятия в работу» | appId, client, status processing, timestamp, operator из `creator` | `managerAction('startReview')` | P1 | S |
 | M2 | Блок ЦП | тот же C3, плюс лабораторные кнопки профиля **как сейчас** | `renderCpCoverageHTML`, `cpActionItems`, `applyLkTrustGateProfile` | не прятать кнопки | P0 | S |
-| M3 | Прескоринг «Готово» | «Протокол прескоринга» | `sPrescoreCatalog` detail_ok, завязанные на `scopes.passport` / `credit_report`; итог `termsKind=preliminary` | `applyManagerPrescoringResult` + сохранить `sIssueLog` **только зелёные шаги** (отказ не в scope) | P0 | M |
-| M4 | Пакет клиента | «Разбор ставки» (каталог §9) | `selectedPackageId`, tariff `TURBO_2_0` (сейчас хардкод в UI), база, −ЕСИА 0.5, ККС, LTV=`amount/collateralValue`, `packageInsurance` | новый блок в `manager/js/applications.js` рядом с строкой пакета; генератор PDF | P0 | M |
-| M5 | Смена пакета из eligible | не в этом показе, если клиент уже принял | если позже: только id из snapshot C10 | каталог: «[Сменить пакет ▼] — только из eligible» | P2 | S |
-| M6 | Запрос ДУ клиенту | «Запрос ДУ» (исходящий) | ELMA `type` + title из `du_catalog`; params FIO / адрес | `requestDUFromClient` + persist (заменить RAM `duStorage`) | P1 | M |
-| M7 | Внешний запрос ЕГРН / домовая | «Ответ сервиса» | тот же name, что патчит `patchDocumentsFromExternalDU` | `requestExternalDU` | P0 | S |
-| M8 | Комплект оригиналов | «Опись документов» | `app.documents` + `missingOriginals` | `missingOriginals` | P0 | S |
-| M9 | Полный скоринг | «Протокол полного скоринга» | шаги `sStepCatalog`: НБКИ, ОКБ, ФНС, ЕГРЮЛ, Ocenka, Loginom PTI/DTI, расчёт, решение; цифры из `borrowers[0].incomes`, `collateralValue`, `amount` | `applyManagerScoringDecision` + persist шагов | P0 | M |
-| M10 | Одобрение | заполнить `lk.decision` + артефакт «Решение банка» | `decision.decision_category`, `decision.approval` (текст из statusLabel); `termsKind=final` | `applyManagerScoringDecision('approved')` | P0 | S |
-| M11 | Оценка залога | тот же C7, если менеджер жмёт «Запросить оценку» | `collateralValue`, `pledge_evaluation` | `requestValuation` | P1 | S |
-| M12 | Отправить договор | не тост-only | создать C16, если ещё нет; history line | `sendContract` | P1 | S |
-| M13 | Паспорт сделки | **карточка-заглушка из полей заявки**, не календарь ОБУКО | appId, ФИО, product CASHONBAIL, amount, term, rate, объект, пакет, decision, список ДУ type, ссылки на C11/M9/M10 | новый generator; стол говорит «календарь не входит» — **не** копировать АРМ | P2 | L |
-| M14 | КОД (подготовка) | опись `kod.documents` кодов | те же code/title, что стол; данные сделки из заявки | `shared` канон кодов, не копипаста четырёх сделок мока | P2 | L |
-| M15 | Вкладка «Отчёты» | не отдельная сущность: дашборд считает по артефактам/заявкам | без фейка «~2.5 дня» как документа | `manager/js/reports.js` | P2 | S |
+| M3 | Прескоринг «Готово» | «Протокол preScore» | `sPrescoreCatalog` + `termsKind=preliminary`; методы ТЗ `preScore`/`preScoring` | `applyManagerPrescoringResult` | P0 | M |
+| M4 | Пакет клиента | «Разбор ставки» (каталог §9) | `selectedPackageId`, `TURBO_2_0`, база − ЕСИА, ККС, LTV=`amount/collateralValue` | блок в `manager/js/applications.js` | P0 | M |
+| M5 | Смена пакета из eligible | не в этом показе | только id из snapshot C10 | каталог §9 | P2 | S |
+| M6 | Запрос ДУ клиенту | «Запрос ДУ» | ELMA `type` + `du_catalog`; persist вместо RAM `duStorage` | `requestDUFromClient` | P1 | M |
+| M7 | Внешний запрос ЕГРН | «Ответ сервиса» | тот же name, что `patchDocumentsFromExternalDU` | `requestExternalDU` | P0 | S |
+| M8 | Комплект оригиналов | «Опись документов» | `app.documents` + `missingOriginals`; Visio: «минимальный перечень» | `missingOriginals` | P0 | S |
+| M9 | Полный скоринг | «Протокол getDecision» (+ строка getPdn) | overlay-шаги; `lk.decision` из `DECISION`/`SCORE`; **не** писать PTI как поле СПР; залог = C7/`getEval` | `applyManagerScoringDecision` | P0 | M |
+| M10 | Одобрение | «Решение банка» | `approved` + `termsKind=final`; СПР «клиент одобрен». SMS брокеру — метаданные без SMSTraffic | `applyManagerScoringDecision('approved')` | P0 | S |
+| M11 | Оценка залога | тот же C7 | `pledge_evaluation` ← `RESULT_EVALUATION` | `requestValuation` | P1 | S |
+| M12 | Отправить договор | не тост-only | создать C16 / опись КОД | `sendContract` | P1 | S |
+| M13 | Паспорт сделки | карточка из полей заявки | СПР: ОЗС, «внешних интеграций нет», общий экран с КОД. Не календарь АРМ | generator | P2 | L |
+| M14 | КОД (опись) | опись кодов | LAB `kod.documents` + СПР: КД, страховка, закладная, УКЭП, ПСК | shared-канон | P2 | L |
+| M15 | Вкладка «Отчёты» | агрегат, не документ | без фейка «~2.5 дня» как файла | `manager/js/reports.js` | P2 | S |
+| M16 | Звонок верификации | не P0 кабинетов | Visio: исключить звонок при LTV&lt;50% + залог-реф + ≤10 млн + МКАД / автоодобрение. Skorozvon `recording_url` / webhook `call_result` — если свяжем `external_id` | не текущий показ | P2 | S |
 
 Вкладка менеджера «Отчёты» **не** заменяет «Документы». «Документы» = реестр артефактов; «Отчёты» можно оставить агрегатом воронки.
 
@@ -197,6 +198,7 @@ Persist ДУ: писать в `lk.additional_conditions[]` (уже есть) + �
 1. **P2 (паспорт сделки / КОД в кабинете)** — делать в этой итерации кабинетов или оставить столу? Стол явно выносит паспорт из АРМ.
 2. **Заявка 4636-И** (TrustGate lab) скрыта от клиента. Показывать клиенту человеческие артефакты ЦП на **4421-И**, а 4636 оставить менеджерским стендом?
 3. **Три пакета runtime** vs полный каталог `PKG_*` — L3 фиксирует то, что реально выбирается сейчас (`RECOMMENDED` / `SPEC_4_0` / `NO_INSURANCE`), без новых карточек.
-4. Когда доедут скилл и бинарники — разрешено ли **добавить** артефакты (Skorozvon call record, SMSTraffic message_id) отдельным коммитом, не ломая этот план?
+4. Когда доедут скилл / ЦФТ 10–15 / SMSTraffic — отдельные артефакты (message_id, OpenAccount) **не ломая** P0.
+5. Overlay сейчас показывает PTI/DTI — в протоколе L3 писать **ПДН `getPdn`**, не выдавать PTI за поле СПР.
 
 Если пункты 1–3 ок — следующий шаг: реализация P0, без потребкредита и без редизайна форм.
