@@ -146,7 +146,15 @@ function startScoringRun(mode) {
 }
 
 function openManagerPrescoring() {
-    startScoringRun('prescore');
+    if (typeof window !== 'undefined' && window.__bgfOpenPrescoreBusy) return;
+    if (typeof window !== 'undefined') window.__bgfOpenPrescoreBusy = true;
+    try {
+        startScoringRun('prescore');
+    } finally {
+        if (typeof window !== 'undefined') {
+            setTimeout(function() { window.__bgfOpenPrescoreBusy = false; }, 0);
+        }
+    }
 }
 
 var __bgfOpenScoringBusy = false;

@@ -629,6 +629,13 @@ console.log('\n=== 8. TrustGate lab app is manager-only ===');
   const procBtns = ctx.getActionButtons({ id: '4421-И', status: 'processing' });
   assert(/прескоринг/i.test(procBtns) && procBtns.indexOf('Полный скоринг') === -1,
     'processing shows prescoring only, not full scoring');
+  const valBtns = ctx.getActionButtons({ id: '4421-И', status: 'valuation' });
+  assert(valBtns.indexOf('Открыть прескоринг') !== -1, 'valuation continues the started prescoring');
+  assert(valBtns.indexOf('Запустить прескоринг') === -1, 'valuation does not re-offer a fresh prescore start');
+  assert(valBtns.indexOf('Полный скоринг') === -1, 'valuation still has no full scoring');
+  const valSteps = ctx.getManagerAppTimelineSteps({ id: '4421-И', status: 'valuation', documents: [] });
+  assert(valSteps.find(s => s.id === 'prescore') && valSteps.find(s => s.id === 'prescore').done === false,
+    'timeline does not mark prescore done while overlay is still running');
   const decBtns = ctx.getActionButtons({ id: '4421-И', status: 'decision', rate: 12.5, termsKind: 'preliminary' });
   assert(decBtns.indexOf('Запустить прескоринг') === -1, 'after prescore, prescoring is not offered');
   assert(decBtns.indexOf('Полный скоринг') !== -1, 'after prescore, full scoring is offered');
@@ -711,6 +718,8 @@ console.log('\n=== 8. TrustGate lab app is manager-only ===');
     'decision with missing originals offers scoring without the set');
   assert(labDecisionBtns.indexOf('Запросить оригиналы') !== -1,
     'decision with missing originals makes request-originals primary');
+  assert(labDecisionBtns.indexOf('Протокол прескоринга') !== -1,
+    'after prescore the protocol stays available even if originals are missing');
 
   const labDocsSnapshot = (ctx.getAllApplications().find(a => a.id === '4636-И').documents || [])
     .map(d => Object.assign({}, d));

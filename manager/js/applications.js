@@ -426,7 +426,7 @@ function getActionButtons(app) {
                     mActionButton(id, 'requestValuation', 'm-btn-outline', 'fa-home', 'Обновить оценку') +
                     mActionButton(id, 'requestDocs', 'm-btn-outline', 'fa-file-upload', 'Запросить документы');
         case 'valuation':
-            return mActionsHint('Прескоринг запущен. Полный скоринг появится после предварительного решения — комплект оригиналов пока не требуется.') +
+            return mActionsHint('Прескоринг запущен. Итоговое решение откроется после предварительного результата — оригиналы на этом шаге не нужны.') +
                     prescoreOpen +
                     mActionButton(id, 'requestValuation', 'm-btn-outline', 'fa-home', 'Обновить оценку') +
                     mActionButton(id, 'requestDocs', 'm-btn-outline', 'fa-file-upload', 'Запросить документы');
@@ -454,7 +454,7 @@ function getActionButtons(app) {
         case 'rejected':
             return mActionButton(id, 'suggestParams', 'm-btn-outline', 'fa-redo', 'Предложить изменить параметры');
         default:
-            return mActionsHint('Сначала прескоринг (паспорт + БКИ), затем полный скоринг по оригиналам.') + prescore;
+            return mActionsHint('Сначала прескоринг (паспорт + БКИ), затем полный скоринг по оригиналам.') + prescoreStart;
     }
 }
 
