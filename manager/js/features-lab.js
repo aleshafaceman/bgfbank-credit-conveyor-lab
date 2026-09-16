@@ -18,18 +18,31 @@ function applyManagerEmbedMode() {
     document.body.classList.add('embed-mode');
 }
 
+function managerDemoRedirect(autologin, extraQuery) {
+    var url = new URL(window.location.href);
+    url.searchParams.delete('demo');
+    if (autologin) url.searchParams.set('autologin', '1');
+    if ((extraQuery && extraQuery.get('embed') === '1') || isManagerEmbedContext()) {
+        url.searchParams.set('embed', '1');
+    }
+    window.location.replace(url.toString());
+}
+
 function runManagerDemoBoot() {
     try {
         applyManagerEmbedMode();
         var q = new URLSearchParams(window.location.search || '');
         var mode = q.get('demo');
-        if (mode === '1' || mode === 'manager' || mode === 'reset') {
+        // Только demo=reset / demo=manager чистят общий localStorage с клиентом.
+        // Старый ?demo=1 здесь стирал принятый пакет — в инкогнито после клиента кнопки
+        // оказывались на сиде processing, а не на той заявке, которую только что собрали.
+        if (mode === 'reset' || mode === 'manager') {
             if (typeof resetDemoStorage === 'function') resetDemoStorage({ includeUser: false });
-            var url = new URL(window.location.href);
-            url.searchParams.delete('demo');
-            url.searchParams.set('autologin', '1');
-            if (q.get('embed') === '1' || isManagerEmbedContext()) url.searchParams.set('embed', '1');
-            window.location.replace(url.toString());
+            managerDemoRedirect(true, q);
+            return;
+        }
+        if (mode === '1') {
+            managerDemoRedirect(true, q);
             return;
         }
         if (q.get('autologin') === '1') {
@@ -40,7 +53,7 @@ function runManagerDemoBoot() {
             setTimeout(function() {
                 var btn = document.getElementById('loginBtn');
                 if (btn) btn.click();
-                if (typeof showManagerToast === 'function') showManagerToast('Режим показа готов');
+                if (typeof showManagerToast === 'function') showManagerToast('Режим показа готов · данные клиента не сбрасывались');
             }, 250);
         }
     } catch (e) {

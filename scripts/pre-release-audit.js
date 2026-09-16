@@ -502,6 +502,28 @@ console.log('\n=== 7. HTML script order / critical refs ===');
     'manager: lk-application after data');
   assert(mgrScripts.indexOf('../shared/lk-artifacts.js') > mgrScripts.indexOf('../shared/lk-application.js'),
     'manager: lk-artifacts after lk-application');
+  const mgrFeatSrc = fs.readFileSync(path.join(root, 'manager/js/features-lab.js'), 'utf8');
+  const clientFeatSrc = fs.readFileSync(path.join(root, 'js/features-lab.js'), 'utf8');
+  assert(!/mode === '1' \|\| mode === 'manager' \|\| mode === 'reset'/.test(mgrFeatSrc),
+    'manager ?demo=1 is not bundled with storage reset');
+  assert(/mode === 'reset' \|\| mode === 'manager'/.test(mgrFeatSrc) &&
+    /if \(mode === '1'\)/.test(mgrFeatSrc),
+    'manager resets storage only on demo=reset/manager, not demo=1');
+  assert(/manager\/\?autologin=1/.test(clientFeatSrc) && !/manager\/\?demo=1/.test(clientFeatSrc),
+    'presenter checklist opens manager without wiping storage');
+  const demoHtml = fs.readFileSync(path.join(root, 'demo.html'), 'utf8');
+  assert(/manager\/\?autologin=1/.test(demoHtml) && !/manager\/\?demo=1/.test(demoHtml),
+    'split-view manager iframe does not reset shared storage');
+  assert(/autologin=1/.test(mgr) && /не стирает заявку/.test(mgr),
+    'manager login screen warns that demo=1 no longer wipes the client deal');
+  const demoMd = fs.readFileSync(path.join(root, 'DEMO.md'), 'utf8');
+  assert(/\/manager\/\?autologin=1/.test(demoMd) && /\/manager\/\?demo=reset/.test(demoMd),
+    'DEMO.md tells presenter to autologin manager without a second reset');
+  const readme = fs.readFileSync(path.join(root, 'README.md'), 'utf8');
+  assert(/\/manager\/\?autologin=1/.test(readme),
+    'README points manager demo at autologin, not wipe');
+  assert(/CDN GitHub Pages/.test(demoMd),
+    'DEMO.md notes incognito does not bypass Pages CDN');
   const extrasCss = fs.readFileSync(path.join(root, 'css/styles.css'), 'utf8');
   assert(extrasCss.indexOf('.pkg-extras-panel.hidden') > extrasCss.indexOf('.pkg-extras-panel {'),
     'Дополнительно panel .hidden overrides display:flex');
