@@ -145,6 +145,8 @@ function renderApplicationDetail(appId) {
             : (termsKind === 'final'
                 ? '<div class="m-detail-param" style="margin-top:8px;"><div class="m-param-label">Тип условий</div><div class="m-param-value" style="font-size:13px;color:#047857;">Итоговые · полный скоринг</div></div>'
                 : '');
+        var pkgInfo = (typeof getPackageCatalogInfo === 'function') ? getPackageCatalogInfo(app.selectedPackageId) : null;
+        var pkgLabel = (pkgInfo && pkgInfo.title) || app.selectedPackageLabel || '';
 
         container.innerHTML = `
         <div class="m-detail-header">
@@ -171,7 +173,7 @@ function renderApplicationDetail(appId) {
             <div class="m-detail-param"><div class="m-param-label">${rateLabel}</div><div class="m-param-value ${app.rate ? '' : 'pending'}">${app.rate ? app.rate + '%' : 'ожидается'}</div></div>
             <div class="m-detail-param"><div class="m-param-label">${payLabel}</div><div class="m-param-value ${app.payment ? '' : 'pending'}">${app.payment ? '~ ' + Number(app.payment).toLocaleString('ru-RU') + ' ₽' : 'ожидается'}</div></div>
             ${termsNote}
-            ${app.selectedPackageLabel ? '<div class="m-detail-param"><div class="m-param-label">Рекомендуемый пакет условий</div><div class="m-param-value">' + app.selectedPackageLabel + (app.offerValidUntil ? ' <span style="font-size:11px;color:#7e9bb6;">(до ' + app.offerValidUntil + ')</span>' : '') + '</div></div>' : ''}
+            ${pkgLabel ? '<div class="m-detail-param"><div class="m-param-label">Пакет условий</div><div class="m-param-value">' + pkgLabel + (app.offerValidUntil ? ' <span style="font-size:11px;color:#7e9bb6;">(до ' + app.offerValidUntil + ')</span>' : '') + '</div></div>' : ''}
         </div>
         
         <div class="m-section">

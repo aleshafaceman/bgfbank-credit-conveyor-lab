@@ -130,9 +130,11 @@ body { background: linear-gradient(160deg, #e8f0f8 0%, #f0f4f8 45%, #f8fbff 100%
     margin: 0;
     font-size: 15px;
     line-height: 1.55;
-    max-width: 560px;
+    max-width: 720px;
     color: #1e293b;
 }
+.offer-accepted-summary .money,
+.offer-accepted-summary b.money { white-space: nowrap; }
 .offer-accepted-hint {
     margin: 0;
     font-size: 13px;
