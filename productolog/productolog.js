@@ -273,6 +273,7 @@ function saveScore(slug, rowId, el) {
   logAction("PUT", "/riskmanager/" + slug + "/" + rowId, "score=" + row.score);
   state.bus.score_get = "ok";
   save();
+  render();
 }
 
 function deleteRow(slug, rowId) {
@@ -298,6 +299,7 @@ function saveMatrixCell(id, el) {
   logAction("PUT", "/rbp_ltv_matrix/" + id, "score=" + cell.score);
   state.bus.matrix_get = "ok";
   save();
+  render();
 }
 
 async function previewSolver() {
@@ -471,7 +473,9 @@ function renderScale() {
         : '<button type="button" class="btn btn-danger" onclick="deleteRow(\'' + slug + "'," + row.id + ')">Удалить</button>') +
       "</td></tr>";
   }).join("");
-  const probe = slug === "marital_status" ? getScore(slug, "married") : getScore(slug, slug === "ltv" ? 0.5 : 650);
+  const probe = slug === "marital_status" ? getScore(slug, "married")
+    : slug === "ltv" ? getScore(slug, 0.5)
+    : getScore(slug, 600);
   return '<div class="work-inner"><div class="work-head">' +
     "<h1>" + sc.title + "</h1>" +
     '<p class="stage-now">/riskmanager/' + slug + "</p>" +
