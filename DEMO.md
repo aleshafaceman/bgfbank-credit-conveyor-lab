@@ -12,10 +12,9 @@
 - **АРМ сделки ОЗС/ОПЕРУ (мок открытия счёта):** https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/deal-ops/
 - Клиент (кабинет): https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/
 - Менеджер: https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/manager/
-- Split-view: https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/demo.html
 - Репозиторий: https://github.com/aleshafaceman/bgfbank-credit-conveyor-lab
 
-Открывать **только клиент + менеджер** (или `demo.html`). Не использовать `mob_*.html` и standalone scoring HTML.
+Открывать **только клиент + менеджер** (две вкладки). Не использовать `mob_*.html` и standalone scoring HTML.
 
 Хранилище LAB: ключи `bgfbank_lab_*` (отдельно от freeze).
 
@@ -27,7 +26,7 @@
 | `/manager/?autologin=1` | Автологин менеджера **без** сброса (заявка клиента остаётся) |
 | `/manager/?demo=reset` | Явный сброс + автологин менеджера |
 | `/deal-ops/?demo=1` | АРМ сделки: сброс мока, очередь ОЗС |
-| `/?demo=1&checklist=1` | + чеклист ведущего (не в split-view) |
+| `/?demo=1&checklist=1` | + чеклист ведущего |
 
 Клавиша **P** — режим проектора.
 
@@ -42,10 +41,10 @@ SMS/OTP — любой код. Госуслуги — имитация.
 
 ## Перед показом
 
-1. Клиент: `/?demo=1`. Менеджер **в той же сессии**: `/manager/?autologin=1` или просто Войти (`admin` / `manager123`). **Не** открывайте менеджер с `?demo=1` после клиента — раньше это стирало заявку.
+1. Клиент: `/?demo=1`. Менеджер **в той же сессии**: `/manager/?autologin=1` или просто Войти (`admin` / `manager123`). `?demo=1` у менеджера больше не стирает заявку, но для показа используйте `?autologin=1`.
 2. Полный сброс — кнопка «Сбросить демо» у менеджера / клиента или `/manager/?demo=reset`.
 3. После выкладки Pages подождите ~10 минут или **Ctrl+F5**. Режим инкогнито **не** обходит CDN GitHub Pages.
-4. Один браузер, две вкладки (общий `localStorage`). Split-view `demo.html` гоняет два iframe — менеджер там тоже без сброса.
+4. Один браузер, две вкладки (общий `localStorage`). Split-view нет.
 
 Проверка: `node scripts/pre-release-audit.js` (Failed: 0).
 

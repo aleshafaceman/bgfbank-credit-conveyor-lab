@@ -511,9 +511,6 @@ console.log('\n=== 7. HTML script order / critical refs ===');
     'manager resets storage only on demo=reset/manager, not demo=1');
   assert(/manager\/\?autologin=1/.test(clientFeatSrc) && !/manager\/\?demo=1/.test(clientFeatSrc),
     'presenter checklist opens manager without wiping storage');
-  const demoHtml = fs.readFileSync(path.join(root, 'demo.html'), 'utf8');
-  assert(/manager\/\?autologin=1/.test(demoHtml) && !/manager\/\?demo=1/.test(demoHtml),
-    'split-view manager iframe does not reset shared storage');
   assert(/autologin=1/.test(mgr) && /не стирает заявку/.test(mgr),
     'manager login screen warns that demo=1 no longer wipes the client deal');
   const demoMd = fs.readFileSync(path.join(root, 'DEMO.md'), 'utf8');
@@ -588,6 +585,13 @@ console.log('\n=== 7. HTML script order / critical refs ===');
     'action buttons emit data-m-action');
   assert(fs.readFileSync(path.join(root, 'manager/js/navigation.js'), 'utf8').includes("tab === 'applications'"),
     'switchManagerTab preserves applications list on error');
+  assert(!fs.existsSync(path.join(root, 'demo.html')), 'split-view demo.html is removed');
+  const clientLab = fs.readFileSync(path.join(root, 'js/features-lab.js'), 'utf8');
+  const mgrLab = fs.readFileSync(path.join(root, 'manager/js/features-lab.js'), 'utf8');
+  assert(!/embed-mode|split-view|demo\.html/.test(clientLab + mgrLab + index + mgr + extrasCss + mgrCss),
+    'cabinet has no split-view or embed-mode');
+  assert(/max-width:\s*1680px/.test(extrasCss) && /1040px/.test(extrasCss),
+    'client cabinet window is 1680×1040');
 }
 
 console.log('\n=== 8. TrustGate lab app is manager-only ===');
