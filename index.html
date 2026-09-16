@@ -191,8 +191,8 @@
                     <div id="offerAcceptedBlock" class="hidden offer-accepted-block">
                         <div class="offer-accepted-icon"><i class="fas fa-check-circle"></i></div>
                         <h3>Условия зафиксированы</h3>
-                        <p id="acceptedPackageSummary"></p>
-                        <p style="font-size: 13px; color: #7e9bb6;">Менеджер подготовит список документов для финального решения банка.</p>
+                        <p id="acceptedPackageSummary" class="offer-accepted-summary"></p>
+                        <p class="offer-accepted-hint">Менеджер подготовит список документов для финального решения банка.</p>
                         <div class="offer-waiting-manager">
                             <i class="fas fa-user-tie"></i>
                             <div>
@@ -200,8 +200,10 @@
                                 <p>Условия зафиксированы. Менеджер проведёт полный скоринг и сообщит решение.</p>
                             </div>
                         </div>
-                        <button class="btn btn-primary" style="max-width: 320px; margin-top: 16px;" onclick="toggleChat()"><i class="fas fa-comment-dots" style="margin-right:8px;"></i> Написать менеджеру</button>
-                        <button class="btn btn-outline" style="max-width: 320px; margin-top: 10px;" onclick="navigateTo('applications')">К моим заявкам</button>
+                        <div class="offer-accepted-actions">
+                            <button type="button" class="btn btn-primary" onclick="toggleChat()"><i class="fas fa-comment-dots"></i> Написать менеджеру</button>
+                            <button type="button" class="btn btn-outline" onclick="navigateTo('applications')">К моим заявкам</button>
+                        </div>
                     </div>
                 </div>
             </div>

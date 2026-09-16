@@ -112,9 +112,49 @@ body { background: linear-gradient(160deg, #e8f0f8 0%, #f0f4f8 45%, #f8fbff 100%
 .offer-validity { text-align: center; font-size: 13px; color: #7e9bb6; margin-bottom: 16px; }
 .offer-actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-bottom: 8px; }
 .offer-actions .btn { min-width: 220px; }
-.offer-accepted-block { text-align: center; padding: 24px 16px; background: #f0fdf6; border: 1px solid #13A538; border-radius: 16px; margin-top: 20px; }
-.offer-accepted-icon { font-size: 48px; color: #13A538; margin-bottom: 12px; }
-.offer-accepted-block h3 { color: #065f46; margin-bottom: 8px; }
+.offer-accepted-block {
+    text-align: center;
+    padding: 36px 28px 32px;
+    background: #f0fdf6;
+    border: 1px solid #13A538;
+    border-radius: 16px;
+    margin-top: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+}
+.offer-accepted-icon { font-size: 48px; color: #13A538; margin: 0; line-height: 1; }
+.offer-accepted-block h3 { color: #065f46; margin: 0; }
+.offer-accepted-summary {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.55;
+    max-width: 560px;
+    color: #1e293b;
+}
+.offer-accepted-hint {
+    margin: 0;
+    font-size: 13px;
+    color: #7e9bb6;
+    line-height: 1.45;
+    max-width: 480px;
+}
+.offer-accepted-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 16px;
+    width: 100%;
+    margin-top: 8px;
+}
+.offer-accepted-actions .btn {
+    width: auto;
+    min-width: 240px;
+    margin: 0;
+    flex: 0 1 260px;
+}
+.offer-accepted-actions .btn i { margin-right: 8px; }
 .compare-table-wrap { overflow-x: auto; margin: 16px 0 20px; }
 .compare-packages-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .compare-packages-table th, .compare-packages-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #e1e9f1; }
@@ -614,7 +654,7 @@ input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 22p
 .offer-waiting-manager {
     display: flex; gap: 12px; align-items: flex-start; text-align: left;
     background: #eef5fb; border: 1px solid #c9dff3; border-radius: 14px;
-    padding: 14px 16px; max-width: 420px; margin: 0 auto;
+    padding: 14px 16px; max-width: 480px; width: 100%; margin: 4px auto 0;
 }
 .offer-waiting-manager i { color: #0B4697; font-size: 22px; margin-top: 2px; }
 .offer-waiting-manager b { display: block; color: #0B4697; margin-bottom: 4px; }
@@ -709,7 +749,8 @@ body.presentation-mode { background: #08356e; }
 
 @media (max-width: 560px) {
     .app-timeline-step { min-width: 64px; font-size: 10px; }
-    .offer-actions .btn { min-width: 100%; }
+    .offer-actions .btn,
+    .offer-accepted-actions .btn { min-width: 100%; flex: 1 1 100%; }
 }
 
 /* ===== Split-view / iframe embed ===== */
@@ -836,6 +877,8 @@ html.embed-mode .result-card,
 body.embed-mode .result-card { min-width: calc(50% - 6px); flex: 1 1 120px; padding: 14px; }
 html.embed-mode .offer-actions .btn,
 body.embed-mode .offer-actions .btn { min-width: 100%; }
+html.embed-mode .offer-accepted-actions .btn,
+body.embed-mode .offer-accepted-actions .btn { min-width: 100%; flex: 1 1 100%; }
 html.embed-mode .app-detail-actions-row .btn,
 body.embed-mode .app-detail-actions-row .btn { min-width: 100%; }
 
