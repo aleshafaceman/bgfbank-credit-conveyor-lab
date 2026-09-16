@@ -280,6 +280,11 @@ function bindManagerDetailActions(root) {
                 openManagerScoring();
             } else if (act === 'openPrescoring' && typeof openManagerPrescoring === 'function') {
                 openManagerPrescoring();
+            } else if (act === 'uploadDu' && typeof labUploadDocument === 'function') {
+                labUploadDocument(btn.getAttribute('data-doc-name'), appId, {
+                    duId: btn.getAttribute('data-du-id') || '',
+                    actor: 'manager'
+                });
             } else if (act === 'requestExternalDU' && typeof requestExternalDU === 'function') {
                 requestExternalDU(appId, btn.getAttribute('data-du-id'));
             } else if (act === 'open-artifact' && typeof openArtifact === 'function') {
@@ -306,6 +311,21 @@ function bindManagerDetailActions(root) {
         } catch (err) {
             console.error('mAppDetail action click', err);
         }
+    });
+    root.addEventListener('dragover', function(e) {
+        if (e.target && e.target.closest && e.target.closest('[data-m-action="uploadDu"]')) e.preventDefault();
+    });
+    root.addEventListener('drop', function(e) {
+        var zone = e.target && e.target.closest && e.target.closest('[data-m-action="uploadDu"]');
+        if (!zone || (root.contains && !root.contains(zone))) return;
+        e.preventDefault();
+        var file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+        if (!file || typeof labUploadDocument !== 'function') return;
+        labUploadDocument(zone.getAttribute('data-doc-name'), zone.getAttribute('data-app-id'), {
+            file: file,
+            duId: zone.getAttribute('data-du-id') || '',
+            actor: 'manager'
+        });
     });
 }
 
@@ -563,6 +583,8 @@ function getRequiredDUForLabApp(app, clientEsiConnected) {
         var storageKey = app.id + '_' + du.id;
         var savedStatus = (typeof persistedDuStatus === 'function' ? persistedDuStatus(app, du.id) : null) || duStorage[storageKey];
         var status = savedStatus || 'pending';
+        if (status === 'received') status = 'uploaded';
+        if (typeof documentSatisfiesDu === 'function' && documentSatisfiesDu(app, du.id)) status = 'uploaded';
         if (!savedStatus) {
             if (id === 'du09' && innOk) status = 'auto_received';
             else if (id === 'du10' && snilsOk) status = 'auto_received';
@@ -587,7 +609,9 @@ function getRequiredDU(app, clientEsiConnected) {
         if (!du) return;
         var savedStatus = (typeof persistedDuStatus === 'function' ? persistedDuStatus(app, du.id) : null) || duStorage[app.id + '_' + du.id];
         var status = savedStatus || 'pending';
-        if (!savedStatus && du.source === 'esia' && clientEsiConnected) status = 'auto_received';
+        if (status === 'received') status = 'uploaded';
+        if (typeof documentSatisfiesDu === 'function' && documentSatisfiesDu(app, du.id)) status = 'uploaded';
+        if (!savedStatus && status === 'pending' && du.source === 'esia' && clientEsiConnected) status = 'auto_received';
         required.push(duItemFromCatalog(app, du, status));
     });
     return required;
@@ -758,11 +782,12 @@ function getDUStatusFromProfile(duId, clientName) {
 
 function renderDUSection(app) {
     var duList = getRequiredDU(app, true);
+    var duDone = { uploaded: true, auto_received: true, ext_received: true, received: true };
     var counts = {
         total: duList.length,
         auto: duList.filter(function(d){return d.status==='auto_received';}).length,
         ext: duList.filter(function(d){return d.status==='ext_received';}).length,
-        need: duList.filter(function(d){return d.status!=='auto_received' && d.status!=='ext_received';}).length
+        need: duList.filter(function(d){return !duDone[d.status];}).length
     };
     
     var h = '<div class="m-section" style="margin-top:20px;">';
@@ -796,19 +821,31 @@ function renderDUSection(app) {
             h += '<span style="font-size:9px;padding:2px 6px;border-radius:4px;background:' + src.bg + ';color:' + src.color + ';"><i class="fas ' + src.icon + '"></i> ' + src.label + '</span>';
             h += '<span style="font-size:9px;padding:2px 6px;border-radius:4px;background:' + st.bg + ';color:' + st.color + ';">' + st.label + '</span>';
             h += '</div></div>';
-            
-            if (du.status === 'pending') {
+
+            var isDone = !!duDone[du.status];
+            if (!isDone && du.source !== 'esia') {
+                h += '<div class="m-du-actions">';
+                h += '<button type="button" class="m-btn m-btn-primary" style="padding:4px 10px;font-size:10px;white-space:nowrap;" data-m-action="uploadDu" data-app-id="' + String(app.id).replace(/"/g, '&quot;') + '" data-du-id="' + du.id + '" data-doc-name="' + String(du.name).replace(/"/g, '&quot;') + '"><i class="fas fa-upload"></i> Загрузить</button>';
                 if (du.source === 'external') {
-                    h += '<button type="button" class="m-btn m-btn-outline" style="padding:4px 10px;font-size:10px;" data-m-action="requestExternalDU" data-app-id="' + String(app.id).replace(/"/g, '&quot;') + '" data-du-id="' + du.id + '" onclick="requestExternalDU(\'' + String(app.id).replace(/'/g, "\\'") + '\', \'' + du.id + '\')"><i class="fas fa-building"></i> Запросить</button>';
+                    h += '<button type="button" class="m-btn m-btn-outline" style="padding:4px 10px;font-size:10px;" data-m-action="requestExternalDU" data-app-id="' + String(app.id).replace(/"/g, '&quot;') + '" data-du-id="' + du.id + '"><i class="fas fa-building"></i> Запросить</button>';
                 } else if (du.source === 'client') {
-                    h += '<button class="m-btn m-btn-outline" style="padding:4px 10px;font-size:10px;white-space:nowrap;" onclick="requestDUFromClient(\'' + app.id + '\', \'' + du.id + '\', \'' + String(app.client || '').replace(/'/g, "\\'") + '\')"><i class="fas fa-comment-dots"></i> Запросить в чат</button>';
+                    h += '<button type="button" class="m-btn m-btn-outline" style="padding:4px 10px;font-size:10px;white-space:nowrap;" onclick="requestDUFromClient(\'' + app.id + '\', \'' + du.id + '\', \'' + String(app.client || '').replace(/'/g, "\\'") + '\')"><i class="fas fa-comment-dots"></i> В чат</button>';
                 }
+                h += '</div>';
             }
             h += '</div>';
         });
         h += '</div>';
     });
     
+    if (counts.need > 0) {
+        h += '<div class="file-upload-area m-du-dropzone" data-m-action="uploadDu" data-app-id="' + String(app.id).replace(/"/g, '&quot;') + '">';
+        h += '<i class="fas fa-cloud-upload-alt"></i>';
+        h += '<div class="upload-text">Нажмите или перетащите файл сюда</div>';
+        h += '<div class="upload-hint">PDF, JPG или PNG · 2-НДФЛ, ЕГРН или другой документ комплекта</div>';
+        h += '</div>';
+    }
+
     h += '<div style="display:flex;gap:8px;margin-top:12px;">';
     h += '<button class="m-btn m-btn-primary" style="flex:1;padding:10px;font-size:12px;" onclick="requestAllDUFromClient(\'' + app.id + '\', \'' + String(app.client || '').replace(/'/g, "\\'") + '\')"><i class="fas fa-paper-plane"></i> Запросить все ДУ (в чат)</button>';
     h += '</div>';

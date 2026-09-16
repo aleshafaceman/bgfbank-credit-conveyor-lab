@@ -105,7 +105,48 @@ body { background: #f0f4f8; min-height: 100vh; }
 .m-section { display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; }
 .m-section h4 { font-size: 15px; color: #0B4697; margin-bottom: 0; display: flex; align-items: center; gap: 8px; }
 .m-doc-list { display: flex; flex-direction: column; gap: 8px; }
-.m-doc-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #f8fbff; border-radius: 10px; font-size: 13px; }
+.m-du-actions { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
+.m-du-dropzone {
+    border: 2px dashed #cbd5e1;
+    border-radius: 12px;
+    padding: 20px 16px;
+    text-align: center;
+    cursor: pointer;
+    background: #fafbfc;
+}
+.m-du-dropzone:hover { border-color: #0B4697; background: #f0f7ff; }
+.m-du-dropzone i { font-size: 22px; color: #94a3b8; display: block; margin-bottom: 6px; }
+.m-du-dropzone .upload-text { font-size: 13px; color: #64748b; }
+.m-du-dropzone .upload-hint { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+.docs-upload-panel { margin-bottom: 20px; }
+.docs-upload-card {
+    background: white;
+    border: 1px solid #e1e9f1;
+    border-radius: 16px;
+    padding: 20px;
+}
+.docs-upload-title { font-size: 16px; color: #0B4697; margin: 0 0 6px; display: flex; align-items: center; gap: 8px; }
+.docs-upload-desc { font-size: 13px; color: #7e9bb6; margin: 0 0 14px; line-height: 1.5; }
+.docs-need-list { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+.docs-need-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: #fffdf5;
+    border: 1px solid #f59e0b;
+    border-radius: 10px;
+    font-size: 13px;
+    color: #92400e;
+}
+.docs-need-row span { flex: 1; min-width: 0; }
+.docs-received-title { font-size: 15px; color: #0B4697; margin: 0 0 12px; font-weight: 700; }
+.file-upload-area { border: 2px dashed #cbd5e1; border-radius: 12px; padding: 24px; text-align: center; cursor: pointer; background: #fafbfc; }
+.file-upload-area:hover { border-color: #0B4697; background: #f0f7ff; }
+.file-upload-area i { font-size: 28px; color: #94a3b8; margin-bottom: 8px; }
+.file-upload-area .upload-text { font-size: 13px; color: #64748b; }
+.file-upload-area .upload-hint { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+.action-btn { margin-left: auto; padding: 6px 14px; border-radius: 7px; border: 1px solid #f59e0b; background: white; color: #92400e; font-size: 11px; font-weight: 600; cursor: pointer; white-space: nowrap; }
 .m-doc-item i { color: #64748b; }
 .m-doc-item .doc-name { flex: 1; font-weight: 600; color: #1e293b; }
 .m-doc-item .doc-status { font-size: 11px; padding: 3px 8px; border-radius: 6px; font-weight: 600; }

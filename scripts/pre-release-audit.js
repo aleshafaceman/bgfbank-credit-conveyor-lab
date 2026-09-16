@@ -75,7 +75,7 @@ function loadSharedContext() {
   const documentEls = {};
   const needed = [
     'view-applications', 'view-dashboard', 'view-conveyor', 'view-choice',
-    'view-result', 'view-loading', 'view-manual-form', 'view-documents', 'documentsList', 'docsUploadPanel', 'pageTitle', 'pageSubtitle',
+    'view-result', 'view-loading', 'view-manual-form', 'view-documents', 'documentsList', 'docsUploadPanel', 'mDocsUploadPanel', 'pageTitle', 'pageSubtitle',
     'packageSelectionBlock', 'offerAcceptedBlock', 'acceptedPackageSummary',
     'ocenkaPreview', 'ocenkaPreviewText', 'btnEsia', 'btnManual', 'collateralSelect',
     'applicationDetail', 'applicationsList',     'mAppCards', 'mAppDetail', 'mClientDetail', 'mArtFilterApp', 'mDocumentsList',
@@ -570,8 +570,8 @@ console.log('\n=== 7. HTML script order / critical refs ===');
     'README points manager demo at autologin, not wipe');
   assert(/id="docsUploadPanel"/.test(index) && /id="bgfLabFileInput"/.test(index),
     'client documents page has an upload panel and a file input');
-  assert(/pickLabFile/.test(clientFeatSrc) && /bgfLabFileInput/.test(clientFeatSrc),
-    'Загрузить opens a file picker instead of silently accepting a stub');
+  assert(/id="mDocsUploadPanel"/.test(mgr) && /id="bgfLabFileInput"/.test(mgr),
+    'manager documents page has an upload panel and a file input');
   assert(/startClientDocUpload/.test(index),
     'dashboard 2-НДФЛ shortcut goes to document upload');
   assert(/CDN GitHub Pages/.test(demoMd),
@@ -596,6 +596,8 @@ console.log('\n=== 7. HTML script order / critical refs ===');
   assert(/offer-accepted-summary \.money/.test(acceptedCss) && /white-space:\s*nowrap/.test(acceptedCss),
     'accepted summary amounts do not wrap the ₽');
   const artSrc = fs.readFileSync(path.join(root, 'shared/lk-artifacts.js'), 'utf8');
+  assert(/function pickLabFile/.test(artSrc) && /function labUploadDocument/.test(artSrc),
+    'shared upload helper opens a file picker');
   assert(!/Не бланк ELMA/.test(artSrc) && !/Байты файла не хранятся/.test(artSrc),
     'artifact preview has no ELMA/bytes lab disclaimer');
   assert(/art-doc-row/.test(artSrc) && /m-doc-list/.test(artSrc) && /ensureArtifactModal/.test(artSrc) &&
@@ -810,11 +812,38 @@ console.log('\n=== 8. TrustGate lab app is manager-only ===');
     rate: 12.5,
     documents: [{ status: 'missing' }]
   });
-  assert(accSteps.find(s => s.id === 'package').done, 'accepted offer marks package done');
+  assert(accSteps.find(s => s.id === 'package') && accSteps.find(s => s.id === 'package').done === false,
+    'accepted offer does not highlight package until originals are assembled');
   assert(accSteps[accSteps.length - 1] && accSteps[accSteps.length - 1].id === 'package',
     'package is the last manager timeline step');
+  const accIds = accSteps.map(s => s.id);
+  assert(accIds.indexOf('prescore') < accIds.indexOf('docs'),
+    'prescoring comes before documents on the manager timeline');
+  const assembledSteps = ctx.getManagerAppTimelineSteps({
+    id: '4421-И',
+    status: 'decision',
+    packageStatus: 'accepted',
+    selectedPackageId: 'PKG_RECOMMENDED',
+    rate: 12.5,
+    documents: [
+      { name: 'Выписка ЕГРН', status: 'uploaded' },
+      { name: 'Справка 2-НДФЛ', status: 'uploaded' }
+    ]
+  });
+  assert(assembledSteps.find(s => s.id === 'package').done,
+    'package lights up only when the document kit is assembled');
   assert(accSteps.find(s => s.id === 'prescore').done, 'accepted offer marks prescore done');
   assert(accSteps.find(s => s.id === 'scoring').done === false, 'accepted offer is not full scoring');
+  const mgrDuHtml = ctx.renderDUSection(ctx.getAllApplications().find(a => a.id === '4421-И'));
+  assert(/data-m-action="uploadDu"/.test(mgrDuHtml), 'manager DU rows have a Загрузить button');
+  assert(/m-du-dropzone/.test(mgrDuHtml), 'manager DU section has a file dropzone');
+  ctx.labUploadDocument('Справка о доходе или 2-НДФЛ', '4421-И', {
+    file: { name: 'ndfl.pdf', size: 2048 },
+    duId: 'du00',
+    actor: 'manager'
+  });
+  const mgrDuAfter = ctx.renderDUSection(ctx.getAllApplications().find(a => a.id === '4421-И'));
+  assert(/Загружено/.test(mgrDuAfter), 'manager upload marks 2-НДФЛ as Загружено');
   const pkgAcceptSrc = fs.readFileSync(path.join(root, 'js/packages.js'), 'utf8');
   assert(/termsKind: 'preliminary'/.test(pkgAcceptSrc) &&
     /updateApplicationStatus\(\s*activeId,\s*'decision'/.test(pkgAcceptSrc),

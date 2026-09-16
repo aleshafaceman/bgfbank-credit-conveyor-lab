@@ -84,6 +84,8 @@
                         <select id="mArtFilterApp" onchange="refreshDocumentsViews()" name="mArtFilterApp"></select>
                     </label>
                 </div>
+                <div id="mDocsUploadPanel" class="docs-upload-panel"></div>
+                <h3 class="docs-received-title">Полученные документы</h3>
                 <div id="mDocumentsList" class="art-grid"></div>
             </div>
             <div id="m-tab-reports" class="hidden"></div>
@@ -131,6 +133,8 @@
 <div class="s-issue-modal hidden" id="sIssueModal">
     <div class="s-issue-card" id="sIssueModalContent"></div>
 </div>
+
+<input type="file" id="bgfLabFileInput" accept=".pdf,.jpg,.jpeg,.png,.webp" aria-label="Выберите файл документа" hidden>
 
 <script src="../shared/data.js"></script>
 <script src="../shared/lk-application.js"></script>
@@ -214,6 +218,12 @@
             try {
                 if (act === 'openScoring' && typeof openManagerScoring === 'function') openManagerScoring();
                 else if (act === 'openPrescoring' && typeof openManagerPrescoring === 'function') openManagerPrescoring();
+                else if (act === 'uploadDu' && typeof labUploadDocument === 'function') {
+                    labUploadDocument(actionBtn.getAttribute('data-doc-name'), appId, {
+                        duId: actionBtn.getAttribute('data-du-id') || '',
+                        actor: 'manager'
+                    });
+                }
                 else if (act === 'requestExternalDU' && typeof requestExternalDU === 'function') requestExternalDU(appId, actionBtn.getAttribute('data-du-id'));
                 else if (act === 'open-artifact' && typeof openArtifact === 'function') openArtifact(actionBtn.getAttribute('data-art-id'));
                 else if (act === 'open-artifact-kind' && typeof openArtifactByKind === 'function') {

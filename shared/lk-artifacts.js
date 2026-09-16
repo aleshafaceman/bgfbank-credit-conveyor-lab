@@ -824,11 +824,119 @@ function ingestDocumentMeta(appId, docName, file, extra) {
         (typeof isClientIncomeFile === 'function' ? isClientIncomeFile(docName) : /ндфл|справка о доходе/i.test(docName || ''));
     var kind = isEgrn ? 'egrn' : (isNdfl ? 'ndfl' : 'file_meta');
     return recordArtifactForApp(id, kind, {
-        actor: 'client',
+        actor: extra.actor || 'client',
         fn: 'ingestDocumentMeta',
         title: isEgrn ? 'Выписка ЕГРН' : (isNdfl ? 'Справка о доходах' : ('Файл принят · ' + docName)),
         file: meta,
         payload: { docName: docName, duId: duId || undefined }
+    });
+}
+
+function pickLabFile(onPicked) {
+    if (typeof onPicked !== 'function') return;
+    var doc = typeof document !== 'undefined' ? document : null;
+    if (!doc) {
+        onPicked(null);
+        return;
+    }
+    var input = doc.getElementById('bgfLabFileInput');
+    if (!input && typeof doc.createElement === 'function' && doc.body) {
+        input = doc.createElement('input');
+        input.type = 'file';
+        input.id = 'bgfLabFileInput';
+        input.accept = '.pdf,.jpg,.jpeg,.png,.webp';
+        input.setAttribute('aria-label', 'Выберите файл документа');
+        input.style.position = 'absolute';
+        input.style.width = '1px';
+        input.style.height = '1px';
+        input.style.opacity = '0';
+        doc.body.appendChild(input);
+    }
+    if (!input || typeof input.click !== 'function') {
+        onPicked(null);
+        return;
+    }
+    input.value = '';
+    input.onchange = function() {
+        var file = (input.files && input.files[0]) || null;
+        try { input.value = ''; } catch (eVal) {}
+        onPicked(file);
+    };
+    try {
+        input.click();
+    } catch (eClick) {
+        onPicked(null);
+    }
+}
+
+function labUploadDocument(docName, appId, opts) {
+    opts = opts || {};
+    if (typeof loadSharedData === 'function') loadSharedData();
+    var id = appId ||
+        (typeof state !== 'undefined' && (state.selectedApp || state.conveyorAppId)) ||
+        (typeof selectedAppId !== 'undefined' && selectedAppId) ||
+        '';
+    if (!id) {
+        var sel = typeof document !== 'undefined'
+            ? (document.getElementById('artFilterApp') || document.getElementById('mArtFilterApp'))
+            : null;
+        if (sel && sel.value) id = sel.value;
+    }
+    var apps = typeof getAllApplications === 'function' ? getAllApplications() : [];
+    if (!id && apps[0]) id = apps[0].id;
+    id = id || '4421-И';
+    var actor = opts.actor || ((typeof selectedAppId !== 'undefined' && document && document.getElementById('mAppDetail')) ? 'manager' : 'client');
+    var duId = opts.duId || '';
+
+    function finish(file) {
+        var app = apps.find(function(a) { return a && a.id === id; }) ||
+            ((typeof getAllApplications === 'function' ? getAllApplications() : []).find(function(a) { return a && a.id === id; }));
+        var name = docName;
+        if (!name && typeof inferUploadedDocName === 'function') name = inferUploadedDocName(file, app);
+        if (!name) name = (file && file.name) || 'Документ';
+        ingestDocumentMeta(id, name, file || null, { duId: duId, actor: actor });
+        if (typeof duStorage === 'object' && duStorage && duId) {
+            duStorage[id + '_' + duId] = 'uploaded';
+        }
+        var app2 = (typeof getAllApplications === 'function' ? getAllApplications() : []).find(function(a) { return a && a.id === id; });
+        if (app2 && typeof updateApplicationStatus === 'function') {
+            var who = actor === 'manager' ? 'Менеджер приложил' : 'Клиент загрузил';
+            updateApplicationStatus(id, app2.status, app2.statusLabel || app2.status, who + ' документ: «' + name + '»');
+        }
+        if (typeof sendChatMessage === 'function' && app2) {
+            var chatName = app2.client || (typeof getClientDisplayName === 'function' ? getClientDisplayName() : '');
+            if (actor === 'manager') {
+                sendChatMessage('manager', chatName, 'Документ «' + name + '» принят по заявке №' + id + '.', chatName);
+            } else {
+                sendChatMessage('client', chatName, 'Загрузил документ: «' + name + '».', chatName);
+            }
+        }
+        if (typeof refreshClientApplicationsUI === 'function') refreshClientApplicationsUI(id);
+        if (typeof refreshData === 'function') {
+            try { refreshData(); } catch (eRef) {}
+        }
+        if (typeof renderApplicationDetail === 'function') {
+            try { renderApplicationDetail(id); } catch (eDet) {}
+        }
+        if (typeof renderApplicationList === 'function') {
+            try { renderApplicationList(); } catch (eList) {}
+        }
+        if (typeof refreshDocumentsViews === 'function') refreshDocumentsViews();
+        var fname = (file && file.name) || (String(name).replace(/\s+/g, '_') + '.pdf');
+        var fsize = (file && file.size) || 18432;
+        var msg = 'Документ «' + name + '» принят · ' + fname + ' · ' + fsize + ' Б';
+        if (typeof managerNotify === 'function' && actor === 'manager') managerNotify(msg);
+        else if (typeof showDemoToast === 'function') showDemoToast(msg, { icon: 'fa-file-upload', duration: 2500 });
+        else if (typeof showManagerToast === 'function') showManagerToast(msg);
+    }
+
+    if (opts.file) {
+        finish(opts.file);
+        return;
+    }
+    pickLabFile(function(file) {
+        if (!file) return;
+        finish(file);
     });
 }
 
@@ -1067,18 +1175,22 @@ function bindClientDocsUploadPanel(el) {
         if (!btn || !el.contains(btn)) return;
         var action = btn.getAttribute('data-action');
         var appId = btn.getAttribute('data-app-id') || undefined;
+        var actor = el.getAttribute('data-upload-actor') || 'client';
         if (action === 'upload-doc') {
             e.preventDefault();
-            if (typeof uploadMissingDocDemo === 'function') {
-                uploadMissingDocDemo(btn.getAttribute('data-doc-name'), appId, {
-                    duId: btn.getAttribute('data-du-id') || ''
+            var up = typeof labUploadDocument === 'function' ? labUploadDocument : uploadMissingDocDemo;
+            if (typeof up === 'function') {
+                up(btn.getAttribute('data-doc-name'), appId, {
+                    duId: btn.getAttribute('data-du-id') || '',
+                    actor: actor
                 });
             }
             return;
         }
         if (action === 'upload-any-doc') {
             e.preventDefault();
-            if (typeof uploadMissingDocDemo === 'function') uploadMissingDocDemo(null, appId, {});
+            var upAny = typeof labUploadDocument === 'function' ? labUploadDocument : uploadMissingDocDemo;
+            if (typeof upAny === 'function') upAny(null, appId, { actor: actor });
         }
     });
     el.addEventListener('dragover', function(e) {
@@ -1091,26 +1203,37 @@ function bindClientDocsUploadPanel(el) {
         var file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
         if (!file) return;
         var appId = zone.getAttribute('data-app-id') || undefined;
-        if (typeof uploadMissingDocDemo === 'function') {
+        var actor = el.getAttribute('data-upload-actor') || 'client';
+        if (typeof labUploadDocument === 'function') {
+            labUploadDocument(null, appId, { file: file, actor: actor });
+        } else if (typeof uploadMissingDocDemo === 'function') {
             uploadMissingDocDemo(null, appId, { file: file });
         }
     });
 }
 
-function renderClientDocsUploadPanel() {
-    var el = document.getElementById('docsUploadPanel');
+function renderClientDocsUploadPanel(mountId) {
+    mountId = mountId || 'docsUploadPanel';
+    var isManager = mountId === 'mDocsUploadPanel';
+    var el = document.getElementById(mountId);
     if (!el) return;
-    var filterSel = document.getElementById('artFilterApp');
+    el.setAttribute('data-upload-actor', isManager ? 'manager' : 'client');
+    var filterSel = document.getElementById(isManager ? 'mArtFilterApp' : 'artFilterApp');
     var appId = (filterSel && filterSel.value) ||
+        (isManager && typeof selectedAppId !== 'undefined' ? selectedAppId : '') ||
         (typeof state !== 'undefined' && (state.selectedApp || state.conveyorAppId)) || '';
     var apps = typeof getAllApplications === 'function' ? getAllApplications() : [];
     if (typeof visibleCabinetApplications === 'function') {
         apps = visibleCabinetApplications(apps);
     }
     if (!appId) {
-        var name = typeof getClientDisplayName === 'function' ? getClientDisplayName() : '';
-        var first = apps.find(function(a) { return a && a.client === name; }) || apps[0];
-        appId = first && first.id ? first.id : '';
+        if (isManager) {
+            appId = (apps[0] && apps[0].id) || '';
+        } else {
+            var name = typeof getClientDisplayName === 'function' ? getClientDisplayName() : '';
+            var first = apps.find(function(a) { return a && a.client === name; }) || apps[0];
+            appId = first && first.id ? first.id : '';
+        }
     }
     var app = apps.find(function(a) { return a && a.id === appId; });
     if (!app) {
@@ -1167,6 +1290,7 @@ function refreshDocumentsViews(opts) {
     }
     if (document.getElementById('mDocumentsList')) {
         fillArtifactAppFilter('mArtFilterApp', 'manager', opts);
+        renderClientDocsUploadPanel('mDocsUploadPanel');
         renderDocumentsSection('manager', { mountId: 'mDocumentsList' });
     }
 }
@@ -1272,6 +1396,8 @@ if (typeof window !== 'undefined') {
     window.renderClientDocsUploadPanel = renderClientDocsUploadPanel;
     window.recordConveyorConsent = recordConveyorConsent;
     window.ingestDocumentMeta = ingestDocumentMeta;
+    window.pickLabFile = pickLabFile;
+    window.labUploadDocument = labUploadDocument;
     window.renderCpCoverageClientHTML = renderCpCoverageClientHTML;
     window.recordPrescoreProtocol = recordPrescoreProtocol;
     window.recordReviewStarted = recordReviewStarted;

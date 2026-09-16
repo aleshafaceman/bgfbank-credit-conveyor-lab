@@ -60,6 +60,9 @@ function getManagerAppTimelineSteps(app) {
     var scoringDone = approved || rejected || termsKind === 'final';
     var docs = Array.isArray(app.documents) ? app.documents : [];
     var docsDone = !docs.some(function(d) { return d && d.status === 'missing'; });
+    if (docsDone && typeof missingOriginals === 'function') {
+        try { if (missingOriginals(app).length) docsDone = false; } catch (eMiss) {}
+    }
     var isLab = typeof isLkLabApplication === 'function' && isLkLabApplication(app);
     var cp = typeof getCpCoverage === 'function' ? getCpCoverage(app) : null;
     var cpDone = !!(cp && cp.scopes && cp.scopes.passport && cp.scopes.passport.status === 'ok');
@@ -68,11 +71,11 @@ function getManagerAppTimelineSteps(app) {
         { id: 'create', label: 'Заявка', done: true },
         { id: 'esia', label: isLab ? 'ЦП' : 'ЕСИА', done: isLab ? cpDone : true },
         { id: 'collateral', label: 'Залог', done: !!app.collateralValue },
-        { id: 'docs', label: 'Документы', done: docsDone || approved },
         { id: 'prescore', label: 'Прескоринг', done: prescoreDone },
+        { id: 'docs', label: 'Документы', done: docsDone || approved },
         { id: 'scoring', label: 'Скоринг', done: scoringDone },
         { id: 'decision', label: approved ? 'Одобрено' : (rejected ? 'Отказ' : 'Решение'), done: approved || rejected, fail: rejected },
-        { id: 'package', label: 'Пакет', done: accepted }
+        { id: 'package', label: 'Пакет', done: (accepted || approved) && (docsDone || approved) }
     ];
 }
 

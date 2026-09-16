@@ -66,7 +66,7 @@ function getAppTimelineSteps(app) {
         { id: 'docs', label: 'Документы', done: docsDone || approved },
         { id: 'scoring', label: 'Скоринг', done: scoring },
         { id: 'decision', label: approved ? 'Одобрено' : (rejected ? 'Отказ' : 'Решение'), done: approved || rejected, fail: rejected },
-        { id: 'package', label: 'Пакет условий', done: accepted }
+        { id: 'package', label: 'Пакет условий', done: accepted && (docsDone || approved) }
     ];
 }
 
@@ -82,108 +82,18 @@ function renderAppTimelineHTML(app) {
     return h;
 }
 
-function pickLabFile(onPicked) {
-    if (typeof onPicked !== 'function') return;
-    var doc = typeof document !== 'undefined' ? document : null;
-    if (!doc) {
-        onPicked(null);
-        return;
-    }
-    var input = doc.getElementById('bgfLabFileInput');
-    if (!input && typeof doc.createElement === 'function' && doc.body) {
-        input = doc.createElement('input');
-        input.type = 'file';
-        input.id = 'bgfLabFileInput';
-        input.accept = '.pdf,.jpg,.jpeg,.png,.webp';
-        input.setAttribute('aria-label', 'Выберите файл документа');
-        input.style.position = 'absolute';
-        input.style.width = '1px';
-        input.style.height = '1px';
-        input.style.opacity = '0';
-        doc.body.appendChild(input);
-    }
-    if (!input || typeof input.click !== 'function') {
-        onPicked(null);
-        return;
-    }
-    input.value = '';
-    input.onchange = function() {
-        var file = (input.files && input.files[0]) || null;
-        try { input.value = ''; } catch (eVal) {}
-        onPicked(file);
-    };
-    try {
-        input.click();
-    } catch (eClick) {
-        onPicked(null);
-    }
-}
-
-function resolveUploadApp(appId) {
-    if (typeof loadSharedData === 'function') loadSharedData();
-    var id = appId || (typeof state !== 'undefined' && (state.selectedApp || state.conveyorAppId)) || '';
-    var apps = typeof getAllApplications === 'function' ? getAllApplications() : [];
-    if (!id) {
-        var sel = typeof document !== 'undefined' ? document.getElementById('artFilterApp') : null;
-        if (sel && sel.value) id = sel.value;
-    }
-    if (!id && apps.length) id = apps[0].id;
-    return { id: id || '4421-И', app: apps.find(function(a) { return a && a.id === (id || '4421-И'); }) || null };
-}
-
 function uploadMissingDocDemo(docName, appId, opts) {
     opts = opts || {};
-    var resolved = resolveUploadApp(appId);
-    var id = resolved.id;
-    var preset = opts.file || null;
-    var duId = opts.duId || '';
-
-    function finish(file) {
-        var app = resolveUploadApp(id).app;
-        var name = docName;
-        if (!name && typeof inferUploadedDocName === 'function') name = inferUploadedDocName(file, app);
-        if (!name) name = (file && file.name) || 'Документ';
-        if (typeof ingestDocumentMeta === 'function') {
-            ingestDocumentMeta(id, name, file || null, duId ? { duId: duId } : undefined);
-        } else {
-            var apps = typeof getAllApplications === 'function' ? getAllApplications() : [];
-            var found = apps.find(function(a) { return a.id === id; });
-            if (!found) return;
-            if (!Array.isArray(found.documents)) found.documents = [];
-            var doc = found.documents.find(function(d) { return d.name === name; });
-            if (doc) {
-                doc.status = 'uploaded';
-                doc.statusLabel = 'Загружен';
-            } else {
-                found.documents.push({ name: name, status: 'uploaded', statusLabel: 'Загружен' });
-            }
-            if (typeof updateApplication === 'function') updateApplication(id, { documents: found.documents });
-        }
-        var apps2 = typeof getAllApplications === 'function' ? getAllApplications() : [];
-        var app2 = apps2.find(function(a) { return a.id === id; });
-        if (app2 && typeof updateApplicationStatus === 'function') {
-            updateApplicationStatus(id, app2.status, app2.statusLabel || app2.status, 'Клиент загрузил документ: «' + name + '»');
-        }
-        if (typeof sendChatMessage === 'function') {
-            var chatName = typeof getClientDisplayName === 'function' ? getClientDisplayName() : (app2 && app2.client);
-            sendChatMessage('client', chatName, 'Загрузил документ: «' + name + '».', chatName);
-        }
-        if (typeof refreshClientApplicationsUI === 'function') refreshClientApplicationsUI(id);
-        if (typeof refreshDocumentsViews === 'function') refreshDocumentsViews();
-        var fname = (file && file.name) || (String(name).replace(/\s+/g, '_') + '.pdf');
-        var fsize = (file && file.size) || 18432;
-        if (typeof showDemoToast === 'function') {
-            showDemoToast('Документ «' + name + '» принят · ' + fname + ' · ' + fsize + ' Б', { icon: 'fa-file-upload', duration: 2500 });
-        }
-    }
-
-    if (preset) {
-        finish(preset);
+    if (!opts.actor) opts.actor = 'client';
+    if (typeof labUploadDocument === 'function') {
+        labUploadDocument(docName, appId, opts);
         return;
     }
     pickLabFile(function(file) {
-        if (!file) return;
-        finish(file);
+        if (!file && !opts.file) return;
+        if (typeof ingestDocumentMeta === 'function') {
+            ingestDocumentMeta(appId || '4421-И', docName || 'Документ', opts.file || file);
+        }
     });
 }
 
