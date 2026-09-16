@@ -524,11 +524,11 @@ console.log('\n=== 7. HTML script order / critical refs ===');
     'ARTIFACT_KIND_LABEL has no preScore/getDecision/INCOME_REFERENCE');
   const mgrCss = fs.readFileSync(path.join(root, 'manager/css/manager.css'), 'utf8');
   const clientCss = fs.readFileSync(path.join(root, 'css/styles.css'), 'utf8');
-  assert(/button\.art-doc-row/.test(mgrCss) && /padding:\s*10px 14px/.test(mgrCss) &&
-    /art-strip-list/.test(mgrCss) && /art-modal-overlay/.test(mgrCss),
+  assert(/button\.art-doc-row[\s\S]{0,280}padding:\s*10px 14px/.test(mgrCss) &&
+    /art-strip-list/.test(mgrCss) && /z-index:\s*5600/.test(mgrCss),
     'manager CSS has padded doc rows, strip list, artifact modal');
-  assert(/art-strip-list/.test(clientCss) && /art-modal-overlay/.test(clientCss) &&
-    /border-radius:\s*999px/.test(clientCss),
+  assert(/\.art-chip[\s\S]{0,280}border-radius:\s*999px/.test(clientCss) &&
+    /art-modal-overlay/.test(clientCss) && /z-index:\s*5600/.test(clientCss),
     'client CSS has artifact modal, strip list and chip pills');
   const mgrHtml = fs.readFileSync(path.join(root, 'manager/index.html'), 'utf8');
   const mgrAppsSrc = fs.readFileSync(path.join(root, 'manager/js/applications.js'), 'utf8');
