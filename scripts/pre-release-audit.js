@@ -511,8 +511,8 @@ console.log('\n=== 7. HTML script order / critical refs ===');
     'manager resets storage only on demo=reset/manager, not demo=1');
   assert(/manager\/\?autologin=1/.test(clientFeatSrc) && !/manager\/\?demo=1/.test(clientFeatSrc),
     'presenter checklist opens manager without wiping storage');
-  assert(/autologin=1/.test(mgr) && /не стирает заявку/.test(mgr),
-    'manager login screen warns that demo=1 no longer wipes the client deal');
+  assert(/resetManagerDemoData/.test(mgr) && !/не стирает заявку/.test(mgr),
+    'manager login has demo reset and no query-string hint on the form');
   const demoMd = fs.readFileSync(path.join(root, 'DEMO.md'), 'utf8');
   assert(/\/manager\/\?autologin=1/.test(demoMd) && /\/manager\/\?demo=reset/.test(demoMd),
     'DEMO.md tells presenter to autologin manager without a second reset');
