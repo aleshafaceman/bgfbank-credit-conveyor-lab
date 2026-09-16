@@ -158,6 +158,7 @@ function renderApplicationDetail(appId) {
             ${app.client || '—'} <i class="fas fa-external-link-alt" style="font-size:10px;opacity:0.5;"></i>
         </div>
         <div class="m-detail-phone"><i class="fas fa-phone" style="margin-right:4px;"></i> ${app.phone || '—'}</div>
+        ${appOriginNoteHTML(app)}
         ${timelineHtml}
         ${cpHtml}
         ${cpHtml && typeof openArtifactByKind === 'function' ? '<div style="margin:-8px 0 16px;"><button type="button" class="m-btn m-btn-outline" data-m-action="open-artifact-kind" data-art-kind="cp_coverage" data-app-id="' + String(app.id).replace(/"/g, '&quot;') + '"><i class="fas fa-id-card"></i> Открыть выписку ЦП</button></div>' : ''}
@@ -331,9 +332,16 @@ function appOriginKind(app) {
 
 function appOriginBadgeHTML(app) {
     if (appOriginKind(app) === 'lab') {
-        return '<span class="m-card-origin m-card-origin--lab">Лаб. ЦП</span>';
+        return '<span class="m-card-origin m-card-origin--lab" title="Лабораторная заявка: цифровой профиль TrustGate. Это не заявка из клиентского кабинета.">Лаб. ЦП</span>';
     }
-    return '<span class="m-card-origin m-card-origin--conveyor">Конвейер</span>';
+    return '<span class="m-card-origin m-card-origin--conveyor" title="Заявка с конвейера клиентского кабинета.">Конвейер</span>';
+}
+
+function appOriginNoteHTML(app) {
+    if (appOriginKind(app) === 'lab') {
+        return '<p class="m-origin-note">Источник: лабораторный цифровой профиль TrustGate. Не пришла из клиентского кабинета — сценарий только для менеджера.</p>';
+    }
+    return '<p class="m-origin-note">Источник: конвейер клиентского кабинета.</p>';
 }
 
 function renderManagerRateBreakdownHTML(app) {
@@ -412,7 +420,7 @@ function getActionButtons(app) {
         '" onclick="openManagerScoring()"><i class="fas fa-flask"></i> Полный скоринг без комплекта</button>';
     var prescoreStart = mActionButton(id, 'startScoring', 'm-btn-warning', 'fa-robot', 'Запустить прескоринг');
     var prescoreOpen = '<button type="button" class="m-btn m-btn-warning" data-m-action="openPrescoring" data-app-id="' + id +
-        '"><i class="fas fa-robot"></i> Открыть прескоринг</button>';
+        '" onclick="openManagerPrescoring()"><i class="fas fa-robot"></i> Открыть прескоринг</button>';
     var prescoreProtocol = (typeof openArtifactByKind === 'function')
         ? '<button type="button" class="m-btn m-btn-outline" data-m-action="open-artifact-kind" data-art-kind="prescore_protocol" data-app-id="' + id + '"><i class="fas fa-file-alt"></i> Протокол прескоринга</button>'
         : '';
@@ -426,7 +434,7 @@ function getActionButtons(app) {
                     mActionButton(id, 'requestValuation', 'm-btn-outline', 'fa-home', 'Обновить оценку') +
                     mActionButton(id, 'requestDocs', 'm-btn-outline', 'fa-file-upload', 'Запросить документы');
         case 'valuation':
-            return mActionsHint('Прескоринг запущен. Итоговое решение откроется после предварительного результата — оригиналы на этом шаге не нужны.') +
+            return mActionsHint('Идёт прескоринг (паспорт + БКИ). На шкале этап ещё открыт. Итоговое решение и правило оригиналов — только после предварительного результата.') +
                     prescoreOpen +
                     mActionButton(id, 'requestValuation', 'm-btn-outline', 'fa-home', 'Обновить оценку') +
                     mActionButton(id, 'requestDocs', 'm-btn-outline', 'fa-file-upload', 'Запросить документы');

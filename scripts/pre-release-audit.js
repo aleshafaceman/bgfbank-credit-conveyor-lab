@@ -607,6 +607,9 @@ console.log('\n=== 8. TrustGate lab app is manager-only ===');
   const mgrHtml = ctx._els.mAppDetail.innerHTML;
   assert(mgrHtml.includes('cp-coverage'), 'manager 4636 shows CP coverage block');
   assert(mgrHtml.includes('Состояние движка'), 'manager CP block labels FILL_IN as engine state');
+  assert(mgrHtml.includes('Заёмщик') && !mgrHtml.includes('borrowers[0]'),
+    'manager CP borrower row is human-readable');
+  assert(mgrHtml.includes('лабораторный цифровой профиль'), 'lab detail explains origin vs conveyor');
   assert(mgrHtml.includes('кадастр'), 'manager CP block maps realty hole to cadastral');
   assert(mgrHtml.includes('не ждём'), 'manager CP block says family is not a hole');
   assert(mgrHtml.includes('doc-skipped') || mgrHtml.includes('Не пришёл — это норма'),
@@ -636,6 +639,8 @@ console.log('\n=== 8. TrustGate lab app is manager-only ===');
   const valSteps = ctx.getManagerAppTimelineSteps({ id: '4421-И', status: 'valuation', documents: [] });
   assert(valSteps.find(s => s.id === 'prescore') && valSteps.find(s => s.id === 'prescore').done === false,
     'timeline does not mark prescore done while overlay is still running');
+  const valTerms = ctx.appTermsKind({ id: '4421-И', status: 'valuation', rate: 12.5 });
+  assert(valTerms == null, 'valuation has no preliminary terms until prescore finishes');
   const decBtns = ctx.getActionButtons({ id: '4421-И', status: 'decision', rate: 12.5, termsKind: 'preliminary' });
   assert(decBtns.indexOf('Запустить прескоринг') === -1, 'after prescore, prescoring is not offered');
   assert(decBtns.indexOf('Полный скоринг') !== -1, 'after prescore, full scoring is offered');
@@ -701,6 +706,8 @@ console.log('\n=== 8. TrustGate lab app is manager-only ===');
   assert(ctx._els.mAppDetail.innerHTML.includes('Лаб. ЦП'), '4636 detail shows lab badge');
   ctx.selectManagerApp('4421-И');
   assert(ctx._els.mAppDetail.innerHTML.includes('Конвейер'), '4421 detail shows conveyor badge');
+  assert(ctx._els.mAppDetail.innerHTML.includes('конвейер клиентского кабинета'),
+    '4421 detail explains conveyor origin');
   if (typeof ctx.attachEsiaProfileToConveyorApp === 'function') ctx.attachEsiaProfileToConveyorApp('4421-И');
   ctx.selectManagerApp('4421-И');
   assert(ctx._els.mAppDetail.innerHTML.includes('cp-coverage'), 'manager 4421 after ESIA shows CP coverage');
