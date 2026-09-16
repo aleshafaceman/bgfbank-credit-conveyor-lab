@@ -433,6 +433,7 @@ function getRejectedApplicationHTML(app) {
 // ========== ДОПОЛНИТЕЛЬНЫЕ УСЛОВИЯ (ДУ) ДЛЯ КЛИЕНТА ==========
 
 var allDU = [
+    { id:'du00', name:'Справка о доходе или 2-НДФЛ (ДУ тип 0)', cat:'client', trigger:'no_ndfl', source:'client', params:['FIO'] },
     { id:'du01', name:'Выписка из Домовой Книги / поквартирной карточки', cat:'object', trigger:'all', source:'external', params:[] },
     { id:'du02', name:'Документы БТИ по объекту недвижимости', cat:'object', trigger:'old_house', source:'external', params:['CadastralNumber'] },
     { id:'du03', name:'Справка из Росреестра о соответствии адресов', cat:'object', trigger:'address_mismatch', source:'external', params:['CadastralNumber'] },
@@ -468,37 +469,26 @@ var duStatuses = {
 
 function getRequiredDU(app, clientEsiConnected) {
     var required = [];
-    var alwaysRequired = ['du01','du04','du09','du10','du11','du12','du19','du20'];
-    
-    allDU.forEach(function(du) {
-        var needed = false;
-        
-        if (alwaysRequired.indexOf(du.id) !== -1) needed = true;
-        else if (du.trigger === 'married') needed = true;
-        else if (du.trigger === 'has_children') needed = true;
-        else if (du.trigger === 'mortgage') needed = true;
-        
-        if (needed) {
-            var status = 'pending';
-            if (du.source === 'esia' && clientEsiConnected) {
-                status = 'auto_received';
-            }
-            
-            required.push({
-                id: du.id,
-                name: du.name,
-                cat: du.cat,
-                source: du.source,
-                status: status,
-                params: du.params.map(function(p) {
-                    if (p === 'FIO') return 'Александр Кузнецов';
-                    if (p === 'CadastralNumber') return app.collateralAddress || '77:07:0001075:1234';
-                    return '';
-                })
-            });
-        }
+    var ids = (typeof happyPathDuIds === 'function') ? happyPathDuIds(app) : ['du04'];
+    ids.forEach(function(id) {
+        var du = allDU.find(function(d) { return d.id === id; });
+        if (!du) return;
+        var saved = (typeof persistedDuStatus === 'function') ? persistedDuStatus(app, du.id) : null;
+        var status = saved || 'pending';
+        if (!saved && du.source === 'esia' && clientEsiConnected) status = 'auto_received';
+        required.push({
+            id: du.id,
+            name: du.name,
+            cat: du.cat,
+            source: du.source,
+            status: status,
+            params: du.params.map(function(p) {
+                if (p === 'FIO') return (app && app.client) || 'Александр Кузнецов';
+                if (p === 'CadastralNumber') return (app && app.collateralAddress) || '77:07:0001075:1234';
+                return '';
+            })
+        });
     });
-    
     return required;
 }
 
@@ -521,7 +511,9 @@ function renderClientDUSection(app) {
     }
     h += '</div>';
 
-    var clientDUs = duList.filter(function(d) { return d.source === 'client' || d.status === 'uploaded'; });
+    var clientDUs = duList.filter(function(d) {
+        return d.source === 'client' || d.status === 'uploaded' || d.status === 'requested' || d.status === 'received';
+    });
 
     clientDUs.forEach(function(du) {
         var st = duStatuses[du.status] || duStatuses.pending;

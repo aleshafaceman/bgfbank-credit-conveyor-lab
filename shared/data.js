@@ -331,6 +331,9 @@ function addApplication(app) {
     sharedApplications.unshift(newApp);
     buildClientsFromApplications();
     saveSharedData();
+    if (typeof recordShortApplication === 'function') {
+        try { recordShortApplication(newApp); } catch (eC0) {}
+    }
     return newApp;
 }
 

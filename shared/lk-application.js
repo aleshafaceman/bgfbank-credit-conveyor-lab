@@ -700,4 +700,82 @@ function ensureLkDemoApplication() {
     }
 }
 
+function elmaTypeForDuId(duId) {
+    if (duId === 'du00') return 0;
+    if (duId === 'du04' || duId === 'du19' || duId === 'du05' || duId === 'du22') return 2;
+    if (duId === 'du14') return 5;
+    if (duId === 'du15' || duId === 'du21') return 18;
+    if (duId === 'du16') return 7;
+    if (duId === 'du08') return 6;
+    return 1;
+}
+
+function maritalStatusOfApp(app) {
+    if (!app) return null;
+    var b = app.lk && app.lk.borrowers && app.lk.borrowers[0];
+    var raw = (b && (b.marital_status || b.maritalStatus)) || app.maritalStatus || app.marital_status || null;
+    if (!raw) return null;
+    var s = String(raw).toLowerCase();
+    if (s === 'married') return 'married';
+    if (s === 'divorced') return 'divorced';
+    return s;
+}
+
+function readAdditionalConditions(app) {
+    var lk = app && app.lk;
+    return (lk && Array.isArray(lk.additional_conditions)) ? lk.additional_conditions.slice() : [];
+}
+
+function persistedDuStatus(app, duId) {
+    var row = readAdditionalConditions(app).find(function(c) {
+        return c && (c.id === duId || c.du_id === duId);
+    });
+    return row && row.status ? row.status : null;
+}
+
+function persistDuStatus(appId, duId, status, extra) {
+    extra = extra || {};
+    var apps = typeof getAllApplications === 'function' ? getAllApplications() : [];
+    var app = apps.find(function(a) { return a && a.id === appId; });
+    if (!app) return null;
+    var lk = Object.assign({}, app.lk || {});
+    var list = Array.isArray(lk.additional_conditions) ? lk.additional_conditions.slice() : [];
+    var idx = -1;
+    for (var i = 0; i < list.length; i++) {
+        if (list[i] && list[i].id === duId) { idx = i; break; }
+    }
+    var prev = idx >= 0 ? list[idx] : {};
+    var next = Object.assign({}, prev, {
+        id: duId,
+        type: extra.type != null ? extra.type : (prev.type != null ? prev.type : elmaTypeForDuId(duId)),
+        title: extra.title || extra.name || prev.title || duId,
+        status: status,
+        when: prev.when || 'cabinet'
+    });
+    if (idx >= 0) list[idx] = next;
+    else list.push(next);
+    lk.additional_conditions = list;
+    if (typeof updateApplication === 'function') updateApplication(appId, { lk: lk });
+    return next;
+}
+
+function happyPathDuIds(app) {
+    var ids = ['du04'];
+    var cp = typeof getCpCoverage === 'function' ? getCpCoverage(app) : (app && app.lk && app.lk.extra_data && app.lk.extra_data.cp);
+    var ndflOk = !!(cp && cp.scopes && cp.scopes.ndfl && cp.scopes.ndfl.status === 'ok');
+    var docs = (app && app.documents) || [];
+    var ndflDoc = docs.some(function(d) {
+        return d && /ндфл|доход/i.test(d.name || '') && d.status === 'uploaded';
+    });
+    if (!ndflOk && !ndflDoc) ids.push('du00');
+    if (maritalStatusOfApp(app) === 'married') {
+        ids.push('du14');
+        ids.push('du15');
+    }
+    readAdditionalConditions(app).forEach(function(c) {
+        if (c && c.id && ids.indexOf(c.id) === -1) ids.push(c.id);
+    });
+    return ids;
+}
+
 ensureLkDemoApplication();

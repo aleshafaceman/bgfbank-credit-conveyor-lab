@@ -649,8 +649,8 @@ console.log('\n=== 8. TrustGate lab app is manager-only ===');
   assert(!duLabFull.some(d => d.id === 'du00'), 'full CP lab DU has no type-0 income');
 
   const app4421 = ctx.getAllApplications().find(a => a.id === '4421-И');
-  assert(ctx.getRequiredDU(app4421, true).some(d => d.id === 'du14'),
-    'other manager apps still include marriage DU');
+  assert(!ctx.getRequiredDU(app4421, true).some(d => d.id === 'du14'),
+    '4421 happy-path omits marriage DU without marital_status');
 
   ctx.renderApplicationList();
   assert(ctx._els.mAppCards.innerHTML.includes('Лаб. ЦП'), 'list marks 4636 as lab CP');
@@ -769,6 +769,24 @@ console.log('\n=== 9. L3 artifacts registry ===');
   const initHtml = fs.readFileSync(path.join(root, 'manager/index.html'), 'utf8');
   assert(/selectManagerApp\(happyPathId\)/.test(initHtml) && !/selectManagerApp\(typeof LK_LAB_ID/.test(initHtml),
     'manager init opens happy-path 4421, not lab 4636');
+
+  ctx.loadSharedData();
+  ctx.persistDuStatus('4421-И', 'du04', 'requested', { title: 'Выписка ЕГРН', type: 2 });
+  const duRow = ((ctx.getAllApplications().find(a => a.id === '4421-И').lk || {}).additional_conditions || [])
+    .find(c => c && c.id === 'du04');
+  assert(duRow && duRow.status === 'requested' && duRow.type === 2, 'C14 DU persist in additional_conditions');
+  ctx.recordKodInventory('4421-И');
+  const kod = ctx.getArtifact(ctx.artStableId('4421-И', 'kod_inventory'));
+  const kodHtml = ctx.artifactPreviewHTML(kod, ctx.getAllApplications().find(a => a.id === '4421-И'));
+  assert(/Кредитный договор/.test(kodHtml) && /СОПД/.test(kodHtml), 'M12 КОД inventory lists canon titles');
+  ctx.recordReviewStarted('4421-И');
+  assert(ctx.listArtifacts('4421-И').some(a => a.kind === 'review_started'), 'M1 review card recorded');
+  ctx.recordBkiRequest('4421-И');
+  const bkiHtml = ctx.artifactPreviewHTML(ctx.getArtifact(ctx.artStableId('4421-И', 'bki_request')), {});
+  assert(/CREDIT Registry|Loginom/.test(bkiHtml) && !/JVBERi0/.test(bkiHtml), 'C17 BKI request has no XML bytes');
+  ctx.persistPackageModifiers('4421-И', { ltvBoost: true, coBorrower: false, fixedRate: false });
+  const withMods = ctx.getAllApplications().find(a => a.id === '4421-И');
+  assert(withMods.packageModifiers && withMods.packageModifiers.ltvBoost, 'C12 packageModifiers persist on app');
 }
 
 console.log('\n=== Summary ===');
