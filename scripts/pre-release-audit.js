@@ -337,6 +337,18 @@ console.log('\n=== 4. Client applications HTML / CTA ===');
   const approved = ctx.getAllApplications().find(a => a.id === '3890-И');
   const approvedHtml = ctx.getApprovedApplicationHTML(approved);
   assert(!approvedHtml.includes('continue-conveyor'), 'approved app has no continue CTA');
+
+  const approvedStep = ctx.getStepperHTML({ status: 'approved', statusLabel: 'Одобрено' });
+  assert(/mini-step done"><div class="dot"><\/div>Решение/.test(approvedStep),
+    'approved stepper marks Решение done');
+  assert(!/mini-step current"><div class="dot"><\/div>Оценка/.test(approvedStep),
+    'approved stepper is not stuck on Оценка');
+  const valStep = ctx.getStepperHTML('valuation');
+  assert(/mini-step current"><div class="dot"><\/div>Прескоринг/.test(valStep),
+    'valuation stepper is on Прескоринг');
+  const dashSrc = fs.readFileSync(path.join(root, 'js/applications.js'), 'utf8');
+  assert(/dashboard-card \.mini-stepper/.test(dashSrc) && /getStepperHTML\(app\)/.test(dashSrc),
+    'dashboard refresh rewrites the status stepper from the live application');
 }
 
 console.log('\n=== 5. Manager app selection ===');

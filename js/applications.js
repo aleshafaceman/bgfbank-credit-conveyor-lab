@@ -51,20 +51,31 @@ function formatAppTerm(term) {
     return n + ' ' + word;
 }
 
-function getStepperHTML(status) {
+function getStepperHTML(statusOrApp) {
+    var status = statusOrApp;
+    var termsKind = null;
+    if (statusOrApp && typeof statusOrApp === 'object') {
+        status = statusOrApp.status;
+        termsKind = statusOrApp.termsKind || null;
+        if (!termsKind && typeof appTermsKind === 'function') {
+            try { termsKind = appTermsKind(statusOrApp); } catch (eKind) { termsKind = null; }
+        }
+    }
     const steps = ['Параметры', 'Данные', 'Оценка', 'Прескоринг', 'Решение'];
-    let current = 2;
+    var current = 2;
+    var allDone = false;
     if (status === 'new') current = 1;
     else if (status === 'processing') current = 3;
-    else if (status === 'valuation') current = 2;
-    else if (status === 'decision') current = 4;
-    else if (status === 'approved' || status === 'rejected') current = 5;
+    else if (status === 'valuation') current = 4;
+    else if (status === 'decision' || termsKind === 'preliminary') current = 5;
+    else if (status === 'approved' || termsKind === 'final') { current = 5; allDone = true; }
+    else if (status === 'rejected') current = 5;
 
     let h = '<div class="mini-stepper">';
     steps.forEach(function(name, i) {
         const idx = i + 1;
-        let cls = '';
-        if (idx < current) cls = 'done';
+        var cls = '';
+        if (allDone || idx < current) cls = 'done';
         else if (idx === current) cls = 'current';
         if (i > 0) h += '<div class="mini-step-sep"></div>';
         h += '<div class="mini-step ' + cls + '"><div class="dot"></div>' + name + '</div>';
@@ -172,6 +183,8 @@ function refreshDashboard() {
             statusSpan.innerHTML = '<i class="' + meta.icon + '" style="font-size: 10px;"></i> ' + meta.label;
         }
         if (idSpan) idSpan.textContent = '№' + app.id;
+        const stepper = view.querySelector('.dashboard-card .mini-stepper');
+        if (stepper) stepper.outerHTML = getStepperHTML(app);
     }
 
     const notif = view.querySelector('.notif-time');
@@ -349,7 +362,7 @@ function getActiveApplicationHTML(app) {
             ).join('') + '</div>';
     }
 
-    const timeline = typeof renderAppTimelineHTML === 'function' ? renderAppTimelineHTML(app) : getStepperHTML(app.status);
+    const timeline = typeof renderAppTimelineHTML === 'function' ? renderAppTimelineHTML(app) : getStepperHTML(app);
     const printBtn = '<button type="button" class="btn btn-outline app-detail-print" data-action="print-offer"><i class="fas fa-print"></i> Печать оффера</button>';
 
     return `<div class="detail-header">
