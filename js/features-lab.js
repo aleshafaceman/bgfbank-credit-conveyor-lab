@@ -222,8 +222,7 @@ function maybeShowPresenterChecklist(force) {
         '<label><input type="checkbox"> Чат → менеджер</label>' +
         '<label><input type="checkbox"> Скоринг → одобрение</label>' +
         '<label><input type="checkbox"> Тост «Одобрено»</label>' +
-        '<a href="demo.html" target="_blank">Split-view</a>' +
-        '<a href="manager/?demo=1" target="_blank">Менеджер ?demo=1</a>';
+        '<a href="manager/?autologin=1" target="_blank">Менеджер (без сброса)</a>';
     document.body.appendChild(el);
     document.getElementById('bgfChecklistClose').onclick = function() { el.remove(); };
 }

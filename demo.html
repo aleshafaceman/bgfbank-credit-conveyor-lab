@@ -38,7 +38,7 @@
         <div class="actions">
             <button type="button" id="btnReset">Сбросить оба фрейма</button>
             <a href="index.html?demo=1" target="_blank">Клиент отдельно</a>
-            <a href="manager/?demo=1" target="_blank">Менеджер отдельно</a>
+            <a href="manager/?autologin=1" target="_blank">Менеджер отдельно</a>
         </div>
     </header>
     <div class="frames">
@@ -48,14 +48,14 @@
         </section>
         <section class="pane">
             <div class="pane-head">Менеджер</div>
-            <iframe id="frameManager" title="Менеджер" src="manager/?demo=1&embed=1"></iframe>
+            <iframe id="frameManager" title="Менеджер" src="manager/?autologin=1&embed=1"></iframe>
         </section>
     </div>
     <script>
         document.getElementById('btnReset').onclick = function() {
             var t = Date.now();
             document.getElementById('frameClient').src = 'index.html?demo=1&embed=1&t=' + t;
-            document.getElementById('frameManager').src = 'manager/?demo=1&embed=1&t=' + t;
+            document.getElementById('frameManager').src = 'manager/?autologin=1&embed=1&t=' + t;
         };
     </script>
 </body>
