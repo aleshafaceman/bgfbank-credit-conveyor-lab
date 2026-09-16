@@ -515,8 +515,25 @@ console.log('\n=== 7. HTML script order / critical refs ===');
   const artSrc = fs.readFileSync(path.join(root, 'shared/lk-artifacts.js'), 'utf8');
   assert(!/Не бланк ELMA/.test(artSrc) && !/Байты файла не хранятся/.test(artSrc),
     'artifact preview has no ELMA/bytes lab disclaimer');
-  assert(/art-doc-row/.test(artSrc) && /artifactPreviewModal/.test(artSrc),
+  assert(/art-doc-row/.test(artSrc) && /m-doc-list/.test(artSrc) && /ensureArtifactModal/.test(artSrc) &&
+    /artifactPreviewModal/.test(artSrc),
     'manager docs list is rows and opens in-page modal');
+  const kindLabelBlock = (artSrc.match(/var ARTIFACT_KIND_LABEL = \{[\s\S]*?\n\};/) || [''])[0];
+  assert(kindLabelBlock && !/preScore/.test(kindLabelBlock) && !/getDecision/.test(kindLabelBlock) &&
+    !/INCOME_REFERENCE/.test(kindLabelBlock),
+    'ARTIFACT_KIND_LABEL has no preScore/getDecision/INCOME_REFERENCE');
+  const mgrCss = fs.readFileSync(path.join(root, 'manager/css/manager.css'), 'utf8');
+  const clientCss = fs.readFileSync(path.join(root, 'css/styles.css'), 'utf8');
+  assert(/button\.art-doc-row/.test(mgrCss) && /padding:\s*10px 14px/.test(mgrCss) &&
+    /art-strip-list/.test(mgrCss) && /art-modal-overlay/.test(mgrCss),
+    'manager CSS has padded doc rows, strip list, artifact modal');
+  assert(/art-strip-list/.test(clientCss) && /art-modal-overlay/.test(clientCss) &&
+    /border-radius:\s*999px/.test(clientCss),
+    'client CSS has artifact modal, strip list and chip pills');
+  const mgrHtml = fs.readFileSync(path.join(root, 'manager/index.html'), 'utf8');
+  const mgrAppsSrc = fs.readFileSync(path.join(root, 'manager/js/applications.js'), 'utf8');
+  assert(!/снимка eligible/.test(mgrHtml) && !/снимка eligible/.test(mgrAppsSrc),
+    'changePackage copy has no eligible');
   assert(!/Протокол preScore/.test(artSrc) && !/Протокол getDecision/.test(artSrc),
     'artifact labels do not show preScore/getDecision');
   assert(fs.readFileSync(path.join(root, 'js/applications.js'), 'utf8').includes('isLkLabApplication'),
@@ -886,6 +903,16 @@ console.log('\n=== 10. L3 P2 passport / КОД / package ===');
   assert(typeof ctx.getRequiredDU === 'function' &&
     !ctx.getRequiredDU(app4421, true).some(d => d.id === 'du14' || d.id === 'du06'),
     '4421 still omits marriage/children DU');
+  const mgrStrip = ctx.renderManagerArtifactsStrip('4421-И');
+  assert(/m-doc-list/.test(mgrStrip) && /art-doc-row/.test(mgrStrip) && /Все документы/.test(mgrStrip),
+    'manager artifacts strip is document rows');
+  assert(!/class="art-chip"/.test(mgrStrip), 'manager artifacts strip is not a chip run-on');
+  const rateHtml = ctx.renderManagerRateBreakdownHTML(app4421);
+  assert(rateHtml && !/eligible/.test(rateHtml) && !/ЕСИА/.test(rateHtml) && !/LTV/.test(rateHtml),
+    'rate HTML has no eligible / ЕСИА / LTV as shown to user');
+  const labelVals = Object.keys(ctx.ARTIFACT_KIND_LABEL || {}).map(function(k) { return ctx.ARTIFACT_KIND_LABEL[k]; }).join('|');
+  assert(!/preScore|getDecision|INCOME_REFERENCE/.test(labelVals),
+    'runtime ARTIFACT_KIND_LABEL values stay Russian');
 
   const reportsSrc = fs.readFileSync(path.join(root, 'manager/js/reports.js'), 'utf8');
   assert(/listArtifacts/.test(reportsSrc) && !/~2\.5 дня/.test(reportsSrc),

@@ -266,6 +266,8 @@ function bindManagerDetailActions(root) {
         try {
             if (act === 'openScoring' && typeof openManagerScoring === 'function') {
                 openManagerScoring();
+            } else if (act === 'openPrescoring' && typeof openManagerPrescoring === 'function') {
+                openManagerPrescoring();
             } else if (act === 'requestExternalDU' && typeof requestExternalDU === 'function') {
                 requestExternalDU(appId, btn.getAttribute('data-du-id'));
             } else if (act === 'open-artifact' && typeof openArtifact === 'function') {
@@ -274,12 +276,12 @@ function bindManagerDetailActions(root) {
                 openArtifactByKind(appId, btn.getAttribute('data-art-kind'));
             } else if (act === 'changePackage' && typeof applyManagerEligiblePackage === 'function') {
                 var sel = (btn.parentElement && btn.parentElement.querySelector)
-                    ? btn.parentElement.querySelector('[data-eligible-package]')
+                    ? btn.parentElement.querySelector('[data-offered-package]')
                     : null;
                 var pkgId = sel ? sel.value : btn.getAttribute('data-package-id');
                 var next = applyManagerEligiblePackage(appId, pkgId);
                 if (!next) {
-                        if (typeof managerNotify === 'function') managerNotify('Этот пакет клиенту не предлагали');
+                    if (typeof managerNotify === 'function') managerNotify('Этот пакет клиенту не предлагали');
                 } else {
                     if (typeof managerNotify === 'function') managerNotify('Пакет сменён: ' + (next.selectedPackageLabel || pkgId));
                     if (typeof renderApplicationDetail === 'function') renderApplicationDetail(appId);
@@ -302,10 +304,9 @@ function mActionButton(id, action, cls, icon, label) {
 
 function appTermsKind(app) {
     if (!app) return null;
+    if (app.status === 'valuation') return null;
     if (app.termsKind === 'final' || app.status === 'approved' || app.status === 'rejected') return 'final';
-    if (app.termsKind === 'preliminary' || app.status === 'decision' || app.status === 'valuation') {
-        return app.rate != null ? 'preliminary' : (app.status === 'valuation' ? 'preliminary' : null);
-    }
+    if (app.termsKind === 'preliminary' || app.status === 'decision') return 'preliminary';
     if (app.rate != null && app.status !== 'new' && app.status !== 'processing') return 'preliminary';
     return null;
 }
@@ -354,7 +355,7 @@ function renderManagerRateBreakdownHTML(app) {
     }) : [];
     if (snap.length) {
         h += '<div class="m-pkg-change"><label>Сменить пакет из предложенных клиенту</label>';
-        h += '<select data-eligible-package="' + String(app.id).replace(/"/g, '&quot;') + '">';
+        h += '<select data-offered-package="' + String(app.id).replace(/"/g, '&quot;') + '">';
         snap.forEach(function(p) {
             var sel = p.id === app.selectedPackageId ? ' selected' : '';
             h += '<option value="' + artEscapePkg(p.id) + '"' + sel + '>' + artEscapePkg(p.title || p.id) +
@@ -409,34 +410,38 @@ function getActionButtons(app) {
         '" onclick="openManagerScoring()"><i class="fas fa-flask"></i> Полный скоринг</button>';
     var scoringSkip = '<button type="button" class="m-btn m-btn-outline" data-m-action="openScoring" data-app-id="' + id +
         '" onclick="openManagerScoring()"><i class="fas fa-flask"></i> Полный скоринг без комплекта</button>';
-    var prescore = mActionButton(id, 'startScoring', 'm-btn-warning', 'fa-robot', 'Запустить прескоринг');
+    var prescoreStart = mActionButton(id, 'startScoring', 'm-btn-warning', 'fa-robot', 'Запустить прескоринг');
+    var prescoreOpen = '<button type="button" class="m-btn m-btn-warning" data-m-action="openPrescoring" data-app-id="' + id +
+        '"><i class="fas fa-robot"></i> Открыть прескоринг</button>';
+    var prescoreProtocol = (typeof openArtifactByKind === 'function')
+        ? '<button type="button" class="m-btn m-btn-outline" data-m-action="open-artifact-kind" data-art-kind="prescore_protocol" data-app-id="' + id + '"><i class="fas fa-file-alt"></i> Протокол прескоринга</button>'
+        : '';
     switch(app.status) {
         case 'new':
             return mActionButton(id, 'requestDocs', 'm-btn-primary', 'fa-file-upload', 'Запросить документы') +
                     mActionButton(id, 'startReview', 'm-btn-outline', 'fa-play', 'Начать рассмотрение');
         case 'processing':
-            return mActionsHint('Прескоринг — первый этап: паспорт и запрос в БКИ. Предварительные условия, не финальное одобрение.') +
-                    prescore +
+            return mActionsHint('Сначала прескоринг: паспорт и запрос в БКИ. Оригиналы для полного скоринга на этом шаге не нужны.') +
+                    prescoreStart +
                     mActionButton(id, 'requestValuation', 'm-btn-outline', 'fa-home', 'Обновить оценку') +
                     mActionButton(id, 'requestDocs', 'm-btn-outline', 'fa-file-upload', 'Запросить документы');
         case 'valuation':
-            return mActionsHint('Идёт прескоринг (паспорт + БКИ). Полный скоринг станет доступен после предварительного решения.') +
-                    prescore +
+            return mActionsHint('Прескоринг запущен. Полный скоринг появится после предварительного решения — комплект оригиналов пока не требуется.') +
+                    prescoreOpen +
                     mActionButton(id, 'requestValuation', 'm-btn-outline', 'fa-home', 'Обновить оценку') +
                     mActionButton(id, 'requestDocs', 'm-btn-outline', 'fa-file-upload', 'Запросить документы');
         case 'decision':
             var missing = missingOriginals(app);
             if (missing.length) {
                 return mActionsHint('Прескоринг пройден. Для полного скоринга не хватает оригиналов: ' + missing.join('; ') + '.', 'm-actions-hint--warn') +
-                    mActionButton(id, 'requestDocs', 'm-btn-primary', 'fa-file-upload', 'Запросить оригиналы') +
                     scoringSkip +
+                    mActionButton(id, 'requestDocs', 'm-btn-outline', 'fa-file-upload', 'Запросить оригиналы') +
+                    prescoreProtocol +
                     mActionButton(id, 'reject', 'm-btn-danger', 'fa-times', 'Клиент не подходит');
             }
             return mActionsHint('Прескоринг пройден. Комплект оригиналов собран — можно запускать полный скоринг.') +
                     scoringPrimary +
-                    (typeof openArtifactByKind === 'function'
-                        ? '<button type="button" class="m-btn m-btn-outline" data-m-action="open-artifact-kind" data-art-kind="prescore_protocol" data-app-id="' + id + '"><i class="fas fa-file-alt"></i> Протокол прескоринга</button>'
-                        : '') +
+                    prescoreProtocol +
                     mActionButton(id, 'reject', 'm-btn-danger', 'fa-times', 'Клиент не подходит');
         case 'approved':
             return mActionButton(id, 'sendContract', 'm-btn-outline', 'fa-signature', 'Отправить договор') +
@@ -491,7 +496,7 @@ var duSources = {
 
 var duStatuses = {
     pending: { icon:'fa-circle', label:'Ожидает', color:'#94a3b8', bg:'#f1f5f9' },
-    auto_received: { icon:'fa-check-circle', label:'Получено (ЕСИА)', color:'#1e40af', bg:'#dbeafe' },
+    auto_received: { icon:'fa-check-circle', label:'Получено через Госуслуги', color:'#1e40af', bg:'#dbeafe' },
     ext_received: { icon:'fa-check-circle', label:'Получено (сервис)', color:'#5b21b6', bg:'#ede9fe' },
     requested: { icon:'fa-clock', label:'Запрошено у клиента', color:'#f59e0b', bg:'#fef3c7' },
     uploaded: { icon:'fa-check-circle', label:'Загружено', color:'#13A538', bg:'#d1fae5' },
