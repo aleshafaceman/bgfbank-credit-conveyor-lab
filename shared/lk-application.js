@@ -402,7 +402,7 @@ function documentsFromCp(lk) {
     return [
         doc('Паспорт (разворот)', scopes.passport, 'Из ЦП (TrustGate)', 'Нет в ЦП'),
         doc('ИНН / СНИЛС', scopes.inn, 'Из ЦП (TrustGate)', 'Нет в ЦП'),
-        doc('Данные о доходе (2-НДФЛ)', scopes.ndfl, 'INCOME_REFERENCE из ЦП', 'ЦП не вернул — ДУ тип 0'),
+        doc('Данные о доходе (2-НДФЛ)', scopes.ndfl, 'INCOME_REFERENCE из ЦП', 'ЦП не вернул — нужна справка о доходе'),
         doc('СЗИ-6', scopes.szi6, 'Из ЦП (редко)', 'Не пришёл — это норма', 'Не пришёл — это норма'),
         { name: 'Выписка ЕГРН', status: 'missing', statusLabel: 'Нужен кадастр, не ЦП' }
     ];
@@ -493,7 +493,7 @@ function flattenLkToLabApp(lk) {
         history: [
             {
                 text: patched
-                    ? ('TrustGate: ' + ((cp && cp.purposes) || []).join(', ') + (ndflOk ? '. 2-НДФЛ есть.' : '. 2-НДФЛ нет — ДУ тип 0.'))
+                    ? ('TrustGate: ' + ((cp && cp.purposes) || []).join(', ') + (ndflOk ? '. 2-НДФЛ есть.' : '. 2-НДФЛ нет — нужна справка о доходе.'))
                     : 'Создан каркас анкеты, цифровой профиль ещё не запрашивали',
                 date: LK_LAB_DATE,
                 current: true
@@ -521,9 +521,9 @@ function cpActionItems(cp) {
     var items = [];
     var ndfl = scopes.ndfl || {};
     if (ndfl.status === 'ok') {
-        items.push({ kind: 'ok', text: '2-НДФЛ есть — доход из ЦП, ДУ тип 0 не ставим.' });
+        items.push({ kind: 'ok', text: '2-НДФЛ есть — доход из ЦП.' });
     } else {
-        items.push({ kind: 'need', text: '2-НДФЛ нет — поставить ДУ тип 0 (справка о доходе).' });
+        items.push({ kind: 'need', text: '2-НДФЛ нет — нужна справка о доходе.' });
     }
     items.push({ kind: 'need', text: 'Квартиры из ЦП не берём — дальше кадастр и ЕГРН.' });
     items.push({ kind: 'skip', text: 'Семью ЦП не отдаёт — не ждём.' });

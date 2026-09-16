@@ -68,11 +68,11 @@ function getManagerAppTimelineSteps(app) {
         { id: 'create', label: 'Заявка', done: true },
         { id: 'esia', label: isLab ? 'ЦП' : 'ЕСИА', done: isLab ? cpDone : true },
         { id: 'collateral', label: 'Залог', done: !!app.collateralValue },
-        { id: 'package', label: 'Пакет', done: accepted },
         { id: 'docs', label: 'Документы', done: docsDone || approved },
         { id: 'prescore', label: 'Прескоринг', done: prescoreDone },
         { id: 'scoring', label: 'Скоринг', done: scoringDone },
-        { id: 'decision', label: approved ? 'Одобрено' : (rejected ? 'Отказ' : 'Решение'), done: approved || rejected, fail: rejected }
+        { id: 'decision', label: approved ? 'Одобрено' : (rejected ? 'Отказ' : 'Решение'), done: approved || rejected, fail: rejected },
+        { id: 'package', label: 'Пакет', done: accepted }
     ];
 }
 

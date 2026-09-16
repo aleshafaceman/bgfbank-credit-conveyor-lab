@@ -337,6 +337,18 @@ console.log('\n=== 4. Client applications HTML / CTA ===');
   const approved = ctx.getAllApplications().find(a => a.id === '3890-И');
   const approvedHtml = ctx.getApprovedApplicationHTML(approved);
   assert(!approvedHtml.includes('continue-conveyor'), 'approved app has no continue CTA');
+
+  const approvedStep = ctx.getStepperHTML({ status: 'approved', statusLabel: 'Одобрено' });
+  assert(/mini-step done"><div class="dot"><\/div>Решение/.test(approvedStep),
+    'approved stepper marks Решение done');
+  assert(!/mini-step current"><div class="dot"><\/div>Оценка/.test(approvedStep),
+    'approved stepper is not stuck on Оценка');
+  const valStep = ctx.getStepperHTML('valuation');
+  assert(/mini-step current"><div class="dot"><\/div>Прескоринг/.test(valStep),
+    'valuation stepper is on Прескоринг');
+  const dashSrc = fs.readFileSync(path.join(root, 'js/applications.js'), 'utf8');
+  assert(/dashboard-card \.mini-stepper/.test(dashSrc) && /getStepperHTML\(app\)/.test(dashSrc),
+    'dashboard refresh rewrites the status stepper from the live application');
 }
 
 console.log('\n=== 5. Manager app selection ===');
@@ -511,8 +523,8 @@ console.log('\n=== 7. HTML script order / critical refs ===');
     'manager resets storage only on demo=reset/manager, not demo=1');
   assert(/manager\/\?autologin=1/.test(clientFeatSrc) && !/manager\/\?demo=1/.test(clientFeatSrc),
     'presenter checklist opens manager without wiping storage');
-  assert(/autologin=1/.test(mgr) && /не стирает заявку/.test(mgr),
-    'manager login screen warns that demo=1 no longer wipes the client deal');
+  assert(/resetManagerDemoData/.test(mgr) && !/не стирает заявку/.test(mgr),
+    'manager login has demo reset and no query-string hint on the form');
   const demoMd = fs.readFileSync(path.join(root, 'DEMO.md'), 'utf8');
   assert(/\/manager\/\?autologin=1/.test(demoMd) && /\/manager\/\?demo=reset/.test(demoMd),
     'DEMO.md tells presenter to autologin manager without a second reset');
@@ -570,6 +582,29 @@ console.log('\n=== 7. HTML script order / critical refs ===');
     'client detail does not render TrustGate coverage block');
   assert(fs.readFileSync(path.join(root, 'manager/js/applications.js'), 'utf8').includes('renderCpCoverageHTML'),
     'manager detail still renders TrustGate coverage block');
+  const duNameSrc = fs.readFileSync(path.join(root, 'manager/js/applications.js'), 'utf8') +
+    fs.readFileSync(path.join(root, 'js/applications.js'), 'utf8') +
+    fs.readFileSync(path.join(root, 'manager/js/scoring.js'), 'utf8') +
+    fs.readFileSync(path.join(root, 'shared/lk-application.js'), 'utf8');
+  assert(!/ДУ тип 0/.test(duNameSrc),
+    'cabinet copy does not show ДУ тип 0');
+  assert(/for="authPhone"/.test(index) && /name="authPhone"/.test(index),
+    'login phone field has associated label and name');
+  (function () {
+    const html = index + fs.readFileSync(path.join(root, 'manager/index.html'), 'utf8');
+    const bare = html.match(/<(input|select|textarea)(?![^>]*(?:\sid=|\sname=))[^>]*>/gi) || [];
+    assert(bare.length === 0, 'cabinet controls have id or name');
+    const dangling = [];
+    const lr = /<label([^>]*)>([\s\S]*?)<\/label>/gi;
+    let m;
+    while ((m = lr.exec(html))) {
+      const hasFor = /\bfor=/.test(m[1] || '');
+      const wraps = /<(input|select|textarea)\b/i.test(m[2] || '');
+      if (!hasFor && !wraps) dangling.push(m[2].replace(/<[^>]+>/g, ' ').trim().slice(0, 40));
+    }
+    assert(dangling.length === 0, 'cabinet labels are associated with fields' +
+      (dangling.length ? ' (' + dangling.join(', ') + ')' : ''));
+  }());
 
   // onclick / data-action refs that must exist
   assert(index.includes('continueOrStartApplication') || true, 'dashboard continue present');
@@ -592,6 +627,34 @@ console.log('\n=== 7. HTML script order / critical refs ===');
     'cabinet has no split-view or embed-mode');
   assert(/max-width:\s*1680px/.test(extrasCss) && /1040px/.test(extrasCss),
     'client cabinet window is 1680×1040');
+  const profileTabs = (index.match(/<div class="profile-tabs">[\s\S]*?<\/div>/) || [''])[0];
+  assert(profileTabs.indexOf('Личные данные') < profileTabs.indexOf('Моя недвижимость'),
+    'profile tabs put personal data first');
+  assert(fs.readFileSync(path.join(root, 'js/navigation.js'), 'utf8').includes("switchProfileTab('personal')"),
+    'profile page opens on personal data');
+  const clientsSrc = fs.readFileSync(path.join(root, 'manager/js/clients.js'), 'utf8');
+  const chatSrc = fs.readFileSync(path.join(root, 'manager/js/chat.js'), 'utf8');
+  assert(/m-split-layout/.test(clientsSrc) && !/height:600px/.test(clientsSrc),
+    'clients tab is not clipped to 600px');
+  assert(/m-split-layout/.test(chatSrc) && !/height:600px/.test(chatSrc),
+    'chat tab is not clipped to 600px');
+  assert(/auto-fill,\s*minmax\(220px/.test(mgrCss),
+    'manager info fields do not stretch across half the screen');
+  const mgrAppsLayout = fs.readFileSync(path.join(root, 'manager/js/applications.js'), 'utf8');
+  assert(!/margin:-8px 0 16px/.test(mgrAppsLayout),
+    'CP statement button is not pulled into the coverage list');
+  assert(/m-detail-stack/.test(mgrAppsLayout) && /cp-coverage-open/.test(mgrAppsLayout),
+    'manager stacks CP coverage, statement button and rate breakdown');
+  assert(/\.m-detail-stack\s*\{[^}]*display:\s*flex[^}]*flex-direction:\s*column[^}]*gap:\s*16px/.test(mgrCss),
+    'CP coverage, statement button and rate breakdown have 16px gap');
+  assert(/\.m-section\s*\{[^}]*display:\s*flex[^}]*flex-direction:\s*column[^}]*gap:\s*12px/.test(mgrCss),
+    'manager sections stack heading and body with 12px gap');
+  assert(/Личные данные/.test(clientsSrc) && /client\.passport/.test(clientsSrc) &&
+    /client\.workplace/.test(clientsSrc) && /Недвижимость/.test(clientsSrc) &&
+    /Документы/.test(clientsSrc),
+    'client profile still renders personal, work, property and document fields');
+  assert(/\.action-list\s*\{[^}]*display:\s*flex[^}]*flex-direction:\s*column[^}]*gap:\s*12px/.test(clientCss),
+    'necessary-actions rows have 12px gap so they do not overlap');
 }
 
 console.log('\n=== 8. TrustGate lab app is manager-only ===');
@@ -705,6 +768,8 @@ console.log('\n=== 8. TrustGate lab app is manager-only ===');
     documents: [{ status: 'missing' }]
   });
   assert(accSteps.find(s => s.id === 'package').done, 'accepted offer marks package done');
+  assert(accSteps[accSteps.length - 1] && accSteps[accSteps.length - 1].id === 'package',
+    'package is the last manager timeline step');
   assert(accSteps.find(s => s.id === 'prescore').done, 'accepted offer marks prescore done');
   assert(accSteps.find(s => s.id === 'scoring').done === false, 'accepted offer is not full scoring');
   const pkgAcceptSrc = fs.readFileSync(path.join(root, 'js/packages.js'), 'utf8');
@@ -727,8 +792,9 @@ console.log('\n=== 8. TrustGate lab app is manager-only ===');
   const scoringCode = fs.readFileSync(path.join(root, 'manager/js/scoring.js'), 'utf8');
   vm.runInNewContext(scoringCode, ctx, { filename: 'manager/js/scoring.js' });
   const noNdflSteps = ctx.scoringStepsForApp(ctx.applyTrustGateToApplication(ctx.createFillInApplication(), 'no_ndfl'));
-  assert(noNdflSteps[2] && /ДУ тип 0/.test(noNdflSteps[2].detail_ok),
-    'scoring income step mentions DU type 0 without 2-НДФЛ');
+  assert(noNdflSteps[2] && /справка о доходе/.test(noNdflSteps[2].detail_ok) &&
+    !/ДУ тип 0/.test(noNdflSteps[2].detail_ok),
+    'scoring income step asks for income certificate without DU type 0');
   const fullApp = ctx.getAllApplications().find(a => a.id === '4636-И');
   const fullSteps = ctx.scoringStepsForApp(fullApp);
   assert(fullSteps[6] && /3/.test(fullSteps[6].detail_ok),
@@ -739,7 +805,8 @@ console.log('\n=== 8. TrustGate lab app is manager-only ===');
 
   const noNdfl = ctx.applyTrustGateToApplication(ctx.createFillInApplication(), 'no_ndfl');
   const noNdflHtml = ctx.renderCpCoverageHTML(noNdfl);
-  assert(noNdflHtml.includes('ДУ тип 0'), 'no_ndfl profile tells manager to set DU type 0');
+  assert(/справка о доходе/.test(noNdflHtml) && !/ДУ тип 0/.test(noNdflHtml),
+    'no_ndfl profile asks for income certificate without DU type 0');
   assert(ctx.cpActionItems(noNdfl.extra_data.cp).some(i => i.kind === 'need' && i.text.indexOf('2-НДФЛ') !== -1),
     'no_ndfl action item is a need');
 
@@ -839,10 +906,29 @@ console.log('\n=== 8. TrustGate lab app is manager-only ===');
   ctx.scoringOverlayChrome('4636-И', labAfterDu, 'prescore');
   assert(overlay.classList.contains('mode-prescore'), 'overlay gets prescore mode class');
   assert(ctx._els.sModeBadge.textContent === 'Прескоринг', 'overlay badge says prescoring');
+  assert(/Запустить прескоринг/.test(ctx._els.sRunBtn.innerHTML) &&
+    !/повторно/.test(ctx._els.sRunBtn.innerHTML),
+    'first prescore run is not labeled повторно');
   ctx.scoringOverlayChrome('4636-И', labAfterDu, 'full');
   assert(overlay.classList.contains('mode-full'), 'overlay gets full mode class');
   assert(!overlay.classList.contains('mode-prescore'), 'full mode drops prescore class');
   assert(ctx._els.sModeBadge.textContent === 'Полный скоринг', 'overlay badge says full scoring');
+  assert(/Запустить скоринг/.test(ctx._els.sRunBtn.innerHTML) &&
+    !/повторно/.test(ctx._els.sRunBtn.innerHTML),
+    'first full scoring run is not labeled повторно');
+  ctx.scoringOverlayChrome('4636-И', Object.assign({}, labAfterDu, {
+    status: 'decision', termsKind: 'preliminary'
+  }), 'prescore');
+  assert(/Запустить прескоринг повторно/.test(ctx._els.sRunBtn.innerHTML),
+    'after prescore the overlay offers a repeat run');
+  ctx.scoringOverlayChrome('4636-И', Object.assign({}, labAfterDu, {
+    status: 'approved', termsKind: 'final'
+  }), 'full');
+  assert(/Запустить скоринг повторно/.test(ctx._els.sRunBtn.innerHTML),
+    'after full scoring the overlay offers a repeat run');
+  ctx.setScoringRunButton('full', true);
+  assert(/Запустить скоринг повторно/.test(ctx._els.sRunBtn.innerHTML),
+    'result screen relabels the run button as повторно');
 
   ctx.duStorage = {};
   ctx.updateApplication('4636-И', { documents: labDocsSnapshot.map(d => Object.assign({}, d)) });

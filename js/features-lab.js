@@ -63,10 +63,10 @@ function getAppTimelineSteps(app) {
         { id: 'create', label: 'Заявка', done: true },
         { id: 'esia', label: 'ЕСИА / данные', done: true },
         { id: 'collateral', label: 'Залог', done: !!app.collateralValue },
-        { id: 'package', label: 'Пакет условий', done: accepted },
         { id: 'docs', label: 'Документы', done: docsDone || approved },
         { id: 'scoring', label: 'Скоринг', done: scoring },
-        { id: 'decision', label: approved ? 'Одобрено' : (rejected ? 'Отказ' : 'Решение'), done: approved || rejected, fail: rejected }
+        { id: 'decision', label: approved ? 'Одобрено' : (rejected ? 'Отказ' : 'Решение'), done: approved || rejected, fail: rejected },
+        { id: 'package', label: 'Пакет условий', done: accepted }
     ];
 }
 
@@ -192,12 +192,12 @@ function maybeShowPresenterChecklist(force) {
     el.id = 'bgfChecklist';
     el.className = 'bgf-checklist';
     el.innerHTML = '<div class="bgf-checklist-head"><b>Скрипт ведущего</b><button type="button" id="bgfChecklistClose">×</button></div>' +
-        '<label><input type="checkbox"> Сброс демо</label>' +
-        '<label><input type="checkbox"> Клиент: залог + ЕСИА</label>' +
-        '<label><input type="checkbox"> Пакет «Турбо 2.0»</label>' +
-        '<label><input type="checkbox"> Чат → менеджер</label>' +
-        '<label><input type="checkbox"> Скоринг → одобрение</label>' +
-        '<label><input type="checkbox"> Тост «Одобрено»</label>' +
+        '<label><input type="checkbox" id="cl-reset" name="cl-reset"> Сброс демо</label>' +
+        '<label><input type="checkbox" id="cl-esia" name="cl-esia"> Клиент: залог + ЕСИА</label>' +
+        '<label><input type="checkbox" id="cl-turbo" name="cl-turbo"> Пакет «Турбо 2.0»</label>' +
+        '<label><input type="checkbox" id="cl-chat" name="cl-chat"> Чат → менеджер</label>' +
+        '<label><input type="checkbox" id="cl-scoring" name="cl-scoring"> Скоринг → одобрение</label>' +
+        '<label><input type="checkbox" id="cl-toast" name="cl-toast"> Тост «Одобрено»</label>' +
         '<a href="manager/?autologin=1" target="_blank">Менеджер (без сброса)</a>';
     document.body.appendChild(el);
     document.getElementById('bgfChecklistClose').onclick = function() { el.remove(); };

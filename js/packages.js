@@ -222,7 +222,7 @@ function renderPackageCards() {
             : '';
 
         return '<label class="pkg-card' + (selected ? ' selected' : '') + (pkg.recommended ? ' featured' : '') + '" data-pkg="' + pkg.id + '">' +
-            '<input type="radio" name="offerPackage" value="' + pkg.id + '"' + (selected ? ' checked' : '') + ' onchange="selectOfferPackage(\'' + pkg.id + '\')">' +
+            '<input type="radio" id="offerPackage-' + pkg.id + '" name="offerPackage" value="' + pkg.id + '"' + (selected ? ' checked' : '') + ' onchange="selectOfferPackage(\'' + pkg.id + '\')">' +
             '<div class="pkg-card-head">' + badge + '<div class="pkg-title">' + pkg.title + '</div></div>' +
             recDelta +
             '<div class="pkg-metrics">' +

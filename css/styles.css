@@ -327,8 +327,8 @@ input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 22p
 .client-du-meta { font-size: 11px; color: #94a3b8; margin-bottom: 6px; }
 .client-du-status { display: inline-block; font-size: 10px; padding: 3px 8px; border-radius: 6px; font-weight: 600; }
 .client-du-upload { flex-shrink: 0; padding: 8px 14px; font-size: 11px; background: #0B4697; color: white; border: none; border-radius: 8px; cursor: pointer; }
-.action-list { margin-top: 24px; margin-bottom: 20px; padding-top: 24px; border-top: 1px solid #e1e9f1; clear: both; }
-.action-list h4 { font-size: 14px; color: #0B4697; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+.action-list { display: flex; flex-direction: column; gap: 12px; margin-top: 24px; margin-bottom: 20px; padding-top: 24px; border-top: 1px solid #e1e9f1; clear: both; }
+.action-list h4 { font-size: 14px; color: #0B4697; margin-bottom: 0; display: flex; align-items: center; gap: 8px; }
 .action-item { display: flex; align-items: center; gap: 10px; padding: 12px 14px; background: #fffdf5; border: 1px solid #f59e0b; border-radius: 10px; font-size: 13px; color: #92400e; flex-wrap: wrap; }
 .action-item > span { flex: 1; min-width: 120px; }
 .action-item i { color: #f59e0b; flex-shrink: 0; }
