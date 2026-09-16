@@ -307,7 +307,7 @@ function appTermsKind(app) {
     if (!app) return null;
     if (app.status === 'valuation') return null;
     if (app.termsKind === 'final' || app.status === 'approved' || app.status === 'rejected') return 'final';
-    if (app.termsKind === 'preliminary' || app.status === 'decision') return 'preliminary';
+    if (app.termsKind === 'preliminary' || app.status === 'decision' || clientAcceptedOffer(app)) return 'preliminary';
     if (app.rate != null && app.status !== 'new' && app.status !== 'processing') return 'preliminary';
     return null;
 }
@@ -412,6 +412,21 @@ function missingOriginals(app) {
     return items;
 }
 
+function clientAcceptedOffer(app) {
+    if (!app) return false;
+    if (app.packageStatus === 'accepted') return true;
+    return !!(app.selectedPackageId && app.rate != null && app.payment != null);
+}
+
+function managerButtonStage(app) {
+    if (!app) return 'new';
+    if (app.status === 'approved' || app.status === 'rejected' || app.status === 'valuation') return app.status;
+    if (clientAcceptedOffer(app) || app.status === 'decision' || app.termsKind === 'preliminary' || app.termsKind === 'final') {
+        return 'decision';
+    }
+    return app.status || 'processing';
+}
+
 function getActionButtons(app) {
     var id = String((app && app.id) || '').replace(/'/g, "\\'");
     var scoringPrimary = '<button type="button" class="m-btn m-btn-primary" data-m-action="openScoring" data-app-id="' + id +
@@ -424,7 +439,8 @@ function getActionButtons(app) {
     var prescoreProtocol = (typeof openArtifactByKind === 'function')
         ? '<button type="button" class="m-btn m-btn-outline" data-m-action="open-artifact-kind" data-art-kind="prescore_protocol" data-app-id="' + id + '"><i class="fas fa-file-alt"></i> Протокол прескоринга</button>'
         : '';
-    switch(app.status) {
+    var stage = managerButtonStage(app);
+    switch(stage) {
         case 'new':
             return mActionButton(id, 'requestDocs', 'm-btn-primary', 'fa-file-upload', 'Запросить документы') +
                     mActionButton(id, 'startReview', 'm-btn-outline', 'fa-play', 'Начать рассмотрение');
@@ -438,19 +454,23 @@ function getActionButtons(app) {
                     prescoreOpen +
                     mActionButton(id, 'requestValuation', 'm-btn-outline', 'fa-home', 'Обновить оценку') +
                     mActionButton(id, 'requestDocs', 'm-btn-outline', 'fa-file-upload', 'Запросить документы');
-        case 'decision':
+        case 'decision': {
             var missing = missingOriginals(app);
+            var doneHint = clientAcceptedOffer(app)
+                ? 'Клиент принял предварительные условия в кабинете. Повторный прескоринг не нужен. '
+                : 'Прескоринг пройден. ';
             if (missing.length) {
-                return mActionsHint('Прескоринг пройден. Для полного скоринга не хватает оригиналов: ' + missing.join('; ') + '.', 'm-actions-hint--warn') +
+                return mActionsHint(doneHint + 'Для полного скоринга не хватает оригиналов: ' + missing.join('; ') + '.', 'm-actions-hint--warn') +
                     scoringSkip +
                     mActionButton(id, 'requestDocs', 'm-btn-outline', 'fa-file-upload', 'Запросить оригиналы') +
                     prescoreProtocol +
                     mActionButton(id, 'reject', 'm-btn-danger', 'fa-times', 'Клиент не подходит');
             }
-            return mActionsHint('Прескоринг пройден. Комплект оригиналов собран — можно запускать полный скоринг.') +
+            return mActionsHint(doneHint + 'Комплект оригиналов собран — можно запускать полный скоринг.') +
                     scoringPrimary +
                     prescoreProtocol +
                     mActionButton(id, 'reject', 'm-btn-danger', 'fa-times', 'Клиент не подходит');
+        }
         case 'approved':
             return mActionButton(id, 'sendContract', 'm-btn-outline', 'fa-signature', 'Отправить договор') +
                 mActionButton(id, 'recordDealPassport', 'm-btn-outline', 'fa-id-card', 'Паспорт сделки') +

@@ -635,6 +635,37 @@ console.log('\n=== 8. TrustGate lab app is manager-only ===');
   const procBtns = ctx.getActionButtons({ id: '4421-И', status: 'processing' });
   assert(/прескоринг/i.test(procBtns) && procBtns.indexOf('Полный скоринг') === -1,
     'processing shows prescoring only, not full scoring');
+  const acceptedBtns = ctx.getActionButtons({
+    id: '4421-И',
+    status: 'processing',
+    packageStatus: 'accepted',
+    selectedPackageId: 'PKG_RECOMMENDED',
+    rate: 12.5,
+    payment: 52998,
+    documents: [{ name: 'Выписка ЕГРН', status: 'missing' }]
+  });
+  assert(acceptedBtns.indexOf('Запустить прескоринг') === -1,
+    'accepted offer does not offer a new prescore');
+  assert(/Полный скоринг/.test(acceptedBtns), 'accepted offer goes to full scoring');
+  assert(/оригинал/i.test(acceptedBtns) && /ЕГРН/.test(acceptedBtns),
+    'accepted offer still asks for originals');
+  assert(/Повторный прескоринг не нужен/.test(acceptedBtns),
+    'accepted offer hint says not to rerun prescore');
+  const accSteps = ctx.getManagerAppTimelineSteps({
+    id: '4421-И',
+    status: 'processing',
+    packageStatus: 'accepted',
+    selectedPackageId: 'PKG_RECOMMENDED',
+    rate: 12.5,
+    documents: [{ status: 'missing' }]
+  });
+  assert(accSteps.find(s => s.id === 'package').done, 'accepted offer marks package done');
+  assert(accSteps.find(s => s.id === 'prescore').done, 'accepted offer marks prescore done');
+  assert(accSteps.find(s => s.id === 'scoring').done === false, 'accepted offer is not full scoring');
+  const pkgAcceptSrc = fs.readFileSync(path.join(root, 'js/packages.js'), 'utf8');
+  assert(/termsKind: 'preliminary'/.test(pkgAcceptSrc) &&
+    /updateApplicationStatus\(\s*activeId,\s*'decision'/.test(pkgAcceptSrc),
+    'accepting the offer persists preliminary terms as decision, not a fresh processing prescore');
   const valBtns = ctx.getActionButtons({ id: '4421-И', status: 'valuation' });
   assert(valBtns.indexOf('Открыть прескоринг') !== -1, 'valuation continues the started prescoring');
   assert(valBtns.indexOf('Запустить прескоринг') === -1, 'valuation does not re-offer a fresh prescore start');

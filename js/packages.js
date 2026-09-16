@@ -392,13 +392,14 @@ function acceptOfferPackage() {
             packageInsurance: catalog ? catalog.insurance : '',
             packageCommission: catalog ? catalog.commission : (pkg.commission || ''),
             offerValidUntil: state.offerValidUntil,
-            packageModifiers: state.packageModifiers || {}
+            packageModifiers: state.packageModifiers || {},
+            termsKind: 'preliminary'
         });
         updateApplicationStatus(
             activeId,
-            'processing',
+            'decision',
             'Условия приняты',
-            'Клиент принял пакет «' + pkg.title + '»: ставка ' + state.currentRate + '%, платёж ~' + state.currentPayment.toLocaleString('ru-RU') + ' ₽'
+            'Клиент принял пакет «' + pkg.title + '»: ставка ' + state.currentRate + '%, платёж ~' + state.currentPayment.toLocaleString('ru-RU') + ' ₽. Предварительные условия, повторный прескоринг не нужен.'
         );
         if (typeof refreshClientApplicationsUI === 'function') {
             refreshClientApplicationsUI(activeId);
@@ -432,6 +433,9 @@ function acceptOfferPackage() {
     flashCard('cardPayment');
     if (typeof recordPreliminaryOffer === 'function') {
         try { recordPreliminaryOffer(activeId); } catch (eOff) {}
+    }
+    if (typeof recordPrescoreProtocol === 'function') {
+        try { recordPrescoreProtocol(activeId, 'client'); } catch (ePre) {}
     }
     if (typeof recordRateBreakdown === 'function') {
         try { recordRateBreakdown(activeId); } catch (eRb) {}
