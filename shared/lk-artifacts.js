@@ -300,7 +300,7 @@ function artifactPreviewHTML(art, app) {
         row('status', artEscape(sms.status || 'Delivered'));
         row('tracking_data', artEscape(sms.trackingData || art.appId));
         return artSheet(title, head + '<div class="box">' + rows + '</div>' +
-            '<p class="muted">Не OTP кабинета (MFMS) и не ЦФТ DboSms. Bearer не хранится.</p>');
+            '<p class="muted">Брокерское SMS о решении банка (SMSTraffic). Не код входа в кабинет. Bearer не хранится.</p>');
     }
     if (kind === 'originals_inventory') {
         var docs = app.documents || [];

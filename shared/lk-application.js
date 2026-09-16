@@ -530,13 +530,15 @@ function renderCpCoverageHTML(appOrLk) {
     }).join('');
     return '<div class="cp-coverage">' +
         '<div class="cp-coverage-head">Цифровой профиль · ' + (cp.gateway || 'TrustGate') + '</div>' +
-        '<div class="cp-coverage-sub">Лабораторный срез покрытия · не клиентский экран</div>' +
+        '<div class="cp-coverage-sub">Срез покрытия TrustGate · не клиентский экран</div>' +
         '<div class="cp-coverage-purposes">' + (cp.purposes || []).join(' · ') + '</div>' +
-        '<div class="cp-profiles">' +
-            pbtn('full', 'Базовый ЦП') +
-            pbtn('no_ndfl', 'Без 2-НДФЛ') +
-            pbtn('szi6', '+ СЗИ-6') +
-        '</div>' +
+        (typeof isLkLabApplication === 'function' && isLkLabApplication(appOrLk)
+            ? ('<div class="cp-profiles">' +
+                pbtn('full', 'Базовый ЦП') +
+                pbtn('no_ndfl', 'Без 2-НДФЛ') +
+                pbtn('szi6', '+ СЗИ-6') +
+            '</div>')
+            : '') +
         borrower +
         '<div class="cp-chips">' + chips + '</div>' +
         '<div class="cp-next-head">Дальше</div>' +

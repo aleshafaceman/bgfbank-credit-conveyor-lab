@@ -659,6 +659,13 @@ console.log('\n=== 8. TrustGate lab app is manager-only ===');
   assert(ctx._els.mAppDetail.innerHTML.includes('Лаб. ЦП'), '4636 detail shows lab badge');
   ctx.selectManagerApp('4421-И');
   assert(ctx._els.mAppDetail.innerHTML.includes('Конвейер'), '4421 detail shows conveyor badge');
+  if (typeof ctx.attachEsiaProfileToConveyorApp === 'function') ctx.attachEsiaProfileToConveyorApp('4421-И');
+  ctx.selectManagerApp('4421-И');
+  assert(ctx._els.mAppDetail.innerHTML.includes('cp-coverage'), 'manager 4421 after ESIA shows CP coverage');
+  assert(!ctx._els.mAppDetail.innerHTML.includes('data-cp-profile'),
+    'manager 4421 CP has no lab profile switcher');
+  const b4421 = ((ctx.getAllApplications().find(a => a.id === '4421-И') || {}).lk || {}).borrowers || [];
+  assert(!b4421[0] || b4421[0].second_name !== 'Игоревич', 'ESIA attach does not apply TRUSTGATE_PERSON');
 
   const missingLab = ctx.missingOriginals(lab);
   assert(missingLab.some(n => /ЕГРН/i.test(n)), '4636 missing originals include EGRN');
@@ -729,6 +736,21 @@ console.log('\n=== 9. L3 artifacts registry ===');
   assert(!JSON.stringify(ctx.loadArtifactStore()).includes('JVBERi0'), 'artifact store has no PDF base64');
   const html = ctx.artifactPreviewHTML(egrn, ctx.getAllApplications().find(a => a.id === '4421-И'));
   assert(/ЕГРН/.test(html) && /OCR/.test(html) && !/cp-profile-btn/.test(html), 'EGRN preview is file+OCR, no CP lab buttons');
+  ctx.recordExpressEvalFromCollateral('4421-И', {
+    valuation: 8500000, address: 'г. Москва, ул. Крылатская, д. 15, кв. 42',
+    cadastral: '77:07:0001075:1234', year: 2015
+  });
+  const afterEval = ctx.getAllApplications().find(a => a.id === '4421-И');
+  assert(afterEval && afterEval.pledge_evaluation && afterEval.pledge_evaluation.AppraisalPledgeCost === 8500000,
+    'C7 AppraisalPledgeCost is portfolio 8.5M');
+  ctx.recordDecisionAndApproval('4421-И');
+  const sms = ctx.getArtifact(ctx.artStableId('4421-И', 'broker_sms'));
+  const smsHtml = ctx.artifactPreviewHTML(sms, afterEval);
+  assert(/SMSTraffic/.test(smsHtml) && /smsId/.test(smsHtml) && /Delivered/.test(smsHtml),
+    'M10 preview is SMSTraffic smsId/Delivered');
+  assert(!/MFMS|DboSms|SMPP/.test(smsHtml), 'M10 preview does not name OTP/CFT channels');
+  const vis = ctx.clientVisibleArtifacts(ctx.listArtifacts());
+  assert(!vis.some(a => String(a.appId).indexOf('4636') >= 0), 'clientVisibleArtifacts hides 4636');
   ctx.resetDemoStorage({ includeUser: false });
   ctx._artifactStore = null;
   const after = JSON.parse(ctx.localStorage.getItem('bgfbank_lab_artifacts') || 'null');
