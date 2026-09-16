@@ -2,7 +2,10 @@
 
 Положены 2026-09-16 из вложений облачного агента. Имена кириллицей в uploads съехали в `_`; ниже — канонические имена.
 
-**Ещё нет на диске:** ЦФТ гл. 10–15 (контракты), SMSTraffic, ТЗ ПДН v.4, контракт `express.ocenka.mobi/api/express` (есть только ТЗ).
+**Ещё нет на диске:** ЦФТ гл. 10–15 (контракты), ТЗ ПДН v.4, контракт `express.ocenka.mobi/api/express` (есть только ТЗ).
+
+Gate API МО (`GET /v1/appraise/flat`) — **есть**: `docs/sources/ocenka/`.  
+SMSTraffic HTTP API v2 — **есть**: `docs/sources/smstraffic/`.
 
 Gate API МО (`GET /v1/appraise/flat`) — **есть**: `docs/sources/ocenka/`.
 
@@ -44,3 +47,5 @@ Gate API МО (`GET /v1/appraise/flat`) — **есть**: `docs/sources/ocenka/`
 | `ocenka/ocenka-mobi-api.yaml` | docs.ocenka.mobi YAML | Swagger МО Gate, version 2026-01-28 |
 | `ocenka/get_appraise_flat.md` | #/Жилая_недвижимость/get_appraise_flat | экспресс-оценка квартир; не Express ТЗ |
 | `ocenka/get_appraise_flat.sample.json` | live 200 | образец `{address,bld,stats,requestId}` |
+| `smstraffic/README.md` | smstraffic.ru/api | HTTP API v2: `/v2/send`, статусы, callback `sms_id` |
+| `smstraffic/api-page.redacted.md` | та же страница | полный дамп, пример Bearer затёрт |

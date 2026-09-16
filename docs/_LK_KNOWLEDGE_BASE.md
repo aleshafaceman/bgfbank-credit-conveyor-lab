@@ -1,8 +1,8 @@
 # База знаний LK (кредитный конвейер БЖФ)
 
-Версия: 2026-09-16 (rev. 5, + Gate API МО `get_appraise_flat`). Продукт кабинетов: **залог** (`CASHONBAIL` / `FLAT`). Happy-path только.
+Версия: 2026-09-16 (rev. 6, + SMSTraffic HTTP API v2). Продукт кабинетов: **залог** (`CASHONBAIL` / `FLAT`). Happy-path только.
 
-Цитаты: `[repo:…]` — код LAB; `[src:…]` — `docs/sources/`; `[src:skill/…]` — скилл. ЦФТ гл. 10–15, SMSTraffic, ТЗ ПДН v.4, спека Express МО **по-прежнему нет**.
+Цитаты: `[repo:…]` — код LAB; `[src:…]` — `docs/sources/`; `[src:skill/…]` — скилл. ЦФТ гл. 10–15, ТЗ ПДН v.4, спека Express МО **по-прежнему нет**.
 
 ---
 
@@ -100,7 +100,7 @@ Visio после одобрения: «Подготовка паспорта с�
 
 ## 2. Внешние системы и ответы / коллбэки
 
-Ниже — **имена и payload’ы, которые уже есть в коде**, плюс имена из скилла/МО без полного банковского контракта. Схемы SMSTraffic / глав ЦФТ 10–15 / Express `express.ocenka.mobi` / ТЗ ПДН v.4 **отсутствуют**. Gate lookup МО **есть**.
+Ниже — **имена и payload’ы, которые уже есть в коде**, плюс имена из скилла/МО/SMSTraffic без тел ЦФТ. Схемы глав ЦФТ 10–15 / Express `express.ocenka.mobi` / ТЗ ПДН v.4 **отсутствуют**. Gate lookup МО и SMSTraffic v2 **есть**.
 
 ### 2.1. TrustGate / ЕСИА / цифровой профиль
 
@@ -270,16 +270,18 @@ du_catalog: {
 
 Статусы счёта с подготовки: «нет объекта, к подписанию или уже открыт» `[repo:deal-ops/deal-ops.js]` HELP.summary. Объект «к подписанию» ≠ открытый счёт, проверки всё равно нужны.
 
-### 2.6. СМС / формы клиента (не SMSTraffic API)
+### 2.6. СМС / SMSTraffic / формы клиента
 
-На столе канал — абстракция «СМС», без полей SMSTraffic:
+Провайдер исходящих SMS банка: **SMSTraffic HTTP API v2** `[src:smstraffic/README.md]`. Host `https://api.smstraffic.ru` (резерв `api2`). `POST /v2/send` + `Authorization: Bearer`; ответ `destinations[].id` (= callback `sms_id`). Статусы: `POST /v2/statuses/list`; push — JSON-массив на URL клиента (`sms_id`, `status`, `tracking_data`). Happy-path статус `Delivered`. Ключ в LAB не хранить.
+
+На столе канал «СМС» в LAB пока абстракция:
 
 - `sopd_link` / `sopd_signed` → `deal-ops/sopd-app.html`, store `bgfbank_lab_sopd`
 - `app_link` / `app_signed` → `deal-ops/account-app.html`, store `bgfbank_lab_account_app`
 
-В кабинете OTP логина — «любой код», без провайдера `[repo:DEMO.md]`.
+В кабинете OTP логина — «любой код», без вызова провайдера `[repo:DEMO.md]`. L3 может дописать метаданные `smsId`+`Delivered`, не OTP-текст.
 
-**SMSTraffic:** файла нет.
+**Не SMSTraffic:** шина `dbo_sms` / callback `dbo_sms_sent` — это ЦФТ `DboSms` после открытия счёта `[src:skill/systems.md]`.
 
 **Skorozvon** `[src:skorozvon/skorozvon-api.txt]`: base `https://api.skorozvon.ru/api/v2`; `POST /oauth/token` (`grant_type=password`, Bearer 2 ч, 10 rps, HTTP 429). Лиды `GET|POST /leads`, звонки `GET /calls/{id}` и `{id}.mp3`, `recording_url`. Webhooks: `call_result`, `form_response`, `call_project_case_failed`; заголовок `Idempotency-Key`; retry 5 мин / 30 мин / 1 ч / 3 ч / 6 ч. Поля лида: `id`, `phones`, `inn`, `external_id`, `custom_fields` (`FIELD_{id}`), … В Visio/СПР имя «Скорозвон» **не встречается** — связки с ELMA в этих файлах нет.
 
@@ -517,13 +519,13 @@ JSON-модель каталога `[repo:docs/katalog-opcij-zalog.md]` §10:
 - Закладная, аккредитив/ячейка, ОЗС, паспорт сделки как залоговый экран, договор ипотеки, госрегистрация, опция ПИК
 - Visio: «Вид кредита Покупка» вручную шлёт в МО; «Залоговый кредит? Нет → Light»
 
-**Смешанное:** ПДН (`getPdn`) не требует залога в описании метода. SMSTraffic по-прежнему нет.
+**Смешанное:** ПДН (`getPdn`) не требует залога в описании метода. SMSTraffic v2 есть; исходящие SMS кабинета/стола — `smsId`+`Delivered`, не ДБО ЦФТ.
 
 ---
 
 ## 7. Расхождения и пробелы
 
-1. Скилл **есть**. Gate МО **есть** (`docs/sources/ocenka/`). ЦФТ 10–15, SMSTraffic, ТЗ ПДН v.4, спека Express `express.ocenka.mobi`, полная таблица ELMA 0–52 из `bgf-backend` — нет. Enum `STAGE`/`DECISION` в выгрузке ТЗ не разобран. СПР «формирование лида» **есть** (`spr/formirovanie-lida.txt`).
+1. Скилл **есть**. Gate МО **есть**. SMSTraffic v2 **есть** (`docs/sources/smstraffic/`). ЦФТ 10–15, ТЗ ПДН v.4, спека Express `express.ocenka.mobi`, полная таблица ELMA 0–52 из `bgf-backend` — нет. Enum `STAGE`/`DECISION` в выгрузке ТЗ не разобран. СПР «формирование лида» **есть** (`spr/formirovanie-lida.txt`).
 2. **Два справочника ДУ:** ELMA 0–18 vs кабинетный `allDU`. L3 — только enum 0–18.
 3. Overlay скоринга пишет PTI/DTI; в ТЗ — **ПДН `getPdn`**, не DTI. Не тащить PTI в артефакт как «поле СПР».
 4. `SURCH_FSSP` каталога ≈ правило `FSSP_001` ТЗ; в заявке надбавка не хранится.
@@ -553,4 +555,4 @@ JSON-модель каталога `[repo:docs/katalog-opcij-zalog.md]` §10:
 - паспорт сделки: поля заявки (ОЗС, дата, ДУ, участники) — без выдуманного календаря
 - каталог `TURBO_*` / `PKG_*` / `INS_*`
 
-Не собирать: PTI как поле СПР, SMSTraffic id, сырой `EVALUATION_REPORT`, отказные ветки, звонок Skorozvon на P0 кабинетов.
+Не собирать: PTI как поле СПР, сырой `EVALUATION_REPORT`, отказные ветки, звонок Skorozvon на P0 кабинетов, Bearer SMSTraffic, текст OTP.

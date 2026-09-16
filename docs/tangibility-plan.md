@@ -125,7 +125,7 @@
 | M7 | Внешний запрос ЕГРН | «Ответ сервиса» | тот же name, что `patchDocumentsFromExternalDU` | `requestExternalDU` | P0 | S |
 | M8 | Комплект оригиналов | «Опись документов» | `app.documents` + `missingOriginals`; Visio: «минимальный перечень» | `missingOriginals` | P0 | S |
 | M9 | Полный скоринг | «Протокол getDecision» (+ строка getPdn) | overlay-шаги; `lk.decision` из `DECISION`/`SCORE`; **не** писать PTI как поле СПР; залог = C7/`getEval` | `applyManagerScoringDecision` | P0 | M |
-| M10 | Одобрение | «Решение банка» | `approved` + `termsKind=final`; СПР «клиент одобрен». SMS брокеру — метаданные без SMSTraffic | `applyManagerScoringDecision('approved')` | P0 | S |
+| M10 | Одобрение | «Решение банка» | `approved` + `termsKind=final`; СПР «клиент одобрен». SMS брокеру: `POST /v2/send` → persist `smsId` + `trackingData` + `status=Delivered` `[src:smstraffic/README.md]`. Не ЦФТ `dbo_sms` | `applyManagerScoringDecision('approved')` | P0 | S |
 | M11 | Оценка залога | тот же C7 | `pledge_evaluation` ← `RESULT_EVALUATION` | `requestValuation` | P1 | S |
 | M12 | Отправить договор | не тост-only | создать C16 / опись КОД | `sendContract` | P1 | S |
 | M13 | Паспорт сделки | карточка из полей заявки | СПР: ОЗС, «внешних интеграций нет», общий экран с КОД. Не календарь АРМ | generator | P2 | L |
@@ -201,7 +201,7 @@ Persist ДУ: писать в `lk.additional_conditions[]` (уже есть) + �
 1. **P2 (паспорт сделки / КОД в кабинете)** — делать в этой итерации кабинетов или оставить столу? Стол явно выносит паспорт из АРМ.
 2. **Заявка 4636-И** (TrustGate lab) скрыта от клиента. Показывать клиенту человеческие артефакты ЦП на **4421-И**, а 4636 оставить менеджерским стендом?
 3. **Три пакета runtime** vs полный каталог `PKG_*` — L3 фиксирует то, что реально выбирается сейчас (`RECOMMENDED` / `SPEC_4_0` / `NO_INSURANCE`), без новых карточек.
-4. Скилл и Gate МО доехали. Когда доедут ЦФТ 10–15 / SMSTraffic / Express МО — отдельные артефакты (`message_id`, тела `CheckData`/`OpenAccount`, pdf delivery) **не ломая** P0. Имена ЦФТ из скилла уже можно писать как шаг+время.
+4. Скилл, Gate МО и SMSTraffic v2 доехали. Когда доедут ЦФТ 10–15 / Express МО — отдельные артефакты (тела `CheckData`/`OpenAccount`, pdf delivery) **не ломая** P0. SMS: `smsId` можно писать; ключ и OTP-текст — нет. `dbo_sms` остаётся ЦФТ.
 5. Overlay сейчас показывает PTI/DTI — в протоколе L3 писать **ПДН `getPdn`**, не выдавать PTI за поле СПР.
 6. Лабораторный клиентский ЛК **не** копировать в макет прод-кабинета партнёра (скилл: CTA «Получить пре-оффер», без ИНН на шаге 1, «Заполнить вручную» только у менеджера). L3 этой итерации — текущие кабинеты LAB.
 
