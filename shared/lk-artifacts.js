@@ -34,6 +34,38 @@ var ARTIFACT_KIND_LABEL = {
     deal_passport: 'Паспорт сделки'
 };
 
+/** Клиенту — только его бумаги. Протоколы Loginom, SMS брокеру, паспорт сделки, ЦП-покрытие — кабинет менеджера. */
+var CLIENT_VISIBLE_KINDS = {
+    sopd: true,
+    bki_consent: true,
+    passport: true,
+    inn_snils: true,
+    ndfl: true,
+    express_eval: true,
+    egrn: true,
+    preliminary_offer: true,
+    file_meta: true,
+    approval_notice: true,
+    final_terms: true,
+    du_request: true,
+    kod_inventory: true
+};
+
+var CLIENT_KIND_LABEL = {
+    ndfl: 'Справка о доходах',
+    express_eval: 'Оценка квартиры',
+    kod_inventory: 'Документы на подпись',
+    du_request: 'Запрос документов',
+    file_meta: 'Загруженный файл',
+    approval_notice: 'Заявка одобрена',
+    final_terms: 'Итоговые условия'
+};
+
+function artifactKindLabel(kind, role) {
+    if (role === 'client' && CLIENT_KIND_LABEL[kind]) return CLIENT_KIND_LABEL[kind];
+    return ARTIFACT_KIND_LABEL[kind] || kind;
+}
+
 var LAB_KOD_TITLES = [
     'Кредитный договор',
     'График платежей',
@@ -852,8 +884,7 @@ function clientVisibleArtifacts(list) {
     return (list || []).filter(function(a) {
         if (!a) return false;
         if (typeof isLkLabApplication === 'function' && isLkLabApplication({ id: a.appId })) return false;
-        if (a.kind === 'review_started' || a.kind === 'deal_passport') return false;
-        return true;
+        return !!CLIENT_VISIBLE_KINDS[a.kind];
     });
 }
 
@@ -871,16 +902,24 @@ function renderDocumentsSection(role, opts) {
     var list = listArtifacts(filterApp || null);
     if (role === 'client') list = clientVisibleArtifacts(list);
     if (!list.length) {
-        el.innerHTML = '<div class="art-empty"><i class="fas fa-folder-open"></i><p>Пока нет документов по этому контуру.</p>' +
-            '<p class="art-empty-hint">Они появятся после шагов конвейера: объект → ЕСИА → пакет → ЕГРН → скоринг.</p></div>';
+        if (role === 'client') {
+            el.innerHTML = '<div class="art-empty"><i class="fas fa-folder-open"></i><p>Пока нет ваших документов.</p>' +
+                '<p class="art-empty-hint">Здесь появятся согласия, паспорт, оценка и условия, которые вы получили.</p></div>';
+        } else {
+            el.innerHTML = '<div class="art-empty"><i class="fas fa-folder-open"></i><p>Пока нет документов по этому контуру.</p>' +
+                '<p class="art-empty-hint">Они появятся после шагов конвейера: объект → ЕСИА → пакет → ЕГРН → скоринг.</p></div>';
+        }
         return;
     }
     el.innerHTML = list.map(function(a) {
         var when = (a.createdAt || '').replace('T', ' ').slice(0, 16);
         var file = a.file || {};
+        var kindLabel = artifactKindLabel(a.kind, role);
+        var titleLabel = a.title || kindLabel;
+        if (role === 'client' && CLIENT_KIND_LABEL[a.kind]) titleLabel = CLIENT_KIND_LABEL[a.kind];
         return '<button type="button" class="art-card" data-art-id="' + artEscape(a.id) + '">' +
-            '<div class="art-card-kind">' + artEscape(ARTIFACT_KIND_LABEL[a.kind] || a.kind) + '</div>' +
-            '<div class="art-card-title">' + artEscape(a.title || a.kind) + '</div>' +
+            '<div class="art-card-kind">' + artEscape(kindLabel) + '</div>' +
+            '<div class="art-card-title">' + artEscape(titleLabel) + '</div>' +
             '<div class="art-card-meta">№' + artEscape(a.appId) +
             (when ? ' · ' + artEscape(when) : '') +
             (file.name ? ' · ' + artEscape(file.name) : '') +
@@ -947,7 +986,7 @@ function renderAppArtifactsStrip(appId) {
     return '<div class="art-strip"><div class="art-strip-head">Документы по заявке</div>' +
         list.map(function(a) {
             return '<button type="button" class="art-chip" data-action="open-artifact" data-art-id="' + artEscape(a.id) + '">' +
-                artEscape(ARTIFACT_KIND_LABEL[a.kind] || a.kind) + '</button>';
+                artEscape(artifactKindLabel(a.kind, 'client')) + '</button>';
         }).join('') +
         '<button type="button" class="art-chip art-chip-all" data-action="goto-documents">Все документы</button></div>';
 }
@@ -1047,4 +1086,6 @@ if (typeof window !== 'undefined') {
     window.DEAL_PASSPORT_APP_KEYS = DEAL_PASSPORT_APP_KEYS;
     window.LAB_ELIGIBLE_PACKAGE_IDS = LAB_ELIGIBLE_PACKAGE_IDS;
     window.ARTIFACT_KIND_LABEL = ARTIFACT_KIND_LABEL;
+    window.CLIENT_VISIBLE_KINDS = CLIENT_VISIBLE_KINDS;
+    window.clientVisibleArtifacts = clientVisibleArtifacts;
 }

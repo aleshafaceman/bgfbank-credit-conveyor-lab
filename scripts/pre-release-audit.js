@@ -752,6 +752,13 @@ console.log('\n=== 9. L3 artifacts registry ===');
   assert(!/MFMS|DboSms|SMPP/.test(smsHtml), 'M10 preview does not name OTP/CFT channels');
   const vis = ctx.clientVisibleArtifacts(ctx.listArtifacts());
   assert(!vis.some(a => String(a.appId).indexOf('4636') >= 0), 'clientVisibleArtifacts hides 4636');
+  const hiddenFromClient = ['broker_sms', 'prescore_protocol', 'decision_protocol', 'rate_breakdown',
+    'short_application', 'cp_coverage', 'deal_passport', 'review_started', 'bank_decision'];
+  hiddenFromClient.forEach(function(kind) {
+    assert(!vis.some(a => a.kind === kind), 'client Documents hides `' + kind + '`');
+  });
+  assert(vis.some(a => a.kind === 'egrn') && vis.some(a => a.kind === 'express_eval'),
+    'client Documents keeps EGRN and valuation');
   ctx.resetDemoStorage({ includeUser: false });
   ctx._artifactStore = null;
   const after = JSON.parse(ctx.localStorage.getItem('bgfbank_lab_artifacts') || 'null');
@@ -819,6 +826,8 @@ console.log('\n=== 10. L3 P2 passport / КОД / package ===');
     'passport preview states it is a field card, not ARM/CFT');
   const visPass = ctx.clientVisibleArtifacts(ctx.listArtifacts('4421-И'));
   assert(!visPass.some(a => a.kind === 'deal_passport'), 'client does not see ОЗС deal_passport');
+  assert(!visPass.some(a => !ctx.CLIENT_VISIBLE_KINDS[a.kind]),
+    'client Documents is an allowlist, not the manager registry');
 
   ctx.recordKodInventory('4421-И');
   const kod = ctx.getArtifact(ctx.artStableId('4421-И', 'kod_inventory'));
@@ -836,6 +845,10 @@ console.log('\n=== 10. L3 P2 passport / КОД / package ===');
   assert(/в комплекте|подготовлен/.test(kodHtml) && /Кредитный договор/.test(kodHtml),
     'kod preview lists titles with kit status');
   assert(!/Паспорт<\/button>/.test(kodHtml), 'client-safe kod preview has no ОЗС passport tab');
+  const visKod = ctx.clientVisibleArtifacts(ctx.listArtifacts('4421-И'));
+  assert(visKod.some(a => a.kind === 'kod_inventory'), 'client keeps documents to sign');
+  assert(!visKod.some(a => a.kind === 'broker_sms' || a.kind === 'prescore_protocol'),
+    'client still hides broker SMS and preScore after КОД');
 
   ctx.persistEligiblePackagesSnapshot('4421-И', [
     { id: 'PKG_RECOMMENDED', title: 'Рекомендуем', rate: 12.5, payment: 54000, ltv: 0.6, limit: 5000000, insurance: 'ККС' },
