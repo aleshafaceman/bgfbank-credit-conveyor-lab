@@ -6,6 +6,7 @@ const CLIENTS_KEY = 'bgfbank_lab_clients';
 const MESSAGES_KEY = 'bgfbank_lab_messages';
 const USER_KEY = 'bgfbank_lab_user';
 const SYNC_KEY = 'bgfbank_lab_sync_ping';
+const ARTIFACTS_KEY = 'bgfbank_lab_artifacts';
 const LEGACY_KEYS = ['bgfbank_applications', 'bgfbank_clients', 'bgfbank_messages', 'bgfbank_user', 'bgfbank_sync_ping'];
 
 let sharedApplications = [];
@@ -179,12 +180,16 @@ function loadSharedData() {
         }
         
         buildClientsFromApplications();
+        if (typeof seedDemoArtifacts === 'function') {
+            try { seedDemoArtifacts(); } catch (eSeed) {}
+        }
     } catch (err) {
         console.error('loadSharedData failed', err);
         try {
             localStorage.removeItem(STORAGE_KEY);
             localStorage.removeItem(CLIENTS_KEY);
             localStorage.removeItem(MESSAGES_KEY);
+            localStorage.removeItem(ARTIFACTS_KEY);
         } catch (e2) {}
     }
 }
@@ -279,7 +284,7 @@ function initSharedDataSync(handler) {
     window.__bgfSharedSyncBound = true;
     window.addEventListener('storage', function(e) {
         if (!e.key) return;
-        if (e.key !== STORAGE_KEY && e.key !== CLIENTS_KEY && e.key !== MESSAGES_KEY && e.key !== USER_KEY && e.key !== SYNC_KEY) {
+        if (e.key !== STORAGE_KEY && e.key !== CLIENTS_KEY && e.key !== MESSAGES_KEY && e.key !== USER_KEY && e.key !== SYNC_KEY && e.key !== ARTIFACTS_KEY) {
             return;
         }
         try { loadSharedData(); } catch (err) {}
@@ -294,6 +299,7 @@ function resetDemoStorage(options) {
         localStorage.removeItem(STORAGE_KEY);
         localStorage.removeItem(CLIENTS_KEY);
         localStorage.removeItem(MESSAGES_KEY);
+        localStorage.removeItem(ARTIFACTS_KEY);
         if (options.includeUser) localStorage.removeItem(USER_KEY);
         // Чистим и legacy-ключи стабильного демо, чтобы не путать показ
         LEGACY_KEYS.forEach(function(k) {

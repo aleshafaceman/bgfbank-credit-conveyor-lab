@@ -105,37 +105,54 @@ function renderAppTimelineHTML(app) {
 function uploadMissingDocDemo(docName, appId) {
     if (typeof loadSharedData === 'function') loadSharedData();
     var id = appId || (typeof state !== 'undefined' && state.selectedApp) || '4421-И';
-    var apps = typeof getAllApplications === 'function' ? getAllApplications() : [];
-    var app = apps.find(function(a) { return a.id === id; });
-    if (!app) return;
-    if (!Array.isArray(app.documents)) app.documents = [];
-    var doc = app.documents.find(function(d) { return d.name === docName; });
-    if (doc) {
-        doc.status = 'uploaded';
-        doc.statusLabel = 'Загружен';
-    } else {
-        app.documents.push({ name: docName, status: 'uploaded', statusLabel: 'Загружен' });
+
+    function finish(file) {
+        if (typeof ingestDocumentMeta === 'function') {
+            ingestDocumentMeta(id, docName, file || null);
+        } else {
+            var apps = typeof getAllApplications === 'function' ? getAllApplications() : [];
+            var app = apps.find(function(a) { return a.id === id; });
+            if (!app) return;
+            if (!Array.isArray(app.documents)) app.documents = [];
+            var doc = app.documents.find(function(d) { return d.name === docName; });
+            if (doc) {
+                doc.status = 'uploaded';
+                doc.statusLabel = 'Загружен';
+            } else {
+                app.documents.push({ name: docName, status: 'uploaded', statusLabel: 'Загружен' });
+            }
+            if (typeof updateApplication === 'function') updateApplication(id, { documents: app.documents });
+        }
+        var apps2 = typeof getAllApplications === 'function' ? getAllApplications() : [];
+        var app2 = apps2.find(function(a) { return a.id === id; });
+        if (app2 && typeof updateApplicationStatus === 'function') {
+            updateApplicationStatus(id, app2.status, app2.statusLabel || app2.status, 'Клиент загрузил документ: «' + docName + '»');
+        }
+        if (typeof sendChatMessage === 'function') {
+            var name = typeof getClientDisplayName === 'function' ? getClientDisplayName() : (app2 && app2.client);
+            sendChatMessage('client', name, 'Загрузил документ: «' + docName + '».', name);
+        }
+        if (typeof refreshClientApplicationsUI === 'function') refreshClientApplicationsUI(id);
+        var fname = (file && file.name) || (docName.replace(/\s+/g, '_') + '.pdf');
+        var fsize = (file && file.size) || 18432;
+        if (typeof showDemoToast === 'function') {
+            showDemoToast('Документ «' + docName + '» принят · ' + fname + ' · ' + fsize + ' Б', { icon: 'fa-file-upload', duration: 2500 });
+        }
     }
-    if (typeof updateApplication === 'function') {
-        updateApplication(id, { documents: app.documents });
-    } else if (typeof saveSharedData === 'function') {
-        saveSharedData();
-    }
-    if (typeof updateApplicationStatus === 'function') {
-        updateApplicationStatus(id, app.status, app.statusLabel || app.status, 'Клиент загрузил документ: «' + docName + '»');
-    }
-    if (typeof sendChatMessage === 'function') {
-        var name = typeof getClientDisplayName === 'function' ? getClientDisplayName() : app.client;
-        sendChatMessage('client', name, 'Загрузил документ: «' + docName + '».', name);
-    }
-    if (typeof refreshClientApplicationsUI === 'function') refreshClientApplicationsUI(id);
-    if (typeof showDemoToast === 'function') {
-        showDemoToast('Документ «' + docName + '» загружен', { icon: 'fa-file-upload', duration: 2500 });
-    }
+
+    finish(null);
 }
 
 function printOfferPackage() {
     var appId = (typeof state !== 'undefined' && (state.selectedApp || state.conveyorAppId)) || '4421-И';
+    if (typeof openArtifactByKind === 'function') {
+        var existing = typeof getArtifact === 'function' ? getArtifact(typeof artStableId === 'function' ? artStableId(appId, 'preliminary_offer') : null) : null;
+        if (!existing && typeof recordPreliminaryOffer === 'function') {
+            try { recordPreliminaryOffer(appId); } catch (eRec) {}
+        }
+        openArtifactByKind(appId, 'preliminary_offer');
+        return;
+    }
     if (typeof loadSharedData === 'function') loadSharedData();
     var app = (typeof getAllApplications === 'function' ? getAllApplications() : []).find(function(a) { return a.id === appId; }) || {};
     var rate = app.rate != null ? app.rate : (state && state.currentRate);

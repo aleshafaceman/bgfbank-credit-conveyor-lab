@@ -24,13 +24,14 @@ function navigateTo(page) {
     if (typeof closeMobileSidebar === 'function') closeMobileSidebar();
     
     // Скрываем все разделы
-    ['view-conveyor','view-applications','view-dashboard','view-mortgage','view-profile','view-settings']
-        .forEach(id => document.getElementById(id).classList.add('hidden'));
+    ['view-conveyor','view-applications','view-dashboard','view-mortgage','view-profile','view-settings','view-documents']
+        .forEach(id => {
+            var node = document.getElementById(id);
+            if (node) node.classList.add('hidden');
+        });
     
     // Снимаем активность со всех пунктов меню
     document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-    
-    const idx = { dashboard: 0, applications: 1, mortgage: 2, profile: 3, settings: 4 };
     
     switch(page) {
         case 'dashboard':
@@ -48,6 +49,12 @@ function navigateTo(page) {
             } else {
                 selectApplication(state.selectedApp);
             }
+            break;
+        case 'documents':
+            document.getElementById('view-documents').classList.remove('hidden');
+            document.getElementById('pageTitle').innerText = 'Документы';
+            document.getElementById('pageSubtitle').innerText = 'Реестр по заявкам · открывается после reload';
+            if (typeof refreshDocumentsViews === 'function') refreshDocumentsViews();
             break;
         case 'mortgage':
             document.getElementById('view-mortgage').classList.remove('hidden');
@@ -68,8 +75,11 @@ function navigateTo(page) {
             break;
     }
     
-    if (idx[page] !== undefined) {
-        document.querySelectorAll('.nav-link')[idx[page]].classList.add('active');
+    var active = document.querySelector('.nav-link[data-page="' + page + '"]');
+    if (active) active.classList.add('active');
+    else if (page === 'applications' || page === 'conveyor') {
+        var appsNav = document.querySelector('.nav-link[data-page="applications"]');
+        if (appsNav) appsNav.classList.add('active');
     }
 }
 

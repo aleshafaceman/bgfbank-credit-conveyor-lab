@@ -23,6 +23,7 @@ function resetDemoDataReady() {
             localStorage.removeItem('bgfbank_lab_applications');
             localStorage.removeItem('bgfbank_lab_clients');
             localStorage.removeItem('bgfbank_lab_messages');
+            localStorage.removeItem('bgfbank_lab_artifacts');
             localStorage.removeItem('bgfbank_applications');
             localStorage.removeItem('bgfbank_clients');
             localStorage.removeItem('bgfbank_messages');
@@ -75,6 +76,19 @@ function checkApprovalCelebration() {
                 (pay ? ' · ' + pay : ''),
                 { celebrate: true, icon: 'fa-check-circle', duration: 6000 }
             );
+            if (typeof recordArtifactForApp === 'function') {
+                var already = false;
+                try {
+                    already = typeof getArtifact === 'function' && typeof artStableId === 'function' &&
+                        !!getArtifact(artStableId(app.id, 'approval_notice'));
+                } catch (eHas) {}
+                if (!already) {
+                    try {
+                        recordArtifactForApp(app.id, 'approval_notice', { actor: 'client', fn: 'checkApprovalCelebration' });
+                        recordArtifactForApp(app.id, 'final_terms', { actor: 'client', fn: 'checkApprovalCelebration' });
+                    } catch (eArt) {}
+                }
+            }
             if (typeof state !== 'undefined') state.selectedApp = app.id;
             if (typeof navigateTo === 'function') navigateTo('applications');
             else if (typeof refreshClientApplicationsUI === 'function') refreshClientApplicationsUI(app.id);

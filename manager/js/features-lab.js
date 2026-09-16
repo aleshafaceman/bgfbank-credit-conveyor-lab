@@ -40,7 +40,7 @@ function runManagerDemoBoot() {
             setTimeout(function() {
                 var btn = document.getElementById('loginBtn');
                 if (btn) btn.click();
-                if (typeof showManagerToast === 'function') showManagerToast('Режим показа: данные сброшены');
+                if (typeof showManagerToast === 'function') showManagerToast('Режим показа готов');
             }, 250);
         }
     } catch (e) {

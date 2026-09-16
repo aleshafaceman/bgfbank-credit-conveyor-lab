@@ -180,6 +180,10 @@ function initPackageSelection() {
     renderPackageCards();
     updateResultCards();
     updatePackageExtrasUI();
+    var appId = (typeof state !== 'undefined' && (state.conveyorAppId || state.selectedApp)) || '4421-И';
+    if (typeof persistEligiblePackagesSnapshot === 'function') {
+        try { persistEligiblePackagesSnapshot(appId, state.eligiblePackages); } catch (ePkg) {}
+    }
 }
 
 function renderPackageCards() {
@@ -429,6 +433,15 @@ function acceptOfferPackage() {
 
     flashCard('cardRate');
     flashCard('cardPayment');
+    if (typeof recordPreliminaryOffer === 'function') {
+        try { recordPreliminaryOffer(activeId); } catch (eOff) {}
+    }
+    if (typeof recordRateBreakdown === 'function') {
+        try { recordRateBreakdown(activeId); } catch (eRb) {}
+    }
+    if (typeof showDemoToast === 'function') {
+        showDemoToast('Условия зафиксированы · документ в разделе «Документы»', { icon: 'fa-file-signature', duration: 2800 });
+    }
 }
 
 function contactManagerAboutOffer() {

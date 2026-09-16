@@ -1,0 +1,2837 @@
+swagger: '2.0'
+info:
+  version: '2026-01-28'
+  title: 'Мобильный Оценщик: API'
+  contact:
+    email: api@ocenka.mobi
+  description: >
+    Здесь вы можете найти документацию веб-сервисов аналитики недвижимости
+    [Мобильного Оценщика](https://ocenka.mobi), а также попробовать их в работе.
+
+
+    Обратите внимание, что для доступа к API необходимо получить ключ, однако
+    вы можете *попробовать с тестовым ключом прямо сейчас*, нажав на кпопку `Authorize` ниже.
+    
+    
+    После ввода ключа нажимайте кнопку `Try it out` в интересующем вас методе, чтобы ввести параметры и вызвать метод (кнопкой `Execute`). Документация по модели возвращаемого ответа показывается при нажатии `Model` в описании кода ответа `200` для каждого метода.
+    
+host: api.gate.ocenka.mobi
+basePath: /v1
+schemes:
+  - https
+tags:
+  - name: Жилая недвижимость
+    description: 'Сервисы по аналитике, поиску и оценке жилой недвижимости'
+  - name: Информация
+    description: Поиск информации по объектам недвижимости
+  - name: Аналитика
+    description: Аналитическая информация по рынку недвижимости и инфраструктуре
+paths:
+
+  /appraise/flat:
+    get:
+      tags:
+        - Жилая недвижимость
+      summary: Экспресс-оценка квартир
+      description: >
+        Оценка рыночной стоимости, информация по квартире, дому и окружению по одному лишь адресу квартиры. Передача доп. параметров уточняет результат, но необязательна.
+      parameters:
+        - name: address
+          in: query
+          description: >
+            Адрес здания в любом формате, позволяющем точно идентифицировать
+            дом.
+
+            При вызове нужно передать либо адрес `address`, либо координаты `lat`, `lng`.
+          required: false
+          type: string
+          default: 'Кострома, проспект Мира, 15'
+        - name: lat
+          in: query
+          description: Широта
+          required: false
+          type: number
+          format: double
+          default: 55.676059
+          minimum: 40
+          maximum: 75
+        - name: lng
+          in: query
+          description: Долгота
+          required: false
+          type: number
+          format: double
+          default: 37.536742
+          minimum: 19
+          maximum: 179
+        - name: area
+          description: >-
+            Площадь объекта в кв.м, если указано, поиск производится среди
+            квартир с площадью +-20% от указанной
+          in: query
+          required: false
+          type: number
+          format: double
+          minimum: 10
+          maximum: 1000
+        - name: rooms
+          description: >-
+            Кол-во комнат, `4` означает "*4 и более*"'. Если указан этот параметр,
+            то при подброре аналогов предпочитаются квартиры с тем же кол-вом комнат.
+          in: query
+          required: false
+          type: string
+          enum:
+            - '1'
+            - '2'
+            - '3'
+            - '4'
+            - своб
+        - name: maxFloor
+          description: Этажность здания
+          in: query
+          required: false
+          type: integer
+          minimum: 1
+          maximum: 200
+        - name: floor
+          description: Этаж расположения квартиры
+          in: query
+          required: false
+          type: integer
+          minimum: 1
+          maximum: 200
+        - name: bldYear
+          description: Год постройки
+          in: query
+          required: false
+          type: integer
+          minimum: 1700
+        - name: bldType
+          description: Тип дома
+          in: query
+          required: false
+          type: string
+        - name: forceFlat
+          description: >-
+            В обязательном порядке производить поиск информации по квартире в Росреестре (по умолчанию - только если не передана площадь `area`).
+
+            Очевидно, это работает, только если в адресе `address` *указан* номер квартиры.
+          in: query
+          required: false
+          type: string
+          default: 'false'
+          enum:
+            - '0'
+            - '1'
+            - 'false'
+            - 'true'
+        # - name: includeAds
+        #   description: >-
+        #     Включать ли объявления-аналоги, по которым расчитывалась стоимость, в возвращаемый результат.
+        #   in: query
+        #   required: false
+        #   type: string
+        #   default: 'false'
+        #   enum:
+        #     - '0'
+        #     - '1'
+        #     - 'false'
+        #     - 'true'
+      produces:
+        - application/json
+      security:
+        - api_key: []
+      responses:
+        '404':
+          description: Не найден указанный адрес
+        '429':
+          description: Превышен лимит запросов. Необходимо повторить запрос позже.
+          schema:
+            $ref: '#/definitions/ErrorResult'
+        '504':
+          description: Запрос слишком сложный или сервер занят. Необходимо сообщить в службу поддержки support@ocenka.mobi
+          schema:
+            $ref: '#/definitions/ErrorResult'
+        '200':
+          description: Результат экспресс-оценки квартиры, с информацией по зданию и аналогами, используемыми для расчета.
+          schema:
+            type: object
+            properties:
+              bld:
+                $ref: '#/definitions/BldSearchResult'
+              # flat:
+              #   $ref: '#/definitions/FlatSearchResult'
+              # ads:
+              #   description: >-
+              #     Выборка объявлений о продаже квартир в аналогичных зданиях,
+              #     на основании которой расчитывался результат оценки.
+              #     Присутствует, если при вызове передан параметр `includeAds={'1', 'true'}`
+              #   type: array
+              #   minItems: 1
+              #   items:
+              #     $ref: '#/definitions/AdSearchResult'
+              stats:
+                description: >-
+                  Средние цены кв.м квартир в домах различного типа. Если
+                  объявлений в указанном районе не найдено, будет возвращён
+                  пустой массив.
+                type: object
+                properties:
+                  quality:
+                    type: string
+                    description: >-
+                      Индикатор качества подбора аналогов в выборке.
+                      Качество `A` означает, что все подобранные аналоги совпадают с объектов оценки по всем параметрам.
+                      Качество `B` означает, что в выборке есть аналоги, отличающиеся от объекта по одному параметру (например, этажности), `C` - по двум параметрам, и т.д.
+                      Качество, отличное от `A`, означает, что результат оценки нужно использовать с осторожностью, т.к. аналоги не полностью идентичны объекту оценки.
+                    enum:
+                      - 'A'
+                      - 'B'
+                      - 'C'
+                      - 'D'
+                      - 'E'
+                      - 'F'
+                    example: A
+                  price:
+                    description: Экспресс-оценка стоимости квартиры (если была передана или определена площадь), на основе `stats.median` или `stats.average`, округляется до тысяч.
+                    type: integer
+                  priceRange:
+                    type: array
+                    description: Диапазон стоимости квартиры (если была передана или определена площадь), на основе квартилей `stats.q1/q3`, округляется до тысяч.
+                    items:
+                      type: number
+                      format: double
+                      minItems: 2
+                      maxItems: 2
+                  size:
+                    description: Размер выборки
+                    type: integer
+                  median:
+                    description:  >-
+                      Медиана цены кв.м метра площади. Используйте в качестве
+                      результата оценки при `size` >= 15
+                    type: number
+                    format: double
+                  average:
+                    description:  >-
+                      Среднее цены кв.м метра площади. Используйте в качестве
+                      результата оценки при `size` < 15
+                    type: number
+                    format: double
+                  q1:
+                    description: >
+                      Первый [квартиль](https://ru.wikipedia.org/wiki/%D0%9A%D0%B2%D0%B0%D0%BD%D1%82%D0%B8%D0%BB%D1%8C#.D0.9C.D0.B5.D0.B4.D0.B8.D0.B0.D0.BD.D0.B0_.D0.B8_.D0.BA.D0.B2.D0.B0.D1.80.D1.82.D0.B8.D0.BB.D0.B8) выборки.
+                    type: number
+                    format: double
+                  q3:
+                    description: Третий квартиль выборки. При хороших показателях качества выборки (`size > 20`, `spread < 20`) интервал `{q1, q3}` может использоваться в качестве наиболее вероятного диапазона цен.
+                    type: number
+                    format: double
+                  min:
+                    description: Минимальное значение выборки.
+                    type: number
+                    format: double
+                  max:
+                    description: Максимальное значение выборки.
+                    type: number
+                    format: double
+                  spread:
+                    description: Относительная ширина межквартильного размаха выборки `(q3 - q1) / q3` (если >20%, то выборка неоднородная, результат оценки нужно использовать с осторожностью).
+                    type: number
+                    format: double
+                  minMaxSpread:
+                    description: Относительная ширина разброса выборки (между min и max) размаха выборки `(max - min) / max`.
+                    type: number
+                    format: double
+                  totalAdsCount:
+                    description: Количество объявлений в радиусе `totalAdsRadius` с даты `totalAdsDt` вокруг объекта оценки. Может использоваться как мера развитости рынка в данном районе. `totalAdsCount < 100` свидетельствует о неразвитом рынке, `totalAdsCount > 1000` - о развитом.
+                    type: integer
+                    example: 956,
+                  totalAdsDt:
+                    type: string
+                    format: date
+                    description: Дата, с которой искались объявления (ISO-8601).
+                    example: '2018-11-15T13:46:44.165Z'
+                  totalAdsRadius:
+                    type: integer
+                    description: Радиус, в котором искались объявления.
+                    example: 500
+                  activeMarket:
+                    type: boolean
+                    description: Индикатор активного/неактивного рынка (в соответствии с которым применялись корректировки).
+                  segment:
+                    type: string
+                    description: Сегмент рынка (в соответствии с которым применялись корректировки).
+          examples:
+            application/json: |-
+              {
+                "bld": {
+                    "pos": {
+                        "lat": 55.89346,
+                        "lng": 37.624965
+                    },
+                    "address": "Москва, улица Корнейчука, 58А",
+                    "bldTitle": "Жилой дом",
+                    "maxFloor": 9,
+                    "bldYear": 1979,
+                    "bldProject": "1-515",
+                    "wallMaterial": "панельные",
+                    "floorMaterial": "железобетонные",
+                    "bldType": "панель",
+                    "basement": "бетонные столбы",
+                    "isAlarm": false,
+                    "alarmLink": "https://yandex.ru/",
+                    "entranceCount": 6,
+                    "elevatorCount": 6,
+                    "flatsCount": 223,
+                    "livingCount": 209,
+                    "nonLivingCount": 14,
+                    "facadeType": "соответствует материалу стен",
+                    "roofType": "плоская из рулонных материалов",
+                    "bldArea": 10685.5,
+                    "bldLivingArea": 10445.5,
+                    "bldNonLivingArea": 240,
+                    "plotArea": 1226,
+                    "linkReforma": "https://www.reformagkh.ru/myhouse/profile/view/7564137",
+                    "linkPKK": "https://pkk5.rosreestr.ru/#text=77%3A2%3A2006%3A1019&type=5&app=search&opened=1",
+                    "cadNum": "77:2:2006:1019",
+                    "photos": [
+                        "https://foto.ru/get/28292/237744466.1288/0_3b29a_14f75820_XL"
+                    ],
+                    "stations": [
+                        {
+                            "name": "Бибирево",
+                            "comment": "Серпуховско-Тимирязевская линия",
+                            "distance": 1900,
+                            "type": "метро"
+                        }
+                    ],
+                    "orgs": [
+                        "Имидж красота стиль, салон красоты",
+                        "Стоматология Семейных Скидок, сеть клиник"
+                    ],
+                    "quality": "success"
+                },
+                "flat": {
+                  "cadNum": "77:02:0002006:3741",
+                  "name": "квартира из 3 комнат",
+                  "address": "г.МОСКВА, УЛИЦА КОРНЕЙЧУКА, дом 58A кв. 95",
+                  "area": 60.5,
+                  "floor": 6,
+                  "cadCost": 8980296.32,
+                  "dateCost": "2014-12-18"
+                },                
+                "stats": {
+                  "size": 37,
+                  "median": 49033.95,
+                  "average": 47309.54864864865,
+                  "stdDev": 6870.441888415386,
+                  "variation": 0.14522315440884329,
+                  "q1": 41127.35,
+                  "q3": 51530.85,
+                  "iqr": 10403.5,
+                  "lowerFence": 25522.1,
+                  'upperFence": 67136.1,
+                  "min": 34262.7,
+                  "max": 60102.7,
+                  "spread": 0.20188877148349,
+                  "minMaxSpread": 0.42993076850124873,
+                  "totalAdsCount": 956,
+                  "totalAdsDt": "2018-11-15T13:46:44.165Z",
+                  "totalAdsRadius": 500
+                },
+                "sample": [...]
+              }
+
+  /analyze/flat:
+    get:
+      deprecated: true
+      tags:
+        - Аналитика
+      summary: Ценовой профиль рынка продажи квартир
+      description: >
+        Возвращает средние цены продажи квартир в различных аналитических срезах (по  в районе
+        около заданной точки (параметры ``lat``, ``lng``).
+      parameters:
+        - name: lat
+          in: query
+          description: Широта
+          required: true
+          type: number
+          format: double
+          default: 55.676059
+          minimum: 40
+          maximum: 75
+        - name: lng
+          in: query
+          description: Долгота
+          required: true
+          type: number
+          format: double
+          default: 37.536742
+          minimum: 19
+          maximum: 179
+        - name: radius
+          in: query
+          description: >-
+            Радиус, в котором происходит поиск объявлений. Для анализа берутся
+            2000 ближайших к заданной точке объектов.
+          required: false
+          type: integer
+          default: 2000
+          minimum: 1
+          maximum: 20000
+        - name: type
+          in: query
+          description: Тип рынка - вторичка (по умолчанию) или новостройки.
+          required: false
+          type: string
+          default: вторичка
+          enum:
+            - новостройка
+            - вторичка
+        - name: dtMin
+          description: >-
+            Кол-во дней, за которые производится поиск объявлений (по умолчанию
+            - полгода).
+          in: query
+          required: false
+          default: 180
+          type: integer
+          minimum: 1
+          maximum: 720
+      produces:
+        - application/json
+      security:
+        - api_key: []
+      responses:
+        '429':
+          description: Превышен лимит запросов. Необходимо повторить запрос позже.
+          schema:
+            $ref: '#/definitions/ErrorResult'
+        '504':
+          description: Запрос слишком сложный или сервер занят. Необходимо сообщить в службу поддержки support@ocenka.mobi
+          schema:
+            $ref: '#/definitions/ErrorResult'
+        '200':
+          description: Перечень атрибутов квартир с ценовым профилем.
+          schema:
+            type: object
+            properties:
+              area:
+                description: >-
+                  Средние цены в квартирах различной площади. Если объявлений в
+                  указанном районе не найдено, будет возвращён пустой массив.
+                type: array
+                minItems: 1
+                items:
+                  $ref: '#/definitions/PricingProfileSearchResult'
+              floor:
+                description: >-
+                  Средние цены кв.м квартир в домах различной этажности. Если
+                  объявлений в указанном районе не найдено, будет возвращён
+                  пустой массив.
+                type: array
+                minItems: 1
+                items:
+                  $ref: '#/definitions/PricingProfileSearchResult'
+              bldType:
+                description: >-
+                  Средние цены кв.м квартир в домах различного типа. Если
+                  объявлений в указанном районе не найдено, будет возвращён
+                  пустой массив.
+                type: array
+                minItems: 1
+                items:
+                  $ref: '#/definitions/PricingProfileSearchResult'
+              rooms:
+                description: >-
+                  Средние цены в квартирах различной комнатности. Если
+                  объявлений в указанном районе не найдено, будет возвращён
+                  пустой массив.
+                type: array
+                minItems: 1
+                items:
+                  $ref: '#/definitions/PricingProfileSearchResult'
+          examples:
+            application/json: |-
+              {
+                area: [
+                  {count: 485, category: ">100 кв.м", priceSqm: 364000},
+                  {count: 134, category: "80-99 кв.м", priceSqm: 294000},
+                  …],
+                rooms: [
+                  {count: 354, category: "4+", priceSqm: 343000},
+                  {count: 642, category: "3", priceSqm: 282000},
+                  …],
+                floor: [
+                  {count: 723, category: "17-22 эт.", priceSqm: 302000},
+                  {count: 473, category: "10-16 эт.", priceSqm: 301000},
+                  …],
+                bldType: [
+                  {count: 452, category: "монолит", priceSqm: 360000},
+                  {count: 683, category: "кирпич", priceSqm: 244000},
+                  …]
+              }
+
+  /search/bld:
+    get:
+      deprecated: true
+      tags:
+        - Информация
+      summary: Справочная информация по зданиям (жилым домам)
+      description: >
+        Возвращает характеристики жилых домов.
+
+        Поиск по координатам (параметры ``lat``, ``lng``) или адресу
+        (``address``).
+
+        При вызове должны быть переданы либо координаты, либо адрес.
+      parameters:
+        - name: lat
+          in: query
+          description: Широта
+          required: false
+          type: number
+          format: double
+          default: 56.371491
+          minimum: 40
+          maximum: 75
+        - name: lng
+          in: query
+          description: Долгота
+          required: false
+          type: number
+          format: double
+          default: 37.534972
+          minimum: 19
+          maximum: 179
+        - name: address
+          in: query
+          description: >
+            Адрес здания, в любом формате, позволяющем точно идентифицировать
+            дом.
+
+            При вызове нужно передать либо адрес, либо координаты.
+          required: false
+          type: string
+          default: 'Кострома, проспект Мира, 15'
+        - name: fiasId
+          in: query
+          description: >-
+            Guid дома в ФИАС (часто доступен, если адрес выбирается из
+            справочника). Необязателен, но позволяет более точно найти данные по
+            дому.
+          required: false
+          type: string
+          default: 6a0bc7a3-80a2-48a9-96fb-81b2ada8156c
+      produces:
+        - application/json
+      security:
+        - api_key: []
+      responses:
+        '429':
+          description: Превышен лимит запросов. Необходимо повторить запрос позже.
+          schema:
+            $ref: '#/definitions/ErrorResult'
+        '504':
+          description: Запрос слишком сложный или сервер занят. Необходимо сообщить в службу поддержки support@ocenka.mobi
+          schema:
+            $ref: '#/definitions/ErrorResult'
+        '200':
+          description: >-
+            Параметры здания. Если поиск завершился неудачей, будет возвращён
+            null.
+          schema:
+            $ref: '#/definitions/BldSearchResult'
+          examples:
+            application/json: |-
+              {
+                "pos" : {
+                  "lat" : 56.869491,
+                  "lng" : 53.177112
+                },
+                "address" : "Удмуртская Республика, Ижевск, 7-я Подлесная улица, 97",
+                "bldTitle" : "Жилой дом",
+                "maxFloor" : 18,
+                "bldYear" : 2015,
+                "bldProject" : "Индивидуальный проект",
+                "wallMaterial" : "Смешанные",
+                "floorMaterial" : "Железобетонные",
+                "bldType" : "панель",
+                "basement" : "Свайный",
+                "isAlarm" : false,
+                "alarmLink": "https://yandex.ru/",
+                "entranceCount" : 2,
+                "elevatorCount" : 4,
+                "flatsCount" : 210,
+                "bldArea" : 10816.9,
+                "bldLivingArea" : 8551.4,
+                "bldNonLivingArea" : 2265.5,
+                "plotArea" : 14980.1,
+                "linkReforma" : "https://www.reformagkh.ru/myhouse/profile/view/9110836",
+                "linkPKK" : "http://pkk5.rosreestr.ru/#text=18%3A26%3A10066%3A1445&type=5&app=search&opened=1",
+                "cadNum" : "18:26:10066:1445",
+                "photos" : ["https://img-fotki.yandex.ru/get/64820/157621844.189/0_79a3_27ea0263_XL"],
+                "stations" : [{
+                    "name" : "Ижевский Государственный Технический Университет им. М.Т. Калашникова",
+                    "distance" : 320,
+                    "type" : "автобус, троллейбус, маршрутка"
+                  }
+                ],
+                "orgs" : ["КЕМБРИДЖ, парк-отель", "Магазин автозапчастей", "Мебель-ДИС, торгово-производственная компания"]
+              }
+        '400':
+          description: Не хватает или неправильный формат параметров
+        '403':
+          description: >-
+            Не передан или неверный ключ Api. Передавайте его в заголовке
+            `X-Api-Key:`
+
+  /search/infra:
+    get:
+      tags:
+        - Аналитика
+      summary: Объекты инфраструктуры
+      description: |
+        Информация об объектах социальной инфраструктуры в заданном районе.
+      parameters:
+        - name: lat
+          in: query
+          description: Широта
+          required: false
+          type: number
+          format: double
+          default: 57.773
+          minimum: 40
+          maximum: 75
+        - name: lng
+          in: query
+          description: Долгота
+          required: false
+          type: number
+          format: double
+          default: 40.932
+          minimum: 19
+          maximum: 179
+      produces:
+        - application/json
+      security:
+        - api_key: []
+      responses:
+        '429':
+          description: Превышен лимит запросов. Необходимо повторить запрос позже.
+          schema:
+            $ref: '#/definitions/ErrorResult'
+        '504':
+          description: Запрос слишком сложный или сервер занят. Необходимо сообщить в службу поддержки support@ocenka.mobi
+          schema:
+            $ref: '#/definitions/ErrorResult'
+        '200':
+          description: >-
+            Профиль застройки, объекты социальной инфраструктуры, транспортная
+            доступность.
+          schema:
+            type: object
+            properties:
+              social:
+                description: 'Объекты инфраструктуры, сгруппированные по категориям.'
+                type: array
+                minItems: 1
+                items:
+                  $ref: '#/definitions/InfraCategorySearchResult'
+              transport:
+                description: >-
+                  Траспортная доступность (расстояние и время проезда до центра
+                  города)
+                type: object
+              profile:
+                type: object
+                properties:
+                  floor:
+                    description: Распределение домов по этажности
+                    type: array
+                    items:
+                      $ref: '#/definitions/BldProfileSearchResult'
+                  bldType:
+                    description: Распределение домов по материалу стен
+                    type: array
+                    items:
+                      $ref: '#/definitions/BldProfileSearchResult'
+                  year:
+                    description: Распределение домов по году постройки
+                    type: array
+                    items:
+                      $ref: '#/definitions/BldProfileSearchResult'
+          examples:
+            application/json: |-
+              "profile": {
+                "floor": [{count: 14, category: "4-6 эт."}, {count: 40, category: "7-9 эт."},…],
+                "bldType": [{count: 41, category: "Блочные"}, {count: 40, category: "Кирпичные"},…],
+                "year": [{count: 61, category: "1950-74"}, {count: 22, category: "1975-99"},,…]
+              },
+              "transport": {},
+              "social": [{
+                  "category" : "Продукты",
+                  "items" : [{
+                      "title" : "Семёрка",
+                      "subtitle" : "торговый центр",
+                      "pos" : {
+                        "lat" : 57.781914,
+                        "lng" : 40.937421
+                      },
+                      "distance" : 977,
+                      "address" : "Ленина, 95",
+                      "photos" : ["https://i1.photo.com/main/34/4785602885059571", "https://i2.photo.com/main/34/4785710259245002"]
+                    }, {
+                      "title" : "На Сенной",
+                      "subtitle" : "торговый центр",
+                      "pos" : {
+                        "lat" : 57.773032,
+                        "lng" : 40.937
+                      },
+                      "distance" : 302,
+                      "address" : "Мира проспект, 33",
+                      "photos" : ["https://i0.photo.com/main/34/4785710259241730"]
+                    }
+                  ]
+                }, {
+                  "category" : "Медицина",
+                  "items" : [{
+                      "title" : "Поликлиника №1",
+                      "subtitle" : "Детское отделение",
+                      "pos" : {
+                        "lat" : 57.767252,
+                        "lng" : 40.931114
+                      },
+                      "distance" : 708,
+                      "address" : "Свердлова, 11",
+                      "photos" : null
+                    }, {
+                      "title" : "Родильный дом г. Костромы",
+                      "subtitle" : "",
+                      "pos" : {
+                        "lat" : 57.770078,
+                        "lng" : 40.933715
+                      },
+                      "distance" : 405,
+                      "address" : "Мира проспект, 8",
+                      "photos" : ["https://i3.photo.com/main/34/4785602885062673", "https://i9.photo.com/main/34/4785710259241389"]
+                    }
+                  ]
+                }, {
+                  "category" : "Спорт",
+                  "items" : [{
+                      "title" : "Студия йоги Татьяны Скворцовой",
+                      "subtitle" : "",
+                      "pos" : {
+                        "lat" : 57.775568,
+                        "lng" : 40.924336
+                      },
+                      "distance" : 504,
+                      "address" : "Козуева, 15",
+                      "photos" : null
+                    }, {
+                      "title" : "ОЛИМПИК ХОЛЛ",
+                      "subtitle" : "фитнес-клуб",
+                      "pos" : {
+                        "lat" : 57.778859,
+                        "lng" : 40.931776
+                      },
+                      "distance" : 583,
+                      "address" : "Ново-Полянская, 5",
+                      "photos" : ["https://i6.photo.com/main/34/70000001007460256"]
+                    }
+                  ]
+                }
+              ]
+        '400':
+          description: Не хватает или неправильный формат параметров
+        '403':
+          description: >-
+            Не передан или неверный ключ Api. Передавайте его в заголовке
+            `X-Api-Key:`
+
+  /search/flat:
+    get:
+      tags:
+        - Жилая недвижимость
+      summary: Поиск объявлений о продаже квартир
+      description: >
+        Поиск объявлений о продаже квартир.
+
+        Поиск по координатам (параметры ``lat``, ``lng``) и радиусу поиска
+        (``radius`` в метрах).
+      parameters:
+        - name: lat
+          in: query
+          description: Широта
+          required: false
+          type: number
+          format: double
+          default: 56.371491
+          minimum: 40
+          maximum: 75
+        - name: lng
+          in: query
+          description: Долгота
+          required: false
+          type: number
+          format: double
+          default: 37.534972
+          minimum: 19
+          maximum: 179
+        - name: radius
+          description: 'Радиус поиска (м), по умолчанию 5000'
+          in: query
+          required: false
+          type: integer
+        - name: bbox
+          in: query
+          description: >-
+            Координаты углов прямоугольника, в котором производится поиск. В
+            запросе должен быть указан либо параметр `bbox`, либо параметры
+            `{lat, lng}`. Координаты контура передаются в виде `x1_y1,x2_y2`,
+            напр. `37.5337_55.6604,37.5613_55.6708`
+          required: false
+          type: string
+        - name: type
+          description: >-
+            Тип объявлений (новостройки или вторичка), среди которых
+            производится поиск.
+          in: query
+          required: false
+          type: string
+          enum:
+            - новостройка
+            - вторичка
+        - name: area
+          description: >-
+            Площадь объекта в кв.м, если указано, поиск производится среди
+            квартир с площадью +-20% от указанной
+          in: query
+          required: false
+          type: number
+          format: double
+          minimum: 10
+          maximum: 1000
+        - name: areaMin
+          description: Минимальная площадь квартиры в кв.м
+          in: query
+          required: false
+          type: number
+          format: double
+          minimum: 20
+          maximum: 200
+        - name: areaMax
+          description: Максимальная площадь квартиры в кв.м
+          in: query
+          required: false
+          type: number
+          format: double
+          minimum: 20
+          maximum: 200
+        - name: rooms
+          description: 'Кол-во комнат, `4` означает "*4 и более*"'
+          in: query
+          required: false
+          type: string
+          default: '1'
+          enum:
+            - '1'
+            - '2'
+            - '3'
+            - '4'
+            - своб
+        - name: bldType
+          description: Тип дома
+          in: query
+          required: false
+          type: string
+        - name: floorMin
+          description: Минимальная этажность здания (по умолчанию - без ограничений)
+          in: query
+          required: false
+          type: integer
+          minimum: 1
+          maximum: 200
+        - name: floorMax
+          description: Максимальная этажность здания (по умолчанию - без ограничений)
+          in: query
+          required: false
+          type: integer
+          minimum: 1
+          maximum: 30
+        - name: dtMin
+          description: >-
+            Кол-во дней, за которые производится поиск объявлений. По умолчанию (и максимально)
+            - не более 365.
+          in: query
+          required: false
+          type: integer
+          minimum: 0
+          maximum: 3000
+        - name: exact
+          description: >-
+            Нечёткий поиск - нужно ли строго учитывать указанные критерии поиска
+            (если `1`), или при нехватке аналогов можно добавлять в выборку
+            аналоги, подходящие не под все критерии (если `0`). Приоритетность
+            критериев - `type`, `rooms`, `floorMin/floorMax`, `bldType`,
+            `area/areaMin/areaMax`.
+          in: query
+          type: string
+          required: false
+          default: '0'
+          enum:
+            - '0'
+            - '1'
+            - 'false'
+            - 'true'
+      produces:
+        - application/json
+      security:
+        - api_key: []
+      responses:
+        '200':
+          description: Результаты поиска (от 0 до 200 результатов)
+          schema:
+            type: array
+            minItems: 0
+            maxItems: 200
+            items:
+              $ref: '#/definitions/AdSearchResult'
+          examples:
+            application/json: |-
+              [
+                {
+                  "id" : "5808fd3d0a23119d640de24d",
+                  "pos" : [39.930608, 59.218208],
+                  "address" : "Вологда, р-н Водники, ул Карла Маркса, 103б",
+                  "comment" : "Новостройка. Подрядчик. Выбор этажей и планировок. Все квартиры подходят под ипотеку с гос. поддержкой. Престижный район города с развитой инфраструктурой. Покажем в любое удобное для вас время. Поможем реализовать вашу недвижимость, помощь в ипотеке. Звоните!",
+                  "areaTotal" : 53,
+                  "bldType" : "кирпичный",
+                  "floor" : 2,
+                  "maxFloor" : 12,
+                  "rooms" : "2",
+                  "src": "cian",
+                  "srcUrl": "https://www.cian.ru/sale/flat/152232230/",
+                  "price" : 2180000,
+                  "priceSqm" : 41132,
+                  "photosCount" : 3,
+                  "updateDt" : "2016-10-20T17:21:50.642Z",
+                  "createDt" : "2016-10-10T11:21:00.000Z"
+                }, {
+                  "id" : "5810bb7aa4dd331e4f1b4733",
+                  "pos" : [39.901269, 59.193781],
+                  "address" : "Вологодская область, Вологда, ул. Маршала Конева, д.4в",
+                  "comment" : "Дом расположен в тихом спокойном районе в глубине застройки улицы маршала Конева. В районе имеется развитая инфраструктура, школы 29, 35, 36, детские сады, тц \"Меридиан\". Во всей квартире сделан хороший косметический ремонт, поэтому не...",
+                  "areaTotal" : 78.4,
+                  "bldType" : "кирпичный",
+                  "floor" : 1,
+                  "maxFloor" : 12,
+                  "rooms" : "3",
+                  "src": "cian",
+                  "srcUrl": "https://www.cian.ru/sale/flat/152241987/",
+                  "price" : 3100000,
+                  "priceSqm" : 39541,
+                  "photosCount" : 10,
+                  "updateDt" : "2016-10-26T17:19:50.044Z",
+                  "createDt" : "2016-10-26T16:37:00.000Z"
+                }
+              ]
+        '429':
+          description: Превышен лимит запросов. Необходимо повторить запрос позже.
+          schema:
+            $ref: '#/definitions/ErrorResult'
+        '504':
+          description: Запрос слишком сложный или сервер занят. Необходимо сообщить в службу поддержки support@ocenka.mobi
+          schema:
+            $ref: '#/definitions/ErrorResult'
+        '400':
+          description: Не хватает или неправильный формат параметров
+        '403':
+          description: >-
+            Не передан или неверный ключ Api. Передавайте его в заголовке
+            `X-Api-Key:`
+
+  '/search/flat/{id}':
+    get:
+      tags:
+        - Жилая недвижимость
+      summary: Получение подробностей об объявлении по ``id``
+      parameters:
+        - name: id
+          in: path
+          description: Идентификатор объявления
+          type: string
+          required: true
+      produces:
+        - application/json
+      security:
+        - api_key: []
+      responses:
+        '200':
+          description: успешное завершение
+          schema:
+            type: object
+          examples:
+            application/json: |-
+              {
+                "id": "57ed77c4a4dd331e4fb5ca79",
+                "src": "cian",
+                "srcUrl": "http://krasnodar.cian.ru/sale/flat/149971349/",
+                "pos": [
+                  38.9756,
+                  45.055174
+                ],
+                "address": "Краснодарский край, Краснодар, район Западный, Рашпилевская ул., д.180",
+                "comment": "Отличное месторасположение дома, делает его уникальным среди многих других. Авторский дизайн-проект и шикарный евроремонт, отличная планировка, кухня-гостинная, две изолированные комнаты, камеры видео наблюдения, сигнализация.",
+                "balcony": "1Б",
+                "lavatory": "1С",
+                "areaTotal": 77,
+                "bldType": "кирпичный",
+                "areaLiving": null,
+                "areaKitchen": null,
+                "areaRooms": null,
+                "floor": 9,
+                "maxFloor": 10,
+                "rooms": "3",
+                "price": 5600000,
+                "priceSqm": 72728,
+                "photosCount": 11,
+                "photos": ['...', '...'],
+                "metro": ["м. Новые Черемушки (3 мин. на машине)"],
+                "updateDt": "2016-11-28T23:24:45.358Z",
+                "createDt": "2016-11-27T23:33:00.000Z",
+                "metro": null,
+                "sight": "двор + улица",
+                "contacts": "8612056284",
+                "dealType": "свободная",
+                "seller": "Этажи"
+              }
+        '403':
+          description: >-
+            Не передан или неверный ключ Api. Передавайте его в заголовке
+            `X-Api-Key:`
+
+  /search/rent:
+    get:
+      tags:
+        - Жилая недвижимость
+      summary: Поиск объявлений по долгосрочной аренде квартир.
+      description: >
+        Поиск объявлений по долгосрочной аренде квартир.
+
+        Поиск по координатам (параметры ``lat``, ``lng``) и радиусу поиска
+        (``radius`` в метрах).
+      parameters:
+        - name: lat
+          in: query
+          description: Широта
+          required: false
+          type: number
+          format: double
+          default: 56.371491
+          minimum: 40
+          maximum: 75
+        - name: lng
+          in: query
+          description: Долгота
+          required: false
+          type: number
+          format: double
+          default: 37.534972
+          minimum: 19
+          maximum: 179
+        - name: radius
+          description: 'Радиус поиска (м), по умолчанию 5000'
+          in: query
+          required: false
+          type: integer
+        - name: bbox
+          in: query
+          description: >-
+            Координаты углов прямоугольника, в котором производится поиск. В
+            запросе должен быть указан либо параметр `bbox`, либо параметры
+            `{lat, lng}`. Координаты контура передаются в виде `x1_y1,x2_y2`,
+            напр. `37.5337_55.6604,37.5613_55.6708`
+          required: false
+          type: string
+        - name: area
+          description: >-
+            Площадь объекта в кв.м, если указано, поиск производится среди
+            квартир с площадью +-20% от указанной
+          in: query
+          required: false
+          type: number
+          format: double
+          minimum: 10
+          maximum: 1000
+        - name: areaMin
+          description: Минимальная площадь квартиры в кв.м
+          in: query
+          required: false
+          type: number
+          format: double
+          minimum: 20
+          maximum: 200
+        - name: areaMax
+          description: Максимальная площадь квартиры в кв.м
+          in: query
+          required: false
+          type: number
+          format: double
+          minimum: 20
+          maximum: 200
+        - name: rooms
+          description: 'Кол-во комнат, `4` означает "*4 и более*"'
+          in: query
+          required: false
+          type: string
+          default: '1'
+          enum:
+            - '1'
+            - '2'
+            - '3'
+            - '4'
+            - своб
+        - name: floorMin
+          description: Минимальная этажность здания (по умолчанию - без ограничений)
+          in: query
+          required: false
+          type: integer
+          minimum: 1
+          maximum: 200
+        - name: floorMax
+          description: Максимальная этажность здания (по умолчанию - без ограничений)
+          in: query
+          required: false
+          type: integer
+          minimum: 1
+          maximum: 30
+        - name: dtMin
+          description: >-
+            Кол-во дней, за которые производится поиск объявлений. По умолчанию (и максимально)
+            - не более 365.
+          in: query
+          required: false
+          type: integer
+          minimum: 0
+          maximum: 3000
+        - name: exact
+          description: >-
+            Нечёткий поиск - нужно ли строго учитывать указанные критерии поиска
+            (если `1`), или при нехватке аналогов можно добавлять в выборку
+            аналоги, подходящие не под все критерии (если `0`). Приоритетность
+            критериев - `type`, `rooms`, `floorMin/floorMax`, `area/areaMin/areaMax`.
+          in: query
+          type: string
+          required: false
+          default: '0'
+          enum:
+            - '0'
+            - '1'
+            - 'false'
+            - 'true'
+      produces:
+        - application/json
+      security:
+        - api_key: []
+      responses:
+        '200':
+          description: Результаты поиска (от 0 до 200 результатов)
+          schema:
+            type: array
+            minItems: 0
+            maxItems: 200
+            items:
+              $ref: '#/definitions/AdSearchResult'
+          examples:
+            application/json: |-
+              [
+                {
+                   "id": "5ac76fd6dd1643842f81654c",
+                   "src": "cian",
+                   "srcUrl": "https://www.cian.ru/rent/flat/169713005/",
+                   "pos": [
+                    37.613099,
+                    55.888881
+                   ],
+                   "dist": null,
+                   "address": "Москва, район Бибирево, ул. Плещеева, 11В",
+                   "comment": "Квартира с ремонтом. Фото старые, есть значительные улучшения. В каждой комнате шкаф и раскладывающийся диван. Окна ПВХ. Кухня гарнитурная. Новые холодильник, ста и плита,есть свч. Интернет. Сдается на длительный срок. Залог можно разбить на два месяца. Пешая доступность до метро.",
+                   "contacts": "9031317674",
+                   "areaTotal": 44,
+                   "areaKitchen": 6,
+                   "floor": 6,
+                   "maxFloor": 9,
+                   "rooms": "2",
+                   "price": 37000,
+                   "priceSqm": 841,
+                   "photosCount": 6,
+                   "updateDt": "2018-04-06T00:10:00.000Z"
+                },
+                {
+                   "id": "5ac69ff1dd1643842f80eaba",
+                   "src": "cian",
+                   "srcUrl": "https://www.cian.ru/rent/flat/180989443/",
+                   "pos": [
+                    37.611814,
+                    55.892607
+                   ],
+                   "dist": null,
+                   "address": "Москва, район Бибирево, ул. Коненкова, 12",
+                   "comment": "Сдается впервые 2х ком квартира, в хорошем состоянии на длительный срок, вся необходимая мебель и бытовая техника, стеклопакеты на окнах, застекленный балкон,металлическая дверь, домофон, вода свет по счетчикам, рассматриваются семейные пары, можно с детьми, желательно граждане РФ.",
+                   "contacts": "9262038414",
+                   "areaTotal": 46,
+                   "areaKitchen": 6.5,
+                   "floor": 2,
+                   "maxFloor": 12,
+                   "rooms": "2",
+                   "price": 33000,
+                   "priceSqm": 718,
+                   "photosCount": 16,
+                   "updateDt": "2018-04-05T06:18:00.000Z"
+                }
+              ]
+        '429':
+          description: Превышен лимит запросов. Необходимо повторить запрос позже.
+          schema:
+            $ref: '#/definitions/ErrorResult'
+        '504':
+          description: Запрос слишком сложный или сервер занят. Необходимо сообщить в службу поддержки support@ocenka.mobi
+          schema:
+            $ref: '#/definitions/ErrorResult'
+        '400':
+          description: Не хватает или неправильный формат параметров
+        '403':
+          description: >-
+            Не передан или неверный ключ Api. Передавайте его в заголовке
+            `X-Api-Key:`
+
+  '/search/rent/{id}':
+    get:
+      tags:
+        - Жилая недвижимость
+      summary: Получение подробностей об объявлении об аренде квартиры по ``id``
+      parameters:
+        - name: id
+          in: path
+          description: Идентификатор объявления
+          type: string
+          required: true
+      produces:
+        - application/json
+      security:
+        - api_key: []
+      responses:
+        '200':
+          description: успешное завершение
+          schema:
+            type: object
+          examples:
+            application/json: |-
+              {
+                "id": "5ac76fd6dd1643842f81654c",
+                "src": "cian",
+                "srcUrl": "https://www.cian.ru/rent/flat/169713005/",
+                "pos": [
+                                37.613099,
+                                55.888881
+                ],
+                "address": "Москва, район Бибирево, ул. Плещеева, 11В",
+                "comment": "Квартира с ремонтом. Фото старые, есть значительные улучшения. В каждой комнате шкаф и раскладывающийся диван. Окна ПВХ. Кухня гарнитурная. Новые холодильник, ста и плита,есть свч. Интернет. Сдается на длительный срок. Залог можно разбить на два месяца. Пешая доступность до метро.",
+                "areaTotal": 44,
+                "areaLiving": 29,
+                "areaKitchen": 6,
+                "areaRooms": "19+10",
+                "repair": null,
+                "floor": 6,
+                "maxFloor": 9,
+                "rooms": "2",
+                "price": 37000,
+                "priceSqm": 841,
+                "photosCount": 6,
+                "photos": [
+                                "https://cdn-a.cian.site/3/147/914/kvartira-moskva-ulica-pleshceeva-419741373-2.jpg",
+                                "https://cdn-a.cian.site/3/147/914/kvartira-moskva-ulica-pleshceeva-419741371-2.jpg",
+                                "https://cdn-a.cian.site/3/147/914/kvartira-moskva-ulica-pleshceeva-419741375-2.jpg",
+                                "https://cdn-a.cian.site/3/147/914/kvartira-moskva-ulica-pleshceeva-419741374-2.jpg",
+                                "https://cdn-a.cian.site/3/147/914/kvartira-moskva-ulica-pleshceeva-419741377-2.jpg",
+                                "https://cdn-a.cian.site/3/147/914/kvartira-moskva-ulica-pleshceeva-419741378-2.jpg"
+                ],
+                "props": [
+                   {
+                      "key": "кух.мебель",
+                      "value": "да"
+                   },
+                   {
+                      "key": "жил.мебель",
+                      "value": "да"
+                   },
+                   {
+                      "key": "холодильник",
+                      "value": "да"
+                   },
+                   {
+                      "key": "нельзя с животными",
+                      "value": "да"
+                   },
+                   {
+                      "key": "можно с детьми",
+                      "value": "да"
+                   }
+                ],
+                "updateDt": "2018-04-06T00:10:00.000Z",
+                "createDt": "2018-04-06T00:10:00.000Z",
+                "metro": [
+                                "Бибирево (11 мин. пешком)"
+                ],
+                "contacts": "9031317674",
+                "seller": "ID:230484",
+                "deposit": 37000,
+                "agentFee": 10
+              }
+        '403':
+          description: >-
+            Не передан или неверный ключ Api. Передавайте его в заголовке
+            `X-Api-Key:`
+
+  /find/flat:
+    get:
+      deprecated: true
+      tags:
+        - Информация
+      summary: Поиск информации по квартире в росреестре
+      description: >
+        Возвращает характеристики квартиры.
+
+        Поиск производится либо по кадастровому номеру (параметр ``cadNum``) или адресу (``address``).
+      parameters:
+        - name: address
+          in: query
+          description: >
+            Адрес квартиры, в любом формате, позволяющем точно идентифицировать дом и квартиру.
+            При вызове нужно передать либо адрес, либо кад. №.
+          required: false
+          type: string
+          default: 'Волгодонск, пр-кт Курчатова, д. 21, кв. 60'
+        - name: cadNum
+          in: query
+          description: >-
+            Кадастровый № квартиры.
+          required: false
+          type: string
+          default: '61:48:0040202:1674'
+      produces:
+        - application/json
+      security:
+        - api_key: []
+      responses:
+        '429':
+          description: Превышен лимит запросов. Необходимо повторить запрос позже.
+          schema:
+            $ref: '#/definitions/ErrorResult'
+        '504':
+          description: Системы Росреестра не могут ответить на запрос.
+          schema:
+            $ref: '#/definitions/ErrorResult'
+        '200':
+          description: >-
+            Параметры квартиры. Если поиск завершился неудачей, будет возвращён
+            `null`.
+          schema:
+            $ref: '#/definitions/RosreestrResult'
+          examples:
+            application/json: |-
+              {
+                "type": "premises",
+                "premisesId": "161_61480000041200",
+                "parcelId": "61:48:40202:1674",
+                "cadNum": "61:48:0040202:1674",
+                "conNum": null,
+                "name": "Квартира",
+                "address": "Россия, Ростовская обл., г. Волгодонск, пр. Курчатова, дом №21, кв. 60",
+                "area": 67,
+                "floor": 6,
+                "cadCost": 2085149.05,
+                "dateCost": "2012-07-18",
+                "rooms": null,
+                "rights": [
+                  {
+                    "desc": "Собственность",
+                    "partSize": null,
+                    "regNum": "61-61-10/004/2005-190",
+                    "regDate": "2005-02-21",
+                    "actualDate": "2013-09-13",
+                    "encum": null
+                  }
+                ],
+                "link": "https://rosreestr.ru/wps/portal/p/cc_ib_portal_services/online_request"
+              }
+        '400':
+          description: Не хватает или неправильный формат параметров
+        '403':
+          description: >-
+            Не передан или неверный ключ Api. Передавайте его в заголовке
+            `X-Api-Key:`
+
+  /cad/geocode:
+    get:
+      deprecated: true
+      tags:
+        - Информация
+      summary: Геокодирование по кадастровому номеру
+      description: >-
+        Поиск и геокодирование (получение координат) объекта по кадастровому №.
+      parameters:
+        - name: cadNum
+          in: query
+          description: Кадастровый №.
+          required: true
+          type: string
+          default: '61:48:0040202:1674'
+        - name: type
+          in: query
+          description: >-
+            Тип объекта.
+            Позволяет сократить время поиска, если тип заранее известен.
+            `premises` - помещение, `building` - ОКС, `parcel` - земельный участок
+          required: false
+          type: string
+          enum:
+            - 'premises'
+            - 'building'
+            - 'parcel'
+      produces:
+        - application/json
+      security:
+        - api_key: []
+      responses:
+        '429':
+          description: Превышен лимит запросов. Необходимо повторить запрос позже.
+          schema:
+            $ref: '#/definitions/ErrorResult'
+        '200':
+          description: >-
+            Параметры объекта. Если поиск завершился неудачей, будет возвращён
+            `null`.
+          schema:
+            $ref: '#/definitions/RosreestrResult'
+          examples:
+            application/json: |-
+              {
+                "type": "parcel",
+                "lat": 42.933933,
+                "lng": 47.533676,
+                "id": "5:40:76:190",
+                "cadNum": "05:40:000076:190",
+                "cadBlock": "05:40:000076",
+                "cadBlockId": "5:40:76",
+                "link": "https://pkk.rosreestr.ru",
+                "address": "Республика Дагестан , г. Махачкала, в бывшем с/т \"Спутник\", участок № 154.",
+                "cadCost": 1139800.43,
+                "dateCost": "2019-01-01",
+                "area": 766,
+                "utilCode": "141004000000",
+                "util": "Для ведения гражданами садоводства и огородничества",
+                "utilByDoc": "Под индивидуальное жилье",
+                "categoryCode": "003002000000",
+                "category": "Земли населенных пунктов"
+              }
+
+        '400':
+          description: Не хватает или неправильный формат параметров
+        '403':
+          description: >-
+            Не передан или неверный ключ Api. Передавайте его в заголовке
+            `X-Api-Key:`
+
+  /cad/search:
+    get:
+      deprecated: true
+      tags:
+        - Информация
+      summary: Поиск информации по кадастровому номеру
+      description: >-
+        Поиск объекта по кадастровому №.
+      parameters:
+        - name: cadNum
+          in: query
+          description: Кадастровый №.
+          required: true
+          type: string
+          default: '61:48:0040202:1674'
+      produces:
+        - application/json
+      security:
+        - api_key: []
+      responses:
+        '429':
+          description: Превышен лимит запросов. Необходимо повторить запрос позже.
+          schema:
+            $ref: '#/definitions/ErrorResult'
+        '200':
+          description: >-
+            Параметры объекта. Если поиск завершился неудачей, будет возвращён
+            `null`.
+          schema:
+            $ref: '#/definitions/RosreestrResult2'
+          examples:
+            application/json: |-
+              {
+                "type": "parcel",
+                "id": "5:40:76:190",
+                "cadNum": "05:40:000076:190",
+                "link": "https://pkk.rosreestr.ru",
+                "address": "Республика Дагестан , г. Махачкала, в бывшем с/т \"Спутник\", участок № 154.",
+                "cadCost": 1139800.43,
+                "dateCost": "2019-01-01",
+                "area": 766,
+                "utilByDoc": "Под индивидуальное жилье",
+                "categoryCode": "003002000000",
+                "category": "Земли населенных пунктов"
+              }
+
+        '400':
+          description: Не хватает или неправильный формат параметров
+        '403':
+          description: >-
+            Не передан или неверный ключ Api. Передавайте его в заголовке
+            `X-Api-Key:`
+
+  /find/auto:
+    get:
+      tags:
+        - Информация
+      summary: Поиск информации по авто
+      description: >
+        Возвращает характеристики транспортного средства.
+      parameters:
+        - name: vin
+          in: query
+          description: >
+            VIN или № кузова транспортного средства.
+          required: true
+          type: string
+        - name: type
+          in: query
+          description: >-
+            База для поиска информации.
+              
+            * `gibdd_additional` - ГИБДД история регистрационных действий
+            
+            * `gibdd.restrict` - ГИБДД ограничения
+            
+            * `gibdd.dtp` - ГИБДД ДТП
+            
+            * `gibdd.wanted` - ГИБДД розыск
+            
+            * `rsa` - НСИС полисы ОСАГО
+            
+            * `reestr` - Реестр залогов ФНП
+            
+            * `elpts` - ЭПТС
+          required: true
+          type: string
+          enum:
+            - 'gibdd_additional'
+            - 'gibdd.restrict'
+            - 'gibdd.dtp'
+            - 'gibdd.wanted'
+            - 'rsa'
+            - 'reestr'
+            - 'elpts'
+          default: 'gibdd.dtp'
+      produces:
+        - application/json
+      security:
+        - api_key: []
+      responses:
+        '429':
+          description: Превышен лимит запросов. Необходимо повторить запрос позже.
+          schema:
+            $ref: '#/definitions/ErrorResult'
+        '500':
+          description: Не удалось получить информацию из источника в течение отведенного на запрос времени.
+          schema:
+            $ref: '#/definitions/ErrorResult'
+        '400':
+          description: Не хватает или неправильный формат параметров.
+        '403':
+          description: >-
+            Не передан или неверный ключ Api. Передавайте его в заголовке `X-Api-Key:`.
+        '200':
+          description: >-
+            Параметры ТС. Если источник информации недоступен, будет возвращен `null`.
+          schema:
+            $ref: '#/definitions/FindAutoResult'
+
+securityDefinitions:
+  api_key:
+    description: >
+      **API ключ.**
+
+
+      Скопируйте тестовый ключ
+      **``KaC7RJTWvm3iYV3d6rPpn2DWrC2SjZHQ5Lx6bhYx``** в поле `Value` ниже и 
+      нажмите **Authorize**.
+      
+
+      Внимание: для тестового ключа действуют лимиты как на количество запросов с одного IP
+      (независимо от ключа), так и на количество запросов с одним ключом в
+      единицу времени (независимо от IP). 
+
+      
+      Обратитесь в [службу поддержки](mailto:api@ocenka.mobi) для получения ключа, пригодного для промышленной эксплуатации.
+    type: apiKey
+    name: X-Api-Key
+    in: header
+definitions:
+  PricingProfileSearchResult:
+    description: Ценовой профиль по определённому параметру.
+    type: object
+    properties:
+      category:
+        type: string
+        description: Значение параметра
+      count:
+        type: integer
+        description: >-
+          Кол-во проанализированных объявлений, на основе которых получено
+          среднее значение цены кв.м для данного (указанного в `category`)
+          значения параметра.
+      priceSqm:
+        type: integer
+        description: >-
+          Средняя цена кв.м общей площади среди оферт с данным (указанным в
+          `category`) значением параметра.
+  BldProfileSearchResult:
+    description: Профиль застройки по определённому параметру.
+    type: object
+    properties:
+      category:
+        type: string
+        description: Значение параметра
+      count:
+        type: integer
+        description: Кол-во зданий с данным значением параметра
+  InfraCategorySearchResult:
+    description: Результат поиска объектов инфраструктуры.
+    type: object
+    properties:
+      category:
+        type: string
+        description: Название категории
+        enum:
+          - Продукты
+          - Образование
+          - Медицина
+          - Спорт
+          - Развлечения
+          - Новостройки
+      items:
+        type: array
+        description: >-
+          Массив с объектами инфраструктуры в заданной категории. В случае
+          отсутствия информации любое поле может содержать `null`.
+        items:
+          $ref: '#/definitions/InfraSearchResult'
+  InfraSearchResult:
+    description: Результат поиска объектов инфраструктуры.
+    type: object
+    properties:
+      title:
+        type: string
+        description: Название объекта
+      subtitle:
+        type: string
+        description: Тип или подразделение объекта
+      pos:
+        $ref: '#/definitions/Coordinates'
+      distance:
+        type: integer
+        description: 'Расстояние до объекта, м'
+      address:
+        type: string
+        description: Адрес объекта
+      phone:
+        type: string
+        description: Контактный телефон
+      website:
+        type: string
+        description: Веб-сайт
+  # FlatSearchResult:
+    # description: Информация о квартире из ЕГРН
+    # type: object
+    # properties:
+    #   # link:
+    #   #   type: string
+    #   #   description: Ссылка на информацию по помещению в сервисе "Справочная информация по объектам недвижимости в режиме online"
+    #   # premisesId:
+    #   #   type: string
+    #   #   description: Идентификатор записи в ЕГРН
+    #   # parcelId:
+    #   #   type: string
+    #   #   description: Идентификатор записи в ГКН
+    #   cadNum:
+    #     type: string
+    #     description: Кадастровый номер помещения
+    #   # conNum:
+    #   #   type: string
+    #   #   description: Условный номер помещения
+    #   name:
+    #     type: string
+    #     description: Наименование помещения в ЕГРН
+    #   address:
+    #     type: string
+    #     description: Адрес помещения в ЕГРН
+    #   area:
+    #     type: number
+    #     format: double
+    #     description: Площадь помещения из ГКН
+    #   floor:
+    #     type: integer
+    #     description: Этаж помещения
+    #   # rooms:
+    #   #   type: integer
+    #   #   description: Количество комнат в квартире (из ЕГРП)
+    #   cadCost:
+    #     type: number
+    #     format: double
+    #     description: Кадастровая стоимость помещения из ГКН
+    #   dateCost:
+    #     type: string
+    #     format: date
+    #     description: Дата определения кадастровой стоимости (ISO-8601)
+    #   # rights:
+    #   #   type: array
+    #   #   description: Зарегистрированные права и их обременения из ЕГРН
+    #   #   items:
+    #   #     $ref: '#/definitions/RightSearchResult'
+  # RightSearchResult:
+  #   description: Информация о зарегистрированных правах. Актуальность данных сведений гарантируется только на момент `regDate`.
+  #   type: object
+  #   properties:
+  #     desc:
+  #       type: string
+  #       description: Наименование права
+  #       enum:
+  #         - Собственность
+  #         - Общая долевая собственность
+  #         - Общая совместная собственность
+  #         - Хозяйственное ведение
+  #         - Оперативное управление
+  #         - Собственность муниципальных образований
+  #         - Собственность субъектов Российской Федерации
+  #     partSize:
+  #       type: string
+  #       description: Доля в праве, в формате "1/4"
+  #     regNum:
+  #       type: string
+  #       description: Номер госрегистрации права
+  #     regDate:
+  #       type: string
+  #       format: date
+  #       description: Дата госрегистрации права (ISO-8601)
+  #     encum:
+  #       type: array
+  #       description: Обременение права
+  #       items:
+  #         $ref: '#/definitions/Encumbrance'
+  # Encumbrance:
+  #   description: Информация об обременении права
+  #   type: object
+  #   properties:
+  #     desc:
+  #       type: string
+  #       description: Наименование обременения. `Участие в сделке` на самом деле - не обременение, а особая отметка.
+  #       enum:
+  #         - Ипотека в силу закона
+  #         - Арест
+  #         - Аренда
+  #         - Доверительное управление
+  #         - Запрещение сделок с имуществом
+  #         - Прочие ограничения (обременения)
+  #         - Участие в сделке
+  #     periodStart:
+  #       type: string
+  #       format: date
+  #       description: Дата начала действия обременения (ISO-8601), может отсутствовать
+  #     periodEnd:
+  #       type: string
+  #       format: date
+  #       description: Дата окончания действия обременения (ISO-8601), может отсутствовать
+  #     regNum:
+  #       type: string
+  #       description: Регистрационный номер
+  #     regDate:
+  #       type: string
+  #       format: date
+  #       description: Дата регистрации обременения (ISO-8601)
+  RosreestrResult:
+    description: Информация из Росреестра
+    type: object
+    properties:
+      type:
+        $ref: '#/definitions/RosreestrObjType'
+      lat:
+        type: number
+        format: double
+        description: Широта расположения центра объекта (только для объектов с зарегистрированными границами)
+      lng:
+        type: number
+        format: double
+        description: Долгота расположения центра объекта (только для объектов с зарегистрированными границами)
+      cadBlock:
+        type: string
+        description: Номер кадастрового квартала, в пределах которого расположен объект.
+      cadBlockId:
+        type: string
+        description: Идентификатор кадастрового квартала
+      id:
+        type: string
+        description: Идентификатор записи в ЕГРН
+      premisesId:
+        type: string
+        description: Идентификатор записи в ГРП
+      parcelId:
+        type: string
+        description: Идентификатор записи в ГКН
+      cadNum:
+        type: string
+        description: Кадастровый номер
+      conNum:
+        type: string
+        description: Условный номер
+      name:
+        type: string
+        description: Наименование объекта
+      address:
+        type: string
+        description: Адрес объекта
+      area:
+        type: number
+        format: double
+        description: Площадь объекта
+      floor:
+        type: integer
+        description: Этаж расположения объекта (только для помещений)
+      cadCost:
+        type: number
+        format: double
+        description: Кадастровая стоимость объекта
+      dateCost:
+        type: string
+        format: date
+        description: Дата определения кадастровой стоимости объекта
+      rooms:
+        type: integer
+        description: Количество комнат (только для помещений)
+      link:
+        type: string
+        description: Ссылка на источник информации
+      year:
+        type: integer
+        description: Год постройки или сдачи в эксплуатацию (только для ОКС)
+      wall:
+        type: string
+        description: Материал стен (только для ОКС)
+      purpose:
+        type: string
+        description: Назначение (только для ОКС)
+      oksType:
+        type: string
+        description: >-
+          Тип ОКС (только для ОКС):
+          
+          * `building` - здание
+          
+          * `construction` - сооружение
+          
+          * `incomplete` - незавершенное строительством.
+      utilCode:
+        type: string
+        description: Код разрешенного использования (только для з/у)
+      util:
+        type: string
+        description: Разрешённое использование по классификатору (только для з/у)
+      utilByDoc:
+        type: string
+        description: Разрешённое использование по документам(только для з/у)
+      categoryCode:
+        type: string
+        description: Код категории земель (только для з/у)
+      category:
+        type: string
+        description: Категория земель (только для з/у)
+      rights:
+        type: array
+        minItems: 0
+        items:
+          $ref: '#/definitions/RosreestrRights'
+        description: Информация об правах и обременениях
+  RosreestrResult2:
+    description: Информация из Росреестра
+    type: object
+    properties:
+      type:
+        $ref: '#/definitions/RosreestrObjType'
+      id:
+        type: string
+        description: Идентификатор записи в ЕГРН
+      cadNum:
+        type: string
+        description: Кадастровый номер
+      link:
+        type: string
+        description: Ссылка на источник информации
+      conNum:
+        type: string
+        description: Условный номер
+      name:
+        type: string
+        description: Наименование объекта
+      rooms:
+        type: integer
+        description: Количество комнат (только для помещений)
+      address:
+        type: string
+        description: Адрес объекта
+      status:
+        type: string
+        description: Статус объекта
+      cadCost:
+        type: number
+        format: double
+        description: Кадастровая стоимость объекта
+      dateCost:
+        type: string
+        format: date
+        description: Дата определения кадастровой стоимости объекта
+      actualDate:
+        type: string
+        format: date
+        description: Указанная информация действительна на указанную дату.
+      area:
+        type: number
+        format: double
+        description: Площадь объекта
+      purpose:
+        type: string
+        description: Назначение (только для ОКС)
+      floor:
+        type: integer
+        description: Этаж расположения объекта как целое число (только для помещений)
+      floorStr:
+        type: string
+        description: Этаж расположения объекта в оригинальном виде (только для помещений)
+      floors:
+        type: integer
+        description: Надземная этажность как целое число (только для ОКС, для помещений возможно, но не гарантируется)
+      floorsStr:
+        type: integer
+        description: Надземная этажность в оригинальном виде (только для ОКС, для помещений возможно, но не гарантируется)
+      uFloors:
+        type: integer
+        description: Подземная этажность (только для ОКС, для помещений возможно, но не гарантируется)
+      year:
+        type: integer
+        description: Год постройки (только для ОКС, для помещений возможно, но не гарантируется)
+      yearExp:
+        type: integer
+        description: Год сдачи в эксплуатацию (только для ОКС, для помещений возможно, но не гарантируется)
+      wall:
+        type: string
+        description: Материал стен (только для ОКС, для помещений возможно, но не гарантируется)
+      bldType:
+        type: string
+        description: Нормализованный тип дома на основе материала стен (только для ОКС, для помещений возможно, но не гарантируется)
+      utilByDoc:
+        type: string
+        description: Разрешённое использование по документам(только для з/у)
+      categoryCode:
+        type: string
+        description: Код категории земель (только для з/у)
+      category:
+        type: string
+        description: Категория земель (только для з/у)
+      rights:
+        type: array
+        minItems: 0
+        items:
+          $ref: '#/definitions/RosreestrRights'
+        description: Информация об правах и обременениях
+      encum:
+        type: array
+        minItems: 0
+        items:
+          $ref: '#/definitions/RosreestrEncum'
+        description: Информация об обременениях
+  BldSearchResult:
+    description: Информация о здании
+    type: object
+    properties:
+      pos:
+        $ref: '#/definitions/Coordinates'
+      quality:
+        type: string
+        description: >-
+          Точность определения координат `pos`
+
+          * `success` - с точностью до дома
+
+          * `warning` - с точностью до улицы
+
+          * `danger` - с точностью до населенного пункта
+      address:
+        type: string
+        description: Адрес здания
+      bldTitle:
+        type: string
+        description: >-
+          Тип здания (жилой дом, школа, гараж, торговый комплекс...), для жилых
+          домов там будет "Жилой дом"
+      maxFloor:
+        type: integer
+        description: Этажность здания
+      bldYear:
+        type: integer
+        description: Год постройки здания
+      bldProject:
+        type: string
+        description: Серия (проект) дома
+      wallMaterial:
+        type: string
+        description: Материал стен. Варианты, начинающиеся со строчной буквы, получены из ГИС ЖКХ, с прописной - из Росреестра.
+        enum:
+          - кирпичные
+          - монолитные
+          - панельные
+          - смешанные
+          - блочные
+          - деревянные
+          - Кирпичные
+          - Из мелких бетонных блоков
+          - Панельные
+          - Блочные
+          - Монолитные
+          - Смешанные
+          - Крупнопанельные
+          - Железобетонные
+          - Из прочих материалов
+          - Бетонные
+          - Каменные
+          - Крупноблочные
+          - Деревянные
+          - Каменные и бетонные
+          - Из легкобетонных панелей
+          - Металлические
+          - Из железобетонных сегментов
+          - Кирпичные облегченные
+          - Каркасно-панельные
+          - Легкие из местных материалов
+          - Шлакобетонные
+          - Рубленые
+          - Из унифицированных железобетонных элементов
+          - Каркасно-обшивные        
+      bldType:
+        type: string
+        description: >
+            Нормализованный тип дома (на основе `wallMaterial`).
+
+            *Панель* включает в себя блочные дома, *кирпич* - включает
+            "сталинские", *монолит* - включает кирпич-монолит.
+        enum:
+          - панель
+          - кирпич
+          - монолит
+          - дерево
+          - металл
+          - камень
+      floorMaterial:
+        type: string
+        description: Материал перекрытий
+        enum:
+          - железобетонные
+          - деревянные
+          - смешанные
+      basement:
+        type: string
+        description: Тип фундамента
+        enum:
+          - ленточный
+          - бетонные столбы
+          - свайный
+          - столбчатый
+          - сплошной
+          - сборный
+          - отсутствует
+      isAlarm:
+        type: boolean
+        description: Является ли дом аварийным
+      alarmLink:
+        type: string
+        format: url
+        description: Ссылка на источник информации об аварийности дома
+      entranceCount:
+        type: integer
+        description: Кол-во подъездов
+      elevatorCount:
+        type: integer
+        description: Кол-во лифтов
+      flatsCount:
+        type: integer
+        description: Кол-во квартир
+      livingCount:
+        type: integer
+        description: Кол-во жилых помещений
+      nonLivingCount:
+        type: integer
+        description: Кол-во нежилых помещений
+      facadeType:
+        type: string
+        description: Тип фасада
+      roofType:
+        type: string
+        description: Тип кровли
+      bldArea:
+        type: number
+        format: double
+        description: Общая площадь помещений
+      bldLivingArea:
+        type: number
+        format: double
+        description: Площадь жилых помещений
+      bldNonLivingArea:
+        type: number
+        format: double
+        description: Площадь нежилых помещений
+      plotArea:
+        type: number
+        format: double
+        description: Площадь земельного участка
+      linkReforma:
+        type: string
+        format: url
+        description: Ссылка на паспорт дома на сайте reformagkh.ru
+      linkPKK:
+        type: string
+        format: url
+        description: Ссылка на паспорт дома на публичной кадастровой карте
+      cadNum:
+        type: string
+        description: Кадастровый номер ОКС
+      photos:
+        type: array
+        description: Фотографии здания
+        items:
+          type: string
+          format: url
+          minItems: 1
+      stations:
+        type: array
+        description: Ближайшие остановки (станции) общественного транспорта
+        items:
+          $ref: '#/definitions/Station'
+      orgs:
+        type: array
+        description: 'Организации, находящиеся в здании'
+        items:
+          type: string
+          minItems: 1
+  Station:
+    description: Остановка (станция) общественного транспорта
+    type: object
+    properties:
+      name:
+        type: string
+        description: Название остановки
+      type:
+        type: string
+        description:  >-
+          Тип транспорта, доступный на станции/остановке.
+          Возможные варианты:
+          `автобус, троллейбус, маршрутка, трамвай, электричка, метро`
+          или любые их комбинации через разделитель `, `.
+          Если отсутствует (напр. в `AdSearchResult`), то подразумевается `метро`.
+      distance:
+        type: integer
+        description: Расстояние до остановки, м
+      comment:
+        type: string
+        description: Наименование ветки метро (для метро)
+  ErrorResult:
+    description: Сообщение об ошибке
+    type: object
+    properties:
+      message:
+        type: string
+        description: Сообщение об ошибке
+  AdSearchResult:
+    description: Объявление из результатов поиска
+    type: object
+    properties:
+      id:
+        type: string
+        description: Идентификатор объявления, по которому можно получить подробную информацию с помощью `/search/flat/{id}`
+      src:
+        type: string
+        description: Идентификатор источника объявления
+      srcUrl:
+        type: string
+        format: url
+        description: 'Ссылка на объявление (может уже не работать, если снято с публикации)'
+      pos:
+        type: array
+        description: Координаты дома `[lng, lat]`
+        items:
+          type: number
+          format: double
+          minItems: 2
+          maxItems: 2
+      updateDt:
+        type: string
+        format: date-time
+        description: Время обновления информации по объявлению
+      address:
+        type: string
+        description: Адрес (как указан в объявлении)
+      contacts:
+        type: string
+        description: Контактные телефоны
+      comment:
+        type: string
+        description: Комментарий к объявлению
+      photosCount:
+        type: integer
+        minimum: 0
+        description: Кол-во Фотографий
+      areaTotal:
+        type: number
+        format: double
+        description: 'Общая площадь, кв.м'
+      areaKitchen:
+        type: number
+        format: double
+        description: 'Общая кухни, кв.м'
+      rooms:
+        type: string
+        description: Кол-во комнат
+      balcony:
+        type: string
+        description: Балкон
+      lavatory:
+        type: string
+        description: Санузел
+      floor:
+        type: integer
+        minimum: -1
+        description: Этаж
+      maxFloor:
+        type: integer
+        minimum: 1
+        description: Этажность здания
+      bldType:
+        type: string
+        description: Тип дома
+      bldYear:
+        type: integer
+        minimum: 1700
+        description: Год постройки
+      price:
+        type: integer
+        minimum: 1
+        description: Цена
+      priceSqm:
+        minimum: 1
+        type: integer
+        description: Цена за кв.м 
+      dist:
+        minimum: 0
+        type: integer
+        description: Расстояние до объекта, м 
+      corrBargain:
+        type: number
+        description: Корректировка на торг, %. Возращается методом `GET /appraise/flat`
+        example: -5
+      corrLocation:
+        type: number
+        description: Корректировка на местоположение, %. Возращается методом `GET /appraise/flat`
+        example: 1
+      corrBldType:
+        type: number
+        description: Корректировка на тип дома, %. Возращается методом `GET /appraise/flat`
+        example: 2
+      corrFloor:
+        type: number
+        description: Корректировка на этаж или этажность дома, %. Возращается методом `GET /appraise/flat`
+        example: 3
+      corrAreaTotal:
+        type: number
+        description: Корректировка на площадь квартиры, %. Возращается методом `GET /appraise/flat`
+        example: 4
+      corrRepair:
+        type: number
+        description: Корректировка на состояние квартиры, руб/кв.м. Возращается методом `GET /appraise/flat`
+        example: -10000
+  Coordinates:
+    description: Координаты
+    type: object
+    properties:
+      lat:
+        type: number
+        format: double
+        description: Широта
+      lng:
+        type: number
+        format: double
+        description: Долгота
+  RosreestrEncum:
+    description: Информация об обременениях
+    type: object
+    properties:
+      desc:
+        type: string
+        description: Наименование обременения
+      regNum:
+        type: string
+        description: Регистрационный № обременения
+      regDate:
+        type: string
+        description: Дата регистрации обременения
+      actualDate:
+        type: string
+        description: Дата актуальности информации об обременении
+  RosreestrRights:
+    description: Информация о правах и обременениях
+    type: object
+    properties:
+      desc:
+        type: string
+        description: Наименование права
+      partSize:
+        type: string
+        description: Размер доли (при долевой собственности)
+      regNum:
+        type: string
+        description: Регистрационный №  права
+      regDate:
+        type: string
+        description: Дата регистрации права
+      actualDate:
+        type: string
+        description: Дата актуальности информации о правах
+      encum:
+        type: array
+        minItems: 0
+        items:
+          $ref: '#/definitions/RosreestrEncum'
+        description: Информация об обременениях
+  RosreestrObjType:
+    description: >-
+      Тип объекта
+      
+      * `premises` - помещение
+      
+      * `building` - здание
+      
+      * `parcel` - земельный участок
+
+      * `construction` - сооружение
+
+      * `incomplete` - объект незавершенного строительства
+
+      * `other` - иной объект недвижимости
+    type: string
+    enum:
+      - 'premises'
+      - 'building'
+      - 'parcel'
+      - 'construction'
+      - 'incomplete'
+      - 'other'
+  FindAutoResult:
+    description: Информация по транспортному средству.
+    type: object
+    properties:
+      submitDt:
+        type: string
+        format: date
+        description: Дата получения информации.
+      vin:
+        type: string
+        description: запрашиваемый VIN/№ кузова
+      data:
+        type: object
+        description: Данные по ТС для формирования запроса на оценку.
+        properties:
+          type:
+            type: string
+            description: Категория ТС
+          subType:
+            type: string
+            description: Тип ТС
+          make:
+            type: string
+            description: Марка
+          model:
+            type: string
+            description: Модель
+          plate:
+            type: string
+            description: Гос. регистрационный №
+          address:
+            type: string
+            description: Адрес местонахождения ТС
+          addr:
+            type: object
+            description: Структурированный адрес местонахождения ТС
+          lat:
+            type: number
+            format: double
+            description: Широта местонахождения ТС
+          lng:
+            type: number
+            format: double
+            description: Долгота местонахождения ТС
+      rsa:
+        type: object
+        properties:
+          rsa_done:
+            type: number
+            format: integer
+            description: Индикатор успешности выполнения поиска (1 - поиск произведен успешно)
+          policies:
+            type: array
+            description: Перечень найденных полисов ОСАГО (если отсутствует, значит полисы не найдены в базе РСА)
+            items:
+              type: object
+              properties:
+                vin_mask:
+                  type: string
+                  description: vin
+                  example: 'Y60TF69Y******050'
+                status:
+                  type: string
+                  description: Статус полиса
+                  example: 'Прекратил действие'
+                policySerial:
+                  type: string
+                  description: Серия полиса
+                  example: ВВВ
+                policyNumber:
+                  type: string
+                  description: № полиса
+                  example: '0532704883'
+                companyName:
+                  type: string
+                  description: Страховая компания
+                regNumber:
+                  type: string
+                  description: Регистрационный знак
+                  example: 'М648ТС34'
+                make:
+                  type: string
+                  description: Марка
+                  example: Chevrolet
+                model:
+                  type: string
+                  description: Модель
+                  example: Lanos
+                owner:
+                  type: string
+                  description: Собственник ТС
+                  example: 'А**** И**** А**** 12.01.1966'
+                insurant:
+                  type: string
+                  description: Страхователь
+                  example: 'А**** И**** А**** 12.01.1966'
+                policyIsRestrict:
+                  type: number
+                  format: integer
+                  description: Ограничение по кол-ву лиц, допущенных к управлению (1 - да, 0 - нет)
+                restrictionCount:
+                  type: string
+                  description: Кол-во лиц, допущенных к управлению
+                  example: '2'
+                kbm:
+                  type: string
+                  description: КБМ
+                  example: '0.90'
+                isActivePeriod:
+                  type: number
+                  format: integer
+                  description: Полис действует на запрашиваемую дату (1 - да, 0 - нет)
+      gibdd:
+        type: object
+        properties:
+          success:
+            type: number
+            format: integer
+            description: Индикатор успешности выполнения истории регистрации (1 - поиск произведен успешно)
+          record:
+            type: object
+            description: Информация из ГИБДД (если отсутствует, значит ТС не найдено в базе ГИБДД)
+            properties:
+              model:
+                type: string
+                description: Марка/модель ТС
+                example: 'LADA VESTA GFL110'
+              category:
+                type: string
+                description: Категория ТС
+                example: 'В'
+              year:
+                type: string
+                description: Год выпуска
+                example: '2020'
+              regNumber:
+                type: string
+                description: Гос. регистрационный №
+                example: 'Н791ВМ17'
+              engineVolume:
+                type: string
+                description: Объем двигателя
+                example: '1596.0'
+              color:
+                type: string
+                description: Цвет
+                example: 'СЕРЫЙ'
+              bodyNumber:
+                type: string
+                description: № кузова
+                example: 'XTAGFL110MY468226'
+              powerHp:
+                type: string
+                description: Мощность, л.с.
+                example: '106.1'
+              powerKwt:
+                type: string
+                description: Мощность кВт
+                example: '78'
+              maxWeight:
+                type: string
+                description: Максимальная масса (кг)
+                example: '2075'
+              weightWithoutLoading:
+                type: string
+                description: Снаряженная масса (кг)
+                example: '1690'
+              lastRegAction:
+                type: string
+                description: Последнее регистрационное действие
+                example: 'Ранее снятых с учета'
+              sts:
+                type: object
+                properties:
+                  num:
+                    type: string
+                    description: № СТС
+                    example: '9964173306'
+                  date:
+                    type: string
+                    description: Дата выдачи СТС
+                    example: '2023-12-29'
+              pts:
+                type: object
+                properties:
+                  num:
+                    type: string
+                    description: № ПТС
+                    example: '25ХВ040848'
+                  date:
+                    type: string
+                    description: Дата выдачи ПТС
+                    example: '2020-02-11'
+              ownershipPeriods:
+                type: array
+                description: Регистрационные действия
+                items:
+                  type: object
+                  properties:
+                    personType:
+                      type: string
+                      description: Тип собственника
+                      example: 'Физическое лицо'
+                    from:
+                      type: string
+                      description: Начало периода
+                      example: '2020-09-09'
+                    to:
+                      type: string
+                      description: Окончание периода
+                      example: 'null'
+          gibdd_accidents_done:
+            type: number
+            format: integer
+            description: Индикатор успешности выполнения поиска ДТП (1 - поиск произведен успешно)
+          accidents:
+            type: array
+            description: Перечень записей о ДТП
+            items:
+              type: object
+              properties:
+                accidentNumber:
+                  type: string
+                  description: № записи о ДТП
+                  example: '250009966'
+                accidentDatetime:
+                  type: string
+                  description: Дата ДТП
+                  example: '01.04.2022 17:23'
+                regionName:
+                  type: string
+                  description: Регион ДТП
+                  example: 'Иркутская область'
+                mark:
+                  type: string
+                  description: Марка ТС
+                  example: 'ВАЗ'
+                model:
+                  type: string
+                  description: Модель ТС
+                  example: 'Largus (Ларгус)'
+                vehicleYear:
+                  type: string
+                  description: Год выпуска ТС
+                  example: '2019'
+                accidentType:
+                  type: string
+                  description: Тип ДТП
+                  example: 'Столкновение'
+                vehicleDamageState:
+                  type: string
+                  description: Состояние ТС
+                  example: 'Повреждено'
+                damageSvg:
+                  type: string
+                  description: Схема повреждений
+                  example: 'https://www.ru/dtp/XTARS045LK1168939-8560f703-f03f-4bda-839c-fa1f516fc54b-0.html'
+                vehicleSort:
+                  type: string
+                  description: № ТС в ДТП
+                  example: '1'
+                vehicleAmount:
+                  type: string
+                  description: Всего ТС в ДТП
+                  example: '2'
+          gibdd_restrictions_done:
+            type: number
+            format: integer
+            description: Индикатор успешности выполнения поиска ограничений ГИБДД (1 - поиск произведен успешно)
+          restrictions:
+            type: array
+            description: Перечень записей об ограничениях
+            items:
+              type: object
+              properties:
+                model:
+                  type: string
+                  description: Марка/Модель ТС
+                  example: 'Нет данных'
+                model_year:
+                  type: string
+                  description: Год выпуска ТС
+                  example: '2021'
+                restriction_date:
+                  type: string
+                  description: Дата ограничения
+                  example: '25.07.2023'
+                region:
+                  type: string
+                  description: Регион
+                  example: 'Ростовская область'
+                restriction_name:
+                  type: string
+                  description: Ограничение
+                  example: 'Запрет на регистрационные действия'
+                reasons:
+                  type: string
+                  description: Основание
+                  example: 'Документ: 213321953/6159 от 25.07.2023, Ратинская Лилия Алексеевна, СПИ: 60591020150109, ИП: 157647/23/61059-ИП от 24.07.2023'
+                organization_name:
+                  type: string
+                  description: Кем наложено
+                  example: 'Судебный пристав'
+                phone:
+                  type: string
+                  description: Телефон
+                  example: '+7(86385)2-48-61'
+          gibdd_searches_done:
+            type: number
+            format: integer
+            description: Индикатор успешности выполнения поиска сведений о розыске (1 - поиск произведен успешно)
+          searches:
+            type: array
+            description: Перечень записей о федеральном розыске транспортного средства ГИБДД
+            items:
+              type: object
+              properties:
+                model:
+                  type: string
+                  description: Марка/Модель ТС
+                  example: 'Нет данных'
+                model_year:
+                  type: string
+                  description: Год выпуска ТС
+                  example: '2021'
+                search_date:
+                  type: string
+                  description: Дата постановки в розыск
+                  example: '25.07.2023'
+                region:
+                  type: string
+                  description: Регион
+                  example: 'Ростовская область'
+      elpts:
+        type: object
+        properties:
+          success:
+            type: number
+            format: integer
+            description: Индикатор успешности выполнения поиска (1 - поиск произведен успешно)
+            example: 1
+          found:
+            type: number
+            format: integer
+            description: Индикатор результативности поиска (1 - найдены записи о ЭПТС)
+          status:
+            type: string
+            description: Статус ЭПТС
+            example: 'действующий'
+          records:
+            type: array
+            description: Перечень найденных записей
+            items:
+              type: object
+              properties:
+                type:
+                  type: string
+                  description: Вид ЭПТС
+                  example: 'Электронный паспорт транспортного средства'
+                country:
+                  type: string
+                  description: Страна
+                  example: 'Российская Федерация'
+                displosal_fee:
+                  type: string
+                  description: Утилиз. сбор
+                  example: 'РФ уплачен'
+                restrictions_status:
+                  type: string
+                  description: Ограничения (кроме таможенных)
+                  example: 'отсутствуют'
+                customs_restrictions_status:
+                  type: string
+                  description: Таможенные ограничения
+                  example: 'отсутствуют'
+                last_reg_action:
+                  type: string
+                  description: Сведения о посл. рег. действии
+                  example: 'РФ - Постановка на регистрационный учет (27.07.2023)'
+                production:
+                  type: string
+                  description: Сведения о выпуске
+                  example: 'Отсутствуют'
+      reestr:
+        type: object
+        properties:
+          reestr_done:
+            type: number
+            format: integer
+            description: Индикатор успешности выполнения поиска (1 - поиск произведен успешно)
+            example: 1
+          records:
+            type: array
+            description: Перечень найденных записей
+            items:
+              type: object
+              properties:
+                register_date:
+                  type: string
+                  description: Дата регистрации
+                  example: '2021-07-12'
+                number:
+                  type: string
+                  description: № уведомления о возникновении
+                  example: '2021-006-161216-011'
+                pledgor_hidden:
+                  type: number
+                  description: Данные о залогодателе скрыты (1 - да)
+                  example: 0
+                pledgee_hidden:
+                  type: number
+                  description: Данные о залогодержателе скрыты (1 - да)
+                  example: 0
+                objects:
+                  type: array
+                  description: Перечень идентификаторов имущества
+                  items:
+                    type: string
+                    description: Идентификатор
+                    example: 'VIN LVVDB21B6MD126102'
+                pledgors:
+                  type: array
+                  description: Залогодатели
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                        description: Тип залогодателя (физлицо/юрлицо)
+                        enum:
+                          - 'person'
+                          - 'org'
+                        example: 'person'
+                      name:
+                        type: string
+                        description: Наименование залогодателя
+                        example: 'Виталий Павлович Коробейников'
+                      birth:
+                        type: string
+                        description: Дата рождения залогодателя (только для физлиц)
+                        example: '16.05.1965'
+                pledgees:
+                  type: array
+                  description: Залогодержатели
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                        description: Тип залогодержателя (физлицо/юрлицо)
+                        enum:
+                          - 'person'
+                          - 'org'
+                        example: 'org'
+                      name:
+                        type: string
+                        description: Наименование залогодержателя
+                        example: 'Публичное акционерное общество "КВАНТ МОБАЙЛ БАНК"'
+                      birth:
+                        type: string
+                        description: Дата рождения залогодержателя (только для физлиц)
+                        example: '16.05.1965'
+                history:
+                  type: array
+                  description: История изменений
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                        description: Тип события
+                        enum:
+                          - 'Возникновение'
+                          - 'Изменение'
+                        example: 'Возникновение'
+                      date:
+                        type: string
+                        description: Дата события
+                        example: '14.05.2018 04:08'
+                      number:
+                        type: string
+                        description: № уведомления об изменении
+                        example: '2017-001-543121-422/1'

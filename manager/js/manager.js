@@ -16,12 +16,15 @@ function bindEvents() {
             if (tab._bgfTabBound) return;
             tab._bgfTabBound = true;
             tab.addEventListener('click', function() {
-                var tabName = '';
+                var tabName = this.getAttribute('data-m-tab') || '';
                 var text = this.textContent || '';
-                if (text.indexOf('Все заявки') !== -1) tabName = 'applications';
-                else if (text.indexOf('Клиенты') !== -1) tabName = 'clients';
-                else if (text.indexOf('Чат') !== -1) tabName = 'chat';
-                else if (text.indexOf('Отчёты') !== -1) tabName = 'reports';
+                if (!tabName) {
+                    if (text.indexOf('Все заявки') !== -1) tabName = 'applications';
+                    else if (text.indexOf('Клиенты') !== -1) tabName = 'clients';
+                    else if (text.indexOf('Чат') !== -1) tabName = 'chat';
+                    else if (text.indexOf('Документы') !== -1) tabName = 'documents';
+                    else if (text.indexOf('Отчёты') !== -1) tabName = 'reports';
+                }
                 if (tabName && typeof switchManagerTab === 'function') switchManagerTab(tabName);
             });
         });

@@ -119,11 +119,12 @@
             <button type="button" class="sidebar-close-btn" id="sidebarCloseBtn" onclick="closeMobileSidebar()" aria-label="Закрыть меню"><i class="fas fa-times"></i></button>
         </div>
         <nav class="nav-group">
-            <a class="nav-link" onclick="navigateTo('dashboard')"><i class="fas fa-th-large"></i> Панель управления</a>
-            <a class="nav-link active" onclick="navigateTo('applications')"><i class="fas fa-file-signature"></i> Мои заявки<span class="badge">1</span></a>
+            <a class="nav-link" data-page="dashboard" onclick="navigateTo('dashboard')"><i class="fas fa-th-large"></i> Панель управления</a>
+            <a class="nav-link active" data-page="applications" onclick="navigateTo('applications')"><i class="fas fa-file-signature"></i> Мои заявки<span class="badge">1</span></a>
+            <a class="nav-link" data-page="documents" onclick="navigateTo('documents')"><i class="fas fa-folder-open"></i> Документы</a>
             <!-- Ипотека скрыта в LAB-демо (заглушка) -->
-            <a class="nav-link" onclick="navigateTo('profile')"><i class="fas fa-user-circle"></i> Профиль</a>
-            <a class="nav-link" onclick="navigateTo('settings')"><i class="fas fa-cog"></i> Настройки</a>
+            <a class="nav-link" data-page="profile" onclick="navigateTo('profile')"><i class="fas fa-user-circle"></i> Профиль</a>
+            <a class="nav-link" data-page="settings" onclick="navigateTo('settings')"><i class="fas fa-cog"></i> Настройки</a>
             <button type="button" class="btn-demo-reset btn-demo-reset--sidebar" onclick="resetDemoDataReady()"><i class="fas fa-undo"></i> Сброс демо</button>
             <a class="nav-link logout-link" onclick="logout()" style="margin-top: 12px; opacity: 0.5;"><i class="fas fa-sign-out-alt"></i> Выйти</a>
         </nav>
@@ -207,6 +208,16 @@
 
             <!-- APPLICATIONS -->
             <div id="view-applications" class="hidden fade"><div class="applications-layout"><div class="applications-list" id="applicationsList"></div><div class="application-detail" id="applicationDetail"></div></div></div>
+
+            <!-- DOCUMENTS -->
+            <div id="view-documents" class="hidden fade">
+                <div class="art-toolbar">
+                    <label>Заявка
+                        <select id="artFilterApp" onchange="refreshDocumentsViews()"></select>
+                    </label>
+                </div>
+                <div id="documentsList" class="art-grid"></div>
+            </div>
 
             <!-- DASHBOARD -->
             <div id="view-dashboard" class="hidden fade"><div class="welcome-banner"><div><h2>Добрый день, Александр!</h2><p>У вас активная заявка на кредит под залог недвижимости</p></div><button class="btn-sm" style="width: auto; padding: 14px 28px; background: white; color: #0B4697; border: none; font-size: 14px;" onclick="continueOrStartApplication()"><i class="fas fa-play" style="margin-right: 8px;"></i> Продолжить</button></div><div class="dashboard-grid"><div class="dashboard-card"><h3><i class="fas fa-file-signature" style="color: #0B4697;"></i> Активная заявка</h3><p class="card-subtitle">Текущий статус рассмотрения</p><div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;"><span class="app-status status-active" style="font-size: 12px; padding: 6px 12px;"><i class="fas fa-sync-alt fa-spin" style="font-size: 10px;"></i> В обработке</span><span style="font-size: 14px; font-weight: 700; color: #0B4697;">№4421-И</span></div><div class="mini-stepper" style="margin-bottom: 16px;"><div class="mini-step done"><div class="dot"></div>Параметры</div><div class="mini-step-sep"></div><div class="mini-step done"><div class="dot"></div>Данные</div><div class="mini-step-sep"></div><div class="mini-step current"><div class="dot"></div>Оценка</div><div class="mini-step-sep"></div><div class="mini-step"><div class="dot"></div>Прескоринг</div><div class="mini-step-sep"></div><div class="mini-step"><div class="dot"></div>Решение</div></div><button class="btn btn-primary" style="padding: 12px; font-size: 14px;" onclick="navigateTo('applications')">Перейти к заявке</button></div><div class="dashboard-card"><h3><i class="fas fa-bolt" style="color: #0B4697;"></i> Быстрые действия</h3><div class="quick-action-grid"><div class="quick-action-item" onclick="navigateTo('applications'); setTimeout(()=>openConveyorFromApplications(),100);"><i class="fas fa-plus-circle"></i><span>Новая заявка</span></div><div class="quick-action-item" onclick="navigateTo('profile')"><i class="fas fa-home"></i><span>Моя недвижимость</span></div><div class="quick-action-item" onclick="navigateTo('profile')"><i class="fas fa-file-upload"></i><span>Загрузить 2-НДФЛ</span></div><div class="quick-action-item" onclick="navigateTo('profile')"><i class="fas fa-user-edit"></i><span>Редактировать профиль</span></div></div></div><div class="dashboard-card"><h3><i class="fas fa-star" style="color: #f59e0b;"></i> Персональное предложение</h3><div class="preoffer-card"><div class="preoffer-label">Предодобренный лимит</div><div class="preoffer-amount">до 6 200 000 ₽</div><div class="preoffer-rate">Ставка от 12.3% · Срок до 25 лет</div><button class="btn-xs primary" style="margin-top: 14px; width: 100%;" onclick="navigateTo('applications')">Оформить заявку</button></div></div><div class="dashboard-card"><h3><i class="fas fa-bell" style="color: #0B4697;"></i> Уведомления</h3><div class="notification-item"><div class="notif-icon warning"><i class="fas fa-file-upload"></i></div><div class="notif-content"><div class="notif-title">Загрузите выписку ЕГРН</div><div class="notif-time">Нужна для залога по заявке №4421-И</div></div></div><div class="notification-item"><div class="notif-icon info"><i class="fas fa-robot"></i></div><div class="notif-content"><div class="notif-title">Оценка недвижимости завершена</div><div class="notif-time">Квартира на Крылатской — 8 500 000 ₽</div></div></div><div class="notification-item"><div class="notif-icon success"><i class="fas fa-check-circle"></i></div><div class="notif-content"><div class="notif-title">Данные из ЕСИА синхронизированы</div><div class="notif-time">14 июня 2026, 14:30</div></div></div></div></div></div>
@@ -361,6 +372,7 @@
 
 <script src="shared/data.js"></script>
 <script src="shared/lk-application.js"></script>
+<script src="shared/lk-artifacts.js"></script>
 <script src="js/utils.js"></script>
 <script src="js/demo-lab.js"></script>
 <script src="js/auth.js"></script>

@@ -1,0 +1,78 @@
+{
+  "address": "г. Москва, ул. Крылатская, д. 33, к. 1",
+  "bld": {
+    "pos": {
+      "lat": 55.770958,
+      "lng": 37.40715
+    },
+    "address": "г. Москва, ул. Крылатская, д. 33, к. 1",
+    "bldTitle": "строящийся жилой дом",
+    "maxFloor": null,
+    "bldYear": null,
+    "bldProject": null,
+    "wallMaterial": null,
+    "floorMaterial": null,
+    "bldType": null,
+    "basement": null,
+    "isAlarm": null,
+    "alarmLink": null,
+    "entranceCount": null,
+    "elevatorCount": null,
+    "flatsCount": null,
+    "livingCount": null,
+    "nonLivingCount": null,
+    "chuteCount": null,
+    "supplyTypeElectrical": null,
+    "supplyTypeHeating": null,
+    "supplyTypeHotWater": null,
+    "supplyTypeColdWater": null,
+    "supplyTypeSewage": null,
+    "supplyTypeGas": null,
+    "supplyTypeVent": null,
+    "firefightingType": null,
+    "facadeType": null,
+    "roofType": null,
+    "bldArea": null,
+    "bldLivingArea": null,
+    "bldNonLivingArea": null,
+    "plotArea": null,
+    "linkReforma": null,
+    "linkPKK": null,
+    "cadNum": null,
+    "photos": null,
+    "stations": [
+      {
+        "name": "Крылатское",
+        "comment": "Арбатско-Покровская линия",
+        "distance": 1400,
+        "type": "метро"
+      }
+    ],
+    "orgs": null,
+    "quality": "success",
+    "link2gis": "https://2gis.ru/geo/70030077006773283",
+    "logLink": null
+  },
+  "stats": {
+    "quality": "A",
+    "price": 19786000,
+    "priceRange": [
+      18690000,
+      20978000
+    ],
+    "size": 20,
+    "median": 366410,
+    "average": 383678,
+    "q1": 346111,
+    "q3": 388489,
+    "min": 311954,
+    "max": 747116,
+    "spread": 11,
+    "totalAdsCount": 37,
+    "totalAdsDt": "2026-06-18T10:13:40.488Z",
+    "totalAdsRadius": 500,
+    "activeMarket": false,
+    "segment": "массовое жильё советской постройки"
+  },
+  "requestId": "b6c04ff4-a1dd-46bd-972e-6fb74a2beaf8"
+}
