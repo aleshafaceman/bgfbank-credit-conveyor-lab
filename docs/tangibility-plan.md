@@ -89,6 +89,7 @@
 
 | ID | Шаг UI (сейчас) | Артефакт L3 | Поля (только существующие) | Привязка | P | V |
 |----|-----------------|-------------|----------------------------|----------|---|---|
+| C0 | Создание заявки / `form/` | «Короткая заявка» (конвертация лида) | appId, ФИО/телефон, `created`, ИНН из ЦП, признак «дубль не найден» (happy-path). Не выдумывать payload `CheckData` — только имя шага + время, если показываем шину | `addApplication` / `createFillInApplication`; СПР `[src:spr/formirovanie-lida.txt]` | P0 | S |
 | C1 | Конвейер / форма: согласие ПДн | «СОПД» PDF | `channel`, дата, ФИО `borrowers[0]`, версия как на столе (`form`/`full`). Дата лида **не** входит | новый `recordConveyorConsent('PERSONAL_DATA')`; образец полей — `deal-ops/mock.js` `consents[]`; превью как `deal-ops/sopd.html` | P0 | M |
 | C2 | Согласие БКИ | «Согласие на запрос кредитного отчёта» | цели ЦП: `CREDIT_REPORT` / `CPG_BKI` | тот же recorder; `extra_data.cp.purposes` | P0 | S |
 | C3 | ЕСИА / TrustGate получен | «Цифровой профиль — выписка покрытия» | `extra_data.cp.{gateway,purposes,profile,pulled_at,scopes}` | `applyTrustGateToApplication`; печать из тех же chips, что `renderCpCoverageHTML` (клиентская копия **без** лабораторных кнопок профиля) | P0 | M |
@@ -113,6 +114,7 @@
 
 | ID | Шаг UI | Артефакт L3 | Поля | Привязка | P | V |
 |----|--------|-------------|------|----------|---|---|
+| M0 | Появление новой заявки из лида | та же «Короткая заявка» C0 + строка «прескоринг сохранён» | СПР: сохранить результаты прескоринга до «Сбор документов» — связать с C9/M3, не плодить второй протокол | `ensureLkDemoApplication` / список заявок | P1 | S |
 | M1 | Открыл заявку / начал рассмотрение | «Карточка принятия в работу» | appId, client, status processing, timestamp, operator из `creator` | `managerAction('startReview')` | P1 | S |
 | M2 | Блок ЦП | тот же C3, плюс лабораторные кнопки профиля **как сейчас** | `renderCpCoverageHTML`, `cpActionItems`, `applyLkTrustGateProfile` | не прятать кнопки | P0 | S |
 | M3 | Прескоринг «Готово» | «Протокол preScore» | `sPrescoreCatalog` + `termsKind=preliminary`; методы ТЗ `preScore`/`preScoring` | `applyManagerPrescoringResult` | P0 | M |
