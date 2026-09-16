@@ -78,7 +78,7 @@ function loadSharedContext() {
     'view-result', 'view-loading', 'view-manual-form', 'view-documents', 'documentsList', 'pageTitle', 'pageSubtitle',
     'packageSelectionBlock', 'offerAcceptedBlock', 'acceptedPackageSummary',
     'ocenkaPreview', 'ocenkaPreviewText', 'btnEsia', 'btnManual', 'collateralSelect',
-    'applicationDetail', 'applicationsList',     'mAppCards', 'mAppDetail', 'mClientDetail',
+    'applicationDetail', 'applicationsList',     'mAppCards', 'mAppDetail', 'mClientDetail', 'mArtFilterApp', 'mDocumentsList',
     'm-tab-applications', 'm-tab-clients', 'm-tab-chat', 'm-tab-reports', 'm-tab-documents',
     'st-1', 'st-2', 'st-3', 'st-4', 'st-5', 'res-limit', 'res-rate', 'res-term',
     'res-payment', 'ltv-label', 'filterStatus', 'filterSearch',
@@ -755,6 +755,20 @@ console.log('\n=== 9. L3 artifacts registry ===');
   ctx._artifactStore = null;
   const after = JSON.parse(ctx.localStorage.getItem('bgfbank_lab_artifacts') || 'null');
   assert(!after, 'resetDemoStorage clears artifacts key');
+
+  ctx.selectedAppId = '4636-И';
+  ctx._els.mArtFilterApp.value = '';
+  ctx._els.mArtFilterApp.attributes = {};
+  ctx.fillArtifactAppFilter('mArtFilterApp', 'manager');
+  assert(ctx._els.mArtFilterApp.value === '4636-И', 'first paint follows selectedAppId');
+  ctx._els.mArtFilterApp.value = '4421-И';
+  ctx.fillArtifactAppFilter('mArtFilterApp', 'manager');
+  assert(ctx._els.mArtFilterApp.value === '4421-И', 'onchange keeps 4421 even if selectedAppId is 4636');
+  ctx.fillArtifactAppFilter('mArtFilterApp', 'manager', { followSelected: true });
+  assert(ctx._els.mArtFilterApp.value === '4636-И', 'documents tab followSelected resyncs to selected app');
+  const initHtml = fs.readFileSync(path.join(root, 'manager/index.html'), 'utf8');
+  assert(/selectManagerApp\(happyPathId\)/.test(initHtml) && !/selectManagerApp\(typeof LK_LAB_ID/.test(initHtml),
+    'manager init opens happy-path 4421, not lab 4636');
 }
 
 console.log('\n=== Summary ===');

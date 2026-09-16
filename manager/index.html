@@ -158,7 +158,8 @@
         safeCall('buildClients', typeof buildClients === 'function' ? buildClients : null);
         safeCall('renderApplicationList', typeof renderApplicationList === 'function' ? renderApplicationList : null);
         safeCall('selectManagerApp', function() {
-            if (typeof selectManagerApp === 'function') selectManagerApp(typeof LK_LAB_ID !== 'undefined' ? LK_LAB_ID : '4636-И');
+            var happyPathId = (typeof selectedAppId === 'string' && selectedAppId) ? selectedAppId : '4421-И';
+            if (typeof selectManagerApp === 'function') selectManagerApp(happyPathId);
         });
         safeCall('updateStats', typeof updateStats === 'function' ? updateStats : null);
     }
@@ -235,6 +236,7 @@
         if (t.indexOf('Все заявки') !== -1) tabName = 'applications';
         else if (t.indexOf('Клиенты') !== -1) tabName = 'clients';
         else if (t.indexOf('Чат') !== -1) tabName = 'chat';
+        else if (t.indexOf('Документы') !== -1) tabName = 'documents';
         else if (t.indexOf('Отчёты') !== -1) tabName = 'reports';
         if (tabName && typeof switchManagerTab === 'function') {
             try { switchManagerTab(tabName); } catch (err) { console.error(err); }

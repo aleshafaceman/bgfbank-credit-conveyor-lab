@@ -39,7 +39,7 @@ function switchManagerTab(tab) {
         if (tab === 'clients' && typeof renderClientsTab === 'function') renderClientsTab();
         if (tab === 'chat' && typeof renderChatTab === 'function') renderChatTab();
         if (tab === 'reports' && typeof renderReportsTab === 'function') renderReportsTab();
-        if (tab === 'documents' && typeof refreshDocumentsViews === 'function') refreshDocumentsViews();
+        if (tab === 'documents' && typeof refreshDocumentsViews === 'function') refreshDocumentsViews({ followSelected: true });
     } catch (err) {
         console.error('switchManagerTab render', tab, err);
         // Не затираем #m-tab-applications — там список заявок и его click-listener

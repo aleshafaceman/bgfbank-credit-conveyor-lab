@@ -622,7 +622,8 @@ function renderDocumentsSection(role, opts) {
     }
 }
 
-function fillArtifactAppFilter(selectId, role) {
+function fillArtifactAppFilter(selectId, role, opts) {
+    opts = opts || {};
     var sel = document.getElementById(selectId);
     if (!sel) return;
     var apps = typeof getAllApplications === 'function' ? getAllApplications() : [];
@@ -634,21 +635,28 @@ function fillArtifactAppFilter(selectId, role) {
         apps = apps.filter(function(a) { return a.client === name; });
     }
     var cur = sel.value;
+    var ready = sel.getAttribute('data-art-filter-ready') === '1';
     sel.innerHTML = '<option value="">Все заявки</option>' + apps.map(function(a) {
         return '<option value="' + artEscape(a.id) + '">№' + artEscape(a.id) + ' · ' + artEscape(a.client || '') + '</option>';
     }).join('');
-    if (role === 'manager' && typeof selectedAppId !== 'undefined' && selectedAppId) {
-        sel.value = selectedAppId;
-    } else if (cur) sel.value = cur;
+    var next = cur;
+    if (opts.followSelected && role === 'manager' && typeof selectedAppId !== 'undefined' && selectedAppId) {
+        next = selectedAppId;
+    } else if (!ready && role === 'manager' && typeof selectedAppId !== 'undefined' && selectedAppId) {
+        next = selectedAppId;
+    }
+    sel.value = next == null ? '' : next;
+    sel.setAttribute('data-art-filter-ready', '1');
 }
 
-function refreshDocumentsViews() {
+function refreshDocumentsViews(opts) {
+    opts = opts || {};
     if (document.getElementById('documentsList')) {
-        fillArtifactAppFilter('artFilterApp', 'client');
+        fillArtifactAppFilter('artFilterApp', 'client', opts);
         renderDocumentsSection('client', { mountId: 'documentsList' });
     }
     if (document.getElementById('mDocumentsList')) {
-        fillArtifactAppFilter('mArtFilterApp', 'manager');
+        fillArtifactAppFilter('mArtFilterApp', 'manager', opts);
         renderDocumentsSection('manager', { mountId: 'mDocumentsList' });
     }
 }
