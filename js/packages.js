@@ -328,26 +328,20 @@ function updatePackageExtrasUI() {
 function togglePackageExtrasPanel() {
     const panel = document.getElementById('packageExtrasPanel');
     const icon = document.getElementById('packageExtrasChevron');
+    const btn = document.getElementById('btnPackageExtras');
     if (!panel) return;
-    
+
     const isHidden = panel.classList.toggle('hidden');
-    
+
     if (icon) {
         icon.className = isHidden ? 'fas fa-chevron-down' : 'fas fa-chevron-up';
     }
-    
+    if (btn) btn.setAttribute('aria-expanded', isHidden ? 'false' : 'true');
+
     if (!isHidden) {
-        // Панель открылась — обновляем чекбоксы
         updatePackageExtrasUI();
     }
 }
-
-// Делегированный обработчик для кнопки «Дополнительно»
-document.addEventListener('click', function(e) {
-    if (e.target && e.target.closest('.pkg-extras-toggle')) {
-        togglePackageExtrasPanel();
-    }
-});
 
 function openComparePackagesModal() {
     const tbody = document.getElementById('comparePackagesBody');

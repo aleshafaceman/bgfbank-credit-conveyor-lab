@@ -502,6 +502,40 @@ console.log('\n=== 7. HTML script order / critical refs ===');
     'manager: lk-application after data');
   assert(mgrScripts.indexOf('../shared/lk-artifacts.js') > mgrScripts.indexOf('../shared/lk-application.js'),
     'manager: lk-artifacts after lk-application');
+  const extrasCss = fs.readFileSync(path.join(root, 'css/styles.css'), 'utf8');
+  assert(extrasCss.indexOf('.pkg-extras-panel.hidden') > extrasCss.indexOf('.pkg-extras-panel {'),
+    'Дополнительно panel .hidden overrides display:flex');
+  assert(/id="btnPackageExtras"[\s\S]*onclick="togglePackageExtrasPanel\(\)"/.test(index),
+    'Дополнительно button calls togglePackageExtrasPanel');
+  assert(/offer-accepted-actions/.test(index) && /offer-accepted-summary/.test(index),
+    'accepted offer block has spaced actions row');
+  const acceptedCss = fs.readFileSync(path.join(root, 'css/styles.css'), 'utf8');
+  assert(/\.offer-accepted-actions\s*\{[^}]*gap:\s*16px/.test(acceptedCss),
+    'accepted offer actions have 16px gap');
+  const artSrc = fs.readFileSync(path.join(root, 'shared/lk-artifacts.js'), 'utf8');
+  assert(!/Не бланк ELMA/.test(artSrc) && !/Байты файла не хранятся/.test(artSrc),
+    'artifact preview has no ELMA/bytes lab disclaimer');
+  assert(/art-doc-row/.test(artSrc) && /m-doc-list/.test(artSrc) && /ensureArtifactModal/.test(artSrc) &&
+    /artifactPreviewModal/.test(artSrc),
+    'manager docs list is rows and opens in-page modal');
+  const kindLabelBlock = (artSrc.match(/var ARTIFACT_KIND_LABEL = \{[\s\S]*?\n\};/) || [''])[0];
+  assert(kindLabelBlock && !/preScore/.test(kindLabelBlock) && !/getDecision/.test(kindLabelBlock) &&
+    !/INCOME_REFERENCE/.test(kindLabelBlock),
+    'ARTIFACT_KIND_LABEL has no preScore/getDecision/INCOME_REFERENCE');
+  const mgrCss = fs.readFileSync(path.join(root, 'manager/css/manager.css'), 'utf8');
+  const clientCss = fs.readFileSync(path.join(root, 'css/styles.css'), 'utf8');
+  assert(/button\.art-doc-row[\s\S]{0,280}padding:\s*10px 14px/.test(mgrCss) &&
+    /art-strip-list/.test(mgrCss) && /z-index:\s*5600/.test(mgrCss),
+    'manager CSS has padded doc rows, strip list, artifact modal');
+  assert(/\.art-chip[\s\S]{0,280}border-radius:\s*999px/.test(clientCss) &&
+    /art-modal-overlay/.test(clientCss) && /z-index:\s*5600/.test(clientCss),
+    'client CSS has artifact modal, strip list and chip pills');
+  const mgrHtml = fs.readFileSync(path.join(root, 'manager/index.html'), 'utf8');
+  const mgrAppsSrc = fs.readFileSync(path.join(root, 'manager/js/applications.js'), 'utf8');
+  assert(!/снимка eligible/.test(mgrHtml) && !/снимка eligible/.test(mgrAppsSrc),
+    'changePackage copy has no eligible');
+  assert(!/Протокол preScore/.test(artSrc) && !/Протокол getDecision/.test(artSrc),
+    'artifact labels do not show preScore/getDecision');
   assert(fs.readFileSync(path.join(root, 'js/applications.js'), 'utf8').includes('isLkLabApplication'),
     'client list filters manager-only TrustGate app');
   assert(!fs.readFileSync(path.join(root, 'js/applications.js'), 'utf8').includes('renderCpCoverageHTML'),
@@ -572,7 +606,13 @@ console.log('\n=== 8. TrustGate lab app is manager-only ===');
   ctx.selectManagerApp('4636-И');
   const mgrHtml = ctx._els.mAppDetail.innerHTML;
   assert(mgrHtml.includes('cp-coverage'), 'manager 4636 shows CP coverage block');
-  assert(mgrHtml.includes('Состояние движка'), 'manager CP block labels FILL_IN as engine state');
+  assert(mgrHtml.includes('Анкета') && mgrHtml.includes('Заполняется'),
+    'manager CP block shows application status in Russian');
+  assert(!mgrHtml.includes('Состояние движка') && !/FILL_IN/.test(mgrHtml) && !mgrHtml.includes('borrowers['),
+    'manager CP block does not show engine field names');
+  assert(mgrHtml.includes('Заёмщик') && !mgrHtml.includes('borrowers[0]'),
+    'manager CP borrower row is human-readable');
+  assert(mgrHtml.includes('лабораторный цифровой профиль'), 'lab detail explains origin vs conveyor');
   assert(mgrHtml.includes('кадастр'), 'manager CP block maps realty hole to cadastral');
   assert(mgrHtml.includes('не ждём'), 'manager CP block says family is not a hole');
   assert(mgrHtml.includes('doc-skipped') || mgrHtml.includes('Не пришёл — это норма'),
@@ -595,6 +635,15 @@ console.log('\n=== 8. TrustGate lab app is manager-only ===');
   const procBtns = ctx.getActionButtons({ id: '4421-И', status: 'processing' });
   assert(/прескоринг/i.test(procBtns) && procBtns.indexOf('Полный скоринг') === -1,
     'processing shows prescoring only, not full scoring');
+  const valBtns = ctx.getActionButtons({ id: '4421-И', status: 'valuation' });
+  assert(valBtns.indexOf('Открыть прескоринг') !== -1, 'valuation continues the started prescoring');
+  assert(valBtns.indexOf('Запустить прескоринг') === -1, 'valuation does not re-offer a fresh prescore start');
+  assert(valBtns.indexOf('Полный скоринг') === -1, 'valuation still has no full scoring');
+  const valSteps = ctx.getManagerAppTimelineSteps({ id: '4421-И', status: 'valuation', documents: [] });
+  assert(valSteps.find(s => s.id === 'prescore') && valSteps.find(s => s.id === 'prescore').done === false,
+    'timeline does not mark prescore done while overlay is still running');
+  const valTerms = ctx.appTermsKind({ id: '4421-И', status: 'valuation', rate: 12.5 });
+  assert(valTerms == null, 'valuation has no preliminary terms until prescore finishes');
   const decBtns = ctx.getActionButtons({ id: '4421-И', status: 'decision', rate: 12.5, termsKind: 'preliminary' });
   assert(decBtns.indexOf('Запустить прескоринг') === -1, 'after prescore, prescoring is not offered');
   assert(decBtns.indexOf('Полный скоринг') !== -1, 'after prescore, full scoring is offered');
@@ -660,6 +709,8 @@ console.log('\n=== 8. TrustGate lab app is manager-only ===');
   assert(ctx._els.mAppDetail.innerHTML.includes('Лаб. ЦП'), '4636 detail shows lab badge');
   ctx.selectManagerApp('4421-И');
   assert(ctx._els.mAppDetail.innerHTML.includes('Конвейер'), '4421 detail shows conveyor badge');
+  assert(ctx._els.mAppDetail.innerHTML.includes('конвейер клиентского кабинета'),
+    '4421 detail explains conveyor origin');
   if (typeof ctx.attachEsiaProfileToConveyorApp === 'function') ctx.attachEsiaProfileToConveyorApp('4421-И');
   ctx.selectManagerApp('4421-И');
   assert(ctx._els.mAppDetail.innerHTML.includes('cp-coverage'), 'manager 4421 after ESIA shows CP coverage');
@@ -677,6 +728,8 @@ console.log('\n=== 8. TrustGate lab app is manager-only ===');
     'decision with missing originals offers scoring without the set');
   assert(labDecisionBtns.indexOf('Запросить оригиналы') !== -1,
     'decision with missing originals makes request-originals primary');
+  assert(labDecisionBtns.indexOf('Протокол прескоринга') !== -1,
+    'after prescore the protocol stays available even if originals are missing');
 
   const labDocsSnapshot = (ctx.getAllApplications().find(a => a.id === '4636-И').documents || [])
     .map(d => Object.assign({}, d));
@@ -752,6 +805,13 @@ console.log('\n=== 9. L3 artifacts registry ===');
   assert(!/MFMS|DboSms|SMPP/.test(smsHtml), 'M10 preview does not name OTP/CFT channels');
   const vis = ctx.clientVisibleArtifacts(ctx.listArtifacts());
   assert(!vis.some(a => String(a.appId).indexOf('4636') >= 0), 'clientVisibleArtifacts hides 4636');
+  const hiddenFromClient = ['broker_sms', 'prescore_protocol', 'decision_protocol', 'rate_breakdown',
+    'short_application', 'cp_coverage', 'deal_passport', 'review_started', 'bank_decision'];
+  hiddenFromClient.forEach(function(kind) {
+    assert(!vis.some(a => a.kind === kind), 'client Documents hides `' + kind + '`');
+  });
+  assert(vis.some(a => a.kind === 'egrn') && vis.some(a => a.kind === 'express_eval'),
+    'client Documents keeps EGRN and valuation');
   ctx.resetDemoStorage({ includeUser: false });
   ctx._artifactStore = null;
   const after = JSON.parse(ctx.localStorage.getItem('bgfbank_lab_artifacts') || 'null');
@@ -819,6 +879,8 @@ console.log('\n=== 10. L3 P2 passport / КОД / package ===');
     'passport preview states it is a field card, not ARM/CFT');
   const visPass = ctx.clientVisibleArtifacts(ctx.listArtifacts('4421-И'));
   assert(!visPass.some(a => a.kind === 'deal_passport'), 'client does not see ОЗС deal_passport');
+  assert(!visPass.some(a => !ctx.CLIENT_VISIBLE_KINDS[a.kind]),
+    'client Documents is an allowlist, not the manager registry');
 
   ctx.recordKodInventory('4421-И');
   const kod = ctx.getArtifact(ctx.artStableId('4421-И', 'kod_inventory'));
@@ -836,6 +898,10 @@ console.log('\n=== 10. L3 P2 passport / КОД / package ===');
   assert(/в комплекте|подготовлен/.test(kodHtml) && /Кредитный договор/.test(kodHtml),
     'kod preview lists titles with kit status');
   assert(!/Паспорт<\/button>/.test(kodHtml), 'client-safe kod preview has no ОЗС passport tab');
+  const visKod = ctx.clientVisibleArtifacts(ctx.listArtifacts('4421-И'));
+  assert(visKod.some(a => a.kind === 'kod_inventory'), 'client keeps documents to sign');
+  assert(!visKod.some(a => a.kind === 'broker_sms' || a.kind === 'prescore_protocol'),
+    'client still hides broker SMS and preScore after КОД');
 
   ctx.persistEligiblePackagesSnapshot('4421-И', [
     { id: 'PKG_RECOMMENDED', title: 'Рекомендуем', rate: 12.5, payment: 54000, ltv: 0.6, limit: 5000000, insurance: 'ККС' },
@@ -856,6 +922,16 @@ console.log('\n=== 10. L3 P2 passport / КОД / package ===');
   assert(typeof ctx.getRequiredDU === 'function' &&
     !ctx.getRequiredDU(app4421, true).some(d => d.id === 'du14' || d.id === 'du06'),
     '4421 still omits marriage/children DU');
+  const mgrStrip = ctx.renderManagerArtifactsStrip('4421-И');
+  assert(/m-doc-list/.test(mgrStrip) && /art-doc-row/.test(mgrStrip) && /Все документы/.test(mgrStrip),
+    'manager artifacts strip is document rows');
+  assert(!/class="art-chip"/.test(mgrStrip), 'manager artifacts strip is not a chip run-on');
+  const rateHtml = ctx.renderManagerRateBreakdownHTML(app4421);
+  assert(rateHtml && !/eligible/.test(rateHtml) && !/ЕСИА/.test(rateHtml) && !/LTV/.test(rateHtml),
+    'rate HTML has no eligible / ЕСИА / LTV as shown to user');
+  const labelVals = Object.keys(ctx.ARTIFACT_KIND_LABEL || {}).map(function(k) { return ctx.ARTIFACT_KIND_LABEL[k]; }).join('|');
+  assert(!/preScore|getDecision|INCOME_REFERENCE/.test(labelVals),
+    'runtime ARTIFACT_KIND_LABEL values stay Russian');
 
   const reportsSrc = fs.readFileSync(path.join(root, 'manager/js/reports.js'), 'utf8');
   assert(/listArtifacts/.test(reportsSrc) && !/~2\.5 дня/.test(reportsSrc),

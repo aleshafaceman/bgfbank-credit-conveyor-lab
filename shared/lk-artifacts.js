@@ -7,32 +7,82 @@ function artifactsStorageKey() {
 
 var ARTIFACT_KIND_LABEL = {
     short_application: 'Короткая заявка',
-    sopd: 'СОПД',
-    bki_consent: 'Согласие на запрос кредитного отчёта',
-    cp_coverage: 'Цифровой профиль — покрытие',
-    passport: 'Паспорт (разворот)',
-    inn_snils: 'ИНН / СНИЛС',
-    ndfl: 'Справка о доходах (INCOME_REFERENCE)',
-    express_eval: 'Экспресс-оценка МО',
+    sopd: 'Согласие на обработку данных',
+    bki_consent: 'Согласие на запрос в БКИ',
+    cp_coverage: 'Выписка цифрового профиля',
+    passport: 'Паспорт',
+    inn_snils: 'ИНН и СНИЛС',
+    ndfl: 'Справка о доходах',
+    express_eval: 'Оценка квартиры',
     egrn: 'Выписка ЕГРН',
-    package_compare: 'Сравнение пакетов',
+    package_compare: 'Сравнение условий',
     preliminary_offer: 'Предварительные условия',
-    file_meta: 'Файл принят',
-    approval_notice: 'Уведомление об одобрении',
+    file_meta: 'Загруженный файл',
+    approval_notice: 'Заявка одобрена',
     final_terms: 'Итоговые условия',
-    prescore_protocol: 'Протокол preScore',
-    rate_breakdown: 'Разбор ставки',
-    egrn_external: 'Ответ сервиса (ЕГРН)',
-    originals_inventory: 'Опись документов',
-    decision_protocol: 'Протокол getDecision',
+    prescore_protocol: 'Протокол прескоринга',
+    rate_breakdown: 'Как сложилась ставка',
+    egrn_external: 'Ответ по ЕГРН',
+    originals_inventory: 'Опись оригиналов',
+    decision_protocol: 'Протокол решения',
     bank_decision: 'Решение банка',
-    broker_sms: 'SMS брокеру',
-    review_started: 'Принятие в работу',
-    du_request: 'Запрос ДУ',
-    kod_inventory: 'Проект комплекта КОД',
+    broker_sms: 'Сообщение партнёру',
+    review_started: 'Заявка принята в работу',
+    du_request: 'Запрос документов',
+    kod_inventory: 'Комплект на подпись',
     bki_request: 'Запрос кредитного отчёта',
     deal_passport: 'Паспорт сделки'
 };
+
+/** Клиенту — только его бумаги. Протоколы Loginom, SMS брокеру, паспорт сделки, ЦП-покрытие — кабинет менеджера. */
+var CLIENT_VISIBLE_KINDS = {
+    sopd: true,
+    bki_consent: true,
+    passport: true,
+    inn_snils: true,
+    ndfl: true,
+    express_eval: true,
+    egrn: true,
+    preliminary_offer: true,
+    file_meta: true,
+    approval_notice: true,
+    final_terms: true,
+    du_request: true,
+    kod_inventory: true
+};
+
+var CLIENT_KIND_LABEL = {
+    ndfl: 'Справка о доходах',
+    express_eval: 'Оценка квартиры',
+    kod_inventory: 'Документы на подпись',
+    du_request: 'Запрос документов',
+    file_meta: 'Загруженный файл',
+    approval_notice: 'Заявка одобрена',
+    final_terms: 'Итоговые условия'
+};
+
+function artifactKindLabel(kind, role) {
+    if (role === 'client' && CLIENT_KIND_LABEL[kind]) return CLIENT_KIND_LABEL[kind];
+    return ARTIFACT_KIND_LABEL[kind] || kind;
+}
+
+function artScopeStatusLabel(status) {
+    if (status === 'ok') return 'получено';
+    if (status === 'consent_only') return 'есть согласие';
+    if (status === 'missing') return 'нет';
+    if (status === 'skip' || status === 'skipped') return 'не требуется';
+    return String(status || '—');
+}
+
+function artPurposeLabel(code) {
+    var map = {
+        CREDIT_REPORT: 'кредитный отчёт',
+        FINANCIAL_NONFIN_SERVICES: 'финансовые услуги',
+        CPG_BKI: 'кредитный отчёт',
+        PERSONAL_DATA: 'персональные данные'
+    };
+    return map[code] || String(code || '').replace(/_/g, ' ').toLowerCase() || '—';
+}
 
 var LAB_KOD_TITLES = [
     'Кредитный договор',
@@ -294,7 +344,6 @@ function artSheet(title, bodyHtml) {
         '.tabs button.on{background:#0B4697;color:#fff}' +
         'button{margin-top:16px;padding:10px 16px;border:0;border-radius:10px;background:#0B4697;color:#fff;cursor:pointer}' +
         '</style></head><body>' + bodyHtml +
-        '<p class="muted">Лабораторный макет БЖФ. Не бланк ELMA. Байты файла не хранятся.</p>' +
         '<button type="button" onclick="window.print()">Печать / PDF</button></body></html>';
 }
 
@@ -307,15 +356,16 @@ function renderCpCoverageClientHTML(cp, borrower) {
     var chips = labels.map(function(pair) {
         var sc = cp.scopes[pair[0]] || { status: 'missing' };
         var cls = sc.status === 'ok' ? 'ok' : (sc.status === 'consent_only' ? 'need' : 'skip');
-        return '<span class="chip ' + cls + '">' + artEscape(pair[1]) + ': ' + artEscape(sc.status) + '</span>';
+        return '<span class="chip ' + cls + '">' + artEscape(pair[1]) + ': ' + artEscape(artScopeStatusLabel(sc.status)) + '</span>';
     }).join('');
+    var purposes = (cp.purposes || []).map(artPurposeLabel).join(', ');
     return '<div class="box">' +
-        '<div class="muted">' + artEscape(cp.gateway || 'TrustGate') +
+        '<div class="muted">Цифровой профиль' +
         (cp.pulled_at ? ' · ' + artEscape(cp.pulled_at) : '') + '</div>' +
         (borrower ? '<p><b>' + artEscape(borrower) + '</b></p>' : '') +
-        '<p>' + artEscape((cp.purposes || []).join(' · ')) + '</p>' +
+        (purposes ? '<p>' + artEscape(purposes) + '</p>' : '') +
         '<div>' + chips + '</div>' +
-        '<p class="muted">Квартиру ЕСИА не отдаёт — нужен кадастр / ЕГРН. Семью ЦП не отдаёт.</p>' +
+        '<p class="muted">Квартиру Госуслуги не отдают — нужен кадастр и выписка ЕГРН. Состав семьи цифровой профиль не отдаёт.</p>' +
         '</div>';
 }
 
@@ -325,7 +375,7 @@ function artifactPreviewHTML(art, app) {
     var b = (lk.borrowers && lk.borrowers[0]) || {};
     var cp = (lk.extra_data && lk.extra_data.cp) || app.extra_data && app.extra_data.cp || null;
     var kind = art.kind;
-    var title = art.title || ARTIFACT_KIND_LABEL[kind] || kind;
+    var title = ARTIFACT_KIND_LABEL[kind] || art.title || kind;
     var head = '<div class="muted">БЖФ Банк · заявка №' + artEscape(art.appId) + '</div><h1>' + artEscape(title) + '</h1>';
     var rows = '';
 
@@ -338,10 +388,9 @@ function artifactPreviewHTML(art, app) {
         row('Телефон', artEscape(app.phone || b.cell_phone || '—'));
         row('Создана', artEscape(app.date || '—'));
         row('ИНН из ЦП', artEscape((cp && cp.scopes && cp.scopes.inn && cp.scopes.inn.value) || '—'));
-        row('Дубль', 'не найден (happy-path)');
-        row('CheckData', 'имя шага · без тела ЦФТ');
+        row('Дубль', 'не найден');
         return artSheet(title, head + '<div class="box">' + rows + '</div>' +
-            '<p class="muted">Лид ≠ заявка (Sale). CreateLead до полного скоринга.</p>');
+            '<p class="muted">Это короткая заявка (лид), ещё не полная сделка банка.</p>');
     }
     if (kind === 'sopd') {
         row('Субъект', artEscape(app.client || [b.last_name, b.first_name, b.second_name].filter(Boolean).join(' ')));
@@ -353,7 +402,7 @@ function artifactPreviewHTML(art, app) {
             '<p class="muted">Дата создания лида в этот документ не входит. Это не согласие ЕСИА.</p>');
     }
     if (kind === 'bki_consent') {
-        row('Цели ЦП', artEscape(((cp && cp.purposes) || ['CREDIT_REPORT']).join(', ')));
+        row('Цели', artEscape(((cp && cp.purposes) || ['CREDIT_REPORT']).map(artPurposeLabel).join(', ')));
         row('Субъект', artEscape(app.client || '—'));
         return artSheet(title, head + '<div class="box">' + rows + '</div>' +
             '<p>Согласие на запрос кредитного отчёта в БКИ для прескоринга / АНД.</p>');
@@ -377,22 +426,22 @@ function artifactPreviewHTML(art, app) {
     }
     if (kind === 'ndfl') {
         var years = (cp && cp.scopes && cp.scopes.ndfl && cp.scopes.ndfl.years) || [];
-        row('Тип', 'INCOME_REFERENCE');
+        row('Тип', 'справка о доходах');
         row('Годы', artEscape(years.join(', ') || '—'));
-        row('confirmation_income_summary', artEscape(lk.confirmation_income_summary != null ? lk.confirmation_income_summary : (b.incomes || '—')));
+        row('Подтверждённый доход', artEscape(lk.confirmation_income_summary != null ? lk.confirmation_income_summary : (b.incomes || '—')));
         return artSheet(title, head + '<div class="box">' + rows + '</div>');
     }
     if (kind === 'express_eval') {
         var pe = app.pledge_evaluation || (lk.pledge_evaluation) || {};
         var ex = app.express_evaluation || lk.express_evaluation || {};
-        row('Канал', 'lookup api.ocenka.mobi (не /orders)');
+        row('Источник', 'справочник оценки по адресу');
         row('Адрес', artEscape(app.collateralAddress || (ex.address) || '—'));
-        row('AppraisalPledgeCost / stats.price', artMoney(pe.AppraisalPledgeCost || (ex.stats && ex.stats.price) || app.collateralValue));
-        row('requestId', artEscape((ex.requestId) || '—'));
-        row('stats.quality', artEscape((ex.stats && ex.stats.quality) || '—'));
+        row('Стоимость залога', artMoney(pe.AppraisalPledgeCost || (ex.stats && ex.stats.price) || app.collateralValue));
+        row('Номер запроса', artEscape((ex.requestId) || '—'));
+        row('Качество оценки', artEscape((ex.stats && ex.stats.quality) || '—'));
         row('Кадастр', artEscape((ex.bld && ex.bld.cadNum) || app.cadastral_number || '—'));
         return artSheet(title, head + '<div class="box">' + rows + '</div>' +
-            '<p class="muted">PDF отчёта МО в localStorage нет. Партнёрский lookup Express не перезаписывает (BGF-3457).</p>');
+            '<p class="muted">Это ориентир по адресу, не альбом фотографий и не полный отчёт оценщика.</p>');
     }
     if (kind === 'egrn' || kind === 'egrn_external' || kind === 'file_meta') {
         var file = art.file || {};
@@ -406,7 +455,7 @@ function artifactPreviewHTML(art, app) {
     }
     if (kind === 'package_compare') {
         var pkgs = app.eligiblePackages || (art.payload && art.payload.packages) || [];
-        var table = '<table style="width:100%;border-collapse:collapse;font-size:13px"><tr><th>Пакет</th><th>Ставка</th><th>Платёж</th><th>Лимит</th><th>LTV</th><th>Страхование</th></tr>';
+        var table = '<table style="width:100%;border-collapse:collapse;font-size:13px"><tr><th>Пакет</th><th>Ставка</th><th>Платёж</th><th>Лимит</th><th>К оценке</th><th>Страхование</th></tr>';
         pkgs.forEach(function(p) {
             table += '<tr><td>' + artEscape(p.title || p.id) + '</td><td>' + (p.rate != null ? Number(p.rate).toFixed(1) + '%' : '—') +
                 '</td><td>' + artMoney(p.payment) + '</td><td>' + artMoney(p.limit) + '</td><td>' +
@@ -424,46 +473,46 @@ function artifactPreviewHTML(art, app) {
         row('Платёж / мес.', app.payment != null ? '~ ' + artMoney(app.payment) : '—');
         row('Страхование', artEscape(app.packageInsurance || (catalog && catalog.insurance) || '—'));
         row('Комиссия', artEscape(app.packageCommission || (catalog && catalog.commission) || '—'));
-        if (app.collateralValue && app.amount) row('LTV', Math.round((app.amount / app.collateralValue) * 100) + '%');
-        row('Тип условий', artEscape(app.termsKind || (kind === 'final_terms' ? 'final' : 'preliminary')));
+        if (app.collateralValue && app.amount) row('Кредит к оценке', Math.round((app.amount / app.collateralValue) * 100) + '%');
+        row('Тип условий', kind === 'final_terms' ? 'итоговые' : 'предварительные');
         var mods = app.packageModifiers || {};
         if (mods.ltvBoost || mods.coBorrower || mods.fixedRate) {
-            row('Модификаторы', [
-                mods.ltvBoost ? 'LTV +10 п.п.' : '',
+            row('Опции', [
+                mods.ltvBoost ? 'больше сумма (+10 п.п. к доле кредита)' : '',
                 mods.coBorrower ? 'созаёмщик' : '',
-                mods.fixedRate ? 'фикс. ставка' : ''
+                mods.fixedRate ? 'фиксированная ставка' : ''
             ].filter(Boolean).join(' · '));
         }
         var note = kind === 'final_terms'
             ? 'Итоговые условия после полного скоринга.'
-            : 'Предварительное предложение, не является офертой. Турбо 2.0 · база − ЕСИА.';
+            : 'Предварительное предложение, не оферта. Тариф «Турбо 2.0», скидка за Госуслуги.';
         return artSheet(title, head + '<div class="box">' + rows + '</div><p class="muted">' + note + '</p>');
     }
     if (kind === 'prescore_protocol') {
-        row('Метод', 'preScore / preScoring');
-        row('APPLICATION_ID', artEscape(art.appId));
-        row('STAGE', 'каркас (enum ТЗ не разобран)');
+        row('Что считали', 'прескоринг');
+        row('Заявка', artEscape(art.appId));
+        row('Этап', 'предварительная проверка');
         row('Итог', artEscape(app.termsKind === 'preliminary' ? 'клиент предварительно подходит' : (app.statusLabel || '')));
         row('Ставка предв.', app.rate != null ? Number(app.rate).toFixed(1) + '%' : '—');
         row('Сумма / срок', artMoney(app.amount) + ' / ' + (app.term || '—') + ' лет');
-        if (app.collateralValue && app.amount) row('LTV', Math.round((app.amount / app.collateralValue) * 100) + '%');
+        if (app.collateralValue && app.amount) row('Кредит к оценке', Math.round((app.amount / app.collateralValue) * 100) + '%');
         return artSheet(title, head + '<div class="box">' + rows + '</div>' +
-            '<p class="muted">ПДН — метод getPdn, не PTI/DTI как поле СПР.</p>');
+            '<p class="muted">Долговая нагрузка считается отдельно, в этот протокол не подставляем.</p>');
     }
     if (kind === 'decision_protocol') {
         var dec = (lk.decision && lk.decision.approval) || app.decision || {};
-        row('Метод', 'getDecision');
-        row('APPLICATION_ID', artEscape(art.appId));
-        row('getPdn', 'каркас вызова · значение ПДН не выдумано');
-        row('DECISION / SCORE', artEscape((dec.decision_category || 'APPROVE') + ''));
-        row('Залог', 'см. экспресс-оценку / getEval');
+        row('Что считали', 'полное решение');
+        row('Заявка', artEscape(art.appId));
+        row('Долговая нагрузка', 'запрос ушёл, значение в макете не выдумываем');
+        row('Категория', artEscape((dec.decision_category === 'APPROVE' || !dec.decision_category) ? 'одобрить' : dec.decision_category));
+        row('Залог', 'см. оценку квартиры');
         row('Итог', app.status === 'approved' ? 'одобрено' : artEscape(app.statusLabel || ''));
         return artSheet(title, head + '<div class="box">' + rows + '</div>' +
-            '<p class="muted">Overlay PTI/DTI в протокол СПР не копируем.</p>');
+            '<p class="muted">Это протокол решения по клиенту, не калькулятор пакетов.</p>');
     }
     if (kind === 'bank_decision' || kind === 'approval_notice') {
-        row('Статус', 'approved · клиент одобрен');
-        row('termsKind', 'final');
+        row('Статус', 'одобрено');
+        row('Условия', 'итоговые');
         row('Ставка', app.rate != null ? Number(app.rate).toFixed(1) + '%' : '—');
         row('Платёж', app.payment != null ? '~ ' + artMoney(app.payment) : '—');
         row('Сумма / срок', artMoney(app.amount) + ' / ' + (app.term || '—') + ' лет');
@@ -471,36 +520,37 @@ function artifactPreviewHTML(art, app) {
     }
     if (kind === 'broker_sms') {
         var sms = (art.payload) || {};
-        row('Канал', 'SMSTraffic POST /v2/send');
-        row('Host', 'https://api.smstraffic.ru');
-        row('smsId', artEscape(sms.smsId || '—'));
-        row('status', artEscape(sms.status || 'Delivered'));
-        row('tracking_data', artEscape(sms.trackingData || art.appId));
+        row('Сервис', 'SMSTraffic');
+        row('Адрес', 'https://api.smstraffic.ru');
+        row('Идентификатор smsId', artEscape(sms.smsId || '—'));
+        row('Статус', artEscape(sms.status === 'Delivered' || !sms.status ? 'Доставлено (Delivered)' : sms.status));
+        row('Заявка', artEscape(sms.trackingData || art.appId));
         return artSheet(title, head + '<div class="box">' + rows + '</div>' +
-            '<p class="muted">Брокерское SMS о решении банка (SMSTraffic). Не код входа в кабинет. Bearer не хранится.</p>');
+            '<p class="muted">Сообщение партнёру о решении банка (SMSTraffic). Это не код входа в кабинет.</p>');
     }
     if (kind === 'review_started') {
         row('Оператор', artEscape((art.payload && art.payload.operator) || 'Елена Смирнова'));
-        row('Статус', 'processing · в обработке');
+        row('Статус', 'в обработке');
         row('Заявка', artEscape(art.appId));
         return artSheet(title, head + '<div class="box">' + rows + '</div>');
     }
     if (kind === 'du_request') {
         var du = art.payload || {};
-        row('ДУ', artEscape(du.title || du.name || art.title));
-        row('ELMA type', artEscape(du.type != null ? du.type : '—'));
-        row('Статус', artEscape(du.status || 'requested'));
+        row('Документ', artEscape(du.title || du.name || art.title));
+        row('Тип в банке', artEscape(du.type != null ? du.type : '—'));
+        row('Статус', artEscape(du.status === 'requested' ? 'запрошен' : (du.status === 'received' ? 'получен' : (du.status || 'запрошен'))));
         return artSheet(title, head + '<div class="box">' + rows + '</div>' +
-            '<p class="muted">Persist в lk.additional_conditions. Не RAM duStorage.</p>');
+            '<p class="muted">Дополнительное условие по заявке. Сохраняется в карточке, не только на экране.</p>');
     }
     if (kind === 'kod_inventory' || kind === 'deal_passport') {
         return artSheet(title, head + renderSharedPassportKodHTML(app, art, kind));
     }
     if (kind === 'bki_request') {
-        row('Канал', 'Loginom / CREDIT Registry');
-        row('scopes.credit_report', 'consent_only · отчёт не XML в кабинете');
+        row('Куда ушёл запрос', 'бюро кредитных историй');
+        row('Кредитный отчёт', 'согласие есть, сам отчёт в кабинете не кладём');
         row('Статус', 'запрос отправлен');
-        return artSheet(title, head + '<div class="box">' + rows + '</div>');
+        return artSheet(title, head + '<div class="box">' + rows + '</div>' +
+            '<p class="muted">Отчёт тянет скоринг банка (Loginom / CREDIT Registry). XML в кабинет не кладём.</p>');
     }
     if (kind === 'originals_inventory') {
         var docs = app.documents || [];
@@ -508,30 +558,91 @@ function artifactPreviewHTML(art, app) {
             return '<div class="row"><span>' + artEscape(d.name) + '</span><b>' + artEscape(d.statusLabel || d.status) + '</b></div>';
         }).join('');
         return artSheet(title, head + '<div class="box">' + (list || '<p>Нет строк комплекта</p>') + '</div>' +
-            '<p class="muted">Минимальный перечень Visio. Не домкнига/БТИ без триггера в lk.</p>');
+            '<p class="muted">Минимальный перечень для сделки. Лишние справки не поднимаем без повода в заявке.</p>');
     }
     Object.keys(art.payload || {}).forEach(function(k) {
-        row(k, artEscape(art.payload[k]));
+        if (k === 'titles' || k === 'fields' || k === 'items') return;
+        var label = artPurposeLabel(k);
+        if (label === k.replace(/_/g, ' ').toLowerCase() && /[A-Z]/.test(k)) {
+            label = k.replace(/_/g, ' ');
+        }
+        var pretty = {
+            smsId: 'Идентификатор сообщения',
+            trackingData: 'Заявка',
+            status: 'Статус',
+            operator: 'Сотрудник',
+            titles: 'Состав',
+            fields: 'Поля'
+        };
+        row(pretty[k] || label, artEscape(art.payload[k]));
     });
-    return artSheet(title, head + '<div class="box">' + (rows || '<p class="muted">Нет полей среза.</p>') + '</div>');
+    return artSheet(title, head + '<div class="box">' + (rows || '<p class="muted">Нет данных для просмотра.</p>') + '</div>');
+}
+
+function closeArtifactModal() {
+    var overlay = document.getElementById('artifactPreviewModal');
+    if (overlay) overlay.classList.add('hidden');
+}
+
+function ensureArtifactModal() {
+    var overlay = document.getElementById('artifactPreviewModal');
+    if (overlay) return overlay;
+    overlay = document.createElement('div');
+    overlay.id = 'artifactPreviewModal';
+    overlay.className = 'art-modal-overlay hidden';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.innerHTML =
+        '<div class="art-modal">' +
+        '<button type="button" class="art-modal-close" aria-label="Закрыть">&times;</button>' +
+        '<div class="art-modal-body" id="artifactPreviewBody"></div>' +
+        '<div class="art-modal-footer">' +
+        '<button type="button" class="art-modal-print">Печать</button>' +
+        '<button type="button" class="art-modal-ok">Закрыть</button>' +
+        '</div></div>';
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', function(e) {
+        var t = e.target;
+        if (t === overlay || (t && t.classList && (t.classList.contains('art-modal-close') || t.classList.contains('art-modal-ok')))) {
+            closeArtifactModal();
+        }
+    });
+    overlay.querySelector('.art-modal-print').addEventListener('click', function() {
+        var html = overlay._printHtml;
+        if (!html) return;
+        var w = window.open('', '_blank', 'width=800,height=900');
+        if (!w) {
+            window.print();
+            return;
+        }
+        w.document.write(html);
+        w.document.close();
+    });
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') closeArtifactModal();
+    });
+    return overlay;
 }
 
 function openArtifact(id) {
     var art = typeof id === 'object' ? id : getArtifact(id);
     if (!art) {
         if (typeof showDemoToast === 'function') showDemoToast('Документ не найден', { icon: 'fa-file', duration: 2000 });
+        else if (typeof managerNotify === 'function') managerNotify('Документ не найден');
         else alert('Документ не найден');
         return;
     }
     var app = findAppById(art.appId) || {};
     var html = artifactPreviewHTML(art, app);
-    var w = window.open('', '_blank', 'width=800,height=900');
-    if (!w) {
-        alert('Разрешите всплывающие окна, чтобы открыть документ');
-        return;
-    }
-    w.document.write(html);
-    w.document.close();
+    var overlay = ensureArtifactModal();
+    var body = document.getElementById('artifactPreviewBody');
+    var inner = html;
+    var m = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+    if (m) inner = m[1];
+    inner = inner.replace(/<button[^>]*>Печать[\s\S]*?<\/button>/gi, '');
+    if (body) body.innerHTML = inner;
+    overlay._printHtml = html;
+    overlay.classList.remove('hidden');
 }
 
 function openArtifactByKind(appId, kind) {
@@ -629,7 +740,7 @@ function recordExpressEvalFromCollateral(appId, prop) {
     return recordArtifactForApp(appId, 'express_eval', {
         actor: 'client',
         fn: 'onCollateralSelect',
-        title: 'Экспресс-оценка МО · lookup'
+        title: ARTIFACT_KIND_LABEL.express_eval || 'Оценка квартиры'
     });
 }
 
@@ -852,8 +963,7 @@ function clientVisibleArtifacts(list) {
     return (list || []).filter(function(a) {
         if (!a) return false;
         if (typeof isLkLabApplication === 'function' && isLkLabApplication({ id: a.appId })) return false;
-        if (a.kind === 'review_started' || a.kind === 'deal_passport') return false;
-        return true;
+        return !!CLIENT_VISIBLE_KINDS[a.kind];
     });
 }
 
@@ -871,20 +981,27 @@ function renderDocumentsSection(role, opts) {
     var list = listArtifacts(filterApp || null);
     if (role === 'client') list = clientVisibleArtifacts(list);
     if (!list.length) {
-        el.innerHTML = '<div class="art-empty"><i class="fas fa-folder-open"></i><p>Пока нет документов по этому контуру.</p>' +
-            '<p class="art-empty-hint">Они появятся после шагов конвейера: объект → ЕСИА → пакет → ЕГРН → скоринг.</p></div>';
+        if (role === 'client') {
+            el.innerHTML = '<div class="art-empty"><i class="fas fa-folder-open"></i><p>Пока нет ваших документов.</p>' +
+                '<p class="art-empty-hint">Здесь появятся согласия, паспорт, оценка и условия, которые вы получили.</p></div>';
+        } else {
+            el.innerHTML = '<div class="art-empty"><i class="fas fa-folder-open"></i><p>Пока нет документов.</p>' +
+                '<p class="art-empty-hint">Здесь появятся согласия, паспорт, оценка и условия по заявке.</p></div>';
+        }
         return;
     }
     el.innerHTML = list.map(function(a) {
         var when = (a.createdAt || '').replace('T', ' ').slice(0, 16);
+        var kindLabel = artifactKindLabel(a.kind, role);
         var file = a.file || {};
+        var fileName = file.name && !/\.html$/i.test(file.name) ? file.name : '';
         return '<button type="button" class="art-card" data-art-id="' + artEscape(a.id) + '">' +
-            '<div class="art-card-kind">' + artEscape(ARTIFACT_KIND_LABEL[a.kind] || a.kind) + '</div>' +
-            '<div class="art-card-title">' + artEscape(a.title || a.kind) + '</div>' +
+            '<div class="art-card-kind">' + artEscape(kindLabel) + '</div>' +
+            '<div class="art-card-title">' + artEscape(kindLabel) + '</div>' +
             '<div class="art-card-meta">№' + artEscape(a.appId) +
             (when ? ' · ' + artEscape(when) : '') +
-            (file.name ? ' · ' + artEscape(file.name) : '') +
-            (file.size ? ' · ' + file.size + ' Б' : '') +
+            (fileName ? ' · ' + artEscape(fileName) : '') +
+            (fileName && file.size ? ' · ' + file.size + ' Б' : '') +
             '</div></button>';
     }).join('');
     if (!el._artBound) {
@@ -945,22 +1062,28 @@ function renderAppArtifactsStrip(appId) {
     }
     if (!list.length) return '';
     return '<div class="art-strip"><div class="art-strip-head">Документы по заявке</div>' +
+        '<div class="art-strip-list">' +
         list.map(function(a) {
             return '<button type="button" class="art-chip" data-action="open-artifact" data-art-id="' + artEscape(a.id) + '">' +
-                artEscape(ARTIFACT_KIND_LABEL[a.kind] || a.kind) + '</button>';
+                artEscape(artifactKindLabel(a.kind, 'client')) + '</button>';
         }).join('') +
-        '<button type="button" class="art-chip art-chip-all" data-action="goto-documents">Все документы</button></div>';
+        '<button type="button" class="art-chip art-chip-all" data-action="goto-documents">Все документы</button></div></div>';
 }
 
 function renderManagerArtifactsStrip(appId) {
     var list = listArtifacts(appId);
     if (!list.length) return '';
     return '<div class="m-section art-strip"><h4><i class="fas fa-folder-open"></i> Документы по заявке</h4>' +
+        '<div class="m-doc-list">' +
         list.map(function(a) {
-            return '<button type="button" class="art-chip" data-m-action="open-artifact" data-art-id="' + artEscape(a.id) + '">' +
-                artEscape(ARTIFACT_KIND_LABEL[a.kind] || a.kind) + '</button>';
+            return '<button type="button" class="m-doc-item art-doc-row" data-m-action="open-artifact" data-art-id="' +
+                artEscape(a.id) + '">' +
+                '<i class="fas fa-file-alt"></i>' +
+                '<span class="doc-name">' + artEscape(ARTIFACT_KIND_LABEL[a.kind] || a.kind) + '</span>' +
+                '<span class="doc-status doc-uploaded">Открыть</span></button>';
         }).join('') +
-        '<button type="button" class="art-chip art-chip-all" data-m-action="goto-documents">Открыть раздел</button></div>';
+        '</div>' +
+        '<button type="button" class="m-btn m-btn-outline art-strip-all" data-m-action="goto-documents">Все документы</button></div>';
 }
 
 function attachEsiaProfileToConveyorApp(appId) {
@@ -1047,4 +1170,6 @@ if (typeof window !== 'undefined') {
     window.DEAL_PASSPORT_APP_KEYS = DEAL_PASSPORT_APP_KEYS;
     window.LAB_ELIGIBLE_PACKAGE_IDS = LAB_ELIGIBLE_PACKAGE_IDS;
     window.ARTIFACT_KIND_LABEL = ARTIFACT_KIND_LABEL;
+    window.CLIENT_VISIBLE_KINDS = CLIENT_VISIBLE_KINDS;
+    window.clientVisibleArtifacts = clientVisibleArtifacts;
 }

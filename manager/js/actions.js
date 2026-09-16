@@ -25,6 +25,10 @@ function managerAction(appId, action) {
                 }
                 break;
 
+            case 'openPrescoring':
+                if (typeof openManagerPrescoring === 'function') openManagerPrescoring();
+                break;
+
             case 'startScoring':
                 updateApplicationStatus(appId, 'valuation', 'Прескоринг', 'Запущен прескоринг: паспорт + БКИ');
                 sendChatMessage('manager', app.client, 'Запущен прескоринг по заявке №' + appId + ': паспорт и запрос в БКИ. Это предварительная проверка, условия могут отличаться от итоговых.', app.client);

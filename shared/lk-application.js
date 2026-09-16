@@ -377,6 +377,13 @@ function borrowerDisplayName(b) {
     return [b.last_name, b.first_name, b.second_name].filter(Boolean).join(' ').trim();
 }
 
+function lkApplicationStatusLabel(status) {
+    var raw = String(status || '').trim();
+    if (!raw) return '—';
+    if (raw === 'FILL_IN') return 'Заполняется';
+    return raw.replace(/_/g, ' ').toLowerCase();
+}
+
 function formatLkPhone(raw) {
     var d = String(raw || '').replace(/\D/g, '');
     if (d.length === 11 && d[0] === '7') d = d.slice(1);
@@ -437,7 +444,7 @@ function flattenLkToLabApp(lk) {
             {
                 text: patched
                     ? ('TrustGate: ' + ((cp && cp.purposes) || []).join(', ') + (ndflOk ? '. 2-НДФЛ есть.' : '. 2-НДФЛ нет — ДУ тип 0.'))
-                    : 'Создан каркас заявки FILL_IN, ЦП ещё не запрашивали',
+                    : 'Создан каркас анкеты, цифровой профиль ещё не запрашивали',
                 date: LK_LAB_DATE,
                 current: true
             },
@@ -466,7 +473,7 @@ function cpActionItems(cp) {
     if (ndfl.status === 'ok') {
         items.push({ kind: 'ok', text: '2-НДФЛ есть — доход из ЦП, ДУ тип 0 не ставим.' });
     } else {
-        items.push({ kind: 'need', text: '2-НДФЛ нет — ДУ тип 0 (справка о доходе), confirmation_income_summary = −1.' });
+        items.push({ kind: 'need', text: '2-НДФЛ нет — поставить ДУ тип 0 (справка о доходе).' });
     }
     items.push({ kind: 'need', text: 'Квартиры из ЦП не берём — дальше кадастр и ЕГРН.' });
     items.push({ kind: 'skip', text: 'Семью ЦП не отдаёт — не ждём.' });
@@ -490,7 +497,7 @@ function renderCpCoverageHTML(appOrLk) {
         ['ndfl', '2-НДФЛ'],
         ['szi6', 'СЗИ-6'],
         ['family', 'Семья'],
-        ['realty', 'Квартиры ЦП'],
+        ['realty', 'Квартиры'],
         ['credit_report', 'БКИ']
     ];
     var chips = labels.map(function(pair) {
@@ -516,13 +523,13 @@ function renderCpCoverageHTML(appOrLk) {
         var inn = (cp.scopes.inn && cp.scopes.inn.value) || '—';
         var income = ndfl.status === 'ok'
             ? (Number(b.incomes || 0).toLocaleString('ru-RU') + ' ₽/мес')
-            : 'нет (summary ' + lk.confirmation_income_summary + ')';
+            : 'нет в цифровом профиле';
         borrower = '<div class="cp-borrower">' +
-            '<div class="cp-borrower-row"><span>borrowers[0]</span><b>' + fio + '</b></div>' +
+            '<div class="cp-borrower-row"><span>Заёмщик</span><b>' + fio + '</b></div>' +
             '<div class="cp-borrower-row"><span>Паспорт</span><b>' + pass + '</b></div>' +
             '<div class="cp-borrower-row"><span>ИНН</span><b>' + inn + '</b></div>' +
-            '<div class="cp-borrower-row"><span>Доход ЦП</span><b>' + income + '</b></div>' +
-            '<div class="cp-borrower-row"><span>Состояние движка</span><b>' + (lk.status || '') + '</b></div>' +
+            '<div class="cp-borrower-row"><span>Доход</span><b>' + income + '</b></div>' +
+            '<div class="cp-borrower-row"><span>Анкета</span><b>' + lkApplicationStatusLabel(lk.status) + '</b></div>' +
             '</div>';
     }
     var next = cpActionItems(cp).map(function(item) {
