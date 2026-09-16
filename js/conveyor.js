@@ -148,11 +148,17 @@ function resumeAcceptedConveyor(app) {
 
     const summary = document.getElementById('acceptedPackageSummary');
     if (summary) {
-        const label = app.selectedPackageLabel || state.selectedPackageId || 'Выбранный пакет';
-        summary.innerHTML = 'Пакет: <b>' + label + '</b> · Ставка <b>' +
-            (app.rate != null ? Number(app.rate).toFixed(1) : '—') + '%</b> · ' +
-            'Платёж <b>~' + (app.payment != null ? app.payment.toLocaleString('ru-RU') : '—') + ' ₽</b>/мес · ' +
-            'Сумма <b>' + (app.amount != null ? app.amount.toLocaleString('ru-RU') : '—') + ' ₽</b>';
+        var catalog = (typeof getPackageCatalogInfo === 'function')
+            ? getPackageCatalogInfo(app.selectedPackageId)
+            : null;
+        var label = (catalog && catalog.title) || app.selectedPackageLabel || 'Выбранный пакет';
+        var html = (typeof acceptedPackageSummaryHTML === 'function')
+            ? acceptedPackageSummaryHTML(label, app.rate, app.payment, app.amount)
+            : ('Пакет: <b>' + label + '</b> · Ставка <b>' +
+                (app.rate != null ? Number(app.rate).toFixed(1) : '—') + '%</b> · ' +
+                'Платёж <b class="money">~' + (app.payment != null ? Number(app.payment).toLocaleString('ru-RU') + '\u00a0₽' : '—') + '/мес</b> · ' +
+                'Сумма <b class="money">' + (app.amount != null ? Number(app.amount).toLocaleString('ru-RU') + '\u00a0₽' : '—') + '</b>');
+        summary.innerHTML = html;
     }
 
     setStepState('st-1', 'done');

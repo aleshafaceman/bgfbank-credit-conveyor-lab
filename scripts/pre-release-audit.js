@@ -172,7 +172,7 @@ function loadSharedContext() {
   ctx.getPackageCatalogInfo = function(id) {
     if (!id) return null;
     return {
-      title: 'Рекомендуем',
+      title: 'Турбо 2.0',
       description: 'Баланс ставки и лимита',
       insurance: 'Имущество',
       commission: '0%',
@@ -289,7 +289,7 @@ console.log('\n=== 3. Client conveyor continue / resume ===');
   ctx.updateApplication('4421-И', {
     packageStatus: 'accepted',
     selectedPackageId: 'PKG_RECOMMENDED',
-    selectedPackageLabel: 'Рекомендуем',
+    selectedPackageLabel: 'Турбо 2.0',
     rate: 12.5,
     payment: 54000,
     amount: 5000000,
@@ -512,6 +512,15 @@ console.log('\n=== 7. HTML script order / critical refs ===');
   const acceptedCss = fs.readFileSync(path.join(root, 'css/styles.css'), 'utf8');
   assert(/\.offer-accepted-actions\s*\{[^}]*gap:\s*16px/.test(acceptedCss),
     'accepted offer actions have 16px gap');
+  const pkgSrc = fs.readFileSync(path.join(root, 'js/packages.js'), 'utf8');
+  assert(/title: 'Турбо 2.0'/.test(pkgSrc) && /title: 'Спец. опция 4.0'/.test(pkgSrc),
+    'package catalog uses tariff names, not Рекомендуем');
+  assert(!/pkg\('PKG_RECOMMENDED', 'Рекомендуем'/.test(pkgSrc),
+    'offer cards do not title the turbo package Рекомендуем');
+  assert(/acceptedPackageSummaryHTML/.test(pkgSrc) && /\\u00a0₽/.test(pkgSrc),
+    'accepted summary keeps ruble on the amount');
+  assert(/offer-accepted-summary \.money/.test(acceptedCss) && /white-space:\s*nowrap/.test(acceptedCss),
+    'accepted summary amounts do not wrap the ₽');
   const artSrc = fs.readFileSync(path.join(root, 'shared/lk-artifacts.js'), 'utf8');
   assert(!/Не бланк ELMA/.test(artSrc) && !/Байты файла не хранятся/.test(artSrc),
     'artifact preview has no ELMA/bytes lab disclaimer');
@@ -904,8 +913,8 @@ console.log('\n=== 10. L3 P2 passport / КОД / package ===');
     'client still hides broker SMS and preScore after КОД');
 
   ctx.persistEligiblePackagesSnapshot('4421-И', [
-    { id: 'PKG_RECOMMENDED', title: 'Рекомендуем', rate: 12.5, payment: 54000, ltv: 0.6, limit: 5000000, insurance: 'ККС' },
-    { id: 'PKG_SPEC_4_0', title: 'Снизить ставку', rate: 11.9, payment: 51000, ltv: 0.5, limit: 4250000, insurance: 'ККС', commission: '0,99%' },
+    { id: 'PKG_RECOMMENDED', title: 'Турбо 2.0', rate: 12.5, payment: 54000, ltv: 0.6, limit: 5000000, insurance: 'ККС' },
+    { id: 'PKG_SPEC_4_0', title: 'Спец. опция 4.0', rate: 11.9, payment: 51000, ltv: 0.5, limit: 4250000, insurance: 'ККС', commission: '0,99%' },
     { id: 'PKG_NO_INSURANCE', title: 'Без страхования жизни', rate: 17.5, payment: 72000, ltv: 0.6, limit: 5000000, insurance: 'Только залог' }
   ]);
   const okPkg = ctx.applyManagerEligiblePackage('4421-И', 'PKG_SPEC_4_0');

@@ -308,7 +308,7 @@ function renderApplicationPackageBlock(app) {
     return `<div class="detail-package-block">
         <div class="detail-package-inner">
             <div class="detail-package-head">
-                <div class="param-label">Рекомендуемый пакет условий</div>
+                <div class="param-label">Пакет условий</div>
                 ${statusBadge}
             </div>
             <h4 class="detail-package-title">${title}</h4>

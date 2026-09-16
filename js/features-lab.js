@@ -218,7 +218,7 @@ function maybeShowPresenterChecklist(force) {
     el.innerHTML = '<div class="bgf-checklist-head"><b>Скрипт ведущего</b><button type="button" id="bgfChecklistClose">×</button></div>' +
         '<label><input type="checkbox"> Сброс демо</label>' +
         '<label><input type="checkbox"> Клиент: залог + ЕСИА</label>' +
-        '<label><input type="checkbox"> Пакет «Рекомендуем»</label>' +
+        '<label><input type="checkbox"> Пакет «Турбо 2.0»</label>' +
         '<label><input type="checkbox"> Чат → менеджер</label>' +
         '<label><input type="checkbox"> Скоринг → одобрение</label>' +
         '<label><input type="checkbox"> Тост «Одобрено»</label>' +
