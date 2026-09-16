@@ -1019,10 +1019,10 @@ function fillArtifactAppFilter(selectId, role, opts) {
     var sel = document.getElementById(selectId);
     if (!sel) return;
     var apps = typeof getAllApplications === 'function' ? getAllApplications() : [];
+    if (typeof visibleCabinetApplications === 'function') {
+        apps = visibleCabinetApplications(apps);
+    }
     if (role === 'client') {
-        apps = apps.filter(function(a) {
-            return !(typeof isLkLabApplication === 'function' && isLkLabApplication(a));
-        });
         var name = typeof getClientDisplayName === 'function' ? getClientDisplayName() : 'Александр Кузнецов';
         apps = apps.filter(function(a) { return a.client === name; });
     }
@@ -1037,6 +1037,9 @@ function fillArtifactAppFilter(selectId, role, opts) {
     } else if (!ready && role === 'manager' && typeof selectedAppId !== 'undefined' && selectedAppId) {
         next = selectedAppId;
     }
+    var allowed = {};
+    apps.forEach(function(a) { if (a && a.id) allowed[a.id] = true; });
+    if (next && !allowed[next]) next = apps[0] ? apps[0].id : '';
     sel.value = next == null ? '' : next;
     sel.setAttribute('data-art-filter-ready', '1');
 }

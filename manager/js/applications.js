@@ -21,14 +21,16 @@ function renderApplicationList(filteredApps) {
         new: 'badge-new', processing: 'badge-processing', valuation: 'badge-valuation',
         decision: 'badge-decision', approved: 'badge-approved', rejected: 'badge-rejected'
     };
-    const safeApps = (apps || []).filter(function(a) { return a && a.id; });
+    const safeApps = (typeof visibleCabinetApplications === 'function')
+        ? visibleCabinetApplications(apps)
+        : (apps || []).filter(function(a) { return a && a.id && !(typeof isLkLabApplication === 'function' && isLkLabApplication(a)); });
 
     try {
         container.innerHTML = safeApps.map(function(app) {
             var amount = (typeof app.amount === 'number' && isFinite(app.amount)) ? app.amount : (Number(app.amount) || 0);
             return '<div class="m-app-card' + (app.id === selectedAppId ? ' active' : '') + '" data-app-id="' + String(app.id).replace(/"/g, '&quot;') + '">' +
                 '<div class="m-card-row">' +
-                    '<span><span class="m-card-id">№' + app.id + '</span>' + appOriginBadgeHTML(app) + '</span>' +
+                    '<span><span class="m-card-id">№' + app.id + '</span>' + (typeof cpConfirmBadgeHTML === 'function' ? cpConfirmBadgeHTML(app) : '') + '</span>' +
                     '<span class="m-card-date">' + (app.date || '') + '</span>' +
                 '</div>' +
                 '<div class="m-card-client">' + (app.client || '') + '</div>' +
@@ -149,7 +151,7 @@ function renderApplicationDetail(appId) {
         container.innerHTML = `
         <div class="m-detail-header">
             <div>
-                <div class="m-detail-id">№${app.id}${appOriginBadgeHTML(app)}</div>
+                <div class="m-detail-id">№${app.id}${typeof cpConfirmBadgeHTML === 'function' ? cpConfirmBadgeHTML(app) : ''}</div>
                 <div class="m-detail-product">${app.product || 'Кредит под залог недвижимости'}</div>
             </div>
             <span class="m-badge ${statusClasses[app.status] || 'badge-processing'}">${app.statusLabel || app.status || ''}</span>
@@ -158,7 +160,7 @@ function renderApplicationDetail(appId) {
             ${app.client || '—'} <i class="fas fa-external-link-alt" style="font-size:10px;opacity:0.5;"></i>
         </div>
         <div class="m-detail-phone"><i class="fas fa-phone" style="margin-right:4px;"></i> ${app.phone || '—'}</div>
-        ${appOriginNoteHTML(app)}
+        ${typeof cpConfirmNoteHTML === 'function' ? cpConfirmNoteHTML(app) : ''}
         ${timelineHtml}
         ${cpHtml}
         ${cpHtml && typeof openArtifactByKind === 'function' ? '<div style="margin:-8px 0 16px;"><button type="button" class="m-btn m-btn-outline" data-m-action="open-artifact-kind" data-art-kind="cp_coverage" data-app-id="' + String(app.id).replace(/"/g, '&quot;') + '"><i class="fas fa-id-card"></i> Открыть выписку ЦП</button></div>' : ''}
@@ -324,25 +326,6 @@ function managerNotify(message) {
 }
 
 var ORIGINAL_DU_IDS = { du00: true, du01: true, du04: true, du19: true };
-
-function appOriginKind(app) {
-    if (typeof isLkLabApplication === 'function' && isLkLabApplication(app)) return 'lab';
-    return 'conveyor';
-}
-
-function appOriginBadgeHTML(app) {
-    if (appOriginKind(app) === 'lab') {
-        return '<span class="m-card-origin m-card-origin--lab" title="Лабораторная заявка: цифровой профиль TrustGate. Это не заявка из клиентского кабинета.">Лаб. ЦП</span>';
-    }
-    return '<span class="m-card-origin m-card-origin--conveyor" title="Заявка с конвейера клиентского кабинета.">Конвейер</span>';
-}
-
-function appOriginNoteHTML(app) {
-    if (appOriginKind(app) === 'lab') {
-        return '<p class="m-origin-note">Источник: лабораторный цифровой профиль TrustGate. Не пришла из клиентского кабинета — сценарий только для менеджера.</p>';
-    }
-    return '<p class="m-origin-note">Источник: конвейер клиентского кабинета.</p>';
-}
 
 function renderManagerRateBreakdownHTML(app) {
     if (!app || !app.selectedPackageId && app.rate == null) return '';
