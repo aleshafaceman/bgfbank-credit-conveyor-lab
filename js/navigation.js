@@ -64,8 +64,8 @@ function navigateTo(page) {
         case 'profile':
             document.getElementById('view-profile').classList.remove('hidden');
             document.getElementById('pageTitle').innerText = 'Профиль';
-            document.getElementById('pageSubtitle').innerText = 'Моя недвижимость · Личные данные · Доходы · Сервисы';
-            switchProfileTab('property');
+            document.getElementById('pageSubtitle').innerText = 'Личные данные · Моя недвижимость · Доходы · Сервисы';
+            switchProfileTab('personal');
             renderPropertyGrid();
             break;
         case 'settings':

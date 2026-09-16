@@ -610,6 +610,11 @@ console.log('\n=== 7. HTML script order / critical refs ===');
     'cabinet has no split-view or embed-mode');
   assert(/max-width:\s*1680px/.test(extrasCss) && /1040px/.test(extrasCss),
     'client cabinet window is 1680×1040');
+  const profileTabs = (index.match(/<div class="profile-tabs">[\s\S]*?<\/div>/) || [''])[0];
+  assert(profileTabs.indexOf('Личные данные') < profileTabs.indexOf('Моя недвижимость'),
+    'profile tabs put personal data first');
+  assert(fs.readFileSync(path.join(root, 'js/navigation.js'), 'utf8').includes("switchProfileTab('personal')"),
+    'profile page opens on personal data');
   const clientsSrc = fs.readFileSync(path.join(root, 'manager/js/clients.js'), 'utf8');
   const chatSrc = fs.readFileSync(path.join(root, 'manager/js/chat.js'), 'utf8');
   assert(/m-split-layout/.test(clientsSrc) && !/height:600px/.test(clientsSrc),
