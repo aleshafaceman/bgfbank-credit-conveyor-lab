@@ -1,8 +1,8 @@
 # База знаний LK (кредитный конвейер БЖФ)
 
-Версия: 2026-09-16. Продукт кабинетов: **залог** (`CASHONBAIL` / `FLAT`). Happy-path только.
+Версия: 2026-09-16 (rev. 2, после выгрузок). Продукт кабинетов: **залог** (`CASHONBAIL` / `FLAT`). Happy-path только.
 
-**Статус источников.** Первичные файлы скилла, 11 `.doc` СПР и текстовые выгрузки бинарников **на диск не попали** — см. `docs/_SOURCES_INVENTORY.md`. Ниже — только то, что уже закодировано в репозитории. Цитаты помечены `[repo:путь]`. Поля вне этих файлов не добавлялись.
+Цитаты: `[repo:…]` — код LAB; `[src:…]` — `docs/sources/`. Скилл, ЦФТ гл. 10–15, SMSTraffic **по-прежнему нет**.
 
 ---
 
@@ -32,20 +32,25 @@ function getAppTimelineSteps(app) {
 
 `[repo:js/features-lab.js]` · менеджер добавляет шаг «ЦП» для заявки `4636-И` `[repo:manager/js/features-lab.js]`.
 
-### 1.1. Соответствие именованным стадиям СПР (из задания) и поверхностям LAB
+### 1.1. Стадии СПР (тексты `.doc`) ↔ LAB
 
-| Стадия СПР (имя из задания) | Где в LAB сейчас | Что осязаемо | Что нет |
-|-----------------------------|------------------|--------------|---------|
-| Формирование лида | `form/` (телефон → OTP → цель) и создание заявки в ЛК; `partner_id` / `creator` в FILL_IN; `lead_created_at` на столе | Каркас заявки в `bgfbank_lab_applications` | Канал партнёра/Skorozvon, SMS-шаблон лида, ELMA create-lead |
-| Сбор документов | `app.documents[]`, `documentsFromCp()`, загрузка в карточке, ДУ | Имя+статус в localStorage | Байты файла, единый раздел «Документы», повторный просмотр PDF |
-| Заполнение заёмщика | `borrowers[0]` + TrustGate `applyTrustGateToApplication` | ФИО, паспорт, ИНН/СНИЛС, работа, доход | Семья (ЦП не отдаёт), семейное положение в FILL_IN = `null` |
-| Процессинг заёмщика | Прескоринг/полный скоринг Loginom, БКИ | Статус заявки, тост, чат | Протокол шагов скоринга (`sIssueLog` только в RAM) |
-| Заполнение залога | `product.product_category = CASHONBAIL`, `building_property = FLAT`, адрес, кадастр | `collateralAddress` / `collateralValue` на заявке | Кадастр часто `null`; портфель недвижимости клиента **не** в localStorage |
-| Процессинг залога | Ocenka.mobi в конвейере; `pledge_evaluation` | Число оценки | Поля `Appraiser`, `OutEvaluationReportNumber` всегда `null`; отчёт оценки не сохраняется |
-| Андеррайтинг | Полный скоринг менеджера, `decision` в схеме | `status=approved`, `termsKind=final` | `lk.decision.{decision_category,approval,refusal}` **не пишется и не показывается** |
-| Подготовка паспорта сделки | — | — | Прямо: «Календарь паспорта сделки в этот АРМ не входит» `[repo:deal-ops/deal-ops.js]` |
-| Подготовка КОД | Только `deal-ops` мок `kod.documents[]` | Список названий на столе | Кабинеты не видят КОД; нет генерации комплекта из полей заявки |
-| Заключение сделки | Стол: СОПД → ЦФТ → проверки → заявление на счёт → подпись КОД → ДБО | Состояния `bgfbank_lab_dealops` + формы SMS | ЛК: `alert('Переход к подписанию договора...')` |
+СПР `.doc` «формирование лида» **не приложен**; вход закрыт Visio lead.
+
+| Стадия `[src:spr/…]` | Цитата процесса | Где в LAB | Осязаемость сейчас |
+|----------------------|-----------------|-----------|-------------------|
+| *(лид, нет .doc)* | «Загрузка паспорта/СОПД, данные по кредиту и квартире… кадастровому номеру» `[src:visio/vsdx_lead_page.txt]` | `form/` + создание заявки | заявка в localStorage; СОПД/кадастр без артефакта |
+| Сбор документов | «формирует и обновляет короткую заявку… конвертирует Лид в Клиента/Заявку… формируется список ДУ… «Сбор документов АНД»» | `documents[]`, конвейер | имена без PDF |
+| Заполнение данных по заёмщику | «автоматические проверки: страховки, ФССП (через Loginom)… проверка ЦП… CheckBL» | TrustGate `borrowers[0]` | ЦП у менеджера; ФССП не вызывается |
+| Заполнение данных по залогу | «заполнение данных по залогу… экспресс-оценка» | объект + Ocenka в RAM | оценка не persist |
+| Процессинг заёмщика | в тексте этапа: «Принять результаты экспресс-оценки залога» (имя файла ≠ содержание) | нет отдельного шага | — |
+| Процессинг залога | «контур доработки по проверке СБ» | нет | — |
+| Андеррайтинг заёмщика | «Скоринг №1, вызов калькулятора, расчёт ПДН, авторешение» → КК → «СМС брокеру» / «клиент одобрен» | прескоринг+полный скоринг менеджера | статус, без протокола Loginom |
+| Андерайтинг залога | «запрос выписки ЕГРН… андеррайтинг АПЗ… «Залог одобрен»» | ЕГРН как missing-doc | нет решения АПЗ |
+| Подготовка паспорта сделки | «Внешние интеграции: нет»; роли ОЗС; «экран общий для… заключение сделки, подготовка КОД, подготовка паспорта» | стол: «календарь паспорта… не входит» | нет в кабинетах |
+| Подготовка КОД | «ЦФТ и ЦФТ РКО (запросы, аккредитив, закладная), Loginom… УКЭП… проверка предельного ПСК» | `deal-ops` мок `kod.documents` | не в ЛК |
+| Заключение сделки | «подписание… бумажное или электронное… До/После гос. регистрации… ПИК / не ПИК» | стол ОЗС | ЛК — `alert` |
+
+Visio после одобрения: «Подготовка паспорта сделки» → «Формирование печатных форм КОД» → «Загрузка КОД в SmartDeal» → «ОПЕРУ: … Открыть тек.счет» → выдача ОБУКО `[src:visio/process_vsdx.txt]`.
 
 Форма `form/` — отдельный happy-path v1 (не кабинет): телефон, OTP, цель `cash_on_pledge`, 4 согласия, ЕСИА, объект/кадастр/ЕГРН, пакеты Solver, ДУ. `[repo:form/index.html]` `[repo:README.md]`
 
@@ -107,24 +112,35 @@ esia_purposes: [
 
 `[repo:deal-ops/mock.js]` · в форме те же четыре согласия: ПДн, БКИ, фин, нонфин `[repo:form/index.html]`.
 
-### 2.2. Loginom / Solver / CREDIT Registry / БКИ
+### 2.2. Loginom / СПР (ТЗ) — реальные методы
 
-- Прескоринг клиента: лог «Ocenka.mobi → Loginom» `[repo:index.html]`.
-- Менеджер, прескоринг: Паспорт (ЕСИА/ЦП) → КИ НБКИ → рисковая модель Loginom `[repo:manager/js/scoring.js]` `sPrescoreCatalog`.
-- Полный скоринг: НБКИ, ОКБ, ФНС доход, ЕГРЮЛ, Ocenka.mobi, Loginom (PTI/DTI), расчёт условий, финальное решение `[repo:manager/js/scoring.js]` `sStepCatalog`.
-- Категория КИ (`KI1`…`KI5`) описана в каталоге, **в runtime заявки не пишется**.
+REST: `http://…/lgi/Service.svc/Rest/…` `[src:loginom/_spr_rules.txt]` `[src:loginom/TZ_SPR.txt]`
 
-> «КИ1 | НБКИ/ОКБ + Loginom | Лучшие ставки… | Система»  
-> `[repo:docs/katalog-opcij-zalog.md]` §3
+| Метод | Путь (из ТЗ) | Назначение |
+|-------|----------------|------------|
+| `preScore` / `preScoring` | `…/preScore/preScoring` | прескоринг: активные кредиты, ФССП, правила участника |
+| `getDecision` | `…/getDecision/execute` | скоринг заёмщика |
+| `getEval` | `…/getEval/execute` | оценка залога; Express МО; «обратный вызов» в ELMA **включая pdf** |
+| `getPdn` | `…/getPdn/execute` | ПДН (не поле DTI; ТЗ ПДН v.4 на диске нет) |
+| `getPfr` | `…/getPfr/execute` | ПФР / IDBank |
 
-> «Точные величины — из Loginom, не хардкод в ЛК.»  
-> `[repo:docs/katalog-opcij-zalog.md]` §4.1
+Конверт: `REQUEST_ID`, `REQUEST_TS`, `STAGE`, `APPLICATION_ID`, `TARGET`, `REQUEST_MODE`. Пример тела `{ "et":"RESULT","k":"NEGATIVE","v":"0" }`.
 
-Ответ скоринга, который **сохраняется**: `status`, `statusLabel`, `rate`, `payment`, `termsKind` (`preliminary` | `final`). Overlay `sIssueLog` **не** пишется в заявку.
+Внешние URL из ТЗ (не выдуманы): ФССП `api-ip.fssp.gov.ru`; НБКИ `icrs.nbki.ru/score3`; ОКБ `ch.bki-okb.com/cpuEnquiry.asp`; МО `express.ocenka.mobi/api/express` (Express); CaseBook, HH, МТС, Мегафон, ПФР WSDL, ЦФТ фрод `CRM_SEARCH_APP`.
 
-### 2.3. Ocenka.mobi
+Правило ФССП (совпадает по смыслу с `SURCH_FSSP` каталога): «Сумма задолженности перед ФССП более 100 000руб ( FSSP _00 1) … свыше 100 000руб для Москвы/МО и свыше 50 000руб по всем остальным регионам, цель кредита = Рефинансирование или Кредит под залог» `[src:loginom/_spr_body.txt]`.
 
-Конвейер показывает оценку из `propertyPortfolio` (память). Схема залога в FILL_IN:
+В LAB UI: лог «Ocenka.mobi → Loginom»; overlay менеджера **не** вызывает эти REST-пути; persist только `status` / `rate` / `termsKind`. `sIssueLog` в RAM. Категория `ClientCategory` / КИ в runtime заявки не пишется.
+
+### 2.3. Ocenka.mobi / `getEval`
+
+Visio: «Прескоринг (заемщик и залог) + Запрос оценки из МО (искл. Вид.кредита Покупка – запрос оформляется в ручную)» `[src:visio/vsdx_lead_page.txt]`.
+
+ТЗ in: `PLEDGE_TYPE`, `ADDRESS`, `FIAS_ID`, `CADNUM`, `AREA_TOTAL`, `FLOOR`, `MAX_FLOOR`.  
+Out `RESULT_EVALUATION` (имена **совпадают** с `pledge_evaluation` в LAB, кроме регистра):  
+`STATUS`, `PREMISE_MATERIAL`, `PREMISE_CONDITION`, `CONSTRUCTION_YEAR`, `ROOM_QUANTITY`, `APPRAISAL_PLEDGE_COST`, `APPRAISER`, `EVALUATING_COMPANY`, `OUT_ASSESSMENT_DATE`, `OUT_EVALUATION_REPORT_NUMBER`, `EVALUATION_REPORT` (pdf/base64), `EVALUATION_REPORT_ADDITIONS`.
+
+Конвейер LAB показывает оценку из `propertyPortfolio` (память). В FILL_IN сейчас живёт только `AppraisalPledgeCost`:
 
 ```233:244:shared/lk-application.js
 pledge_evaluation: {
@@ -223,7 +239,11 @@ du_catalog: {
 
 В кабинете OTP логина — «любой код», без провайдера `[repo:DEMO.md]`.
 
-**Skorozvon / SMSTraffic:** в репозитории нет URL, методов, коллбэков. Для потребкредита и обзвона лида — ждать первоисточники.
+**SMSTraffic:** файла нет.
+
+**Skorozvon** `[src:skorozvon/skorozvon-api.txt]`: base `https://api.skorozvon.ru/api/v2`; `POST /oauth/token` (`grant_type=password`, Bearer 2 ч, 10 rps, HTTP 429). Лиды `GET|POST /leads`, звонки `GET /calls/{id}` и `{id}.mp3`, `recording_url`. Webhooks: `call_result`, `form_response`, `call_project_case_failed`; заголовок `Idempotency-Key`; retry 5 мин / 30 мин / 1 ч / 3 ч / 6 ч. Поля лида: `id`, `phones`, `inn`, `external_id`, `custom_fields` (`FIELD_{id}`), … В Visio/СПР имя «Скорозвон» **не встречается** — связки с ELMA в этих файлах нет.
+
+Visio UW звонок (не Skorozvon API): «Исключить звонок при LTV Менее 50%, продукт залог реф., сумма до 10 млн. руб., квартира в Москве а пред.МКАД плюс все заявки которые прошли автоодобрение» иначе «Звонок заемщику и работодателю» `[src:visio/vsdx_uw.txt]`. Happy-path кабинетов этот звонок **не** показывает (и не надо в P0).
 
 ### 2.7. Электронное подписание (SmartDeal по имени канала)
 
@@ -232,13 +252,17 @@ du_catalog: {
 Шина: `request_ukep` → `create_signing_package` → `start_signing` → `bank_signed` → `signing_completed` → `kod_signed`.  
 Электронная подпись КОД — **не** обращение в Росреестр `[repo:DEMO.md]` `[repo:deal-ops/deal-ops.js]` HELP.kod.
 
-### 2.8. Visio (только то, что уже вшито в стол)
+### 2.8. Visio (выгрузки + то, что уже в столе)
 
-Цитаты поведения, не схема файла `.vsdx`:
+Из `process_vsdx` / lead / UW (не полная схема страниц):
 
-- ДУ: «Снять до подписи комплекта или оставить на выдачу — как в Visio «ДУ сняты?». Тип 14 по названию — после сделки.» `[repo:deal-ops/deal-ops.js]`
-- Счёт: «открывают до подписи КОД или после — два равноправных варианта Visio.» `[repo:deal-ops/deal-ops.js]`
-- `disbursement`: `before_state_registration` | `after_state_registration` `[repo:deal-ops/mock.js]`
+- Каналы: «1.Входящий звонок 2.Визит в офис 3.Интернет-заявка» / WhatsApp / почта / «Кабинет В2В» `[src:visio/vsdx_lead_page.txt]`
+- Комплектность: «Предоставлен минимальный перечень документов?» → доработка или «Отказ: фальсификация документов» `[src:visio/vsdx_uw.txt]`
+- Не залог: «Залоговый кредит? Нет → Перевод на Light» `[src:visio/vsdx_uw.txt]`
+- КОД: «Загрузка КОД в SmartDeal и подписание КОД» / «УКЭП из SmartDeal» `[src:visio/process_vsdx.txt]`
+- ОПЕРУ: «Провести идентификацию, актуализировать данные в ЦФТ. Провести проверки по 115-ФЗ. Открыть тек.счет» `[src:visio/process_vsdx.txt]`
+
+Уже вшито в стол LAB: ДУ «как в Visio «ДУ сняты?»»; счёт до/после подписи КОД; `disbursement` до/после госрегистрации `[repo:deal-ops/deal-ops.js]`. Имена `OpenAccount` / `FindRetailAccount` в Visio-выгрузках **нет** — только в DEMO/столе.
 
 ### 2.9. Полный каталог шины стола
 
@@ -329,7 +353,19 @@ JSON-модель каталога `[repo:docs/katalog-opcij-zalog.md]` §10:
 ### 3.8. СОПД
 
 `consents[]`: `consent_id`, `type: PERSONAL_DATA`, `form` (`full`|`short`), `version`, `accepted_at`, `valid_until`, `channel` (`sms`|`partner`|`manager`), `file_name`.  
-Дата лида в шаблон СОПД **не** подставляется `[repo:DEMO.md]`.
+Дата лида в шаблон СОПД **не** подставляется `[repo:DEMO.md]`. Visio: «Загрузка паспорта/СОПД» на входе `[src:visio/vsdx_lead_page.txt]`.
+
+### 3.9. Поля Loginom / ТЗ (для L3, не выдуманы)
+
+Маппинг в LAB: `RESULT_EVALUATION.*` → уже заложенный `pledge_evaluation` (те же имена, другой регистр). Писать их при «оценке», не оставлять `null`.
+
+**Решение:** `DECISION`, `SCORE`, `DECISION_TYPE`, `REFUSAL_REASON`, `ClientCategory`, `NEGATIVE`, `MSG_CODE`, `MSG_DESC` → класть в `lk.decision` + протокол артефакта. Клиенту `ClientCategory` / KI **не** показывать (каталог §3).
+
+**Сумма/продукт:** `SaleCreditAmount`, `SaleCreditPurpose` (`0` покупка, `1` залог, `2` рефинансирование), `SaleCreditPledge` (в правилах = LTV), `SalePledgeRegion`, `CADNUM`, `FIAS_ID`.
+
+**Идентификаторы:** `APPLICATION_ID`, `ELMA_ID`, `CRM_ID`, `CFT_ID`, `lead_id`.
+
+**Не класть в localStorage:** `EVALUATION_REPORT` base64 (лимит 5 МБ). Превью отчёта — генератор из `APPRAISAL_PLEDGE_COST` + адреса + номера отчёта.
 
 ---
 
@@ -337,7 +373,11 @@ JSON-модель каталога `[repo:docs/katalog-opcij-zalog.md]` §10:
 
 | Термин | Как в репозитории | Замечание |
 |--------|-------------------|-----------|
-| СПР | кредитный конвейер / ELMA-процесс | первоисточник ТЗ v3.28 не прочитан |
+| СПР | БП ELMA + Loginom | ТЗ Loginom и 10 стадийных `.doc` в `docs/sources/` |
+| АПЗ | андеррайтинг предмета залога | `[src:spr/anderayting-zaloga.txt]` |
+| ПДН | предельная долговая нагрузка, метод `getPdn` | не путать с DTI в overlay LAB |
+| МО | Мобильный оценщик / Ocenka.mobi Express | `getEval` |
+| Light | ветка «не залоговый кредит» | Visio UW |
 | ЛК / кабинет клиента | `index.html` + `js/*` | отдельно от `form/` |
 | FILL_IN | `lk.status` до передачи в движок | TrustGate пишет поверх |
 | ЦП / TrustGate | `extra_data.cp` | «лабораторный срез, не клиентский экран» |
@@ -346,11 +386,10 @@ JSON-модель каталога `[repo:docs/katalog-opcij-zalog.md]` §10:
 | LTV | доля кредита к оценке залога | продукт залога; в потребкредите отпадает |
 | КИ1…КИ5 | категория Loginom | клиенту не показывать код |
 | ДУ | дополнительные условия | ELMA 0–18 vs кабинетный `allDU` |
-| АНД | андеррайтинг | полный скоринг менеджера |
-| АПЗ | (в HELP ДУ: «выставил АНД или АПЗ») | расшифровка в скилле не прочитана |
+| АНД | андеррайтинг заёмщика | `[src:spr/anderrayting-zaemshchika.txt]` |
 | КОД | комплект документов сделки | не заявление на счёт |
 | ОЗС / ОПЕРУ / ОБУКО | роли стола | стол ≠ кабинет менеджера |
-| Паспорт сделки | календарь/карточка сделки | **нет в кабинетах и не в АРМ** |
+| Паспорт сделки | карточка ОЗС, без внешних API | СПР: «Внешние интеграции: нет»; в кабинетах нет |
 | Solver | пакеты формы v1 | пересекается с `eligiblePackages` |
 | Презентер-флаги | «Зелёный/Быстрый скоринг», «Сбросить демо», `?demo=1` | **не прятать** |
 
@@ -420,62 +459,55 @@ JSON-модель каталога `[repo:docs/katalog-opcij-zalog.md]` §10:
 
 **Переедет почти как есть**
 
-- Лид: телефон, OTP, согласия ПДн/БКИ, канал SMS
-- ЦП / TrustGate: паспорт, ИНН, СНИЛС, 2-НДФЛ, СЗИ-6, family=missing
-- `borrowers[]`, `confirmation_income_summary`, ДУ тип 0 при отсутствии НДФЛ
-- Loginom прескоринг/андеррайтинг, НБКИ/ОКБ, ФНС доход, ЕГРЮЛ
-- `decision`, протокол скоринга как артефакт
-- СОПД, заявление-анкета, график, кредитный договор (без ипотеки)
-- Счёт ЦФТ, проверки ФНС/МВД/Федресурс/РКЛ/ФТС, ДБО
+- Лид: телефон, OTP, согласия, каналы Visio (звонок/офис/интернет) + Skorozvon API (лид/звонок/webhook), когда свяжем
+- ЦП / TrustGate: паспорт, ИНН, СНИЛС, 2-НДФЛ, СЗИ-6
+- `borrowers[]`, ДУ type 0
+- Loginom: `preScore`, `getDecision`, `getPdn`, `getPfr`; ФССП, НБКИ, ОКБ, `ClientCategory`
+- СОПД, анкета, график, КД (без ипотеки/закладной)
+- Идентификация и текущий счёт в ЦФТ (формулировки Visio; контракт гл. 10–15 всё ещё нет)
 - ELMA callback `{deal_id,status}`
-- Skorozvon / SMSTraffic — когда появятся API (обзвон/SMS лида)
 
-**Отпадёт или сильно сузится (залог)**
+**Отпадёт (залог)**
 
-- `product_category CASHONBAIL`, `building_property FLAT`
-- LTV, `PKG_LTV_BOOST`, зоны ликвидности, 1-й этаж, апартаменты
-- ЕГРН, кадастр, `pledge_evaluation`, Ocenka.mobi как обязательный шаг
-- Договор об ипотеке, госрегистрация, `disbursement after_state_registration`
-- ДУ объекта: БТИ, домовая, аресты, согласие супруга **на залог**, опека продавца
-- Страхование **имущества** / `INS_PROPERTY_ONLY` (жизнь/ККС может остаться)
-- Тарифы `TURBO_*` / `BJF_PROSTO` как залоговые; пакеты пересобирать под потреб
+- `getEval` / Express МО, блок `PLEDGE` / `RESULT_EVALUATION`, `SaleCreditPledge` (LTV), `CADNUM`, ликвидность/`Beltway*`
+- ЕГРН, АПЗ, андеррайтинг залога, независимый оценщик
+- Закладная, аккредитив/ячейка, ОЗС, паспорт сделки как залоговый экран, договор ипотеки, госрегистрация, опция ПИК
+- Visio: «Вид кредита Покупка» вручную шлёт в МО; «Залоговый кредит? Нет → Light»
 
-**Уточнить по первоисточникам, когда доедут**
-
-- Есть ли у потребкредита паспорт сделки и КОД того же состава
-- Нужен ли стол ОЗС или выдача без залога/регистрации
-- Партнёрский оффер (`partner-offer.md` не прочитан)
+**Смешанное:** ПДН (`getPdn`) не требует залога в описании метода. SMSTraffic по-прежнему нет.
 
 ---
 
 ## 7. Расхождения и пробелы
 
-1. **Нет первоисточников этого рана** — скилл, СПР `.doc`, Visio/ЦФТ/МО/Skorozvon/SMSTraffic/ТЗ. Нельзя цитировать реальные XML/поля API.
-2. **Два справочника ДУ:** ELMA 0–18 (`deal-ops/mock.js`) vs кабинетный `allDU` du00–du22. Для L3 брать **ELMA type** + title из `du_catalog`, кабинетные id — только как UI-ярлыки, если совпали по смыслу (тип 0 ↔ du00 доход; тип 18 ↔ нотариальное согласие супруга). Не плодить виды вне 0–18.
-3. **`lk.decision` и `selected_offer` не связаны** с `app.status` / `app.rate`.
-4. **`eligiblePackages` не persist** — после reload конвейер пересобирает карточки, принятый пакет держится плоскими полями.
-5. **КИ-категория** есть в каталоге, нет в заявке.
-6. **Паспорт сделки отсутствует** везде; стол прямо отказывается его показывать.
-7. **КОД есть только на столе**; кабинет после approve не показывает комплект.
-8. **Загрузка файлов** не читает File API — только статус.
-9. **`duStorage` менеджера** не в localStorage.
-10. **Lab-заявка 4636-И скрыта от клиента** (`isLkLabApplication` filter) — ЦП не является клиентским артефактом.
-11. **Split-view:** `DEMO.md` ещё ссылается; PR #14 открыт, в `main` `demo.html` на месте. К осязаемости кабинетов не относится.
-12. **Презентер-флаги** (`BGF_DEMO.fastScoring`, `scoringGreen`, сброс, автологин) — оставить.
+1. Скилл, ЦФТ 10–15, SMSTraffic, СПР «формирование лида», ТЗ ПДН v.4 — нет. Enum `STAGE`/`DECISION` в выгрузке ТЗ не разобран.
+2. **Два справочника ДУ:** ELMA 0–18 vs кабинетный `allDU`. L3 — только enum 0–18.
+3. Overlay скоринга пишет PTI/DTI; в ТЗ — **ПДН `getPdn`**, не DTI. Не тащить PTI в артефакт как «поле СПР».
+4. `SURCH_FSSP` каталога ≈ правило `FSSP_001` ТЗ; в заявке надбавка не хранится.
+5. `lk.decision` / `selected_offer` не связаны с `app.status` / `app.rate`.
+6. `eligiblePackages` не persist.
+7. `pledge_evaluation` почти = `RESULT_EVALUATION`, но LAB заполняет только стоимость.
+8. Паспорт сделки: СПР «интеграций нет», стол «календарь не входит», кабинет пуст.
+9. КОД только на столе; СПР добавляет ЦФТ РКО, ПСК, УКЭП, закладную.
+10. `duStorage` в RAM; загрузки без File API.
+11. 4636-И скрыта от клиента.
+12. Skorozvon API есть, в Visio не связан. Презентер-флаги оставить.
 
 ---
 
-## 8. Опора для L3-артефактов (только существующие поля)
+## 8. Опора для L3-артефактов
 
-Собирать документы из:
+Собирать из LAB **и** ТЗ/СПР (без base64 отчёта МО):
 
 - `extra_data.cp` + `documentsFromCp` / `renderCpCoverageHTML` / `cpActionItems`
 - `borrowers[]`, `confirmation_income_summary`
-- `product` + `selected_offer` + runtime `eligiblePackages` / `acceptOfferPackage` fields
-- `pledge_evaluation.AppraisalPledgeCost` + `collateralAddress` / `collateralValue`
-- `additional_conditions` (type 0…) **и** ELMA `du_catalog` 0–18
-- `decision` (заполнить при скоринге, не игнорировать)
-- `kod.documents` (для моста к столу, не реализовывать стол в этой итерации)
-- каталог: `TURBO_*`, `PKG_*`, `INS_*`, разбор ставки §9
+- пакет: `eligiblePackages` / `acceptOfferPackage`
+- `pledge_evaluation` ← `RESULT_EVALUATION` (`APPRAISAL_PLEDGE_COST`, `OUT_EVALUATION_REPORT_NUMBER`, …)
+- `additional_conditions` + ELMA 0–18
+- `lk.decision` ← `DECISION` / `SCORE` / `getDecision`
+- протоколы: каркас `preScore` / `getDecision` / `getEval` / `getPdn` (метаданные вызова, не сырой PDF БКИ)
+- опись КОД: `kod.documents` + СПР (КД, страховка, закладная, УКЭП)
+- паспорт сделки: поля заявки (ОЗС, дата, ДУ, участники) — без выдуманного календаря
+- каталог `TURBO_*` / `PKG_*` / `INS_*`
 
-Не собирать из выдуманных атрибутов БКИ-XML, Skorozvon CDR, SMSTraffic message_id — их схем в этом ране нет.
+Не собирать: PTI как поле СПР, SMSTraffic id, сырой `EVALUATION_REPORT`, отказные ветки, звонок Skorozvon на P0 кабинетов.
