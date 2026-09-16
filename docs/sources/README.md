@@ -2,7 +2,9 @@
 
 Положены 2026-09-16 из вложений облачного агента. Имена кириллицей в uploads съехали в `_`; ниже — канонические имена.
 
-**Ещё нет на диске:** ЦФТ гл. 10–15 (контракты), SMSTraffic, МО отдельным файлом (есть ТЗ `getEval` + Express + скилл), ТЗ ПДН v.4.
+**Ещё нет на диске:** ЦФТ гл. 10–15 (контракты), SMSTraffic, ТЗ ПДН v.4, контракт `express.ocenka.mobi/api/express` (есть только ТЗ).
+
+Gate API МО (`GET /v1/appraise/flat`) — **есть**: `docs/sources/ocenka/`.
 
 Скилл `bgf-bank-operations` (9 `.md`) — **есть**: канон `.cursor/skills/bgf-bank-operations/`, копия `docs/sources/skill/`.
 
@@ -39,3 +41,6 @@
 | `skill/elma-webapi.md` | elma-webapi.md | `LoginWith` + PublicAPI; не EntityService |
 | `skill/partner-offer.md` | partner-offer.md | КВ акция 09.2026; «коридор» ≠ 4-я цель; минимум документов ФЛ |
 | `skill/brand.md` | brand.md | токены бренда (уже в LAB через PR #13) |
+| `ocenka/ocenka-mobi-api.yaml` | docs.ocenka.mobi YAML | Swagger МО Gate, version 2026-01-28 |
+| `ocenka/get_appraise_flat.md` | #/Жилая_недвижимость/get_appraise_flat | экспресс-оценка квартир; не Express ТЗ |
+| `ocenka/get_appraise_flat.sample.json` | live 200 | образец `{address,bld,stats,requestId}` |
