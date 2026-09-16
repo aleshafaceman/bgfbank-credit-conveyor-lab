@@ -1,0 +1,43 @@
+.scale-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin: 8px 0;
+}
+.scale-table th {
+  text-align: left;
+  color: var(--navy);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--line);
+}
+.scale-table td {
+  padding: 8px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+.scale-table input[type="number"] {
+  width: 88px;
+  height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 8px;
+  font: inherit;
+  color: var(--navy);
+  font-weight: 700;
+}
+.matrix-wrap { overflow: auto; margin-top: 8px; }
+.matrix-table td, .matrix-table th { text-align: center; min-width: 72px; }
+.matrix-table th:first-child, .matrix-table td:first-child { text-align: left; }
+.pkg-card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #f8fbff;
+  margin-bottom: 8px;
+}
+.pkg-card b { display: block; color: var(--navy); margin-bottom: 4px; }
+.log-mini { font-size: 12px; color: var(--muted); margin-top: 8px; max-height: 160px; overflow: auto; }
+.log-mini div { padding: 4px 0; border-bottom: 1px solid var(--line); }

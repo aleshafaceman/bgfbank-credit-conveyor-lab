@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <title>БЖФ · АРМ андеррайтера (АНД / АПЗ)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,700;1,400&family=Roboto+Condensed:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../deal-ops/deal-ops.css?v=18">
+  <link rel="stylesheet" href="underwriter.css?v=1">
+</head>
+<body>
+  <header class="header">
+    <div class="brand">
+      <img class="brand-logo" src="../deal-ops/brand/logo-on-dark.png" alt="БЖФ Банк">
+      <small>Банковский АРМ · после СБ, до паспорта сделки</small>
+    </div>
+    <div class="roles" role="tablist">
+      <button type="button" class="role on" id="role-and" onclick="setRole('and')">АНД</button>
+      <button type="button" class="role" id="role-apz" onclick="setRole('apz')">АПЗ</button>
+    </div>
+    <div class="header-actions">
+      <span id="officer-label"></span>
+      <button type="button" onclick="resetDemo()">Сбросить сцену</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="inbox">
+      <h2 id="inbox-title">Очередь АНД</h2>
+      <div id="inbox-list"></div>
+    </aside>
+
+    <main class="work" id="work">
+      <p class="empty" id="work-empty">Выберите заявку слева. Человек и объект — две очереди; паспорт сделки откроется, только когда оба одобрены.</p>
+      <div id="work-deal" class="hidden"></div>
+    </main>
+
+    <aside class="bus">
+      <div class="aside-head" id="bus-head">
+        <h2>Ход обмена</h2>
+      </div>
+      <p class="hint bus-hint">Стол не зовёт Loginom и МО напрямую — только оркестратор. Живых СПР нет.</p>
+      <div id="bus-list"></div>
+    </aside>
+  </div>
+
+  <div class="overlay hidden" id="overlay">
+    <div class="modal">
+      <h3 id="modal-title">Интеграция</h3>
+      <p id="modal-lead"></p>
+      <ul class="log" id="modal-log" style="list-style:none"></ul>
+    </div>
+  </div>
+
+  <script src="mock.js?v=1"></script>
+  <script src="underwriter.js?v=1"></script>
+</body>
+</html>
