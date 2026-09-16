@@ -160,6 +160,9 @@ function renderApplicationDetail(appId) {
         <div class="m-detail-phone"><i class="fas fa-phone" style="margin-right:4px;"></i> ${app.phone || '—'}</div>
         ${timelineHtml}
         ${cpHtml}
+        ${cpHtml && typeof openArtifactByKind === 'function' ? '<div style="margin:-8px 0 16px;"><button type="button" class="m-btn m-btn-outline" data-m-action="open-artifact-kind" data-art-kind="cp_coverage" data-app-id="' + String(app.id).replace(/"/g, '&quot;') + '"><i class="fas fa-id-card"></i> Открыть выписку ЦП</button></div>' : ''}
+        ${typeof renderManagerRateBreakdownHTML === 'function' ? renderManagerRateBreakdownHTML(app) : ''}
+        ${typeof renderManagerArtifactsStrip === 'function' ? renderManagerArtifactsStrip(app.id) : ''}
         
         <div class="m-detail-params" style="margin-top:20px;">
             <div class="m-detail-param"><div class="m-param-label">Сумма кредита</div><div class="m-param-value">${(app.amount != null ? Number(app.amount) || 0 : 0).toLocaleString('ru-RU')} ₽</div></div>
@@ -265,6 +268,12 @@ function bindManagerDetailActions(root) {
                 openManagerScoring();
             } else if (act === 'requestExternalDU' && typeof requestExternalDU === 'function') {
                 requestExternalDU(appId, btn.getAttribute('data-du-id'));
+            } else if (act === 'open-artifact' && typeof openArtifact === 'function') {
+                openArtifact(btn.getAttribute('data-art-id'));
+            } else if (act === 'open-artifact-kind' && typeof openArtifactByKind === 'function') {
+                openArtifactByKind(appId, btn.getAttribute('data-art-kind'));
+            } else if (act === 'goto-documents' && typeof switchManagerTab === 'function') {
+                switchManagerTab('documents');
             } else if (act && appId && typeof managerAction === 'function') {
                 managerAction(appId, act);
             }
@@ -312,6 +321,24 @@ function appOriginBadgeHTML(app) {
         return '<span class="m-card-origin m-card-origin--lab">Лаб. ЦП</span>';
     }
     return '<span class="m-card-origin m-card-origin--conveyor">Конвейер</span>';
+}
+
+function renderManagerRateBreakdownHTML(app) {
+    if (!app || !app.selectedPackageId && app.rate == null) return '';
+    var catalog = (typeof getPackageCatalogInfo === 'function') ? getPackageCatalogInfo(app.selectedPackageId) : null;
+    var ltv = (app.collateralValue && app.amount) ? Math.round((app.amount / app.collateralValue) * 100) : null;
+    var h = '<div class="m-section"><h4><i class="fas fa-percentage"></i> Разбор ставки</h4>';
+    h += '<p style="font-size:13px;color:#334155;">Турбо 2.0 → база − ЕСИА − опции = <b>' + (app.rate != null ? app.rate + '%' : '—') + '</b>';
+    if (ltv != null) h += ' · LTV ' + ltv + '%';
+    h += '</p>';
+    if (catalog) {
+        h += '<p style="font-size:12px;color:#7e9bb6;">' + catalog.title + (catalog.insurance ? ' · ' + catalog.insurance : '') + '</p>';
+    }
+    if (typeof openArtifactByKind === 'function') {
+        h += '<button type="button" class="m-btn m-btn-outline" style="margin-top:8px;" data-m-action="open-artifact-kind" data-art-kind="rate_breakdown" data-app-id="' + String(app.id).replace(/"/g, '&quot;') + '">Протокол</button>';
+    }
+    h += '</div>';
+    return h;
 }
 
 function missingOriginals(app) {
@@ -369,9 +396,16 @@ function getActionButtons(app) {
             }
             return mActionsHint('Прескоринг пройден. Комплект оригиналов собран — можно запускать полный скоринг.') +
                     scoringPrimary +
+                    (typeof openArtifactByKind === 'function'
+                        ? '<button type="button" class="m-btn m-btn-outline" data-m-action="open-artifact-kind" data-art-kind="prescore_protocol" data-app-id="' + id + '"><i class="fas fa-file-alt"></i> Протокол preScore</button>'
+                        : '') +
                     mActionButton(id, 'reject', 'm-btn-danger', 'fa-times', 'Клиент не подходит');
         case 'approved':
-            return mActionButton(id, 'sendContract', 'm-btn-outline', 'fa-signature', 'Отправить договор');
+            return mActionButton(id, 'sendContract', 'm-btn-outline', 'fa-signature', 'Отправить договор') +
+                (typeof openArtifactByKind === 'function'
+                    ? '<button type="button" class="m-btn m-btn-outline" data-m-action="open-artifact-kind" data-art-kind="decision_protocol" data-app-id="' + id + '"><i class="fas fa-file-alt"></i> Протокол</button>' +
+                      '<button type="button" class="m-btn m-btn-outline" data-m-action="open-artifact-kind" data-art-kind="bank_decision" data-app-id="' + id + '"><i class="fas fa-stamp"></i> Решение банка</button>'
+                    : '');
         case 'rejected':
             return mActionButton(id, 'suggestParams', 'm-btn-outline', 'fa-redo', 'Предложить изменить параметры');
         default:
@@ -632,6 +666,9 @@ function requestExternalDU(appId, duId) {
         if (typeof renderApplicationDetail === 'function') renderApplicationDetail(appId);
         if (typeof renderApplicationList === 'function') renderApplicationList();
         managerNotify('Получено: ' + du.name);
+        if (/егрн|кадастр/i.test((du.name || '') + ' ' + (duId || '')) && typeof recordExternalEgrn === 'function') {
+            try { recordExternalEgrn(appId, du.name); } catch (eEgrn) {}
+        }
     } finally {
         setTimeout(function() { __bgfExtDuBusy = false; }, 0);
     }

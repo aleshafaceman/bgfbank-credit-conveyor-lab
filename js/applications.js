@@ -355,6 +355,7 @@ function getActiveApplicationHTML(app) {
         <div class="detail-date">Создана: ${app.date || '—'} · ${statusLabel}</div>
     </div>
     ${timeline}
+    ${typeof renderAppArtifactsStrip === 'function' ? renderAppArtifactsStrip(app.id) : ''}
     <div class="detail-params">
         <div class="detail-param"><div class="param-label">Сумма</div><div class="param-value">${amount}</div></div>
         <div class="detail-param"><div class="param-label">Срок</div><div class="param-value">${term}</div></div>
@@ -393,6 +394,16 @@ function bindApplicationDetailActions() {
             e.preventDefault();
             if (typeof printOfferPackage === 'function') printOfferPackage();
             else window.print();
+            return;
+        }
+        if (action === 'open-artifact') {
+            e.preventDefault();
+            if (typeof openArtifact === 'function') openArtifact(btn.getAttribute('data-art-id'));
+            return;
+        }
+        if (action === 'goto-documents') {
+            e.preventDefault();
+            if (typeof navigateTo === 'function') navigateTo('documents');
         }
     });
 }
@@ -404,6 +415,7 @@ function getApprovedApplicationHTML(app) {
     const payment = app.payment != null ? '~ ' + app.payment.toLocaleString('ru-RU') + ' ₽' : '—';
     return `<div class="detail-header"><div><div class="detail-number">№${app.id}</div><div class="detail-product">${app.product || 'Кредит под залог недвижимости'}</div></div><div class="detail-date">Одобрена: ${app.date || ''}</div></div>
     <div class="approved-badge"><i class="fas fa-check-circle"></i> Кредит одобрен</div>
+    ${typeof renderAppArtifactsStrip === 'function' ? renderAppArtifactsStrip(app.id) : ''}
     <div class="detail-params"><div class="detail-param"><div class="param-label">Одобренный лимит</div><div class="param-value">${amount}</div></div><div class="detail-param"><div class="param-label">Ставка</div><div class="param-value" style="color:#13A538;">${rate}</div></div><div class="detail-param"><div class="param-label">Срок</div><div class="param-value">${term}</div></div><div class="detail-param"><div class="param-label">Платёж / мес.</div><div class="param-value">${payment}</div></div></div>
     <div style="display:flex;gap:12px;margin-top:24px;flex-wrap:wrap;">
         <button class="btn btn-primary" style="flex:1;min-width:180px;" onclick="alert('Переход к подписанию договора...')"><i class="fas fa-signature" style="margin-right:8px;"></i> Подписать договор</button>

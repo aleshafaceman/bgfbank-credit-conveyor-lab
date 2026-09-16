@@ -49,10 +49,11 @@
         </header>
 
         <div class="m-tabs">
-            <button class="m-tab active" id="tabApplications"><i class="fas fa-list-ul"></i> Все заявки</button>
-            <button class="m-tab" id="tabClients"><i class="fas fa-users"></i> Клиенты</button>
-            <button class="m-tab" id="tabChat"><i class="fas fa-comment-dots"></i> Чат с клиентами</button>
-            <button class="m-tab" id="tabReports"><i class="fas fa-chart-bar"></i> Отчёты</button>
+            <button class="m-tab active" data-m-tab="applications" id="tabApplications"><i class="fas fa-list-ul"></i> Все заявки</button>
+            <button class="m-tab" data-m-tab="clients" id="tabClients"><i class="fas fa-users"></i> Клиенты</button>
+            <button class="m-tab" data-m-tab="chat" id="tabChat"><i class="fas fa-comment-dots"></i> Чат с клиентами</button>
+            <button class="m-tab" data-m-tab="documents" id="tabDocuments"><i class="fas fa-folder-open"></i> Документы</button>
+            <button class="m-tab" data-m-tab="reports" id="tabReports"><i class="fas fa-chart-bar"></i> Отчёты</button>
         </div>
 
         <div class="m-content">
@@ -74,6 +75,14 @@
             </div>
             <div id="m-tab-clients" class="hidden"></div>
             <div id="m-tab-chat" class="hidden"></div>
+            <div id="m-tab-documents" class="hidden">
+                <div class="art-toolbar">
+                    <label>Заявка
+                        <select id="mArtFilterApp" onchange="refreshDocumentsViews()"></select>
+                    </label>
+                </div>
+                <div id="mDocumentsList" class="art-grid"></div>
+            </div>
             <div id="m-tab-reports" class="hidden"></div>
         </div>
     </div>
@@ -122,6 +131,7 @@
 
 <script src="../shared/data.js"></script>
 <script src="../shared/lk-application.js"></script>
+<script src="../shared/lk-artifacts.js"></script>
 <script src="js/utils.js"></script>
 <script src="js/demo-lab.js"></script>
 <script src="js/navigation.js"></script>
@@ -200,6 +210,10 @@
             try {
                 if (act === 'openScoring' && typeof openManagerScoring === 'function') openManagerScoring();
                 else if (act === 'requestExternalDU' && typeof requestExternalDU === 'function') requestExternalDU(appId, actionBtn.getAttribute('data-du-id'));
+                else if (act === 'open-artifact' && typeof openArtifact === 'function') openArtifact(actionBtn.getAttribute('data-art-id'));
+                else if (act === 'open-artifact-kind' && typeof openArtifactByKind === 'function') {
+                    openArtifactByKind(appId || actionBtn.getAttribute('data-app-id'), actionBtn.getAttribute('data-art-kind'));
+                } else if (act === 'goto-documents' && typeof switchManagerTab === 'function') switchManagerTab('documents');
                 else if (act && appId && typeof managerAction === 'function') managerAction(appId, act);
             } catch (err) { console.error('document data-m-action', err); }
             return;

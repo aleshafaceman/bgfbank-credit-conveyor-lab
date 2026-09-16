@@ -295,6 +295,9 @@ function applyManagerPrescoringResult(outcome) {
             updateApplication(appId, { rate: rate, payment: payment, termsKind: 'preliminary' });
         }
         updateApplicationStatus(appId, 'decision', 'Прескоринг пройден', 'Прескоринг: клиент предварительно подходит. Ставка ' + rate + '% — не финальная.');
+        if (typeof recordPrescoreProtocol === 'function') {
+            try { recordPrescoreProtocol(appId); } catch (ePre) {}
+        }
         if (typeof sendChatMessage === 'function') {
             sendChatMessage('manager', app.client, 'Прескоринг по заявке №' + appId + ' пройден. Предварительно: ставка ' + rate + '%, платёж ~' + (payment && payment.toLocaleString ? payment.toLocaleString('ru-RU') : payment) + ' ₽. Итоговые условия будут после полного скоринга по оригиналам.', app.client);
         }
@@ -329,6 +332,12 @@ function applyManagerScoringDecision(outcome) {
             updateApplication(appId, { rate: rate, payment: payment, amount: amount, term: term, termsKind: 'final' });
         }
         updateApplicationStatus(appId, 'approved', 'Одобрено', 'Полный скоринг: итоговые условия одобрены');
+        if (typeof recordDecisionAndApproval === 'function') {
+            try { recordDecisionAndApproval(appId); } catch (eDec) {}
+        }
+        if (typeof recordOriginalsInventory === 'function') {
+            try { recordOriginalsInventory(appId); } catch (eInv) {}
+        }
         if (typeof sendChatMessage === 'function') {
             sendChatMessage('manager', app.client, 'Поздравляю! По заявке №' + appId + ' полный скоринг завершён — кредит одобрен (ставка ' + rate + '%, платёж ~' + payment.toLocaleString('ru-RU') + ' ₽).', app.client);
         }

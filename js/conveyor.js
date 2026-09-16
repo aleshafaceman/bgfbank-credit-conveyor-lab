@@ -58,6 +58,11 @@ function onCollateralSelect(v) {
             '</div>' +
             '<div class="collateral-hero-gauge"><div class="collateral-hero-gauge-fill" style="width:' + Math.round(ltv * 100) + '%"></div></div>';
     }
+
+    var appId = (typeof state !== 'undefined' && (state.conveyorAppId || state.selectedApp)) || '4421-И';
+    if (typeof recordExpressEvalFromCollateral === 'function') {
+        try { recordExpressEvalFromCollateral(appId, p); } catch (eEval) {}
+    }
 }
 
 function hideEl(id) {
@@ -89,7 +94,7 @@ function openConveyorForApp(appId) {
     if (subtitle) subtitle.innerText = 'Заявка №' + appId;
 
     document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-    const appsNav = document.querySelectorAll('.nav-link')[1];
+    const appsNav = document.querySelector('.nav-link[data-page="applications"]') || document.querySelectorAll('.nav-link')[1];
     if (appsNav) appsNav.classList.add('active');
     state.currentPage = 'applications';
 
@@ -262,6 +267,11 @@ function checkConsents() {
 }
 
 function submitManualForm() {
+    if (typeof recordConveyorConsent === 'function') {
+        var appId = (typeof state !== 'undefined' && (state.conveyorAppId || state.selectedApp)) || '4421-И';
+        recordConveyorConsent('PERSONAL_DATA', appId);
+        recordConveyorConsent('CREDIT_REPORT', appId);
+    }
     document.getElementById('view-manual-form').classList.add('hidden');
     startFlow('manual');
 }
@@ -271,6 +281,16 @@ function startFlow(type) {
     state.flowType = type;
     state.baseRate = type === 'manual' ? 13.0 : 12.5;
     state.currentRate = state.baseRate;
+    var appId = (typeof state !== 'undefined' && (state.conveyorAppId || state.selectedApp)) || '4421-И';
+    if (type === 'esia') {
+        if (typeof recordConveyorConsent === 'function') {
+            recordConveyorConsent('PERSONAL_DATA', appId);
+            recordConveyorConsent('CREDIT_REPORT', appId);
+        }
+        if (typeof attachEsiaProfileToConveyorApp === 'function') {
+            try { attachEsiaProfileToConveyorApp(appId); } catch (eCp) {}
+        }
+    }
     
     document.getElementById('view-choice').classList.add('hidden');
     document.getElementById('view-loading').classList.remove('hidden');

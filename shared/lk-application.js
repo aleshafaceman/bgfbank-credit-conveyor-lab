@@ -561,6 +561,9 @@ function applyLkTrustGateProfile(profileId) {
             } else if (prev && prev.amount) amount = prev.amount;
         } catch (e) {}
         lab = upsertLkLabApplication(profileId || 'full', amount);
+        if (typeof recordCpArtifactsFromApp === 'function') {
+            try { recordCpArtifactsFromApp(lab, 'manager'); } catch (eArt) {}
+        }
         try { if (typeof refreshData === 'function') refreshData(); } catch (e2) {}
         try {
             if (typeof renderApplicationList === 'function') renderApplicationList();

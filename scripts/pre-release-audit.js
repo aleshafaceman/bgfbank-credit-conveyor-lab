@@ -75,11 +75,11 @@ function loadSharedContext() {
   const documentEls = {};
   const needed = [
     'view-applications', 'view-dashboard', 'view-conveyor', 'view-choice',
-    'view-result', 'view-loading', 'view-manual-form', 'pageTitle', 'pageSubtitle',
+    'view-result', 'view-loading', 'view-manual-form', 'view-documents', 'documentsList', 'pageTitle', 'pageSubtitle',
     'packageSelectionBlock', 'offerAcceptedBlock', 'acceptedPackageSummary',
     'ocenkaPreview', 'ocenkaPreviewText', 'btnEsia', 'btnManual', 'collateralSelect',
     'applicationDetail', 'applicationsList',     'mAppCards', 'mAppDetail', 'mClientDetail',
-    'm-tab-applications', 'm-tab-clients', 'm-tab-chat', 'm-tab-reports',
+    'm-tab-applications', 'm-tab-clients', 'm-tab-chat', 'm-tab-reports', 'm-tab-documents',
     'st-1', 'st-2', 'st-3', 'st-4', 'st-5', 'res-limit', 'res-rate', 'res-term',
     'res-payment', 'ltv-label', 'filterStatus', 'filterSearch',
     'scoringOverlay', 'sOverlayTitle', 'sOverlaySubtitle', 'sModeBadge', 'sRunBtn',
@@ -132,7 +132,8 @@ function loadSharedContext() {
   // Load shared/data.js
   const dataCode = fs.readFileSync(path.join(root, 'shared/data.js'), 'utf8');
   const lkCode = fs.readFileSync(path.join(root, 'shared/lk-application.js'), 'utf8');
-  vm.runInNewContext(dataCode + '\n' + lkCode, ctx, { filename: 'shared/data+lk.js' });
+  const artCode = fs.readFileSync(path.join(root, 'shared/lk-artifacts.js'), 'utf8');
+  vm.runInNewContext(dataCode + '\n' + lkCode + '\n' + artCode, ctx, { filename: 'shared/data+lk+artifacts.js' });
 
   // Minimal state + helpers used by conveyor/applications
   ctx.state = {
@@ -198,6 +199,7 @@ console.log('\n=== 1. Syntax check ===');
 [
   'shared/data.js',
   'shared/lk-application.js',
+  'shared/lk-artifacts.js',
   'js/conveyor.js',
   'js/applications.js',
   'js/packages.js',
@@ -493,8 +495,12 @@ console.log('\n=== 7. HTML script order / critical refs ===');
   assert(mgrScripts.some(s => s.includes('applications.js')), 'manager loads applications.js');
   assert(clientScripts.indexOf('shared/lk-application.js') > clientScripts.indexOf('shared/data.js'),
     'client: lk-application after data');
+  assert(clientScripts.indexOf('shared/lk-artifacts.js') > clientScripts.indexOf('shared/lk-application.js'),
+    'client: lk-artifacts after lk-application');
   assert(mgrScripts.indexOf('../shared/lk-application.js') > mgrScripts.indexOf('../shared/data.js'),
     'manager: lk-application after data');
+  assert(mgrScripts.indexOf('../shared/lk-artifacts.js') > mgrScripts.indexOf('../shared/lk-application.js'),
+    'manager: lk-artifacts after lk-application');
   assert(fs.readFileSync(path.join(root, 'js/applications.js'), 'utf8').includes('isLkLabApplication'),
     'client list filters manager-only TrustGate app');
   assert(!fs.readFileSync(path.join(root, 'js/applications.js'), 'utf8').includes('renderCpCoverageHTML'),
@@ -705,6 +711,28 @@ console.log('\n=== 8. TrustGate lab app is manager-only ===');
     'approved contract button is wired, not a dead alert');
   assert(fs.readFileSync(path.join(root, 'manager/js/applications.js'), 'utf8').indexOf('Выбрать отдельно') === -1,
     'dead DU picker button is removed');
+}
+
+console.log('\n=== 9. L3 artifacts registry ===');
+{
+  const ctx = loadSharedContext();
+  ctx.loadSharedData();
+  assert(typeof ctx.upsertArtifact === 'function', 'upsertArtifact is defined');
+  assert(typeof ctx.listArtifacts === 'function', 'listArtifacts is defined');
+  const short = ctx.recordShortApplication(ctx.getAllApplications().find(a => a.id === '4421-И'));
+  assert(short && short.kind === 'short_application', 'C0 short application recorded');
+  assert(ctx.listArtifacts('4421-И').some(a => a.kind === 'short_application'), 'listArtifacts finds C0');
+  ctx.recordConveyorConsent('PERSONAL_DATA', '4421-И');
+  ctx.ingestDocumentMeta('4421-И', 'Выписка ЕГРН', { name: 'egrn.pdf', type: 'application/pdf', size: 2048 });
+  const egrn = ctx.getArtifact(ctx.artStableId('4421-И', 'egrn'));
+  assert(egrn && egrn.file && egrn.file.name === 'egrn.pdf', 'C8 stores file metadata without bytes');
+  assert(!JSON.stringify(ctx.loadArtifactStore()).includes('JVBERi0'), 'artifact store has no PDF base64');
+  const html = ctx.artifactPreviewHTML(egrn, ctx.getAllApplications().find(a => a.id === '4421-И'));
+  assert(/ЕГРН/.test(html) && /OCR/.test(html) && !/cp-profile-btn/.test(html), 'EGRN preview is file+OCR, no CP lab buttons');
+  ctx.resetDemoStorage({ includeUser: false });
+  ctx._artifactStore = null;
+  const after = JSON.parse(ctx.localStorage.getItem('bgfbank_lab_artifacts') || 'null');
+  assert(!after, 'resetDemoStorage clears artifacts key');
 }
 
 console.log('\n=== Summary ===');
