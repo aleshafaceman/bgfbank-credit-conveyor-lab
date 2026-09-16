@@ -1,6 +1,6 @@
 # База знаний LK (кредитный конвейер БЖФ)
 
-Версия: 2026-09-16 (rev. 7, + схемы ЛК). Продукт кабинетов: **залог** (`CASHONBAIL` / `FLAT`). Happy-path только.
+Версия: 2026-09-16 (rev. 8, + Express OpenAPI МО). Продукт кабинетов: **залог** (`CASHONBAIL` / `FLAT`). Happy-path только.
 
 Цитаты: `[repo:…]` — код LAB; `[src:…]` — `docs/sources/`; `[src:skill/…]` — скилл; `[src:lk-arch/…]` — схемы прод-ЛК. ЦФТ 10–15, ТЗ ПДН v.4, `to-be-process.md` **по-прежнему нет**.
 
@@ -181,7 +181,7 @@ As-is кабинета `[src:lk-arch/mobile-appraiser-integration.md]`:
 | Канал | URL | Кто | Куда в модели |
 |-------|-----|-----|----------------|
 | Lookup | `GET api.ocenka.mobi/v1/appraise/flat` + `X-Api-Key` | партнёр при смене адреса | `stats.price` → `building_price` / `appraisal_building_price`; сырой JSON → `express_evaluation`. Менеджеру lookup **цену не пишет** (BGF-2714) |
-| Express | `POST express.ocenka.mobi/api/express`, опрос `GET …/express/{task_id}`, auth `POST …/auth/login` (`id_token`) | менеджер после лида, **не** ипотека, **не** партнёр | `express_evaluation_task.{task_id,status}` |
+| Express | `POST/GET https://express.ocenka.mobi/api/express`, JWT `POST /auth/login` `scope=org express` `[src:ocenka/express-api.md]` | менеджер после лида, **не** ипотека, **не** партнёр | задача `_id` / `status` (`pending-auto`…`accepted`); `price` при `accepted`; `files[]` URL ~15 мин — **не** persist. ЛК схлопывает статус в `pending`/`complete` |
 | ELMA | webhook `POST /api/elma/set/appraisal/building/price` | основной бизнес-путь | `pledge_evaluation.AppraisalPledgeCost` перезаписывает `building_price` |
 
 DaData `GET /api/products/calculator/building_price` — **не** МО; на 1-м экране залога фронт берёт только `area`.
@@ -190,7 +190,7 @@ BGF-3457: если создатель заявки — партнёр и цен�
 
 Прод-маппинг lookup ждёт ещё `flat.{floor,rooms,area,cadNum}` `[src:lk-arch/mobile-appraiser-integration.md]` §5.2. В swagger Gate 2026-01-28 и живом образце Крылатской блока `flat` не было — в LAB не выдумывать `flat`, пока ответ его не содержит.
 
-ТЗ Loginom `getEval` по-прежнему оркестратор над МО (Express банка + callback pdf). In/out — `RESULT_EVALUATION`.
+ТЗ Loginom `getEval` по-прежнему оркестратор над МО (Express + callback pdf). Спека Express: опрос 5 с, лимит 200/10 мин, кэш JWT. As-is ЛК логинится на каждый вызов и ждёт ELMA ~30 с, потом fallback. Поля ТЗ `cadNum`/`areaTotal`/`floor`/`maxFloor` в YAML **закомментированы** (модель рынка — внешняя ссылка вендора).
 
 ТЗ in в `getEval`: `PLEDGE_TYPE`, `ADDRESS`, `FIAS_ID`, `CADNUM`, `AREA_TOTAL`, `FLOOR`, `MAX_FLOOR`.  
 Out `RESULT_EVALUATION` (имена **совпадают** с `pledge_evaluation` в LAB, кроме регистра):  
@@ -545,7 +545,7 @@ JSON-модель каталога `[repo:docs/katalog-opcij-zalog.md]` §10:
 
 ## 7. Расхождения и пробелы
 
-1. Скилл, Gate МО, SMSTraffic v2, схемы ЛК **есть**. ЦФТ 10–15 / `to-be-integrations.md`, ТЗ ПДН v.4, `to-be-process.md` (ELMA 0–52) — нет. Enum `STAGE`/`DECISION` Loginom в выгрузке ТЗ не разобран. СПР «формирование лида» **есть**. Express МО: as-is ЛК есть, OpenAPI вендора нет.
+1. Скилл, схемы ЛК, Gate lookup, **Express OpenAPI**, SMSTraffic v2 **есть**. ЦФТ 10–15 / `to-be-integrations.md`, ТЗ ПДН v.4, `to-be-process.md` (ELMA 0–52) — нет. Enum `STAGE`/`DECISION` Loginom в выгрузке ТЗ не разобран. СПР «формирование лида» **есть**.
 2. **Два справочника ДУ:** ELMA 0–18 vs кабинетный `allDU`. L3 — только enum 0–18.
 3. Overlay скоринга пишет PTI/DTI; в ТЗ — **ПДН `getPdn`**, не DTI. Не тащить PTI в артефакт как «поле СПР».
 4. `SURCH_FSSP` каталога ≈ правило `FSSP_001` ТЗ; в заявке надбавка не хранится.

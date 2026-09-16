@@ -4,7 +4,7 @@
 
 ## Сейчас на диске
 
-`docs/sources/`: 11 стадий СПР, 4 Visio, ТЗ Loginom, Skorozvon, скилл, Gate МО, SMSTraffic v2, **схемы ЛК** (`docs/sources/lk-arch/`, 18 `.md` + `_print_pdf.py`).
+`docs/sources/`: 11 стадий СПР, 4 Visio, ТЗ Loginom, Skorozvon, скилл, Gate МО, **Express МО OpenAPI**, SMSTraffic v2, схемы ЛК (`docs/sources/lk-arch/`).
 
 Канон скилла: `.cursor/skills/bgf-bank-operations/`.
 
@@ -19,4 +19,4 @@
 | `lk-external-integrations.html` | нет (`_print_pdf.py` без HTML) | не блокер |
 | CSV / сырые `.doc` `.vsdx` | нет | не блокер P0 |
 
-Express МО: вендорской OpenAPI нет; **as-is ЛК есть** — `lk-arch/mobile-appraiser-integration.md` (`POST express.ocenka.mobi/api/express`, опрос `{task_id}`, lookup `api.ocenka.mobi/v1/appraise/flat`).
+Express МО: **спека есть** — `docs/sources/ocenka/express.ocenka.mobi.yaml`. As-is ЛК: `lk-arch/mobile-appraiser-integration.md`.
