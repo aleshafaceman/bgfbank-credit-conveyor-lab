@@ -1,8 +1,40 @@
 # База знаний LK (кредитный конвейер БЖФ)
 
-Версия: 2026-09-16 (rev. 3, + формирование лида). Продукт кабинетов: **залог** (`CASHONBAIL` / `FLAT`). Happy-path только.
+Версия: 2026-09-16 (rev. 4, + скилл `bgf-bank-operations`). Продукт кабинетов: **залог** (`CASHONBAIL` / `FLAT`). Happy-path только.
 
-Цитаты: `[repo:…]` — код LAB; `[src:…]` — `docs/sources/`. Скилл, ЦФТ гл. 10–15, SMSTraffic **по-прежнему нет**.
+Цитаты: `[repo:…]` — код LAB; `[src:…]` — `docs/sources/`; `[src:skill/…]` — скилл. ЦФТ гл. 10–15, SMSTraffic, ТЗ ПДН v.4 **по-прежнему нет**.
+
+---
+
+## 0. Скилл vs лабораторные кабинеты
+
+Скилл описывает **прод-контур банка**, не макет клиентского ЛК в этом репо.
+
+| В скилле `[src:skill/cabinet.md]` | В LAB |
+|----------------------------------|-------|
+| Один SPA: партнёр `lk.bgfbank.ru` `/` и менеджер `/manager`; auth SMS + `elma_id` | Клиентский `index.html` + отдельный `manager/` + `form/` + `deal-ops/` |
+| Быстрая заявка 4 шага: Заявка (CTA **«Получить пре-оффер»**) → продукт Solver → Документы → Решение | Клиентский таймлайн: Заявка → ЕСИА → Залог → Пакет → Документы → Скоринг → Решение `[repo:js/features-lab.js]` |
+| ИНН на шаге 1 **нет** (проверка pp 15.09.2026) | ИНН в `extra_data.cp.scopes.inn` после TrustGate, не отдельное поле анкеты |
+| Созаёмщик — кнопка шага 1, не шаг 3 «Документы» | в клиентском happy-path 4421 созаёмщика нет |
+| «Заполнить вручную» (`by_uploaded_consent`) — **только менеджер** | лабораторный менеджер не рисует эти три радио |
+| `ApplicationStatus` схлопывает 53 кода ELMA | статусы lab: FILL_IN / processing / approved |
+
+Жёсткие правила скилла, которые уже заложены в план L3 `[src:skill/SKILL.md]`:
+
+- лид ≠ заявка (Sale); конвертация `CreateFullApplication`;
+- паспорт сделки только после **клиент одобрен (ELMA 5) и залог одобрен (ELMA 23)**;
+- после «КОД сформирован» офис — `deal-ops`, не ELMA и не кабинет;
+- Loginom ≠ Solver; SmartDeal `signing_channel` ≠ Госключ ≠ `StartERegistration`;
+- ДУ только `ElmaAdditionalConditionTypeEnum` 0–18;
+- три цели: `mortgage` / `cash_on_pledge` / `refinancing`; «Зелёный коридор» — опция, не 4-й enum;
+- UI не вызывает Loginom / ЦФТ / SmartDeal — в LAB это моки оркестратора;
+- СОПД не переподписывать датой визита; отдельного согласия на счёт нет.
+
+PublicAPI ELMA (не EntityService): `CreateLead`, `CreateFullApplication`, `CreateRealEstate`, `RequestExpressEvaluation`, `ReturnToStage`, `ClientRefusal`, `SalePreparation` `[src:skill/elma-webapi.md]`. В LAB вызовов нет — только имена на шине стола.
+
+Имена ЦФТ из скилла **до сверки с ИТ АБС** `[src:skill/systems.md]`: `CheckData`, `UpsertClient`, `CreateCreditContract`, `FindRetailAccount`, `KodSigned`, `OpenAccount`, `DboSms`, `OpenLetterOfCredit`, `RegisterMortgageNote`, `SendRefusal`, `CorrectPassportData`. Контрактов гл. 10–15 нет — в артефактах кабинетов не выдумывать тела.
+
+Минимум документов ФЛ из оффера партнёра `[src:skill/partner-offer.md]`: паспорт (все страницы), СНИЛС, СОПД, анкета, ЕГРН/свидетельство, правоустановка. Это опора комплекта C4/C5/C1/C8, не новые виды ДУ.
 
 ---
 
@@ -68,7 +100,7 @@ Visio после одобрения: «Подготовка паспорта с�
 
 ## 2. Внешние системы и ответы / коллбэки
 
-Ниже — **имена и payload’ы, которые уже есть в коде**. Схемы Skorozvon / SMSTraffic / глав ЦФТ 10–15 / МО-интеграции / ТЗ СПР v3.28 **отсутствуют** (файлы не доехали).
+Ниже — **имена и payload’ы, которые уже есть в коде**, плюс имена из скилла без контракта. Схемы SMSTraffic / глав ЦФТ 10–15 / отдельного МО / ТЗ ПДН v.4 **отсутствуют**.
 
 ### 2.1. TrustGate / ЕСИА / цифровой профиль
 
@@ -198,9 +230,11 @@ du_catalog: {
 
 **Расхождение:** каталог ДУ кабинетов `allDU` (`du00`…`du22`) — **другой** список (домовая книга, БТИ, опека, маткапитал…). Это не enum 0–18. См. §7.
 
-### 2.5. ЦФТ (имена операций из DEMO / стола)
+### 2.5. ЦФТ (имена операций из DEMO / стола / скилла)
 
-Зафиксированные в LAB имена, **без** request/response из гл. 10–15:
+Зафиксированные имена, **без** request/response из гл. 10–15. Скилл добавляет к столу: `CheckData` (лид), `UpsertClient`, `CreateCreditContract`, `OpenLetterOfCredit`, `RegisterMortgageNote`, `SendRefusal`, `CorrectPassportData` — «до сверки с ИТ АБС» `[src:skill/systems.md]`. В кабинетах P0 из этого максимум **имя шага + время** (C0), не JSON ЦФТ.
+
+Уже в LAB:
 
 | Операция | Где | Что считается ответом |
 |----------|-----|------------------------|
@@ -373,7 +407,8 @@ JSON-модель каталога `[repo:docs/katalog-opcij-zalog.md]` §10:
 
 | Термин | Как в репозитории | Замечание |
 |--------|-------------------|-----------|
-| СПР | БП ELMA + Loginom | ТЗ Loginom и 10 стадийных `.doc` в `docs/sources/` |
+| СПР | БП ELMA + Loginom | ТЗ Loginom и 11 стадийных `.doc` в `docs/sources/` |
+| Прод-кабинет | партнёр `/` + `/manager` | `[src:skill/cabinet.md]`; не клиентский LAB `index.html` |
 | АПЗ | андеррайтинг предмета залога | `[src:spr/anderayting-zaloga.txt]` |
 | ПДН | предельная долговая нагрузка, метод `getPdn` | не путать с DTI в overlay LAB |
 | МО | Мобильный оценщик / Ocenka.mobi Express | `getEval` |
@@ -459,7 +494,7 @@ JSON-модель каталога `[repo:docs/katalog-opcij-zalog.md]` §10:
 
 **Переедет почти как есть**
 
-- Лид: телефон, OTP, согласия, каналы Visio (звонок/офис/интернет) + Skorozvon API (лид/звонок/webhook), когда свяжем
+- Лид: телефон, OTP, согласия, каналы Visio; СПР «формирование лида»: дубль, идентификация Loginom, `CheckData`→ЦФТ, ПДН, конвертация в заявку; Skorozvon API когда свяжем
 - ЦП / TrustGate: паспорт, ИНН, СНИЛС, 2-НДФЛ, СЗИ-6
 - `borrowers[]`, ДУ type 0
 - Loginom: `preScore`, `getDecision`, `getPdn`, `getPfr`; ФССП, НБКИ, ОКБ, `ClientCategory`
@@ -480,7 +515,7 @@ JSON-модель каталога `[repo:docs/katalog-opcij-zalog.md]` §10:
 
 ## 7. Расхождения и пробелы
 
-1. Скилл, ЦФТ 10–15 (нет контракта `CheckData`), SMSTraffic, ТЗ ПДН v.4 — нет. Enum `STAGE`/`DECISION` в выгрузке ТЗ не разобран. СПР «формирование лида» **есть** (`spr/formirovanie-lida.txt`).
+1. Скилл **есть** (`.cursor/skills/bgf-bank-operations/` + `docs/sources/skill/`). ЦФТ 10–15 (контракт `CheckData` и остальных), SMSTraffic, ТЗ ПДН v.4, полная таблица ELMA 0–52 из `bgf-backend` — нет. Enum `STAGE`/`DECISION` в выгрузке ТЗ не разобран. СПР «формирование лида» **есть** (`spr/formirovanie-lida.txt`).
 2. **Два справочника ДУ:** ELMA 0–18 vs кабинетный `allDU`. L3 — только enum 0–18.
 3. Overlay скоринга пишет PTI/DTI; в ТЗ — **ПДН `getPdn`**, не DTI. Не тащить PTI в артефакт как «поле СПР».
 4. `SURCH_FSSP` каталога ≈ правило `FSSP_001` ТЗ; в заявке надбавка не хранится.

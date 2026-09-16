@@ -2,7 +2,9 @@
 
 Положены 2026-09-16 из вложений облачного агента. Имена кириллицей в uploads съехали в `_`; ниже — канонические имена.
 
-**Ещё нет на диске:** скилл `bgf-bank-operations` (9 `.md`), ЦФТ гл. 10–15, SMSTraffic, МО отдельным файлом (есть только ТЗ `getEval` + Visio).
+**Ещё нет на диске:** ЦФТ гл. 10–15 (контракты), SMSTraffic, МО отдельным файлом (есть ТЗ `getEval` + Express + скилл), ТЗ ПДН v.4.
+
+Скилл `bgf-bank-operations` (9 `.md`) — **есть**: канон `.cursor/skills/bgf-bank-operations/`, копия `docs/sources/skill/`.
 
 Повтор `_spr_body.txt` (2026-09-16 10:05) **бит-в-бит совпал** с `loginom/_spr_body.txt` — не дублировали.
 
@@ -28,3 +30,12 @@
 | `loginom/_spr_rules.txt` | _spr_rules.txt | оглавление методов preScore/getDecision/getEval/getPdn/getPfr |
 | `loginom/_spr_scan.txt` | _spr_scan.txt | TOC/скан ТЗ |
 | `skorozvon/skorozvon-api.txt` | Скорозвон.txt | REST + webhooks |
+| `skill/SKILL.md` | SKILL.md | домен БЖФ: лид≠заявка, АНД+АПЗ, deal-ops после КОД, запреты |
+| `skill/cabinet.md` | cabinet.md | прод ЛК: партнёр `/` + менеджер `/manager`; шаг 1 без ИНН; CTA «Получить пре-оффер» |
+| `skill/process.md` | process.md | этапы лид→выдача; ELMA 0/5/8/12/23/27–28/33–39; барьер паспорта |
+| `skill/systems.md` | systems.md | Loginom≠Solver; имена ЦФТ до сверки с ИТ; PublicAPI |
+| `skill/glossary.md` | glossary.md | ДУ 0–18, `CreditPurposeEnum`, роли, `signing_channel` |
+| `skill/deal-ops.md` | deal-ops.md | снимок после КОД, 6 автопроверок, `KodSigned` |
+| `skill/elma-webapi.md` | elma-webapi.md | `LoginWith` + PublicAPI; не EntityService |
+| `skill/partner-offer.md` | partner-offer.md | КВ акция 09.2026; «коридор» ≠ 4-я цель; минимум документов ФЛ |
+| `skill/brand.md` | brand.md | токены бренда (уже в LAB через PR #13) |
