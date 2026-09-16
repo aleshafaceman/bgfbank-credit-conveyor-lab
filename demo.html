@@ -5,13 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>БЖФ · Split-view демо</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,700;1,400&family=Roboto+Condensed:wght@600;700&display=swap" rel="stylesheet">
     <style>
-        :root { --bgf-navy: #003b6f; --bgf-ink: #0f2740; }
+        :root { --bgf-navy: #0B4697; --bgf-ink: #08356e; }
         * { box-sizing: border-box; }
-        body { margin: 0; font-family: Inter, system-ui, sans-serif; background: #0b1e33; color: white; height: 100vh; display: flex; flex-direction: column; }
-        header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 16px; background: #0f2740; border-bottom: 1px solid rgba(255,255,255,0.08); }
-        .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; }
+        body { margin: 0; font-family: Roboto, system-ui, sans-serif; background: #0b1e33; color: white; height: 100vh; display: flex; flex-direction: column; }
+        header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 16px; background: #08356e; border-bottom: 1px solid rgba(255,255,255,0.08); }
+        header { box-shadow: inset 0 -3px 0 #EC660A; }
+        .brand { display: flex; align-items: center; gap: 12px; font-weight: 800; }
+        .brand-logo { height: 28px; width: auto; display: block; }
+        .brand-divider { width: 1px; height: 22px; background: rgba(255,255,255,0.28); }
         .logo { width: 32px; height: 32px; border-radius: 8px; background: var(--bgf-navy); display: grid; place-items: center; font-weight: 900; }
         .actions { display: flex; gap: 8px; flex-wrap: wrap; }
         .actions a, .actions button {
@@ -31,7 +34,7 @@
 </head>
 <body>
     <header>
-        <div class="brand"><div class="logo">Б</div><div>БЖФ · Split-view показа</div></div>
+        <div class="brand"><img class="brand-logo" src="brand/logo-on-dark.png" alt="БЖФ Банк"><div class="brand-divider"></div><div>Split-view показа</div></div>
         <div class="actions">
             <button type="button" id="btnReset">Сбросить оба фрейма</button>
             <a href="index.html?demo=1" target="_blank">Клиент отдельно</a>

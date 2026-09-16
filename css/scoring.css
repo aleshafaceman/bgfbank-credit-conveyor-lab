@@ -24,7 +24,7 @@
 }
 .scoring-modal h2 {
     font-size: 22px;
-    color: #003b6f;
+    color: #0B4697;
     text-align: center;
     margin-bottom: 6px;
 }
@@ -38,7 +38,7 @@
 .scoring-progress-wrap { margin-bottom: 20px; }
 .scoring-progress-info { display: flex; justify-content: space-between; font-size: 11px; color: #64748b; margin-bottom: 6px; }
 .scoring-progress-track { width: 100%; height: 5px; background: #e1e9f1; border-radius: 3px; overflow: hidden; }
-.scoring-progress-fill { height: 100%; background: linear-gradient(90deg, #003b6f, #00509e); border-radius: 3px; transition: width 0.4s; width: 0%; }
+.scoring-progress-fill { height: 100%; background: linear-gradient(90deg, #0B4697, #00509e); border-radius: 3px; transition: width 0.4s; width: 0%; }
 
 .scoring-step-list { display: flex; flex-direction: column; gap: 3px; margin-bottom: 20px; }
 .scoring-step { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; font-size: 12px; transition: 0.3s; }
@@ -47,19 +47,19 @@
 .scoring-step.done { opacity: 1; }
 .scoring-step .s-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
 .scoring-step .s-dot.waiting { background: #cbd5e1; }
-.scoring-step .s-dot.active { background: #003b6f; width: 11px; height: 11px; }
-.scoring-step .s-dot.done { background: #10b981; }
+.scoring-step .s-dot.active { background: #0B4697; width: 11px; height: 11px; }
+.scoring-step .s-dot.done { background: #13A538; }
 .scoring-step .s-name { flex: 1; font-weight: 600; color: #1e293b; }
 .scoring-step .s-source { font-size: 10px; color: #94a3b8; }
 .scoring-step .s-time { font-size: 10px; color: #64748b; }
 
 .scoring-detail { background: #f8fbff; border-radius: 12px; padding: 14px 16px; margin-bottom: 20px; font-size: 12px; color: #64748b; line-height: 1.7; }
-.scoring-detail .ok { color: #10b981; }
-.scoring-detail .curr { color: #003b6f; font-weight: 600; }
+.scoring-detail .ok { color: #13A538; }
+.scoring-detail .curr { color: #0B4697; font-weight: 600; }
 
 .scoring-result { text-align: center; padding: 24px; border-radius: 16px; margin-top: 12px; }
-.scoring-result.approved { background: #f0fdf6; border: 2px solid #10b981; }
-.scoring-result.rejected { background: #fef2f2; border: 2px solid #ef4444; }
+.scoring-result.approved { background: #f0fdf6; border: 2px solid #13A538; }
+.scoring-result.rejected { background: #fef2f2; border: 2px solid #dc2626; }
 .scoring-result.needs-info { background: #fffdf5; border: 2px solid #f59e0b; }
 .scoring-result .r-icon { font-size: 44px; margin-bottom: 8px; }
 .scoring-result .r-title { font-size: 20px; font-weight: 800; margin-bottom: 6px; }
@@ -71,4 +71,4 @@
 
 .scoring-close { text-align: center; margin-top: 16px; }
 .scoring-close button { background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 13px; text-decoration: underline; }
-.scoring-close button:hover { color: #003b6f; }
+.scoring-close button:hover { color: #0B4697; }

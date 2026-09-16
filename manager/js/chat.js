@@ -8,12 +8,12 @@ function renderChatTab() {
     var h = '<div style="display:grid;grid-template-columns:320px 1fr;gap:30px;height:600px;">';
     
     h += '<div style="background:white;border-radius:20px;border:1px solid #e1e9f1;padding:20px;overflow-y:auto;">';
-    h += '<h3 style="font-size:16px;color:#003b6f;margin-bottom:16px;"><i class="fas fa-comment-dots"></i> Диалоги (' + chatList.length + ')</h3>';
+    h += '<h3 style="font-size:16px;color:#0B4697;margin-bottom:16px;"><i class="fas fa-comment-dots"></i> Диалоги (' + chatList.length + ')</h3>';
     chatList.forEach(function(c) {
-        h += '<div style="padding:14px;background:' + (selectedChatClient === c.clientName ? '#f4f9ff' : '#f8fbff') + ';border-radius:12px;margin-bottom:10px;cursor:pointer;border:1px solid ' + (selectedChatClient === c.clientName ? '#003b6f' : '#e1e9f1') + ';" onclick="openChatWithClient(\'' + c.clientName.replace(/'/g, "\\'") + '\')">';
+        h += '<div style="padding:14px;background:' + (selectedChatClient === c.clientName ? '#f4f9ff' : '#f8fbff') + ';border-radius:12px;margin-bottom:10px;cursor:pointer;border:1px solid ' + (selectedChatClient === c.clientName ? '#0B4697' : '#e1e9f1') + ';" onclick="openChatWithClient(\'' + c.clientName.replace(/'/g, "\\'") + '\')">';
         h += '<div style="display:flex;justify-content:space-between;align-items:center;">';
         h += '<div style="font-weight:700;font-size:14px;color:#1e293b;">' + c.clientName + '</div>';
-        if (c.unread > 0) h += '<span style="background:#ef4444;color:white;font-size:10px;padding:2px 6px;border-radius:8px;">' + c.unread + '</span>';
+        if (c.unread > 0) h += '<span style="background:#dc2626;color:white;font-size:10px;padding:2px 6px;border-radius:8px;">' + c.unread + '</span>';
         h += '</div>';
         h += '<div style="font-size:12px;color:#64748b;margin-top:4px;">' + (c.lastMessage || 'Нет сообщений') + '</div>';
         h += '<div style="display:flex;justify-content:space-between;margin-top:4px;"><span style="font-size:11px;color:#94a3b8;">' + c.lastTime + '</span><span style="font-size:10px;color:#64748b;">' + c.status + '</span></div>';
@@ -44,7 +44,7 @@ function renderChatMessages(clientName) {
     var client = getClientData ? getClientData(clientName) : null;
     
     var h = '';
-    h += '<div style="background:#003b6f;color:white;padding:16px 20px;display:flex;align-items:center;gap:12px;">';
+    h += '<div style="background:#0B4697;color:white;padding:16px 20px;display:flex;align-items:center;gap:12px;">';
     h += '<div style="width:36px;height:36px;border-radius:50%;background:#2c608b;display:flex;align-items:center;justify-content:center;font-weight:700;">' + clientName.split(' ').map(function(w){return w[0];}).join('') + '</div>';
     h += '<div style="flex:1;"><div style="font-weight:700;font-size:14px;">' + clientName + '</div><div style="font-size:11px;opacity:0.7;">' + (client ? client.phone : '') + '</div></div>';
     h += '</div>';
@@ -58,7 +58,7 @@ function renderChatMessages(clientName) {
             h += '<div class="chat-message" style="max-width:75%;padding:10px 14px;border-radius:14px;font-size:13px;line-height:1.5;';
             // Менеджер — справа (синий), клиент — слева (белый)
             if (isManager) {
-                h += 'align-self:flex-end;background:#003b6f;color:white;';
+                h += 'align-self:flex-end;background:#0B4697;color:white;';
             } else {
                 h += 'align-self:flex-start;background:white;border:1px solid #e1e9f1;';
             }
@@ -78,7 +78,7 @@ function renderChatMessages(clientName) {
     h += '</div>';
     h += '<div style="display:flex;gap:8px;">';
     h += '<input type="text" id="mChatInput" placeholder="Введите сообщение..." onkeydown="if(event.key===\'Enter\')sendManagerMessage(\'' + clientName.replace(/'/g, "\\'") + '\')" style="flex:1;padding:10px 14px;border:1px solid #e1e9f1;border-radius:12px;font-size:13px;outline:none;">';
-    h += '<button onclick="sendManagerMessage(\'' + clientName.replace(/'/g, "\\'") + '\')" style="width:40px;height:40px;border-radius:50%;background:#003b6f;color:white;border:none;cursor:pointer;"><i class="fas fa-paper-plane"></i></button>';
+    h += '<button onclick="sendManagerMessage(\'' + clientName.replace(/'/g, "\\'") + '\')" style="width:40px;height:40px;border-radius:50%;background:#0B4697;color:white;border:none;cursor:pointer;"><i class="fas fa-paper-plane"></i></button>';
     h += '</div></div>';
     
     return h;

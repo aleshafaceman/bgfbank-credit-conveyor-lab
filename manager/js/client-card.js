@@ -85,7 +85,7 @@ function openClientCard(clientName) {
                 <div class="m-info-item" style="margin-bottom:6px;">
                     <div class="m-info-label">${p.type || 'Объект'} · ${p.area != null ? p.area : '—'} м²</div>
                     <div class="m-info-value" style="font-size:12px;">${p.address || '—'}</div>
-                    ${p.valuation ? `<div style="font-size:12px;color:#10b981;margin-top:2px;">${p.valuation.toLocaleString('ru-RU')} ₽</div>` : ''}
+                    ${p.valuation ? `<div style="font-size:12px;color:#13A538;margin-top:2px;">${p.valuation.toLocaleString('ru-RU')} ₽</div>` : ''}
                 </div>
             `).join('') || '<div style="color:#94a3b8;font-size:13px;">Нет объектов</div>'}
         </div>
@@ -94,7 +94,7 @@ function openClientCard(clientName) {
             <h4><i class="fas fa-file-alt"></i> Документы</h4>
             ${docsSummary.length ? docsSummary.map(d => `
                 <div class="m-doc-item">
-                    <i class="fas ${d.uploaded ? 'fa-check-circle' : 'fa-times-circle'}" style="color:${d.uploaded ? '#10b981' : '#ef4444'};"></i>
+                    <i class="fas ${d.uploaded ? 'fa-check-circle' : 'fa-times-circle'}" style="color:${d.uploaded ? '#13A538' : '#dc2626'};"></i>
                     <span class="doc-name">${d.name}</span>
                     <span class="doc-status ${d.uploaded ? 'doc-uploaded' : 'doc-missing'}">${d.uploaded ? 'Загружен' : 'Отсутствует'}</span>
                 </div>
