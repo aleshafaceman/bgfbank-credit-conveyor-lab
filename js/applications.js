@@ -401,8 +401,16 @@ function bindApplicationDetailActions() {
         if (action === 'upload-doc') {
             e.preventDefault();
             const name = btn.getAttribute('data-doc-name') || 'документ';
-            if (typeof uploadMissingDocDemo === 'function') uploadMissingDocDemo(name);
+            const duId = btn.getAttribute('data-du-id') || '';
+            const appId = btn.getAttribute('data-app-id') || undefined;
+            if (typeof uploadMissingDocDemo === 'function') uploadMissingDocDemo(name, appId, { duId: duId });
             else alert('Открывается форма загрузки: ' + name);
+            return;
+        }
+        if (action === 'upload-any-doc') {
+            e.preventDefault();
+            const appId = btn.getAttribute('data-app-id') || undefined;
+            if (typeof uploadMissingDocDemo === 'function') uploadMissingDocDemo(null, appId, {});
             return;
         }
         if (action === 'print-offer') {
@@ -430,6 +438,23 @@ function bindApplicationDetailActions() {
             }
             if (typeof openClientKodKit === 'function') openClientKodKit(kitAppId);
             else if (typeof openArtifactByKind === 'function') openArtifactByKind(kitAppId, 'kod_inventory');
+        }
+    });
+    c.addEventListener('dragover', function(e) {
+        if (e.target.closest && e.target.closest('[data-action="upload-any-doc"], .client-du-item--pending')) {
+            e.preventDefault();
+        }
+    });
+    c.addEventListener('drop', function(e) {
+        var zone = e.target.closest && e.target.closest('[data-action="upload-any-doc"], .client-du-item--pending');
+        if (!zone || !c.contains(zone)) return;
+        e.preventDefault();
+        var file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+        if (!file) return;
+        var name = zone.getAttribute('data-doc-name');
+        var duId = zone.getAttribute('data-du-id') || '';
+        if (typeof uploadMissingDocDemo === 'function') {
+            uploadMissingDocDemo(name || null, undefined, { file: file, duId: duId });
         }
     });
 }
@@ -554,10 +579,18 @@ function renderClientDUSection(app) {
         h += '<span class="client-du-status" style="background:' + st.bg + ';color:' + st.color + ';">' + st.label + '</span>';
         h += '</div>';
         if (!isDone && du.source !== 'esia') {
-            h += '<button type="button" class="client-du-upload" data-action="upload-doc" data-doc-name="' + String(du.name).replace(/"/g, '&quot;') + '"><i class="fas fa-upload"></i> Загрузить</button>';
+            h += '<button type="button" class="client-du-upload" data-action="upload-doc" data-doc-name="' + String(du.name).replace(/"/g, '&quot;') + '" data-du-id="' + du.id + '"><i class="fas fa-upload"></i> Загрузить</button>';
         }
         h += '</div>';
     });
+
+    if (counts.need > 0) {
+        h += '<div class="file-upload-area client-du-dropzone" data-action="upload-any-doc">';
+        h += '<i class="fas fa-cloud-upload-alt"></i>';
+        h += '<div class="upload-text">Нажмите или перетащите файл сюда</div>';
+        h += '<div class="upload-hint">PDF, JPG или PNG до 10 МБ · 2-НДФЛ или выписка ЕГРН</div>';
+        h += '</div>';
+    }
 
     h += '</div>';
     return h;

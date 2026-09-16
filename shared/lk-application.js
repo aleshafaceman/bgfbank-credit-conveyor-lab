@@ -812,6 +812,23 @@ function findMatchingAppDocument(docs, docName) {
     return null;
 }
 
+function inferUploadedDocName(fileOrName, app) {
+    var n = (fileOrName && fileOrName.name) ? fileOrName.name : String(fileOrName || '');
+    if (isClientIncomeFile(n)) return 'Справка о доходе или 2-НДФЛ';
+    if (isClientEgrnFile(n)) return 'Выписка из ЕГРН с документами-основаниями';
+    if (app && typeof getRequiredDU === 'function') {
+        var done = { uploaded: true, auto_received: true, ext_received: true, received: true };
+        try {
+            var pending = getRequiredDU(app, true).filter(function(d) {
+                return d && !done[d.status] && d.source !== 'esia';
+            });
+            if (pending.length) return pending[0].name;
+        } catch (eInf) {}
+    }
+    var base = n.replace(/^.*[\\/]/, '').replace(/\.[^.]+$/, '');
+    return base || 'Документ';
+}
+
 function documentSatisfiesDu(app, duId) {
     var docs = (app && app.documents) || [];
     if (duId === 'du00') {

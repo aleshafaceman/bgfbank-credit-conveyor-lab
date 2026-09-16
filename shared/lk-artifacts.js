@@ -782,7 +782,8 @@ function recordRateBreakdown(appId) {
     });
 }
 
-function ingestDocumentMeta(appId, docName, file) {
+function ingestDocumentMeta(appId, docName, file, extra) {
+    extra = extra || {};
     if (typeof loadSharedData === 'function') loadSharedData();
     var id = appId || (typeof state !== 'undefined' && (state.selectedApp || state.conveyorAppId)) || '4421-И';
     var apps = typeof getAllApplications === 'function' ? getAllApplications() : [];
@@ -804,22 +805,30 @@ function ingestDocumentMeta(appId, docName, file) {
         size: (file && file.size) || 18432
     };
     if (typeof updateApplication === 'function') updateApplication(id, { documents: app.documents });
+    var duId = extra.duId || '';
     if (typeof persistDuStatus === 'function') {
-        if (typeof isClientEgrnFile === 'function' ? isClientEgrnFile(docName) : /егрн/i.test(docName || '')) {
-            persistDuStatus(id, 'du04', 'uploaded', { title: docName });
-        }
-        if (typeof isClientIncomeFile === 'function' ? isClientIncomeFile(docName) : /ндфл|справка о доходе/i.test(docName || '')) {
-            persistDuStatus(id, 'du00', 'uploaded', { title: docName });
+        if (duId) {
+            persistDuStatus(id, duId, 'uploaded', { title: docName });
+        } else {
+            if (typeof isClientEgrnFile === 'function' ? isClientEgrnFile(docName) : /егрн/i.test(docName || '')) {
+                persistDuStatus(id, 'du04', 'uploaded', { title: docName });
+            }
+            if (typeof isClientIncomeFile === 'function' ? isClientIncomeFile(docName) : /ндфл|справка о доходе/i.test(docName || '')) {
+                persistDuStatus(id, 'du00', 'uploaded', { title: docName });
+            }
         }
     }
-    var isEgrn = /егрн/i.test(docName || '');
-    var kind = isEgrn ? 'egrn' : 'file_meta';
+    var isEgrn = duId === 'du04' || duId === 'du19' ||
+        (typeof isClientEgrnFile === 'function' ? isClientEgrnFile(docName) : /егрн/i.test(docName || ''));
+    var isNdfl = duId === 'du00' ||
+        (typeof isClientIncomeFile === 'function' ? isClientIncomeFile(docName) : /ндфл|справка о доходе/i.test(docName || ''));
+    var kind = isEgrn ? 'egrn' : (isNdfl ? 'ndfl' : 'file_meta');
     return recordArtifactForApp(id, kind, {
         actor: 'client',
         fn: 'ingestDocumentMeta',
-        title: isEgrn ? 'Выписка ЕГРН' : ('Файл принят · ' + docName),
+        title: isEgrn ? 'Выписка ЕГРН' : (isNdfl ? 'Справка о доходах' : ('Файл принят · ' + docName)),
         file: meta,
-        payload: { docName: docName }
+        payload: { docName: docName, duId: duId || undefined }
     });
 }
 
@@ -1050,10 +1059,110 @@ function fillArtifactAppFilter(selectId, role, opts) {
     sel.setAttribute('data-art-filter-ready', '1');
 }
 
+function bindClientDocsUploadPanel(el) {
+    if (!el || el._bgfUploadBound) return;
+    el._bgfUploadBound = true;
+    el.addEventListener('click', function(e) {
+        var btn = e.target.closest && e.target.closest('[data-action]');
+        if (!btn || !el.contains(btn)) return;
+        var action = btn.getAttribute('data-action');
+        var appId = btn.getAttribute('data-app-id') || undefined;
+        if (action === 'upload-doc') {
+            e.preventDefault();
+            if (typeof uploadMissingDocDemo === 'function') {
+                uploadMissingDocDemo(btn.getAttribute('data-doc-name'), appId, {
+                    duId: btn.getAttribute('data-du-id') || ''
+                });
+            }
+            return;
+        }
+        if (action === 'upload-any-doc') {
+            e.preventDefault();
+            if (typeof uploadMissingDocDemo === 'function') uploadMissingDocDemo(null, appId, {});
+        }
+    });
+    el.addEventListener('dragover', function(e) {
+        if (e.target.closest && e.target.closest('[data-action="upload-any-doc"]')) e.preventDefault();
+    });
+    el.addEventListener('drop', function(e) {
+        var zone = e.target.closest && e.target.closest('[data-action="upload-any-doc"]');
+        if (!zone || !el.contains(zone)) return;
+        e.preventDefault();
+        var file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+        if (!file) return;
+        var appId = zone.getAttribute('data-app-id') || undefined;
+        if (typeof uploadMissingDocDemo === 'function') {
+            uploadMissingDocDemo(null, appId, { file: file });
+        }
+    });
+}
+
+function renderClientDocsUploadPanel() {
+    var el = document.getElementById('docsUploadPanel');
+    if (!el) return;
+    var filterSel = document.getElementById('artFilterApp');
+    var appId = (filterSel && filterSel.value) ||
+        (typeof state !== 'undefined' && (state.selectedApp || state.conveyorAppId)) || '';
+    var apps = typeof getAllApplications === 'function' ? getAllApplications() : [];
+    if (typeof visibleCabinetApplications === 'function') {
+        apps = visibleCabinetApplications(apps);
+    }
+    if (!appId) {
+        var name = typeof getClientDisplayName === 'function' ? getClientDisplayName() : '';
+        var first = apps.find(function(a) { return a && a.client === name; }) || apps[0];
+        appId = first && first.id ? first.id : '';
+    }
+    var app = apps.find(function(a) { return a && a.id === appId; });
+    if (!app) {
+        el.innerHTML = '<div class="docs-upload-card"><p class="docs-upload-desc">Выберите заявку, чтобы загрузить документы.</p></div>';
+        bindClientDocsUploadPanel(el);
+        return;
+    }
+    var done = { uploaded: true, auto_received: true, ext_received: true, received: true };
+    var dus = typeof getRequiredDU === 'function' ? getRequiredDU(app, true) : [];
+    var pendingDu = dus.filter(function(d) { return d && !done[d.status] && d.source !== 'esia'; });
+    var missingDocs = (app.documents || []).filter(function(d) { return d && d.status === 'missing'; });
+    var rows = [];
+    pendingDu.forEach(function(d) {
+        rows.push({ name: d.name, duId: d.id });
+    });
+    missingDocs.forEach(function(d) {
+        var already = rows.some(function(r) {
+            if (r.name === d.name) return true;
+            if (typeof isClientEgrnFile === 'function' && isClientEgrnFile(d.name) && isClientEgrnFile(r.name)) return true;
+            if (typeof isClientIncomeFile === 'function' && isClientIncomeFile(d.name) && isClientIncomeFile(r.name)) return true;
+            return false;
+        });
+        if (!already) rows.push({ name: d.name, duId: '' });
+    });
+    var h = '<div class="docs-upload-card">';
+    h += '<h3 class="docs-upload-title"><i class="fas fa-cloud-upload-alt"></i> Загрузить документы</h3>';
+    h += '<p class="docs-upload-desc">Приложите файлы к заявке №' + String(app.id).replace(/</g, '') +
+        '. Принятый пакет условий лежит в списке ниже — его не нужно загружать повторно.</p>';
+    h += '<div class="file-upload-area" data-action="upload-any-doc" data-app-id="' + String(app.id).replace(/"/g, '&quot;') + '">';
+    h += '<i class="fas fa-cloud-upload-alt"></i>';
+    h += '<div class="upload-text">Нажмите или перетащите файл</div>';
+    h += '<div class="upload-hint">PDF, JPG или PNG до 10 МБ</div></div>';
+    if (rows.length) {
+        h += '<div class="docs-need-list">';
+        rows.forEach(function(r) {
+            h += '<div class="docs-need-row"><span>' + String(r.name).replace(/</g, '') + '</span>';
+            h += '<button type="button" class="action-btn" data-action="upload-doc" data-app-id="' +
+                String(app.id).replace(/"/g, '&quot;') + '" data-doc-name="' + String(r.name).replace(/"/g, '&quot;') +
+                '" data-du-id="' + String(r.duId || '').replace(/"/g, '&quot;') + '">Загрузить</button></div>';
+        });
+        h += '</div>';
+    }
+    h += '</div>';
+    el.innerHTML = h;
+    bindClientDocsUploadPanel(el);
+}
+
 function refreshDocumentsViews(opts) {
     opts = opts || {};
     if (document.getElementById('documentsList')) {
         fillArtifactAppFilter('artFilterApp', 'client', opts);
+        renderClientDocsUploadPanel();
         renderDocumentsSection('client', { mountId: 'documentsList' });
     }
     if (document.getElementById('mDocumentsList')) {
@@ -1160,6 +1269,7 @@ if (typeof window !== 'undefined') {
     window.openArtifactByKind = openArtifactByKind;
     window.renderDocumentsSection = renderDocumentsSection;
     window.refreshDocumentsViews = refreshDocumentsViews;
+    window.renderClientDocsUploadPanel = renderClientDocsUploadPanel;
     window.recordConveyorConsent = recordConveyorConsent;
     window.ingestDocumentMeta = ingestDocumentMeta;
     window.renderCpCoverageClientHTML = renderCpCoverageClientHTML;

@@ -75,7 +75,7 @@ function loadSharedContext() {
   const documentEls = {};
   const needed = [
     'view-applications', 'view-dashboard', 'view-conveyor', 'view-choice',
-    'view-result', 'view-loading', 'view-manual-form', 'view-documents', 'documentsList', 'pageTitle', 'pageSubtitle',
+    'view-result', 'view-loading', 'view-manual-form', 'view-documents', 'documentsList', 'docsUploadPanel', 'pageTitle', 'pageSubtitle',
     'packageSelectionBlock', 'offerAcceptedBlock', 'acceptedPackageSummary',
     'ocenkaPreview', 'ocenkaPreviewText', 'btnEsia', 'btnManual', 'collateralSelect',
     'applicationDetail', 'applicationsList',     'mAppCards', 'mAppDetail', 'mClientDetail', 'mArtFilterApp', 'mDocumentsList',
@@ -354,6 +354,13 @@ console.log('\n=== 4. Client applications HTML / CTA ===');
     'client DU section is rendered from the live application');
 
   const beforeDu = ctx.renderClientDUSection(ctx.getAllApplications().find(a => a.id === '4421-И'));
+  assert(/client-du-dropzone/.test(beforeDu), 'pending DU section has a file dropzone');
+  ctx.renderClientDocsUploadPanel();
+  assert(/Загрузить документы/.test(ctx._els.docsUploadPanel.innerHTML),
+    'documents tab shows an upload zone');
+  assert(/Справка о доходе или 2-НДФЛ/.test(ctx._els.docsUploadPanel.innerHTML),
+    'documents upload zone lists 2-НДФЛ');
+
   ctx.ingestDocumentMeta('4421-И', 'Справка о доходе или 2-НДФЛ', { name: 'Справка_о_доходе_или_2-НДФЛ.pdf', size: 18432 });
   const afterApp = ctx.getAllApplications().find(a => a.id === '4421-И');
   const afterDu = ctx.renderClientDUSection(afterApp);
@@ -364,6 +371,21 @@ console.log('\n=== 4. Client applications HTML / CTA ===');
   assert(needAfter <= 1, 'required-upload count is not stuck at 2 after a successful upload');
   assert(/Выписка из ЕГРН/.test(afterDu) && /client-du-item--pending/.test(afterDu),
     'EGRN stays in the list as still pending');
+
+  const featCode = fs.readFileSync(path.join(root, 'js/features-lab.js'), 'utf8');
+  vm.runInNewContext(featCode, ctx, { filename: 'js/features-lab.js' });
+  ctx.showDemoToast = function() {};
+  ctx.uploadMissingDocDemo('Справка о доходе или 2-НДФЛ', '4421-И');
+  const afterCancel = ctx.renderClientDUSection(ctx.getAllApplications().find(a => a.id === '4421-И'));
+  assert(/Загружено/.test(afterCancel), 'canceling the file picker does not clear an already uploaded card');
+  ctx.uploadMissingDocDemo('Выписка из ЕГРН с документами-основаниями', '4421-И', {
+    file: { name: 'egrn.pdf', size: 2048 },
+    duId: 'du04'
+  });
+  const bothDu = ctx.renderClientDUSection(ctx.getAllApplications().find(a => a.id === '4421-И'));
+  assert(/Загружено/.test(bothDu) && !/Требуется загрузить/.test(bothDu),
+    'file-picker upload of EGRN clears the remaining required count');
+  assert(!/client-du-dropzone/.test(bothDu), 'dropzone hides when every required file is uploaded');
 }
 
 console.log('\n=== 5. Manager app selection ===');
@@ -546,6 +568,12 @@ console.log('\n=== 7. HTML script order / critical refs ===');
   const readme = fs.readFileSync(path.join(root, 'README.md'), 'utf8');
   assert(/\/manager\/\?autologin=1/.test(readme),
     'README points manager demo at autologin, not wipe');
+  assert(/id="docsUploadPanel"/.test(index) && /id="bgfLabFileInput"/.test(index),
+    'client documents page has an upload panel and a file input');
+  assert(/pickLabFile/.test(clientFeatSrc) && /bgfLabFileInput/.test(clientFeatSrc),
+    'Загрузить opens a file picker instead of silently accepting a stub');
+  assert(/startClientDocUpload/.test(index),
+    'dashboard 2-НДФЛ shortcut goes to document upload');
   assert(/CDN GitHub Pages/.test(demoMd),
     'DEMO.md notes incognito does not bypass Pages CDN');
   const extrasCss = fs.readFileSync(path.join(root, 'css/styles.css'), 'utf8');

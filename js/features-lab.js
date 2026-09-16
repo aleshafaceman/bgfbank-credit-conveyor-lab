@@ -82,45 +82,127 @@ function renderAppTimelineHTML(app) {
     return h;
 }
 
-function uploadMissingDocDemo(docName, appId) {
+function pickLabFile(onPicked) {
+    if (typeof onPicked !== 'function') return;
+    var doc = typeof document !== 'undefined' ? document : null;
+    if (!doc) {
+        onPicked(null);
+        return;
+    }
+    var input = doc.getElementById('bgfLabFileInput');
+    if (!input && typeof doc.createElement === 'function' && doc.body) {
+        input = doc.createElement('input');
+        input.type = 'file';
+        input.id = 'bgfLabFileInput';
+        input.accept = '.pdf,.jpg,.jpeg,.png,.webp';
+        input.setAttribute('aria-label', 'Выберите файл документа');
+        input.style.position = 'absolute';
+        input.style.width = '1px';
+        input.style.height = '1px';
+        input.style.opacity = '0';
+        doc.body.appendChild(input);
+    }
+    if (!input || typeof input.click !== 'function') {
+        onPicked(null);
+        return;
+    }
+    input.value = '';
+    input.onchange = function() {
+        var file = (input.files && input.files[0]) || null;
+        try { input.value = ''; } catch (eVal) {}
+        onPicked(file);
+    };
+    try {
+        input.click();
+    } catch (eClick) {
+        onPicked(null);
+    }
+}
+
+function resolveUploadApp(appId) {
     if (typeof loadSharedData === 'function') loadSharedData();
-    var id = appId || (typeof state !== 'undefined' && state.selectedApp) || '4421-И';
+    var id = appId || (typeof state !== 'undefined' && (state.selectedApp || state.conveyorAppId)) || '';
+    var apps = typeof getAllApplications === 'function' ? getAllApplications() : [];
+    if (!id) {
+        var sel = typeof document !== 'undefined' ? document.getElementById('artFilterApp') : null;
+        if (sel && sel.value) id = sel.value;
+    }
+    if (!id && apps.length) id = apps[0].id;
+    return { id: id || '4421-И', app: apps.find(function(a) { return a && a.id === (id || '4421-И'); }) || null };
+}
+
+function uploadMissingDocDemo(docName, appId, opts) {
+    opts = opts || {};
+    var resolved = resolveUploadApp(appId);
+    var id = resolved.id;
+    var preset = opts.file || null;
+    var duId = opts.duId || '';
 
     function finish(file) {
+        var app = resolveUploadApp(id).app;
+        var name = docName;
+        if (!name && typeof inferUploadedDocName === 'function') name = inferUploadedDocName(file, app);
+        if (!name) name = (file && file.name) || 'Документ';
         if (typeof ingestDocumentMeta === 'function') {
-            ingestDocumentMeta(id, docName, file || null);
+            ingestDocumentMeta(id, name, file || null, duId ? { duId: duId } : undefined);
         } else {
             var apps = typeof getAllApplications === 'function' ? getAllApplications() : [];
-            var app = apps.find(function(a) { return a.id === id; });
-            if (!app) return;
-            if (!Array.isArray(app.documents)) app.documents = [];
-            var doc = app.documents.find(function(d) { return d.name === docName; });
+            var found = apps.find(function(a) { return a.id === id; });
+            if (!found) return;
+            if (!Array.isArray(found.documents)) found.documents = [];
+            var doc = found.documents.find(function(d) { return d.name === name; });
             if (doc) {
                 doc.status = 'uploaded';
                 doc.statusLabel = 'Загружен';
             } else {
-                app.documents.push({ name: docName, status: 'uploaded', statusLabel: 'Загружен' });
+                found.documents.push({ name: name, status: 'uploaded', statusLabel: 'Загружен' });
             }
-            if (typeof updateApplication === 'function') updateApplication(id, { documents: app.documents });
+            if (typeof updateApplication === 'function') updateApplication(id, { documents: found.documents });
         }
         var apps2 = typeof getAllApplications === 'function' ? getAllApplications() : [];
         var app2 = apps2.find(function(a) { return a.id === id; });
         if (app2 && typeof updateApplicationStatus === 'function') {
-            updateApplicationStatus(id, app2.status, app2.statusLabel || app2.status, 'Клиент загрузил документ: «' + docName + '»');
+            updateApplicationStatus(id, app2.status, app2.statusLabel || app2.status, 'Клиент загрузил документ: «' + name + '»');
         }
         if (typeof sendChatMessage === 'function') {
-            var name = typeof getClientDisplayName === 'function' ? getClientDisplayName() : (app2 && app2.client);
-            sendChatMessage('client', name, 'Загрузил документ: «' + docName + '».', name);
+            var chatName = typeof getClientDisplayName === 'function' ? getClientDisplayName() : (app2 && app2.client);
+            sendChatMessage('client', chatName, 'Загрузил документ: «' + name + '».', chatName);
         }
         if (typeof refreshClientApplicationsUI === 'function') refreshClientApplicationsUI(id);
-        var fname = (file && file.name) || (docName.replace(/\s+/g, '_') + '.pdf');
+        if (typeof refreshDocumentsViews === 'function') refreshDocumentsViews();
+        var fname = (file && file.name) || (String(name).replace(/\s+/g, '_') + '.pdf');
         var fsize = (file && file.size) || 18432;
         if (typeof showDemoToast === 'function') {
-            showDemoToast('Документ «' + docName + '» принят · ' + fname + ' · ' + fsize + ' Б', { icon: 'fa-file-upload', duration: 2500 });
+            showDemoToast('Документ «' + name + '» принят · ' + fname + ' · ' + fsize + ' Б', { icon: 'fa-file-upload', duration: 2500 });
         }
     }
 
-    finish(null);
+    if (preset) {
+        finish(preset);
+        return;
+    }
+    pickLabFile(function(file) {
+        if (!file) return;
+        finish(file);
+    });
+}
+
+function startClientDocUpload(docName) {
+    if (typeof navigateTo === 'function') navigateTo('documents');
+    setTimeout(function() {
+        uploadMissingDocDemo(docName);
+    }, 50);
+}
+
+function bindProfileIncomeUpload() {
+    var incomeInput = typeof document !== 'undefined' ? document.getElementById('file-upload-5') : null;
+    if (!incomeInput || incomeInput._bgfBound) return;
+    incomeInput._bgfBound = true;
+    incomeInput.addEventListener('change', function() {
+        var file = incomeInput.files && incomeInput.files[0];
+        if (!file) return;
+        uploadMissingDocDemo('Справка о доходе или 2-НДФЛ', null, { file: file, duId: 'du00' });
+    });
 }
 
 function printOfferPackage() {
@@ -206,6 +288,7 @@ function maybeShowPresenterChecklist(force) {
 document.addEventListener('DOMContentLoaded', function() {
     if (!document.getElementById('appShell')) return;
     runClientDemoBoot();
+    bindProfileIncomeUpload();
     setTimeout(function() {
         var auth = document.getElementById('authFullscreen');
         if (auth && auth.classList.contains('hidden')) maybeShowOnboarding();
