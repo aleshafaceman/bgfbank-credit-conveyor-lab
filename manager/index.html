@@ -214,6 +214,17 @@
                 else if (act === 'open-artifact' && typeof openArtifact === 'function') openArtifact(actionBtn.getAttribute('data-art-id'));
                 else if (act === 'open-artifact-kind' && typeof openArtifactByKind === 'function') {
                     openArtifactByKind(appId || actionBtn.getAttribute('data-app-id'), actionBtn.getAttribute('data-art-kind'));
+                } else if (act === 'changePackage' && typeof applyManagerEligiblePackage === 'function') {
+                    var wrap = actionBtn.parentElement;
+                    var sel = wrap && wrap.querySelector ? wrap.querySelector('[data-eligible-package]') : null;
+                    var pkgId = sel ? sel.value : actionBtn.getAttribute('data-package-id');
+                    var next = applyManagerEligiblePackage(appId, pkgId);
+                    if (!next) {
+                        if (typeof managerNotify === 'function') managerNotify('Пакет недоступен: только из снимка eligible');
+                    } else {
+                        if (typeof managerNotify === 'function') managerNotify('Пакет сменён: ' + (next.selectedPackageLabel || pkgId));
+                        if (typeof renderApplicationDetail === 'function') renderApplicationDetail(appId);
+                    }
                 } else if (act === 'goto-documents' && typeof switchManagerTab === 'function') switchManagerTab('documents');
                 else if (act && appId && typeof managerAction === 'function') managerAction(appId, act);
             } catch (err) { console.error('document data-m-action', err); }

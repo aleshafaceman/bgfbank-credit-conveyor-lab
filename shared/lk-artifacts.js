@@ -30,7 +30,8 @@ var ARTIFACT_KIND_LABEL = {
     review_started: 'Принятие в работу',
     du_request: 'Запрос ДУ',
     kod_inventory: 'Проект комплекта КОД',
-    bki_request: 'Запрос кредитного отчёта'
+    bki_request: 'Запрос кредитного отчёта',
+    deal_passport: 'Паспорт сделки'
 };
 
 var LAB_KOD_TITLES = [
@@ -40,8 +41,18 @@ var LAB_KOD_TITLES = [
     'Заявление-анкета',
     'СОПД полное',
     'Договор страхования',
-    'Заявление на выпуск УКЭП'
+    'Закладная',
+    'Заявление на выпуск УКЭП',
+    'Расчёт предельного ПСК'
 ];
+
+var DEAL_PASSPORT_APP_KEYS = [
+    'id', 'client', 'product', 'amount', 'term', 'rate', 'payment',
+    'selectedPackageId', 'selectedPackageLabel', 'packageInsurance',
+    'collateralAddress', 'collateralValue', 'cadastral_number'
+];
+
+var LAB_ELIGIBLE_PACKAGE_IDS = ['PKG_RECOMMENDED', 'PKG_SPEC_4_0', 'PKG_NO_INSURANCE'];
 
 var _artifactStore = null;
 
@@ -129,6 +140,147 @@ function artMoney(n) {
     return Number(n).toLocaleString('ru-RU') + ' ₽';
 }
 
+function kodCanonItems(status) {
+    var st = status || 'in_kit';
+    return LAB_KOD_TITLES.map(function(title) {
+        return { title: title, status: st };
+    });
+}
+
+function kodStatusLabel(st) {
+    return st === 'in_kit' ? 'в комплекте' : 'подготовлен';
+}
+
+function collectDealPassportFields(app) {
+    app = app || {};
+    var lk = app.lk || {};
+    var b = (lk.borrowers && lk.borrowers[0]) || {};
+    var cp = (lk.extra_data && lk.extra_data.cp) || (app.extra_data && app.extra_data.cp) || {};
+    var product = lk.product || {};
+    var fields = {};
+    DEAL_PASSPORT_APP_KEYS.forEach(function(k) {
+        if (app[k] != null && app[k] !== '') fields[k] = app[k];
+    });
+    var lkSlice = {};
+    var borrowerSlice = {};
+    ['last_name', 'first_name', 'second_name', 'marital_status'].forEach(function(k) {
+        if (b[k] != null && b[k] !== '') borrowerSlice[k] = b[k];
+    });
+    if (Object.keys(borrowerSlice).length) lkSlice.borrowers = [borrowerSlice];
+    if (cp.scopes && cp.scopes.inn && cp.scopes.inn.value) {
+        lkSlice.extra_data = { cp: { scopes: { inn: { value: cp.scopes.inn.value } } } };
+    }
+    var productSlice = {};
+    if (product.product_category) productSlice.product_category = product.product_category;
+    if (product.building_property) productSlice.building_property = product.building_property;
+    if (product.appraisal_building_price != null) productSlice.appraisal_building_price = product.appraisal_building_price;
+    if (Object.keys(productSlice).length) lkSlice.product = productSlice;
+    if (Object.keys(lkSlice).length) fields.lk = lkSlice;
+    return fields;
+}
+
+function eligiblePackageSnapshot(app) {
+    var snap = (app && Array.isArray(app.eligiblePackages)) ? app.eligiblePackages : [];
+    return snap.filter(function(p) {
+        return p && LAB_ELIGIBLE_PACKAGE_IDS.indexOf(p.id) !== -1;
+    });
+}
+
+function applyManagerEligiblePackage(appId, packageId) {
+    var app = findAppById(appId);
+    if (!app || !packageId) return null;
+    var snap = eligiblePackageSnapshot(app);
+    var pkg = null;
+    for (var i = 0; i < snap.length; i++) {
+        if (snap[i].id === packageId) { pkg = snap[i]; break; }
+    }
+    if (!pkg) return null;
+    var catalog = (typeof getPackageCatalogInfo === 'function') ? getPackageCatalogInfo(pkg.id) : null;
+    var patch = {
+        selectedPackageId: pkg.id,
+        selectedPackageLabel: (catalog && catalog.title) || pkg.title,
+        rate: pkg.rate,
+        payment: pkg.payment,
+        packageInsurance: pkg.insurance || (catalog && catalog.insurance) || '',
+        packageCommission: pkg.commission || (catalog && catalog.commission) || ''
+    };
+    if (pkg.limit != null) patch.amount = pkg.limit;
+    if (typeof updateApplication === 'function') updateApplication(appId, patch);
+    recordArtifactForApp(appId, 'package_compare', {
+        actor: 'manager',
+        fn: 'applyManagerEligiblePackage',
+        payload: { packages: snap, selectedPackageId: pkg.id }
+    });
+    recordRateBreakdown(appId);
+    return findAppById(appId);
+}
+
+function renderDealPassportCardHTML(app, fields) {
+    app = app || {};
+    fields = fields || collectDealPassportFields(app);
+    var lk = fields.lk || app.lk || {};
+    var b = (lk.borrowers && lk.borrowers[0]) || {};
+    var cpInn = lk.extra_data && lk.extra_data.cp && lk.extra_data.cp.scopes && lk.extra_data.cp.scopes.inn
+        ? lk.extra_data.cp.scopes.inn.value : null;
+    var product = lk.product || {};
+    var fio = [b.last_name, b.first_name, b.second_name].filter(Boolean).join(' ') || fields.client || app.client || '—';
+    var rows = '';
+    function row(k, v) {
+        rows += '<div class="row"><span>' + artEscape(k) + '</span><b>' + v + '</b></div>';
+    }
+    row('Заёмщик', artEscape(fio));
+    row('Продукт / цель', artEscape(fields.product || app.product || 'Кредит под залог недвижимости'));
+    if (product.product_category || product.building_property) {
+        row('Категория / объект', artEscape([product.product_category, product.building_property].filter(Boolean).join(' / ')));
+    }
+    row('Сумма', artMoney(fields.amount != null ? fields.amount : app.amount));
+    row('Срок', (fields.term != null ? fields.term : app.term) != null ? (fields.term != null ? fields.term : app.term) + ' лет' : '—');
+    row('Ставка / пакет', artEscape(
+        ((fields.rate != null ? fields.rate : app.rate) != null ? Number(fields.rate != null ? fields.rate : app.rate).toFixed(1) + '%' : '—') +
+        ' · ' + (fields.selectedPackageLabel || app.selectedPackageLabel || fields.selectedPackageId || app.selectedPackageId || '—')
+    ));
+    row('Адрес залога', artEscape(fields.collateralAddress || app.collateralAddress || '—'));
+    var val = fields.collateralValue != null ? fields.collateralValue : app.collateralValue;
+    if (product.appraisal_building_price != null && val == null) val = product.appraisal_building_price;
+    row('Оценка', artMoney(val));
+    if (cpInn) row('ИНН', artEscape(cpInn));
+    if (b.marital_status) row('Семейное положение', artEscape(b.marital_status));
+    return '<div class="box">' + rows + '</div>' +
+        '<p class="muted">Карточка ОЗС из полей заявки. Не календарь АРМ, без ЦФТ / SmartDeal / Loginom.</p>';
+}
+
+function renderKodInventoryListHTML(art) {
+    var items = (art && art.payload && art.payload.items) || null;
+    var titles = (art && art.payload && art.payload.titles) || LAB_KOD_TITLES;
+    if (!items || !items.length) {
+        items = titles.map(function(t) { return { title: t, status: 'in_kit' }; });
+    }
+    return '<div class="box">' + items.map(function(it) {
+        var title = typeof it === 'string' ? it : it.title;
+        var st = typeof it === 'string' ? 'in_kit' : (it.status || 'prepared');
+        return '<div class="row"><span>' + artEscape(title) + '</span><b>' + artEscape(kodStatusLabel(st)) + '</b></div>';
+    }).join('') + '</div>' +
+        '<p class="muted">Опись кодов электронной сделки (канон deal-ops + СПР). Не стол ОЗС, не SmartDeal, не сырые файлы.</p>';
+}
+
+function renderSharedPassportKodHTML(app, art, activeKind) {
+    var showPassport = activeKind === 'deal_passport';
+    var passportOn = showPassport;
+    var passport = renderDealPassportCardHTML(app, art && art.kind === 'deal_passport' ? (art.payload && art.payload.fields) : null);
+    var kodArt = (art && art.kind === 'kod_inventory') ? art : getArtifact(artStableId(app && app.id, 'kod_inventory'));
+    var kod = renderKodInventoryListHTML(kodArt || { payload: { titles: LAB_KOD_TITLES.slice(), items: kodCanonItems('prepared') } });
+    var tabs = '';
+    if (showPassport) {
+        tabs = '<div class="tabs">' +
+            '<button type="button" class="on" onclick="var p=document.getElementById(\'tab-passport\');var k=document.getElementById(\'tab-kod\');p.style.display=\'block\';k.style.display=\'none\';this.className=\'on\';this.nextElementSibling.className=\'\';">Паспорт</button>' +
+            '<button type="button" onclick="var p=document.getElementById(\'tab-passport\');var k=document.getElementById(\'tab-kod\');p.style.display=\'none\';k.style.display=\'block\';this.className=\'on\';this.previousElementSibling.className=\'\';">КОД</button>' +
+            '</div>';
+    }
+    return tabs +
+        '<div id="tab-passport" style="display:' + (showPassport ? 'block' : 'none') + '">' + passport + '</div>' +
+        '<div id="tab-kod" style="display:' + (showPassport ? 'none' : 'block') + '">' + kod + '</div>';
+}
+
 function artSheet(title, bodyHtml) {
     return '<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8"><title>' + artEscape(title) + '</title>' +
         '<style>body{font-family:Roboto,Arial,sans-serif;padding:40px;color:#08356e;max-width:720px;margin:0 auto}' +
@@ -137,6 +289,9 @@ function artSheet(title, bodyHtml) {
         '.row{display:flex;justify-content:space-between;gap:16px;padding:8px 0;border-bottom:1px solid #eef2f7}' +
         '.muted{color:#64748b;font-size:13px}.chip{display:inline-block;margin:4px 6px 0 0;padding:4px 8px;border-radius:8px;background:#eef5fb;font-size:12px}' +
         '.ok{color:#047857}.need{color:#b45309}.skip{color:#64748b}' +
+        '.tabs{display:flex;gap:8px;margin:16px 0}' +
+        '.tabs button{margin-top:0;background:#eef5fb;color:#0B4697}' +
+        '.tabs button.on{background:#0B4697;color:#fff}' +
         'button{margin-top:16px;padding:10px 16px;border:0;border-radius:10px;background:#0B4697;color:#fff;cursor:pointer}' +
         '</style></head><body>' + bodyHtml +
         '<p class="muted">Лабораторный макет БЖФ. Не бланк ELMA. Байты файла не хранятся.</p>' +
@@ -338,11 +493,8 @@ function artifactPreviewHTML(art, app) {
         return artSheet(title, head + '<div class="box">' + rows + '</div>' +
             '<p class="muted">Persist в lk.additional_conditions. Не RAM duStorage.</p>');
     }
-    if (kind === 'kod_inventory') {
-        var titles = (art.payload && art.payload.titles) || LAB_KOD_TITLES;
-        var lis = titles.map(function(t) { return '<div class="row"><span>' + artEscape(t) + '</span><b>просмотр</b></div>'; }).join('');
-        return artSheet(title, head + '<div class="box">' + lis + '</div>' +
-            '<p class="muted">Опись кодов электронной сделки. Не стол ОЗС и не сырые файлы КОД.</p>');
+    if (kind === 'kod_inventory' || kind === 'deal_passport') {
+        return artSheet(title, head + renderSharedPassportKodHTML(app, art, kind));
     }
     if (kind === 'bki_request') {
         row('Канал', 'Loginom / CREDIT Registry');
@@ -584,11 +736,33 @@ function recordDuRequest(appId, du) {
     });
 }
 
-function recordKodInventory(appId) {
+function recordKodInventory(appId, opts) {
+    opts = opts || {};
+    var status = opts.status || 'in_kit';
     return recordArtifactForApp(appId, 'kod_inventory', {
+        actor: opts.actor || 'manager',
+        fn: opts.fn || 'sendContract',
+        payload: { titles: LAB_KOD_TITLES.slice(), items: kodCanonItems(status) }
+    });
+}
+
+function openClientKodKit(appId) {
+    var id = appId || (typeof state !== 'undefined' && (state.selectedApp || state.conveyorAppId)) || '4421-И';
+    if (!getArtifact(artStableId(id, 'kod_inventory'))) {
+        recordKodInventory(id, { actor: 'client', fn: 'openClientKodKit', status: 'prepared' });
+    }
+    openArtifact(artStableId(id, 'kod_inventory'));
+}
+
+function recordDealPassport(appId) {
+    var app = findAppById(appId);
+    if (!app || app.status !== 'approved') return null;
+    var fields = collectDealPassportFields(app);
+    return recordArtifactForApp(appId, 'deal_passport', {
         actor: 'manager',
-        fn: 'sendContract',
-        payload: { titles: LAB_KOD_TITLES.slice() }
+        fn: 'recordDealPassport',
+        payload: { fields: fields },
+        payloadRef: { appId: appId, slice: 'deal_passport' }
     });
 }
 
@@ -678,7 +852,7 @@ function clientVisibleArtifacts(list) {
     return (list || []).filter(function(a) {
         if (!a) return false;
         if (typeof isLkLabApplication === 'function' && isLkLabApplication({ id: a.appId })) return false;
-        if (a.kind === 'review_started') return false;
+        if (a.kind === 'review_started' || a.kind === 'deal_passport') return false;
         return true;
     });
 }
@@ -861,8 +1035,16 @@ if (typeof window !== 'undefined') {
     window.recordReviewStarted = recordReviewStarted;
     window.recordDuRequest = recordDuRequest;
     window.recordKodInventory = recordKodInventory;
+    window.openClientKodKit = openClientKodKit;
+    window.recordDealPassport = recordDealPassport;
     window.recordBkiRequest = recordBkiRequest;
     window.persistPackageModifiers = persistPackageModifiers;
+    window.applyManagerEligiblePackage = applyManagerEligiblePackage;
+    window.collectDealPassportFields = collectDealPassportFields;
+    window.kodCanonItems = kodCanonItems;
     window.recordExpressEvalFromCollateral = recordExpressEvalFromCollateral;
     window.LAB_KOD_TITLES = LAB_KOD_TITLES;
+    window.DEAL_PASSPORT_APP_KEYS = DEAL_PASSPORT_APP_KEYS;
+    window.LAB_ELIGIBLE_PACKAGE_IDS = LAB_ELIGIBLE_PACKAGE_IDS;
+    window.ARTIFACT_KIND_LABEL = ARTIFACT_KIND_LABEL;
 }

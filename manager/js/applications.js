@@ -272,6 +272,18 @@ function bindManagerDetailActions(root) {
                 openArtifact(btn.getAttribute('data-art-id'));
             } else if (act === 'open-artifact-kind' && typeof openArtifactByKind === 'function') {
                 openArtifactByKind(appId, btn.getAttribute('data-art-kind'));
+            } else if (act === 'changePackage' && typeof applyManagerEligiblePackage === 'function') {
+                var sel = (btn.parentElement && btn.parentElement.querySelector)
+                    ? btn.parentElement.querySelector('[data-eligible-package]')
+                    : null;
+                var pkgId = sel ? sel.value : btn.getAttribute('data-package-id');
+                var next = applyManagerEligiblePackage(appId, pkgId);
+                if (!next) {
+                    if (typeof managerNotify === 'function') managerNotify('Пакет недоступен: только из снимка eligible');
+                } else {
+                    if (typeof managerNotify === 'function') managerNotify('Пакет сменён: ' + (next.selectedPackageLabel || pkgId));
+                    if (typeof renderApplicationDetail === 'function') renderApplicationDetail(appId);
+                }
             } else if (act === 'goto-documents' && typeof switchManagerTab === 'function') {
                 switchManagerTab('documents');
             } else if (act && appId && typeof managerAction === 'function') {
@@ -333,12 +345,35 @@ function renderManagerRateBreakdownHTML(app) {
     h += '</p>';
     if (catalog) {
         h += '<p style="font-size:12px;color:#7e9bb6;">' + catalog.title + (catalog.insurance ? ' · ' + catalog.insurance : '') + '</p>';
+    } else if (app.selectedPackageLabel) {
+        h += '<p style="font-size:12px;color:#7e9bb6;">' + app.selectedPackageLabel + '</p>';
+    }
+    var snap = Array.isArray(app.eligiblePackages) ? app.eligiblePackages.filter(function(p) {
+        return p && (typeof LAB_ELIGIBLE_PACKAGE_IDS === 'undefined' || LAB_ELIGIBLE_PACKAGE_IDS.indexOf(p.id) !== -1);
+    }) : [];
+    if (snap.length) {
+        h += '<div class="m-pkg-change"><label>Смена пакета из eligible</label>';
+        h += '<select data-eligible-package="' + String(app.id).replace(/"/g, '&quot;') + '">';
+        snap.forEach(function(p) {
+            var sel = p.id === app.selectedPackageId ? ' selected' : '';
+            h += '<option value="' + artEscapePkg(p.id) + '"' + sel + '>' + artEscapePkg(p.title || p.id) +
+                (p.rate != null ? ' · ' + Number(p.rate).toFixed(1) + '%' : '') + '</option>';
+        });
+        h += '</select>';
+        h += '<button type="button" class="m-btn m-btn-outline" data-m-action="changePackage" data-app-id="' +
+            String(app.id).replace(/"/g, '&quot;') + '">Применить пакет</button>';
+        h += '<p class="m-pkg-change-hint">Только id из снимка C10. Solver не вызывается.</p></div>';
     }
     if (typeof openArtifactByKind === 'function') {
         h += '<button type="button" class="m-btn m-btn-outline" style="margin-top:8px;" data-m-action="open-artifact-kind" data-art-kind="rate_breakdown" data-app-id="' + String(app.id).replace(/"/g, '&quot;') + '">Протокол</button>';
     }
     h += '</div>';
     return h;
+}
+
+function artEscapePkg(s) {
+    return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 function missingOriginals(app) {
@@ -404,6 +439,7 @@ function getActionButtons(app) {
                     mActionButton(id, 'reject', 'm-btn-danger', 'fa-times', 'Клиент не подходит');
         case 'approved':
             return mActionButton(id, 'sendContract', 'm-btn-outline', 'fa-signature', 'Отправить договор') +
+                mActionButton(id, 'recordDealPassport', 'm-btn-outline', 'fa-id-card', 'Паспорт сделки') +
                 (typeof openArtifactByKind === 'function'
                     ? '<button type="button" class="m-btn m-btn-outline" data-m-action="open-artifact-kind" data-art-kind="decision_protocol" data-app-id="' + id + '"><i class="fas fa-file-alt"></i> Протокол</button>' +
                       '<button type="button" class="m-btn m-btn-outline" data-m-action="open-artifact-kind" data-art-kind="bank_decision" data-app-id="' + id + '"><i class="fas fa-stamp"></i> Решение банка</button>' +

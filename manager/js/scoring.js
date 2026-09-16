@@ -338,6 +338,9 @@ function applyManagerScoringDecision(outcome) {
         if (typeof recordOriginalsInventory === 'function') {
             try { recordOriginalsInventory(appId); } catch (eInv) {}
         }
+        if (typeof recordDealPassport === 'function') {
+            try { recordDealPassport(appId); } catch (ePass) {}
+        }
         if (typeof sendChatMessage === 'function') {
             sendChatMessage('manager', app.client, 'Поздравляю! По заявке №' + appId + ' полный скоринг завершён — кредит одобрен (ставка ' + rate + '%, платёж ~' + payment.toLocaleString('ru-RU') + ' ₽).', app.client);
         }

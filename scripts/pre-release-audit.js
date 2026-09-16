@@ -214,7 +214,8 @@ console.log('\n=== 1. Syntax check ===');
   'manager/js/client-card.js',
   'manager/js/scoring.js',
   'manager/js/actions.js',
-  'manager/js/chat.js'
+  'manager/js/chat.js',
+  'manager/js/reports.js'
 ].forEach(rel => {
   try {
     require('child_process').execFileSync(process.execPath, ['--check', path.join(root, rel)], { stdio: 'pipe' });
@@ -787,6 +788,81 @@ console.log('\n=== 9. L3 artifacts registry ===');
   ctx.persistPackageModifiers('4421-И', { ltvBoost: true, coBorrower: false, fixedRate: false });
   const withMods = ctx.getAllApplications().find(a => a.id === '4421-И');
   assert(withMods.packageModifiers && withMods.packageModifiers.ltvBoost, 'C12 packageModifiers persist on app');
+}
+
+console.log('\n=== 10. L3 P2 passport / КОД / package ===');
+{
+  const ctx = loadSharedContext();
+  ctx.loadSharedData();
+  const beforePass = ctx.recordDealPassport('4421-И');
+  assert(!beforePass, 'M13 does not record deal_passport before approved');
+  ctx.updateApplicationStatus('4421-И', 'approved', 'Одобрено', 'Клиент одобрен · залог одобрен');
+  const pass = ctx.recordDealPassport('4421-И');
+  assert(pass && pass.kind === 'deal_passport', 'M13 deal_passport recorded after AND+APZ approved');
+  const fields = (pass.payload && pass.payload.fields) || {};
+  Object.keys(fields).forEach(function(k) {
+    assert(ctx.DEAL_PASSPORT_APP_KEYS.indexOf(k) !== -1 || k === 'lk',
+      'deal_passport field `' + k + '` is app/lk key');
+  });
+  if (fields.lk) {
+    const appLk = ctx.getAllApplications().find(a => a.id === '4421-И').lk || {};
+    Object.keys(fields.lk).forEach(function(k) {
+      assert(Object.prototype.hasOwnProperty.call(appLk, k) || k === 'borrowers' || k === 'extra_data' || k === 'product',
+        'deal_passport lk.' + k + ' exists on app.lk');
+    });
+  }
+  assert(!('dealDate' in fields) && !('calendar' in fields) && !('cft' in fields),
+    'deal_passport does not invent calendar/CFT fields');
+  const passHtml = ctx.artifactPreviewHTML(pass, ctx.getAllApplications().find(a => a.id === '4421-И'));
+  assert(/Паспорт/.test(passHtml) && /КОД/.test(passHtml), 'passport preview is shared screen with КОД tabs');
+  assert(/Не календарь АРМ/.test(passHtml) && /без ЦФТ/.test(passHtml),
+    'passport preview states it is a field card, not ARM/CFT');
+  const visPass = ctx.clientVisibleArtifacts(ctx.listArtifacts('4421-И'));
+  assert(!visPass.some(a => a.kind === 'deal_passport'), 'client does not see ОЗС deal_passport');
+
+  ctx.recordKodInventory('4421-И');
+  const kod = ctx.getArtifact(ctx.artStableId('4421-И', 'kod_inventory'));
+  const titles = ((kod.payload && kod.payload.titles) || []).join(' · ');
+  assert(/Кредитн/.test(titles) && /страх/i.test(titles) && /Закладная/.test(titles) &&
+    /ПСК/.test(titles) && /УКЭП/.test(titles), 'M14/C16 kit has SPR/deal-ops canon titles');
+  const extras = ['Профессиональное суждение', 'периодическое перечисление', 'XML', 'bytes'];
+  extras.forEach(function(x) {
+    assert(titles.indexOf(x) === -1, 'kod inventory does not invent `' + x + '`');
+  });
+  (kod.payload.titles || []).forEach(function(t) {
+    assert(ctx.LAB_KOD_TITLES.indexOf(t) !== -1, 'kod title stays in LAB_KOD_TITLES: ' + t);
+  });
+  const kodHtml = ctx.artifactPreviewHTML(kod, ctx.getAllApplications().find(a => a.id === '4421-И'));
+  assert(/в комплекте|подготовлен/.test(kodHtml) && /Кредитный договор/.test(kodHtml),
+    'kod preview lists titles with kit status');
+  assert(!/Паспорт<\/button>/.test(kodHtml), 'client-safe kod preview has no ОЗС passport tab');
+
+  ctx.persistEligiblePackagesSnapshot('4421-И', [
+    { id: 'PKG_RECOMMENDED', title: 'Рекомендуем', rate: 12.5, payment: 54000, ltv: 0.6, limit: 5000000, insurance: 'ККС' },
+    { id: 'PKG_SPEC_4_0', title: 'Снизить ставку', rate: 11.9, payment: 51000, ltv: 0.5, limit: 4250000, insurance: 'ККС', commission: '0,99%' },
+    { id: 'PKG_NO_INSURANCE', title: 'Без страхования жизни', rate: 17.5, payment: 72000, ltv: 0.6, limit: 5000000, insurance: 'Только залог' }
+  ]);
+  const okPkg = ctx.applyManagerEligiblePackage('4421-И', 'PKG_SPEC_4_0');
+  assert(okPkg && okPkg.selectedPackageId === 'PKG_SPEC_4_0', 'M5 can select eligible package from C10 snapshot');
+  const afterOk = ctx.getAllApplications().find(a => a.id === '4421-И');
+  assert(afterOk.rate === 11.9 && afterOk.amount === 4250000, 'M5 persists rate/amount from eligible snapshot');
+  const badPkg = ctx.applyManagerEligiblePackage('4421-И', 'PKG_TURBO_FAKE');
+  assert(!badPkg, 'M5 cannot select ineligible package');
+  assert(ctx.getAllApplications().find(a => a.id === '4421-И').selectedPackageId === 'PKG_SPEC_4_0',
+    'ineligible package does not mutate selectedPackageId');
+
+  vm.runInNewContext(fs.readFileSync(path.join(root, 'manager/js/applications.js'), 'utf8'), ctx, { filename: 'manager/js/applications.js' });
+  const app4421 = ctx.getAllApplications().find(a => a.id === '4421-И');
+  assert(typeof ctx.getRequiredDU === 'function' &&
+    !ctx.getRequiredDU(app4421, true).some(d => d.id === 'du14' || d.id === 'du06'),
+    '4421 still omits marriage/children DU');
+
+  const reportsSrc = fs.readFileSync(path.join(root, 'manager/js/reports.js'), 'utf8');
+  assert(/listArtifacts/.test(reportsSrc) && !/~2\.5 дня/.test(reportsSrc),
+    'M15 reports tab aggregates artifacts, not fake 2.5-day file');
+  const clientSrc = fs.readFileSync(path.join(root, 'js/applications.js'), 'utf8');
+  assert(/open-kod-kit/.test(clientSrc) && !/Переход к подписанию договора/.test(clientSrc),
+    'C16 client sign button opens КОД kit, not a dead alert');
 }
 
 console.log('\n=== Summary ===');

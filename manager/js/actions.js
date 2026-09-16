@@ -104,6 +104,9 @@ function managerAction(appId, action) {
                     updateApplication(appId, { rate: defRate, payment: defPayment });
                 }
                 sendChatMessage('manager', app.client, 'Поздравляю! Ваша заявка №' + appId + ' одобрена! Договор отправлен на подписание.', app.client);
+                if (typeof recordDealPassport === 'function') {
+                    try { recordDealPassport(appId); } catch (ePass) {}
+                }
                 if (typeof managerNotify === 'function') managerNotify('Заявка №' + app.id + ' одобрена');
                 else alert('Заявка №' + app.id + ' одобрена!\n\nКлиент: ' + app.client);
                 break;
@@ -124,7 +127,17 @@ function managerAction(appId, action) {
                 if (typeof recordKodInventory === 'function') {
                     try { recordKodInventory(appId); } catch (eKod) {}
                 }
+                if (app.status === 'approved' && typeof recordDealPassport === 'function') {
+                    try { recordDealPassport(appId); } catch (ePass2) {}
+                }
                 if (typeof managerNotify === 'function') managerNotify('Договор отправлен клиенту ' + app.client + ' · опись КОД в Документах');
+                break;
+
+            case 'recordDealPassport':
+                if (typeof recordDealPassport === 'function') {
+                    try { recordDealPassport(appId); } catch (ePass3) {}
+                }
+                if (typeof openArtifactByKind === 'function') openArtifactByKind(appId, 'deal_passport');
                 break;
 
             case 'suggestParams':
