@@ -76,7 +76,7 @@ function getAppTimelineSteps(app) {
     var accepted = app.packageStatus === 'accepted' || (app.rate != null && app.selectedPackageId);
     var approved = app.status === 'approved';
     var rejected = app.status === 'rejected';
-    var scoring = app.status === 'decision' || approved || rejected;
+    var scoring = approved || rejected || app.termsKind === 'final';
     var docsDone = !(app.documents || []).some(function(d) { return d.status === 'missing'; });
 
     return [

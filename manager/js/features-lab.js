@@ -64,7 +64,7 @@ function getManagerAppTimelineSteps(app) {
     var approved = app.status === 'approved';
     var rejected = app.status === 'rejected';
     var termsKind = app.termsKind || (typeof appTermsKind === 'function' ? appTermsKind(app) : null);
-    var prescoreDone = app.status === 'decision' || approved || rejected || termsKind === 'preliminary' || termsKind === 'final';
+    var prescoreDone = app.status === 'decision' || approved || rejected || termsKind === 'preliminary' || termsKind === 'final' || accepted;
     var scoringDone = approved || rejected || termsKind === 'final';
     var docs = Array.isArray(app.documents) ? app.documents : [];
     var docsDone = !docs.some(function(d) { return d && d.status === 'missing'; });
