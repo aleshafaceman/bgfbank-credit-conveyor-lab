@@ -269,6 +269,8 @@ body { background: #f0f4f8; min-height: 100vh; }
 .app-timeline-dot { width: 10px; height: 10px; border-radius: 50%; background: white; border: 2px solid #cbd5e1; }
 .app-timeline-step.done { color: #0B4697; }
 .app-timeline-step.done .app-timeline-dot { background: #13A538; border-color: #13A538; }
+.app-timeline-step.current { color: #0B4697; }
+.app-timeline-step.current .app-timeline-dot { background: #0B4697; border-color: #0B4697; width: 12px; height: 12px; }
 .app-timeline-step.fail { color: #dc2626; }
 .app-timeline-step.fail .app-timeline-dot { background: #dc2626; border-color: #dc2626; }
 .app-timeline-sep { width: 14px; height: 2px; background: #e1e9f1; margin-top: 4px; flex: 0 0 auto; }

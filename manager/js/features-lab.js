@@ -66,29 +66,44 @@ function getManagerAppTimelineSteps(app) {
     var isLab = typeof isLkLabApplication === 'function' && isLkLabApplication(app);
     var cp = typeof getCpCoverage === 'function' ? getCpCoverage(app) : null;
     var cpDone = !!(cp && cp.scopes && cp.scopes.passport && cp.scopes.passport.status === 'ok');
+    var kitDone = docsDone || approved;
 
     return [
         { id: 'create', label: 'Заявка', done: true },
         { id: 'esia', label: isLab ? 'ЦП' : 'ЕСИА', done: isLab ? cpDone : true },
         { id: 'collateral', label: 'Залог', done: !!app.collateralValue },
         { id: 'prescore', label: 'Прескоринг', done: prescoreDone },
-        { id: 'docs', label: 'Документы', done: docsDone || approved },
+        { id: 'docs', label: 'Документы', done: kitDone },
         { id: 'scoring', label: 'Скоринг', done: scoringDone },
         { id: 'decision', label: approved ? 'Одобрено' : (rejected ? 'Отказ' : 'Решение'), done: approved || rejected, fail: rejected },
-        { id: 'package', label: 'Пакет', done: (accepted || approved) && (docsDone || approved) }
+        { id: 'package', label: 'Пакет', done: kitDone && (accepted || approved) }
     ];
 }
 
-function getManagerAppTimelineHTML(app) {
-    var steps = getManagerAppTimelineSteps(app);
+function renderTimelineStepsHTML(steps) {
+    steps = Array.isArray(steps) ? steps : [];
+    var firstOpen = -1;
+    for (var i = 0; i < steps.length; i++) {
+        if (!steps[i].done && !steps[i].fail) { firstOpen = i; break; }
+    }
     var h = '<div class="app-timeline" aria-label="Этапы заявки">';
-    steps.forEach(function(s, i) {
-        if (i) h += '<div class="app-timeline-sep' + (s.done ? ' done' : '') + '"></div>';
-        h += '<div class="app-timeline-step' + (s.done ? ' done' : '') + (s.fail ? ' fail' : '') + '">';
+    steps.forEach(function(s, idx) {
+        if (idx) {
+            var prevDone = !!(steps[idx - 1] && steps[idx - 1].done);
+            h += '<div class="app-timeline-sep' + (prevDone && s.done ? ' done' : '') + '"></div>';
+        }
+        var cls = s.done ? ' done' : '';
+        if (s.fail) cls += ' fail';
+        if (idx === firstOpen) cls += ' current';
+        h += '<div class="app-timeline-step' + cls + '">';
         h += '<div class="app-timeline-dot"></div><div class="app-timeline-label">' + s.label + '</div></div>';
     });
     h += '</div>';
     return h;
+}
+
+function getManagerAppTimelineHTML(app) {
+    return renderTimelineStepsHTML(getManagerAppTimelineSteps(app));
 }
 
 document.addEventListener('DOMContentLoaded', function() {

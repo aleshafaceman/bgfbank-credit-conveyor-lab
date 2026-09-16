@@ -717,6 +717,8 @@ body.presentation-mode { background: #08356e; }
 }
 .app-timeline-step.done { color: var(--bgf-navy); }
 .app-timeline-step.done .app-timeline-dot { background: var(--bgf-ok); border-color: var(--bgf-ok); }
+.app-timeline-step.current { color: var(--bgf-navy); }
+.app-timeline-step.current .app-timeline-dot { background: var(--bgf-navy); border-color: var(--bgf-navy); width: 12px; height: 12px; }
 .app-timeline-step.fail { color: var(--bgf-danger); }
 .app-timeline-step.fail .app-timeline-dot { background: var(--bgf-danger); border-color: var(--bgf-danger); }
 .app-timeline-sep {

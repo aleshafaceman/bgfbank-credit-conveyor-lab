@@ -832,6 +832,26 @@ console.log('\n=== 8. TrustGate lab app is manager-only ===');
   });
   assert(assembledSteps.find(s => s.id === 'package').done,
     'package lights up only when the document kit is assembled');
+  const holeHtml = ctx.getManagerAppTimelineHTML({
+    id: '4421-И',
+    status: 'decision',
+    packageStatus: 'accepted',
+    selectedPackageId: 'PKG_RECOMMENDED',
+    rate: 12.5,
+    collateralValue: 8500000,
+    documents: [
+      { name: 'Паспорт (разворот)', status: 'uploaded' },
+      { name: 'Выписка ЕГРН', status: 'missing' }
+    ]
+  });
+  assert(holeHtml.indexOf('Прескоринг') < holeHtml.indexOf('Документы'),
+    'rendered timeline puts Прескоринг before Документы');
+  assert(/app-timeline-step done"><div class="app-timeline-dot"><\/div><div class="app-timeline-label">Прескоринг/.test(holeHtml),
+    'prescore stays done after the offer is accepted');
+  assert(/app-timeline-step current"><div class="app-timeline-dot"><\/div><div class="app-timeline-label">Документы/.test(holeHtml),
+    'documents is the current open step while originals are missing');
+  assert(!/app-timeline-step done"><div class="app-timeline-dot"><\/div><div class="app-timeline-label">Пакет/.test(holeHtml),
+    'package step is not painted done while the kit is incomplete');
   assert(accSteps.find(s => s.id === 'prescore').done, 'accepted offer marks prescore done');
   assert(accSteps.find(s => s.id === 'scoring').done === false, 'accepted offer is not full scoring');
   const mgrDuHtml = ctx.renderDUSection(ctx.getAllApplications().find(a => a.id === '4421-И'));
