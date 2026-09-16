@@ -735,6 +735,8 @@ console.log('\n=== 8. TrustGate lab app is manager-only ===');
     documents: [{ status: 'missing' }]
   });
   assert(accSteps.find(s => s.id === 'package').done, 'accepted offer marks package done');
+  assert(accSteps[accSteps.length - 1] && accSteps[accSteps.length - 1].id === 'package',
+    'package is the last manager timeline step');
   assert(accSteps.find(s => s.id === 'prescore').done, 'accepted offer marks prescore done');
   assert(accSteps.find(s => s.id === 'scoring').done === false, 'accepted offer is not full scoring');
   const pkgAcceptSrc = fs.readFileSync(path.join(root, 'js/packages.js'), 'utf8');

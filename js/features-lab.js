@@ -63,10 +63,10 @@ function getAppTimelineSteps(app) {
         { id: 'create', label: 'Заявка', done: true },
         { id: 'esia', label: 'ЕСИА / данные', done: true },
         { id: 'collateral', label: 'Залог', done: !!app.collateralValue },
-        { id: 'package', label: 'Пакет условий', done: accepted },
         { id: 'docs', label: 'Документы', done: docsDone || approved },
         { id: 'scoring', label: 'Скоринг', done: scoring },
-        { id: 'decision', label: approved ? 'Одобрено' : (rejected ? 'Отказ' : 'Решение'), done: approved || rejected, fail: rejected }
+        { id: 'decision', label: approved ? 'Одобрено' : (rejected ? 'Отказ' : 'Решение'), done: approved || rejected, fail: rejected },
+        { id: 'package', label: 'Пакет условий', done: accepted }
     ];
 }
 
