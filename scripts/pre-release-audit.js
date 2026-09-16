@@ -570,6 +570,12 @@ console.log('\n=== 7. HTML script order / critical refs ===');
     'client detail does not render TrustGate coverage block');
   assert(fs.readFileSync(path.join(root, 'manager/js/applications.js'), 'utf8').includes('renderCpCoverageHTML'),
     'manager detail still renders TrustGate coverage block');
+  const duNameSrc = fs.readFileSync(path.join(root, 'manager/js/applications.js'), 'utf8') +
+    fs.readFileSync(path.join(root, 'js/applications.js'), 'utf8') +
+    fs.readFileSync(path.join(root, 'manager/js/scoring.js'), 'utf8') +
+    fs.readFileSync(path.join(root, 'shared/lk-application.js'), 'utf8');
+  assert(!/ДУ тип 0/.test(duNameSrc),
+    'cabinet copy does not show ДУ тип 0');
 
   // onclick / data-action refs that must exist
   assert(index.includes('continueOrStartApplication') || true, 'dashboard continue present');
@@ -739,8 +745,9 @@ console.log('\n=== 8. TrustGate lab app is manager-only ===');
   const scoringCode = fs.readFileSync(path.join(root, 'manager/js/scoring.js'), 'utf8');
   vm.runInNewContext(scoringCode, ctx, { filename: 'manager/js/scoring.js' });
   const noNdflSteps = ctx.scoringStepsForApp(ctx.applyTrustGateToApplication(ctx.createFillInApplication(), 'no_ndfl'));
-  assert(noNdflSteps[2] && /ДУ тип 0/.test(noNdflSteps[2].detail_ok),
-    'scoring income step mentions DU type 0 without 2-НДФЛ');
+  assert(noNdflSteps[2] && /справка о доходе/.test(noNdflSteps[2].detail_ok) &&
+    !/ДУ тип 0/.test(noNdflSteps[2].detail_ok),
+    'scoring income step asks for income certificate without DU type 0');
   const fullApp = ctx.getAllApplications().find(a => a.id === '4636-И');
   const fullSteps = ctx.scoringStepsForApp(fullApp);
   assert(fullSteps[6] && /3/.test(fullSteps[6].detail_ok),
@@ -751,7 +758,8 @@ console.log('\n=== 8. TrustGate lab app is manager-only ===');
 
   const noNdfl = ctx.applyTrustGateToApplication(ctx.createFillInApplication(), 'no_ndfl');
   const noNdflHtml = ctx.renderCpCoverageHTML(noNdfl);
-  assert(noNdflHtml.includes('ДУ тип 0'), 'no_ndfl profile tells manager to set DU type 0');
+  assert(/справка о доходе/.test(noNdflHtml) && !/ДУ тип 0/.test(noNdflHtml),
+    'no_ndfl profile asks for income certificate without DU type 0');
   assert(ctx.cpActionItems(noNdfl.extra_data.cp).some(i => i.kind === 'need' && i.text.indexOf('2-НДФЛ') !== -1),
     'no_ndfl action item is a need');
 

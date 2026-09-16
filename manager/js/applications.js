@@ -474,7 +474,7 @@ function getActionButtons(app) {
 // ========== ДОПОЛНИТЕЛЬНЫЕ УСЛОВИЯ (ДУ) ==========
 
 var allDU = [
-    { id:'du00', name:'Справка о доходе или 2-НДФЛ (ДУ тип 0)', cat:'client', trigger:'no_ndfl', source:'client', params:['FIO'] },
+    { id:'du00', name:'Справка о доходе или 2-НДФЛ', cat:'client', trigger:'no_ndfl', source:'client', params:['FIO'] },
     { id:'du01', name:'Выписка из Домовой Книги / поквартирной карточки', cat:'object', trigger:'all', source:'external', params:[] },
     { id:'du02', name:'Документы БТИ по объекту недвижимости', cat:'object', trigger:'old_house', source:'external', params:['CadastralNumber'] },
     { id:'du03', name:'Справка из Росреестра о соответствии адресов', cat:'object', trigger:'address_mismatch', source:'external', params:['CadastralNumber'] },
