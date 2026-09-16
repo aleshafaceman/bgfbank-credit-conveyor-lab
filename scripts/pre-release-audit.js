@@ -623,6 +623,15 @@ console.log('\n=== 7. HTML script order / critical refs ===');
     'chat tab is not clipped to 600px');
   assert(/auto-fill,\s*minmax\(220px/.test(mgrCss),
     'manager info fields do not stretch across half the screen');
+  const mgrAppsLayout = fs.readFileSync(path.join(root, 'manager/js/applications.js'), 'utf8');
+  assert(!/margin:-8px 0 16px/.test(mgrAppsLayout),
+    'CP statement button is not pulled into the coverage list');
+  assert(/m-detail-stack/.test(mgrAppsLayout) && /cp-coverage-open/.test(mgrAppsLayout),
+    'manager stacks CP coverage, statement button and rate breakdown');
+  assert(/\.m-detail-stack\s*\{[^}]*display:\s*flex[^}]*flex-direction:\s*column[^}]*gap:\s*16px/.test(mgrCss),
+    'CP coverage, statement button and rate breakdown have 16px gap');
+  assert(/\.m-section\s*\{[^}]*display:\s*flex[^}]*flex-direction:\s*column[^}]*gap:\s*12px/.test(mgrCss),
+    'manager sections stack heading and body with 12px gap');
   assert(/Личные данные/.test(clientsSrc) && /client\.passport/.test(clientsSrc) &&
     /client\.workplace/.test(clientsSrc) && /Недвижимость/.test(clientsSrc) &&
     /Документы/.test(clientsSrc),

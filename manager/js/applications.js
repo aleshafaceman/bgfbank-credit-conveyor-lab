@@ -149,6 +149,16 @@ function renderApplicationDetail(appId) {
                 : '');
         var pkgInfo = (typeof getPackageCatalogInfo === 'function') ? getPackageCatalogInfo(app.selectedPackageId) : null;
         var pkgLabel = (pkgInfo && pkgInfo.title) || app.selectedPackageLabel || '';
+        var rateHtml = '';
+        try { rateHtml = typeof renderManagerRateBreakdownHTML === 'function' ? (renderManagerRateBreakdownHTML(app) || '') : ''; } catch (eR) { rateHtml = ''; }
+        var artHtml = '';
+        try { artHtml = typeof renderManagerArtifactsStrip === 'function' ? (renderManagerArtifactsStrip(app.id) || '') : ''; } catch (eA) { artHtml = ''; }
+        var cpOpenHtml = (cpHtml && typeof openArtifactByKind === 'function')
+            ? '<div class="cp-coverage-open"><button type="button" class="m-btn m-btn-outline" data-m-action="open-artifact-kind" data-art-kind="cp_coverage" data-app-id="' + String(app.id).replace(/"/g, '&quot;') + '"><i class="fas fa-id-card"></i> Открыть выписку ЦП</button></div>'
+            : '';
+        var cpRateStack = (cpHtml || cpOpenHtml || rateHtml || artHtml)
+            ? '<div class="m-detail-stack">' + cpHtml + cpOpenHtml + rateHtml + artHtml + '</div>'
+            : '';
 
         container.innerHTML = `
         <div class="m-detail-header">
@@ -164,10 +174,7 @@ function renderApplicationDetail(appId) {
         <div class="m-detail-phone"><i class="fas fa-phone" style="margin-right:4px;"></i> ${app.phone || '—'}</div>
         ${typeof cpConfirmNoteHTML === 'function' ? cpConfirmNoteHTML(app) : ''}
         ${timelineHtml}
-        ${cpHtml}
-        ${cpHtml && typeof openArtifactByKind === 'function' ? '<div style="margin:-8px 0 16px;"><button type="button" class="m-btn m-btn-outline" data-m-action="open-artifact-kind" data-art-kind="cp_coverage" data-app-id="' + String(app.id).replace(/"/g, '&quot;') + '"><i class="fas fa-id-card"></i> Открыть выписку ЦП</button></div>' : ''}
-        ${typeof renderManagerRateBreakdownHTML === 'function' ? renderManagerRateBreakdownHTML(app) : ''}
-        ${typeof renderManagerArtifactsStrip === 'function' ? renderManagerArtifactsStrip(app.id) : ''}
+        ${cpRateStack}
         
         <div class="m-detail-params" style="margin-top:20px;">
             <div class="m-detail-param"><div class="m-param-label">Сумма кредита</div><div class="m-param-value">${(app.amount != null ? Number(app.amount) || 0 : 0).toLocaleString('ru-RU')} ₽</div></div>
