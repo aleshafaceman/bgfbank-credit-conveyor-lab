@@ -60,7 +60,9 @@ function setManagerScoringMode(green) {
 
 function getManagerAppTimelineSteps(app) {
     if (!app) return [];
-    var accepted = app.packageStatus === 'accepted' || (app.rate != null && app.selectedPackageId);
+    var pkgAccepted = typeof isPackageAccepted === 'function'
+        ? isPackageAccepted(app)
+        : (app.packageStatus === 'accepted' || app.status === 'approved' || app.status === 'rejected');
     var approved = app.status === 'approved';
     var rejected = app.status === 'rejected';
     var termsKind = app.termsKind || (typeof appTermsKind === 'function' ? appTermsKind(app) : null);
@@ -76,9 +78,9 @@ function getManagerAppTimelineSteps(app) {
         { id: 'create', label: 'Заявка', done: true },
         { id: 'esia', label: isLab ? 'ЦП' : 'ЕСИА', done: isLab ? cpDone : true },
         { id: 'collateral', label: 'Залог', done: !!app.collateralValue },
-        { id: 'package', label: 'Пакет', done: accepted },
         { id: 'docs', label: 'Документы', done: docsDone || approved },
         { id: 'prescore', label: 'Прескоринг', done: prescoreDone },
+        { id: 'package', label: 'Пакет', done: prescoreDone && pkgAccepted },
         { id: 'scoring', label: 'Скоринг', done: scoringDone },
         { id: 'decision', label: approved ? 'Одобрено' : (rejected ? 'Отказ' : 'Решение'), done: approved || rejected, fail: rejected }
     ];
