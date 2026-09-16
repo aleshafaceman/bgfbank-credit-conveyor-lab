@@ -37,9 +37,12 @@ body { background: #f0f4f8; min-height: 100vh; }
 .m-app-list { background: white; border-radius: 20px; border: 1px solid #e1e9f1; padding: 24px; }
 .m-list-header { margin-bottom: 20px; }
 .m-list-header h3 { font-size: 18px; color: #0B4697; margin-bottom: 16px; }
-.m-filter-row { display: flex; gap: 12px; }
-.m-filter-row select, .m-filter-row input { padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 13px; color: #1e293b; transition: 0.2s; }
+.m-filter-row { display: flex; gap: 12px; align-items: flex-end; }
+.m-filter-row label { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: #7e9bb6; font-weight: 600; }
+.m-filter-row .m-filter-search { flex: 1; min-width: 0; }
+.m-filter-row select, .m-filter-row input { padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 13px; color: #1e293b; transition: 0.2s; font-weight: 400; }
 .m-filter-row select { width: 160px; }
+.m-filter-row .m-filter-search input { width: 100%; }
 .m-filter-row input { flex: 1; }
 .m-filter-row select:focus, .m-filter-row input:focus { outline: none; border-color: #0B4697; box-shadow: 0 0 0 3px rgba(11, 70, 151,0.1); }
 .m-filter-row input::placeholder { color: #94a3b8; }

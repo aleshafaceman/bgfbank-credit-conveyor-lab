@@ -12,7 +12,8 @@ function renderClientsTab() {
     // Левая панель: список клиентов
     h += '<div class="m-split-scroll" style="padding:20px;">';
     h += '<h3 style="font-size:16px;color:#0B4697;margin-bottom:16px;"><i class="fas fa-users"></i> Клиенты (' + clientList.length + ')</h3>';
-    h += '<input type="text" id="clientSearch" placeholder="Поиск по имени..." style="width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:10px;font-size:13px;margin-bottom:12px;" oninput="filterClients()">';
+    h += '<label for="clientSearch" style="display:block;font-size:11px;color:#7e9bb6;font-weight:600;margin-bottom:6px;">Поиск</label>';
+    h += '<input type="text" id="clientSearch" name="clientSearch" placeholder="Поиск по имени..." style="width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:10px;font-size:13px;margin-bottom:12px;" oninput="filterClients()">';
     h += '<div id="clientListContainer">';
     clientList.forEach(function(c) {
         var safeName = String(c.name).replace(/'/g, "\\'");

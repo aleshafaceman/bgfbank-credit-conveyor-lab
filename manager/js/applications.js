@@ -354,8 +354,8 @@ function renderManagerRateBreakdownHTML(app) {
         return p && (typeof LAB_ELIGIBLE_PACKAGE_IDS === 'undefined' || LAB_ELIGIBLE_PACKAGE_IDS.indexOf(p.id) !== -1);
     }) : [];
     if (snap.length) {
-        h += '<div class="m-pkg-change"><label>Сменить пакет из предложенных клиенту</label>';
-        h += '<select data-offered-package="' + String(app.id).replace(/"/g, '&quot;') + '">';
+        h += '<div class="m-pkg-change"><label for="offered-package-' + String(app.id).replace(/"/g, '') + '">Сменить пакет из предложенных клиенту</label>';
+        h += '<select id="offered-package-' + String(app.id).replace(/"/g, '') + '" name="offered-package" data-offered-package="' + String(app.id).replace(/"/g, '&quot;') + '">';
         snap.forEach(function(p) {
             var sel = p.id === app.selectedPackageId ? ' selected' : '';
             h += '<option value="' + artEscapePkg(p.id) + '"' + sel + '>' + artEscapePkg(p.title || p.id) +

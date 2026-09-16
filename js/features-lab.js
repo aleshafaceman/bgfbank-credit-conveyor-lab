@@ -192,12 +192,12 @@ function maybeShowPresenterChecklist(force) {
     el.id = 'bgfChecklist';
     el.className = 'bgf-checklist';
     el.innerHTML = '<div class="bgf-checklist-head"><b>Скрипт ведущего</b><button type="button" id="bgfChecklistClose">×</button></div>' +
-        '<label><input type="checkbox"> Сброс демо</label>' +
-        '<label><input type="checkbox"> Клиент: залог + ЕСИА</label>' +
-        '<label><input type="checkbox"> Пакет «Турбо 2.0»</label>' +
-        '<label><input type="checkbox"> Чат → менеджер</label>' +
-        '<label><input type="checkbox"> Скоринг → одобрение</label>' +
-        '<label><input type="checkbox"> Тост «Одобрено»</label>' +
+        '<label><input type="checkbox" id="cl-reset" name="cl-reset"> Сброс демо</label>' +
+        '<label><input type="checkbox" id="cl-esia" name="cl-esia"> Клиент: залог + ЕСИА</label>' +
+        '<label><input type="checkbox" id="cl-turbo" name="cl-turbo"> Пакет «Турбо 2.0»</label>' +
+        '<label><input type="checkbox" id="cl-chat" name="cl-chat"> Чат → менеджер</label>' +
+        '<label><input type="checkbox" id="cl-scoring" name="cl-scoring"> Скоринг → одобрение</label>' +
+        '<label><input type="checkbox" id="cl-toast" name="cl-toast"> Тост «Одобрено»</label>' +
         '<a href="manager/?autologin=1" target="_blank">Менеджер (без сброса)</a>';
     document.body.appendChild(el);
     document.getElementById('bgfChecklistClose').onclick = function() { el.remove(); };

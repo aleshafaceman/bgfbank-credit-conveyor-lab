@@ -19,8 +19,10 @@
         <img src="../brand/logo-on-light.png" alt="БЖФ Банк" style="height:40px;width:auto;display:block;margin:0 auto 16px;">
         <h2 style="font-size:22px;color:#0B4697;margin-bottom:4px;">Панель менеджера</h2>
         <p style="font-size:13px;color:#7e9bb6;margin-bottom:20px;">Введите логин и пароль</p>
-        <input type="text" id="loginInput" placeholder="Логин" value="admin" style="width:100%;padding:14px;border:1px solid #cbd5e1;border-radius:10px;font-size:15px;text-align:center;margin-bottom:12px;">
-        <input type="password" id="passInput" placeholder="Пароль" value="manager123" style="width:100%;padding:14px;border:1px solid #cbd5e1;border-radius:10px;font-size:15px;text-align:center;margin-bottom:12px;">
+        <label for="loginInput" style="display:block;font-size:12px;color:#7e9bb6;text-align:left;margin-bottom:6px;">Логин</label>
+        <input type="text" id="loginInput" name="loginInput" autocomplete="username" placeholder="Логин" value="admin" style="width:100%;padding:14px;border:1px solid #cbd5e1;border-radius:10px;font-size:15px;text-align:center;margin-bottom:12px;">
+        <label for="passInput" style="display:block;font-size:12px;color:#7e9bb6;text-align:left;margin-bottom:6px;">Пароль</label>
+        <input type="password" id="passInput" name="passInput" autocomplete="current-password" placeholder="Пароль" value="manager123" style="width:100%;padding:14px;border:1px solid #cbd5e1;border-radius:10px;font-size:15px;text-align:center;margin-bottom:12px;">
         <div id="loginError" style="color:#dc2626;font-size:13px;margin-bottom:12px;display:none;"></div>
         <button id="loginBtn" style="width:100%;padding:14px;border-radius:12px;font-weight:700;font-size:15px;cursor:pointer;border:none;background:#0B4697;color:white;">Войти</button>
         <button type="button" class="btn-demo-reset" style="width:100%;margin-top:12px;" onclick="resetManagerDemoData()"><i class="fas fa-undo"></i> Сбросить демо · готово к показу</button>
@@ -38,8 +40,8 @@
             </div>
             <div class="m-user">
                 <div class="m-avatar">ЕС</div><div><div class="m-user-name">Елена Смирнова</div><div class="m-user-role">Кредитный менеджер</div></div>
-                <label class="m-fast-scoring" title="Ускорить скоринг для показа"><input type="checkbox" id="chkFastScoring" checked onchange="window.BGF_DEMO=window.BGF_DEMO||{};window.BGF_DEMO.fastScoring=this.checked"> Быстрый скоринг</label>
-                <label class="m-fast-scoring" title="Снять галочку — возможны проблемы и отказ"><input type="checkbox" id="chkScoringGreen" checked onchange="setManagerScoringMode(this.checked)"> Зелёный скоринг</label>
+                <label class="m-fast-scoring" title="Ускорить скоринг для показа"><input type="checkbox" id="chkFastScoring" checked onchange="window.BGF_DEMO=window.BGF_DEMO||{};window.BGF_DEMO.fastScoring=this.checked" name="chkFastScoring"> Быстрый скоринг</label>
+                <label class="m-fast-scoring" title="Снять галочку — возможны проблемы и отказ"><input type="checkbox" id="chkScoringGreen" checked onchange="setManagerScoringMode(this.checked)" name="chkScoringGreen"> Зелёный скоринг</label>
                 <button type="button" class="m-logout" title="Сброс демо" onclick="resetManagerDemoData()"><i class="fas fa-undo"></i></button>
                 <button class="m-logout" id="logoutBtn"><i class="fas fa-sign-out-alt"></i></button>
             </div>
@@ -60,8 +62,12 @@
                         <div class="m-list-header">
                             <h3>Список заявок</h3>
                             <div class="m-filter-row">
-                                <select id="filterStatus"><option value="all">Все статусы</option><option value="new">Новые</option><option value="processing">В обработке</option><option value="valuation">Прескоринг</option><option value="decision">Прескоринг пройден</option><option value="approved">Одобрено</option><option value="rejected">Отказ</option></select>
-                                <input type="text" id="filterSearch" placeholder="Поиск по № заявки или клиенту...">
+                                <label for="filterStatus">Статус
+                                <select id="filterStatus" name="filterStatus"><option value="all">Все статусы</option><option value="new">Новые</option><option value="processing">В обработке</option><option value="valuation">Прескоринг</option><option value="decision">Прескоринг пройден</option><option value="approved">Одобрено</option><option value="rejected">Отказ</option></select>
+                                </label>
+                                <label for="filterSearch" class="m-filter-search">Поиск
+                                <input type="text" id="filterSearch" name="filterSearch" placeholder="Поиск по № заявки или клиенту...">
+                                </label>
                             </div>
                         </div>
                         <div class="m-app-cards" id="mAppCards"></div>
@@ -74,8 +80,8 @@
             <div id="m-tab-chat" class="hidden"></div>
             <div id="m-tab-documents" class="hidden">
                 <div class="art-toolbar">
-                    <label>Заявка
-                        <select id="mArtFilterApp" onchange="refreshDocumentsViews()"></select>
+                    <label for="mArtFilterApp">Заявка
+                        <select id="mArtFilterApp" onchange="refreshDocumentsViews()" name="mArtFilterApp"></select>
                     </label>
                 </div>
                 <div id="mDocumentsList" class="art-grid"></div>

@@ -588,6 +588,23 @@ console.log('\n=== 7. HTML script order / critical refs ===');
     fs.readFileSync(path.join(root, 'shared/lk-application.js'), 'utf8');
   assert(!/ДУ тип 0/.test(duNameSrc),
     'cabinet copy does not show ДУ тип 0');
+  assert(/for="authPhone"/.test(index) && /name="authPhone"/.test(index),
+    'login phone field has associated label and name');
+  (function () {
+    const html = index + fs.readFileSync(path.join(root, 'manager/index.html'), 'utf8');
+    const bare = html.match(/<(input|select|textarea)(?![^>]*(?:\sid=|\sname=))[^>]*>/gi) || [];
+    assert(bare.length === 0, 'cabinet controls have id or name');
+    const dangling = [];
+    const lr = /<label([^>]*)>([\s\S]*?)<\/label>/gi;
+    let m;
+    while ((m = lr.exec(html))) {
+      const hasFor = /\bfor=/.test(m[1] || '');
+      const wraps = /<(input|select|textarea)\b/i.test(m[2] || '');
+      if (!hasFor && !wraps) dangling.push(m[2].replace(/<[^>]+>/g, ' ').trim().slice(0, 40));
+    }
+    assert(dangling.length === 0, 'cabinet labels are associated with fields' +
+      (dangling.length ? ' (' + dangling.join(', ') + ')' : ''));
+  }());
 
   // onclick / data-action refs that must exist
   assert(index.includes('continueOrStartApplication') || true, 'dashboard continue present');

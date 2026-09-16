@@ -77,7 +77,7 @@ function renderChatMessages(clientName) {
     h += '<span class="quick-reply" onclick="sendManagerQuickReply(\'' + clientName.replace(/'/g, "\\'") + '\', \'Поздравляю! Ваша заявка одобрена.\')" style="padding:4px 10px;border-radius:12px;border:1px solid #cbd5e1;font-size:11px;cursor:pointer;">🎉 Одобрено</span>';
     h += '</div>';
     h += '<div style="display:flex;gap:8px;">';
-    h += '<input type="text" id="mChatInput" placeholder="Введите сообщение..." onkeydown="if(event.key===\'Enter\')sendManagerMessage(\'' + clientName.replace(/'/g, "\\'") + '\')" style="flex:1;padding:10px 14px;border:1px solid #e1e9f1;border-radius:12px;font-size:13px;outline:none;">';
+    h += '<input type="text" id="mChatInput" name="mChatInput" aria-label="Сообщение клиенту" placeholder="Введите сообщение..." onkeydown="if(event.key===\'Enter\')sendManagerMessage(\'' + clientName.replace(/'/g, "\\'") + '\')" style="flex:1;padding:10px 14px;border:1px solid #e1e9f1;border-radius:12px;font-size:13px;outline:none;">';
     h += '<button onclick="sendManagerMessage(\'' + clientName.replace(/'/g, "\\'") + '\')" style="width:40px;height:40px;border-radius:50%;background:#0B4697;color:white;border:none;cursor:pointer;"><i class="fas fa-paper-plane"></i></button>';
     h += '</div></div>';
     
