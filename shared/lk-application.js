@@ -377,6 +377,13 @@ function borrowerDisplayName(b) {
     return [b.last_name, b.first_name, b.second_name].filter(Boolean).join(' ').trim();
 }
 
+function lkApplicationStatusLabel(status) {
+    var raw = String(status || '').trim();
+    if (!raw) return '—';
+    if (raw === 'FILL_IN') return 'Заполняется';
+    return raw.replace(/_/g, ' ').toLowerCase();
+}
+
 function formatLkPhone(raw) {
     var d = String(raw || '').replace(/\D/g, '');
     if (d.length === 11 && d[0] === '7') d = d.slice(1);
@@ -437,7 +444,7 @@ function flattenLkToLabApp(lk) {
             {
                 text: patched
                     ? ('TrustGate: ' + ((cp && cp.purposes) || []).join(', ') + (ndflOk ? '. 2-НДФЛ есть.' : '. 2-НДФЛ нет — ДУ тип 0.'))
-                    : 'Создан каркас заявки FILL_IN, ЦП ещё не запрашивали',
+                    : 'Создан каркас анкеты, цифровой профиль ещё не запрашивали',
                 date: LK_LAB_DATE,
                 current: true
             },
@@ -490,7 +497,7 @@ function renderCpCoverageHTML(appOrLk) {
         ['ndfl', '2-НДФЛ'],
         ['szi6', 'СЗИ-6'],
         ['family', 'Семья'],
-        ['realty', 'Квартиры ЦП'],
+        ['realty', 'Квартиры'],
         ['credit_report', 'БКИ']
     ];
     var chips = labels.map(function(pair) {
@@ -521,8 +528,8 @@ function renderCpCoverageHTML(appOrLk) {
             '<div class="cp-borrower-row"><span>Заёмщик</span><b>' + fio + '</b></div>' +
             '<div class="cp-borrower-row"><span>Паспорт</span><b>' + pass + '</b></div>' +
             '<div class="cp-borrower-row"><span>ИНН</span><b>' + inn + '</b></div>' +
-            '<div class="cp-borrower-row"><span>Доход ЦП</span><b>' + income + '</b></div>' +
-            '<div class="cp-borrower-row"><span>Состояние движка</span><b>' + (lk.status || '') + '</b></div>' +
+            '<div class="cp-borrower-row"><span>Доход</span><b>' + income + '</b></div>' +
+            '<div class="cp-borrower-row"><span>Анкета</span><b>' + lkApplicationStatusLabel(lk.status) + '</b></div>' +
             '</div>';
     }
     var next = cpActionItems(cp).map(function(item) {
