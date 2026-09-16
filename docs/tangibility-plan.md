@@ -4,7 +4,7 @@
 
 Продукт: залог (`CASHONBAIL` / `FLAT`). Отказ не трогаем. Презентер-флаги («Зелёный скоринг», «Быстрый скоринг», «Сбросить демо», автологин) **не прячем**.
 
-Источники полей: `docs/_LK_KNOWLEDGE_BASE.md`, `docs/katalog-opcij-zalog.md`, `shared/lk-application.js`, выгрузки в `docs/sources/` (СПР `.doc`, Visio, ТЗ Loginom, Skorozvon, **скилл `bgf-bank-operations`**). Код кабинетов **не меняется**, пока нет ОК на этот план.
+Источники полей: `docs/_LK_KNOWLEDGE_BASE.md`, `docs/katalog-opcij-zalog.md`, `shared/lk-application.js`, выгрузки в `docs/sources/` (СПР, Visio, Loginom, Skorozvon, скилл, МО, SMSTraffic, **схемы ЛК `lk-arch/`**). Код кабинетов **не меняется**, пока нет ОК на этот план.
 
 Стол сделки (`deal-ops/`) не расширяем. Паспорт сделки по СПР — экран ОЗС **без внешних интеграций**; в кабинете P2 = карточка из полей заявки, не календарь.
 
@@ -97,7 +97,7 @@
 | C4 | Паспорт из ЦП | «Паспорт (разворот)» | `borrowers[0].{series,number,issue_date,issued_by,authority_code,last_name,…}` | `documentsFromCp` → status `uploaded`; preview из полей, не скан | P0 | S |
 | C5 | ИНН / СНИЛС | «ИНН / СНИЛС» | `scopes.inn.value`, `scopes.snils.value` | `documentsFromCp` | P0 | S |
 | C6 | 2-НДФЛ из ЦП (happy-path full) | «Справка о доходах (INCOME_REFERENCE)» | `scopes.ndfl.years`, `borrowers[0].revenue[]`, `incomes`, `confirmation_income_summary` | `applyTrustGateToApplication`; не ставить ДУ type 0 | P0 | S |
-| C7 | Выбор объекта / оценка | «Экспресс-оценка МО» (не альбом оценщика) | Gate `stats.price` → `AppraisalPledgeCost`; `requestId`; `stats.quality`; адрес; `bld.bldYear` / `bld.bldType` / `bld.cadNum` если не null. `PREMISE_CONDITION`, `Appraiser`, номер отчёта, PDF — **не** из `/appraise/flat`. **Не** хранить `EVALUATION_REPORT` base64 (это Express/getEval delivery) | `onCollateralSelect` + запись в `pledge_evaluation`; `[src:ocenka/get_appraise_flat.md]` | P0 | M |
+| C7 | Выбор объекта / оценка | «Экспресс-оценка МО» (lookup; не альбом) | Партнёрский as-is: `stats.price` → цена, BGF-3457 не перезаписывать express'ом. LAB: `stats.price` → `AppraisalPledgeCost`; `requestId`; `stats.quality`; адрес; `bld.*` если не null. `flat.*` не выдумывать. Оценщик/номер/PDF — только если смоделируем ELMA `pledge_evaluation` delivery **без** base64 | `onCollateralSelect`; `[src:lk-arch/mobile-appraiser-integration.md]` `[src:ocenka/get_appraise_flat.md]` | P0 | M |
 | C8 | Кадастр / ЕГРН | «Выписка ЕГРН» | кадастр если появится; адрес; `documents[]` имя «Выписка ЕГРН» | `uploadMissingDocDemo` заменить на `ingestDocumentMeta` + генератор; внешний запрос менеджера уже патчит тот же name | P0 | M |
 | C9 | Прескоринг Loginom (клиентский лог) | «Протокол preScore» | каркас вызова: `STAGE`, `APPLICATION_ID`; шаги как `#log-1…`; итог amount/term/LTV. Не писать PTI/DTI как поля СПР (в ТЗ — `getPdn`) | `startFlow`; после менеджерского прескоринга `termsKind=preliminary` | P1 | M |
 | C10 | Карточки пакетов | «Сравнение пакетов» | `eligiblePackages` snapshot на момент показа: id, rate, payment, ltv, limit, insurance, commission | `buildEligiblePackages` + `initPackageSelection`; **persist snapshot**, иначе после reload карточки пересоберутся | P0 | M |
@@ -201,7 +201,7 @@ Persist ДУ: писать в `lk.additional_conditions[]` (уже есть) + �
 1. **P2 (паспорт сделки / КОД в кабинете)** — делать в этой итерации кабинетов или оставить столу? Стол явно выносит паспорт из АРМ.
 2. **Заявка 4636-И** (TrustGate lab) скрыта от клиента. Показывать клиенту человеческие артефакты ЦП на **4421-И**, а 4636 оставить менеджерским стендом?
 3. **Три пакета runtime** vs полный каталог `PKG_*` — L3 фиксирует то, что реально выбирается сейчас (`RECOMMENDED` / `SPEC_4_0` / `NO_INSURANCE`), без новых карточек.
-4. Скилл, Gate МО и SMSTraffic v2 доехали. Когда доедут ЦФТ 10–15 / Express МО — отдельные артефакты (тела `CheckData`/`OpenAccount`, pdf delivery) **не ломая** P0. SMS: `smsId` можно писать; ключ и OTP-текст — нет. `dbo_sms` остаётся ЦФТ.
+4. Скилл, схемы ЛК, Gate МО, SMSTraffic v2 доехали. Когда доедут ЦФТ 10–15 / `to-be-process.md` — не ломая P0. Express: as-is ЛК достаточен для метаданных задачи (`task_id`, `pending`/`complete`); pdf delivery по-прежнему не в localStorage.
 5. Overlay сейчас показывает PTI/DTI — в протоколе L3 писать **ПДН `getPdn`**, не выдавать PTI за поле СПР.
 6. Лабораторный клиентский ЛК **не** копировать в макет прод-кабинета партнёра (скилл: CTA «Получить пре-оффер», без ИНН на шаге 1, «Заполнить вручную» только у менеджера). L3 этой итерации — текущие кабинеты LAB.
 

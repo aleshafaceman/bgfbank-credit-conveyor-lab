@@ -4,17 +4,19 @@
 
 ## Сейчас на диске
 
-Полный набор выгрузок: `docs/sources/` (см. README там). **11** стадийных СПР `.doc` (текст), 4 Visio, ТЗ СПР + 3 вырезки Loginom, Skorozvon API, скилл `bgf-bank-operations` (9 `.md`), Gate API МО (`GET /v1/appraise/flat`), **SMSTraffic HTTP API v2**. Повтор `_spr_body.txt` совпал с уже лежащим файлом.
+`docs/sources/`: 11 стадий СПР, 4 Visio, ТЗ Loginom, Skorozvon, скилл, Gate МО, SMSTraffic v2, **схемы ЛК** (`docs/sources/lk-arch/`, 18 `.md` + `_print_pdf.py`).
 
-Канон скилла для агента: `.cursor/skills/bgf-bank-operations/`. Копия для цитирования: `docs/sources/skill/`.
+Канон скилла: `.cursor/skills/bgf-bank-operations/`.
 
 ## По-прежнему нет
 
 | Ожидалось | Статус | Без файла в L3 |
 |-----------|--------|----------------|
-| ЦФТ гл. 10–15 | нет | имена методов есть в скилле `systems.md` «до сверки с ИТ АБС»; контракта request/response нет. В артефактах — имя шага + timestamp, не payload |
-| Express МО `express.ocenka.mobi/api/express` | нет отдельной спеки | входные поля есть в ТЗ; PDF base64 в localStorage не класть. Gate lookup **есть** |
-| ТЗ ПДН v.4 | ссылка в ТЗ СПР, файла нет | в протоколе — факт вызова `getPdn`, не формула ПДН |
-| Enum `STAGE` / `DECISION` Loginom | в выгрузке ТЗ не разобран целиком | каркас вызова без выдуманных кодов |
-| `Elma3StageStatusEnum` 0–52 | скилл ссылает на `bgf-backend` (нет в этом репо) | в LAB — схлопнутые статусы + стол; полную таблицу не выдумывать |
-| CSV закрытия сделки / сырые `.doc`/`.vsdx` | нет (есть текстовые выгрузки) | не блокер P0 кабинетов |
+| ЦФТ гл. 10–15 / `to-be-integrations.md` | нет | имена методов есть; тел request/response нет |
+| ТЗ ПДН v.4 | нет | протокол = факт `getPdn` |
+| Enum `STAGE` / `DECISION` Loginom | не разобран целиком | каркас без выдуманных кодов |
+| `Elma3StageStatusEnum` 0–52 / `to-be-process.md` | нет (есть схлопнутый `ApplicationStatus` ЛК) | не выдумывать 0–52 |
+| `lk-external-integrations.html` | нет (`_print_pdf.py` без HTML) | не блокер |
+| CSV / сырые `.doc` `.vsdx` | нет | не блокер P0 |
+
+Express МО: вендорской OpenAPI нет; **as-is ЛК есть** — `lk-arch/mobile-appraiser-integration.md` (`POST express.ocenka.mobi/api/express`, опрос `{task_id}`, lookup `api.ocenka.mobi/v1/appraise/flat`).

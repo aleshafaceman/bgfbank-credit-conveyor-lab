@@ -1,8 +1,8 @@
 # База знаний LK (кредитный конвейер БЖФ)
 
-Версия: 2026-09-16 (rev. 6, + SMSTraffic HTTP API v2). Продукт кабинетов: **залог** (`CASHONBAIL` / `FLAT`). Happy-path только.
+Версия: 2026-09-16 (rev. 7, + схемы ЛК). Продукт кабинетов: **залог** (`CASHONBAIL` / `FLAT`). Happy-path только.
 
-Цитаты: `[repo:…]` — код LAB; `[src:…]` — `docs/sources/`; `[src:skill/…]` — скилл. ЦФТ гл. 10–15, ТЗ ПДН v.4, спека Express МО **по-прежнему нет**.
+Цитаты: `[repo:…]` — код LAB; `[src:…]` — `docs/sources/`; `[src:skill/…]` — скилл; `[src:lk-arch/…]` — схемы прод-ЛК. ЦФТ 10–15, ТЗ ПДН v.4, `to-be-process.md` **по-прежнему нет**.
 
 ---
 
@@ -35,6 +35,16 @@ PublicAPI ELMA (не EntityService): `CreateLead`, `CreateFullApplication`, `Cre
 Имена ЦФТ из скилла **до сверки с ИТ АБС** `[src:skill/systems.md]`: `CheckData`, `UpsertClient`, `CreateCreditContract`, `FindRetailAccount`, `KodSigned`, `OpenAccount`, `DboSms`, `OpenLetterOfCredit`, `RegisterMortgageNote`, `SendRefusal`, `CorrectPassportData`. Контрактов гл. 10–15 нет — в артефактах кабинетов не выдумывать тела.
 
 Минимум документов ФЛ из оффера партнёра `[src:skill/partner-offer.md]`: паспорт (все страницы), СНИЛС, СОПД, анкета, ЕГРН/свидетельство, правоустановка. Это опора комплекта C4/C5/C1/C8, не новые виды ДУ.
+
+Три поверхности, которые **нельзя склеивать в один макет**:
+
+| Поверхность | Документ | Что это |
+|-------------|----------|---------|
+| Партнёр `/` + менеджер `/manager` | `[src:lk-arch/frontend-business-logic.md]` `[src:skill/cabinet.md]` | прод SPA, `ApplicationStatus`, Solver на 2-м экране |
+| Форма подачи B2C | `[src:lk-arch/esia-screens.md]` `[src:lk-arch/esia-happy-path.md]` | LAB `form/`; `channel=b2c`; кадастр→ЕГРН; CTA не «пре-оффер партнёра» |
+| Клиентский LAB `index.html` | этот репо | демо B2C для руководства; L3 этой итерации |
+
+`ApplicationStatus` ЛК (не ELMA 0–52) `[src:lk-arch/application-status-transitions.md]`: `FILL_IN` → `PRIOR_PROCESSING` → `PRIOR_APPROVE` (выбор продукта) → документы / `ACCEPTED` / `CLIENT_APPROVED`+`PLEDGE_ACCEPTED` → `PREPARE_DEAL` → `DEAL` → `LOAN_ISSUED`. Отказные `PRIOR_DECLINE` / `DECLINE` в L3 не показываем.
 
 ---
 
@@ -100,7 +110,7 @@ Visio после одобрения: «Подготовка паспорта с�
 
 ## 2. Внешние системы и ответы / коллбэки
 
-Ниже — **имена и payload’ы, которые уже есть в коде**, плюс имена из скилла/МО/SMSTraffic без тел ЦФТ. Схемы глав ЦФТ 10–15 / Express `express.ocenka.mobi` / ТЗ ПДН v.4 **отсутствуют**. Gate lookup МО и SMSTraffic v2 **есть**.
+Ниже — **имена и payload’ы, которые уже есть в коде**, плюс схемы прод-ЛК. Схемы глав ЦФТ 10–15 / `to-be-process.md` / ТЗ ПДН v.4 **отсутствуют**.
 
 ### 2.1. TrustGate / ЕСИА / цифровой профиль
 
@@ -156,21 +166,31 @@ REST: `http://…/lgi/Service.svc/Rest/…` `[src:loginom/_spr_rules.txt]` `[src
 
 Конверт: `REQUEST_ID`, `REQUEST_TS`, `STAGE`, `APPLICATION_ID`, `TARGET`, `REQUEST_MODE`. Пример тела `{ "et":"RESULT","k":"NEGATIVE","v":"0" }`.
 
-Внешние URL из ТЗ (не выдуманы): ФССП `api-ip.fssp.gov.ru`; НБКИ `icrs.nbki.ru/score3`; ОКБ `ch.bki-okb.com/cpuEnquiry.asp`; МО Express `express.ocenka.mobi/api/express`; CaseBook, HH, МТС, Мегафон, ПФР WSDL, ЦФТ фрод `CRM_SEARCH_APP`. Gate lookup (не ТЗ, swagger 2026-01-28): `api.gate.ocenka.mobi/v1/appraise/flat`.
+Внешние URL из ТЗ (не выдуманы): ФССП `api-ip.fssp.gov.ru`; НБКИ `icrs.nbki.ru/score3`; ОКБ `ch.bki-okb.com/cpuEnquiry.asp`; МО Express `express.ocenka.mobi/api/express`; CaseBook, HH, МТС, Мегафон, ПФР WSDL, ЦФТ фрод `CRM_SEARCH_APP`. Lookup ЛК (as-is): `api.ocenka.mobi/v1/appraise/flat` и `/v1/cad/search`. Swagger Gate: `api.gate.ocenka.mobi/v1/appraise/flat`. Solver через partner: `POST /api/products/calculator/offers` → `POST /calculator/` `[src:lk-arch/lk-calculator-second-screen.md]`.
 
 Правило ФССП (совпадает по смыслу с `SURCH_FSSP` каталога): «Сумма задолженности перед ФССП более 100 000руб ( FSSP _00 1) … свыше 100 000руб для Москвы/МО и свыше 50 000руб по всем остальным регионам, цель кредита = Рефинансирование или Кредит под залог» `[src:loginom/_spr_body.txt]`.
 
 В LAB UI: лог «Ocenka.mobi → Loginom»; overlay менеджера **не** вызывает эти REST-пути; persist только `status` / `rate` / `termsKind`. `sIssueLog` в RAM. Категория `ClientCategory` / КИ в runtime заявки не пишется.
 
-### 2.3. Ocenka.mobi / `getEval` / Gate `get_appraise_flat`
+### 2.3. Ocenka.mobi / `getEval` / три канала ЛК
 
 Visio: «Прескоринг (заемщик и залог) + Запрос оценки из МО (искл. Вид.кредита Покупка – запрос оформляется в ручную)» `[src:visio/vsdx_lead_page.txt]`.
 
-Три разных вызова:
+As-is кабинета `[src:lk-arch/mobile-appraiser-integration.md]`:
 
-1. **Gate lookup** (спека есть): `GET https://api.gate.ocenka.mobi/v1/appraise/flat` + `X-Api-Key`. Swagger `get_appraise_flat` `[src:ocenka/get_appraise_flat.md]`. Query: `address` **или** `lat`+`lng`; опционально `area`, `rooms`, `floor`, `maxFloor`, `bldYear`, `bldType`, `forceFlat`. `fiasId`/`cadNum` на этом методе нет. Ответ: `stats.price` (экспресс ₽), `stats.quality` A–F, `bld.*`, живой JSON ещё `requestId`/`address`. PDF нет.
-2. **Express банка** (спеки вендора нет, только ТЗ): `https://express.ocenka.mobi/api/express`. Квартира/апартаменты: `params.address`, `fiasId`, `params.cadNum`, `params.market=Flat`, `params.type`, `params.areaTotal`, `params.floor`, `params.maxFloor`, `params.repair=0`. Опрос, скачать pdf, base64, callback ELMA `[src:loginom/TZ_SPR.txt]`.
-3. **Loginom `getEval`**: оркестратор над МО. In/out — `RESULT_EVALUATION`.
+| Канал | URL | Кто | Куда в модели |
+|-------|-----|-----|----------------|
+| Lookup | `GET api.ocenka.mobi/v1/appraise/flat` + `X-Api-Key` | партнёр при смене адреса | `stats.price` → `building_price` / `appraisal_building_price`; сырой JSON → `express_evaluation`. Менеджеру lookup **цену не пишет** (BGF-2714) |
+| Express | `POST express.ocenka.mobi/api/express`, опрос `GET …/express/{task_id}`, auth `POST …/auth/login` (`id_token`) | менеджер после лида, **не** ипотека, **не** партнёр | `express_evaluation_task.{task_id,status}` |
+| ELMA | webhook `POST /api/elma/set/appraisal/building/price` | основной бизнес-путь | `pledge_evaluation.AppraisalPledgeCost` перезаписывает `building_price` |
+
+DaData `GET /api/products/calculator/building_price` — **не** МО; на 1-м экране залога фронт берёт только `area`.
+
+BGF-3457: если создатель заявки — партнёр и цена уже есть, express **не** перезаписывает lookup. Два API дают **разные** цены — это штатно.
+
+Прод-маппинг lookup ждёт ещё `flat.{floor,rooms,area,cadNum}` `[src:lk-arch/mobile-appraiser-integration.md]` §5.2. В swagger Gate 2026-01-28 и живом образце Крылатской блока `flat` не было — в LAB не выдумывать `flat`, пока ответ его не содержит.
+
+ТЗ Loginom `getEval` по-прежнему оркестратор над МО (Express банка + callback pdf). In/out — `RESULT_EVALUATION`.
 
 ТЗ in в `getEval`: `PLEDGE_TYPE`, `ADDRESS`, `FIAS_ID`, `CADNUM`, `AREA_TOTAL`, `FLOOR`, `MAX_FLOOR`.  
 Out `RESULT_EVALUATION` (имена **совпадают** с `pledge_evaluation` в LAB, кроме регистра):  
@@ -525,7 +545,7 @@ JSON-модель каталога `[repo:docs/katalog-opcij-zalog.md]` §10:
 
 ## 7. Расхождения и пробелы
 
-1. Скилл **есть**. Gate МО **есть**. SMSTraffic v2 **есть** (`docs/sources/smstraffic/`). ЦФТ 10–15, ТЗ ПДН v.4, спека Express `express.ocenka.mobi`, полная таблица ELMA 0–52 из `bgf-backend` — нет. Enum `STAGE`/`DECISION` в выгрузке ТЗ не разобран. СПР «формирование лида» **есть** (`spr/formirovanie-lida.txt`).
+1. Скилл, Gate МО, SMSTraffic v2, схемы ЛК **есть**. ЦФТ 10–15 / `to-be-integrations.md`, ТЗ ПДН v.4, `to-be-process.md` (ELMA 0–52) — нет. Enum `STAGE`/`DECISION` Loginom в выгрузке ТЗ не разобран. СПР «формирование лида» **есть**. Express МО: as-is ЛК есть, OpenAPI вендора нет.
 2. **Два справочника ДУ:** ELMA 0–18 vs кабинетный `allDU`. L3 — только enum 0–18.
 3. Overlay скоринга пишет PTI/DTI; в ТЗ — **ПДН `getPdn`**, не DTI. Не тащить PTI в артефакт как «поле СПР».
 4. `SURCH_FSSP` каталога ≈ правило `FSSP_001` ТЗ; в заявке надбавка не хранится.

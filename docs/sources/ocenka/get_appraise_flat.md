@@ -59,6 +59,9 @@ Visio: автозапрос МО **кроме** «Вид.кредита Поку
 
 `stats.price` **нет**, если площадь не передана и не определена.
 
+Прод-ЛК дополнительно мапит `flat.floor` / `flat.rooms` / `flat.area` / `flat.cadNum` `[src:lk-arch/mobile-appraiser-integration.md]`. В схеме swagger 2026-01-28 и живом ответе без `forceFlat` блока `flat` может не быть — не выдумывать.
+
+
 ## Маппинг на Loginom `RESULT_EVALUATION` / LAB `pledge_evaluation`
 
 Не выдумывать поля, которых нет в ответе Gate.

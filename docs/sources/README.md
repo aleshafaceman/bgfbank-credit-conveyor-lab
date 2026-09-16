@@ -2,13 +2,11 @@
 
 Положены 2026-09-16 из вложений облачного агента. Имена кириллицей в uploads съехали в `_`; ниже — канонические имена.
 
-**Ещё нет на диске:** ЦФТ гл. 10–15 (контракты), ТЗ ПДН v.4, контракт `express.ocenka.mobi/api/express` (есть только ТЗ).
+**Ещё нет на диске:** ЦФТ гл. 10–15 / `to-be-integrations.md`, ТЗ ПДН v.4, `to-be-process.md` (ELMA 0–52), HTML внешних интеграций ЛК.
 
-Gate API МО (`GET /v1/appraise/flat`) — **есть**: `docs/sources/ocenka/`.  
-SMSTraffic HTTP API v2 — **есть**: `docs/sources/smstraffic/`.
-
-Gate API МО (`GET /v1/appraise/flat`) — **есть**: `docs/sources/ocenka/`.
-
+Схемы ЛК — **есть**: `docs/sources/lk-arch/`.  
+Gate API МО — **есть**: `docs/sources/ocenka/`.  
+SMSTraffic HTTP API v2 — **есть**: `docs/sources/smstraffic/`.  
 Скилл `bgf-bank-operations` (9 `.md`) — **есть**: канон `.cursor/skills/bgf-bank-operations/`, копия `docs/sources/skill/`.
 
 Повтор `_spr_body.txt` (2026-09-16 10:05) **бит-в-бит совпал** с `loginom/_spr_body.txt` — не дублировали.
@@ -49,3 +47,8 @@ Gate API МО (`GET /v1/appraise/flat`) — **есть**: `docs/sources/ocenka/`
 | `ocenka/get_appraise_flat.sample.json` | live 200 | образец `{address,bld,stats,requestId}` |
 | `smstraffic/README.md` | smstraffic.ru/api | HTTP API v2: `/v2/send`, статусы, callback `sms_id` |
 | `smstraffic/api-page.redacted.md` | та же страница | полный дамп, пример Bearer затёрт |
+| `lk-arch/README.md` | схемы ЛК | индекс 18 md + `_print_pdf.py` |
+| `lk-arch/mobile-appraiser-integration.md` | as-is МО в cabinet | lookup / express / ELMA `AppraisalPledgeCost` |
+| `lk-arch/application-status-transitions.md` | ApplicationStatus | FILL_IN → PRIOR_* → ACCEPTED / DEAL / LOAN_ISSUED |
+| `lk-arch/esia-screens.md` | форма B2C | `form/`, не партнёрский кабинет |
+| `lk-arch/lk-calculator-second-screen.md` | 2-й экран | Solver `POST /calculator/` через partner |
