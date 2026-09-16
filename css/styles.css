@@ -252,7 +252,21 @@ input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 22p
 .application-card:hover { border-color: #0B4697; box-shadow: 0 8px 24px rgba(0,0,0,0.06); }
 .application-card.active-card { border-color: #0B4697; background: #f4f9ff; }
 .application-card .app-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
-.application-card .app-number { font-weight: 700; font-size: 15px; color: #0B4697; }
+.application-card .app-number { font-weight: 700; font-size: 15px; color: #0B4697; display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.cp-confirm-badge {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 8px;
+    padding: 2px 7px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    vertical-align: middle;
+}
+.cp-confirm-badge--yes { background: #d1fae5; color: #065f46; }
+.cp-confirm-badge--no { background: #f1f5f9; color: #64748b; }
+.detail-number .cp-confirm-badge { font-size: 11px; }
 .application-card .app-date { font-size: 11px; color: #94a3b8; }
 .application-card .app-product { font-size: 12px; color: #64748b; margin-bottom: 8px; }
 .app-status { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 7px; font-size: 11px; font-weight: 600; }
