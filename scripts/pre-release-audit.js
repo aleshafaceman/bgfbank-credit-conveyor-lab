@@ -627,6 +627,8 @@ console.log('\n=== 7. HTML script order / critical refs ===');
     /client\.workplace/.test(clientsSrc) && /Недвижимость/.test(clientsSrc) &&
     /Документы/.test(clientsSrc),
     'client profile still renders personal, work, property and document fields');
+  assert(/\.action-list\s*\{[^}]*display:\s*flex[^}]*flex-direction:\s*column[^}]*gap:\s*12px/.test(clientCss),
+    'necessary-actions rows have 12px gap so they do not overlap');
 }
 
 console.log('\n=== 8. TrustGate lab app is manager-only ===');
