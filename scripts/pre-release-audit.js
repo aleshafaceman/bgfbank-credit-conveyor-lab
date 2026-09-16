@@ -502,6 +502,11 @@ console.log('\n=== 7. HTML script order / critical refs ===');
     'manager: lk-application after data');
   assert(mgrScripts.indexOf('../shared/lk-artifacts.js') > mgrScripts.indexOf('../shared/lk-application.js'),
     'manager: lk-artifacts after lk-application');
+  const extrasCss = fs.readFileSync(path.join(root, 'css/styles.css'), 'utf8');
+  assert(extrasCss.indexOf('.pkg-extras-panel.hidden') > extrasCss.indexOf('.pkg-extras-panel {'),
+    'Дополнительно panel .hidden overrides display:flex');
+  assert(/id="btnPackageExtras"[\s\S]*onclick="togglePackageExtrasPanel\(\)"/.test(index),
+    'Дополнительно button calls togglePackageExtrasPanel');
   assert(fs.readFileSync(path.join(root, 'js/applications.js'), 'utf8').includes('isLkLabApplication'),
     'client list filters manager-only TrustGate app');
   assert(!fs.readFileSync(path.join(root, 'js/applications.js'), 'utf8').includes('renderCpCoverageHTML'),
