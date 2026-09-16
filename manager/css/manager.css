@@ -50,7 +50,8 @@ body { background: #f0f4f8; min-height: 100vh; }
 .m-app-card.active { border-color: #0B4697; background: #f4f9ff; }
 .m-app-card .m-card-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
 .m-app-card .m-card-id { font-weight: 700; font-size: 14px; color: #0B4697; }
-.m-card-origin {
+.m-card-origin,
+.cp-confirm-badge {
     display: inline-flex;
     align-items: center;
     margin-left: 8px;
@@ -61,9 +62,10 @@ body { background: #f0f4f8; min-height: 100vh; }
     letter-spacing: 0.02em;
     vertical-align: middle;
 }
-.m-card-origin--lab { background: #ede9fe; color: #5b21b6; }
-.m-card-origin--conveyor { background: #e2e8f0; color: #475569; }
-.m-detail-id .m-card-origin { font-size: 11px; font-weight: 700; }
+.cp-confirm-badge--yes { background: #d1fae5; color: #065f46; }
+.cp-confirm-badge--no { background: #f1f5f9; color: #64748b; }
+.m-detail-id .m-card-origin,
+.m-detail-id .cp-confirm-badge { font-size: 11px; font-weight: 700; }
 .m-origin-note {
     margin: 6px 0 12px;
     font-size: 12px;

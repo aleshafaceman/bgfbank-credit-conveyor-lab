@@ -17,7 +17,9 @@ function getClientApplications() {
     } else if (typeof getAllApplications === 'function') {
         list = getAllApplications().filter(a => a.client === name);
     }
-    if (typeof isLkLabApplication === 'function') {
+    if (typeof visibleCabinetApplications === 'function') {
+        list = visibleCabinetApplications(list);
+    } else if (typeof isLkLabApplication === 'function') {
         list = list.filter(function(a) { return !isLkLabApplication(a); });
     }
     return list;
@@ -203,7 +205,7 @@ function renderApplicationsList() {
         const meta = getAppStatusMeta(app.status, app.statusLabel);
         const active = app.id === state.selectedApp ? ' active-card' : '';
         return '<div class="application-card' + active + '" onclick="selectApplication(\'' + app.id + '\')" data-app="' + app.id + '">' +
-            '<div class="app-header"><span class="app-number">№' + app.id + '</span><span class="app-date">' + (app.date || '') + '</span></div>' +
+            '<div class="app-header"><span class="app-number">№' + app.id + (typeof cpConfirmBadgeHTML === 'function' ? cpConfirmBadgeHTML(app) : '') + '</span><span class="app-date">' + (app.date || '') + '</span></div>' +
             '<div class="app-product">' + (app.product || 'Кредит под залог недвижимости') + '</div>' +
             '<span class="app-status ' + meta.cls + '"><i class="' + meta.icon + '" style="font-size: 10px;"></i> ' + meta.label + '</span>' +
             '</div>';
@@ -308,7 +310,7 @@ function renderApplicationPackageBlock(app) {
     return `<div class="detail-package-block">
         <div class="detail-package-inner">
             <div class="detail-package-head">
-                <div class="param-label">Рекомендуемый пакет условий</div>
+                <div class="param-label">Пакет условий</div>
                 ${statusBadge}
             </div>
             <h4 class="detail-package-title">${title}</h4>
@@ -351,7 +353,7 @@ function getActiveApplicationHTML(app) {
     const printBtn = '<button type="button" class="btn btn-outline app-detail-print" data-action="print-offer"><i class="fas fa-print"></i> Печать оффера</button>';
 
     return `<div class="detail-header">
-        <div><div class="detail-number">№${app.id}</div><div class="detail-product">${app.product || 'Кредит под залог недвижимости'}</div></div>
+        <div><div class="detail-number">№${app.id}${typeof cpConfirmBadgeHTML === 'function' ? cpConfirmBadgeHTML(app) : ''}</div><div class="detail-product">${app.product || 'Кредит под залог недвижимости'}</div></div>
         <div class="detail-date">Создана: ${app.date || '—'} · ${statusLabel}</div>
     </div>
     ${timeline}
@@ -424,7 +426,7 @@ function getApprovedApplicationHTML(app) {
     const term = formatAppTerm(app.term);
     const rate = app.rate != null ? app.rate + '%' : '—';
     const payment = app.payment != null ? '~ ' + app.payment.toLocaleString('ru-RU') + ' ₽' : '—';
-    return `<div class="detail-header"><div><div class="detail-number">№${app.id}</div><div class="detail-product">${app.product || 'Кредит под залог недвижимости'}</div></div><div class="detail-date">Одобрена: ${app.date || ''}</div></div>
+    return `<div class="detail-header"><div><div class="detail-number">№${app.id}${typeof cpConfirmBadgeHTML === 'function' ? cpConfirmBadgeHTML(app) : ''}</div><div class="detail-product">${app.product || 'Кредит под залог недвижимости'}</div></div><div class="detail-date">Одобрена: ${app.date || ''}</div></div>
     <div class="approved-badge"><i class="fas fa-check-circle"></i> Кредит одобрен</div>
     ${typeof renderAppArtifactsStrip === 'function' ? renderAppArtifactsStrip(app.id) : ''}
     <div class="detail-params"><div class="detail-param"><div class="param-label">Одобренный лимит</div><div class="param-value">${amount}</div></div><div class="detail-param"><div class="param-label">Ставка</div><div class="param-value" style="color:#13A538;">${rate}</div></div><div class="detail-param"><div class="param-label">Срок</div><div class="param-value">${term}</div></div><div class="detail-param"><div class="param-label">Платёж / мес.</div><div class="param-value">${payment}</div></div></div>
@@ -436,7 +438,7 @@ function getApprovedApplicationHTML(app) {
 
 function getRejectedApplicationHTML(app) {
     const reason = (app.history && app.history[0] && app.history[0].text) || 'Недостаточный уровень подтверждённого дохода.';
-    return `<div class="detail-header"><div><div class="detail-number">№${app.id}</div><div class="detail-product">${app.product || 'Кредит под залог недвижимости'}</div></div></div>
+    return `<div class="detail-header"><div><div class="detail-number">№${app.id}${typeof cpConfirmBadgeHTML === 'function' ? cpConfirmBadgeHTML(app) : ''}</div><div class="detail-product">${app.product || 'Кредит под залог недвижимости'}</div></div></div>
     <div class="rejection-reason"><h4><i class="fas fa-times-circle"></i> Причина отказа</h4><p>${reason}</p></div>
     <button class="btn btn-primary" onclick="startNewApplicationDemo()"><i class="fas fa-plus" style="margin-right:8px;"></i> Подать новую заявку</button>`;
 }

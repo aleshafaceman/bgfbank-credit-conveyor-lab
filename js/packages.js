@@ -3,7 +3,7 @@
 /** Справочник пакетов для отображения в карточке заявки */
 const PACKAGE_CATALOG = {
     PKG_RECOMMENDED: {
-        title: 'Со страхованием и цифровым профилем',
+        title: 'Турбо 2.0',
         description: 'Оптимальный вариант после прескоринга: подтверждение дохода через Госуслуги, комплексное страхование заёмщика (ККС) и стандартные комиссии банка. Баланс между ставкой и ежемесячным платёжом.',
         insurance: 'ККС-12 (ежемесячно)',
         commission: 'По тарифу «Турбо 2.0»',
@@ -14,7 +14,7 @@ const PACKAGE_CATALOG = {
         ]
     },
     PKG_SPEC_4_0: {
-        title: 'Снижение ставки (Спец. опция 4.0)',
+        title: 'Спец. опция 4.0',
         description: 'Сниженная ставка в обмен на разовую комиссию 0,99% от суммы кредита. Максимальный LTV по залогу — до 50% от оценки Ocenka.mobi.',
         insurance: 'ККС, программы 1–2',
         commission: '0,99% от суммы кредита',
@@ -25,7 +25,7 @@ const PACKAGE_CATALOG = {
         ]
     },
     PKG_NO_INSURANCE: {
-        title: 'Без страхования жизни заёмщика',
+        title: 'Без страхования жизни',
         description: 'Кредит только со страхованием предмета залога. Ставка выше на 5 п.п. относительно пакета со страхованием — выше ежемесячный платёж.',
         insurance: 'Только имущество (залог)',
         commission: 'По тарифу «Турбо 2.0»',
@@ -39,6 +39,21 @@ const PACKAGE_CATALOG = {
 
 function getPackageCatalogInfo(packageId) {
     return PACKAGE_CATALOG[packageId] || null;
+}
+
+function formatRub(n) {
+    if (n == null || n === '' || !isFinite(Number(n))) return '—';
+    return Number(n).toLocaleString('ru-RU') + '\u00a0₽';
+}
+
+function acceptedPackageSummaryHTML(label, rate, payment, amount) {
+    var rateText = (rate != null && isFinite(Number(rate))) ? Number(rate).toFixed(1) + '%' : '—';
+    var payText = (payment != null && isFinite(Number(payment))) ? '~' + formatRub(payment) + '/мес' : '—';
+    var amtText = (amount != null && isFinite(Number(amount))) ? formatRub(amount) : '—';
+    return 'Пакет: <b>' + (label || 'Выбранный пакет') + '</b>' +
+        ' · Ставка <b>' + rateText + '</b>' +
+        ' · Платёж <b class="money">' + payText + '</b>' +
+        ' · Сумма <b class="money">' + amtText + '</b>';
 }
 
 function recalcBaseOfferFromInputs() {
@@ -92,7 +107,7 @@ function buildEligiblePackages() {
     }
 
     const packages = [
-        pkg('PKG_RECOMMENDED', 'Рекомендуем', 'Лучший выбор', 0, null, {
+        pkg('PKG_RECOMMENDED', 'Турбо 2.0', 'Со страхованием', 0, null, {
             recommended: true,
             insurance: 'ККС-12 (ежемесячно)',
             features: [
@@ -102,7 +117,7 @@ function buildEligiblePackages() {
             ],
             requiresInsurance: true
         }),
-        pkg('PKG_SPEC_4_0', 'Снизить ставку', 'Спец. опция 4.0', -0.6, 0.5, {
+        pkg('PKG_SPEC_4_0', 'Спец. опция 4.0', 'Комиссия 0,99%', -0.6, 0.5, {
             insurance: 'ККС, программа 1–2',
             commission: '0,99% от суммы кредита',
             rateNote: 'первый период; LTV до 50%',
@@ -110,7 +125,7 @@ function buildEligiblePackages() {
         }),
         pkg('PKG_NO_INSURANCE', 'Без страхования жизни', 'Выше ставка', 5, null, {
             insurance: 'Только залог (имущество)',
-            warning: 'Платёж выше, чем в рекомендуемом пакете',
+            warning: 'Платёж выше, чем в пакете «Турбо 2.0»',
             features: ['Без ККС по заёмщику', 'Надбавка +5% к ставке']
         })
     ];
@@ -118,7 +133,7 @@ function buildEligiblePackages() {
     const rec = packages[0];
     const noIns = packages[2];
     if (noIns.payment > rec.payment) {
-        noIns.warning = 'На ~' + (noIns.payment - rec.payment).toLocaleString('ru-RU') + ' ₽/мес больше, чем в рекомендуемом';
+        noIns.warning = 'На ~' + (noIns.payment - rec.payment).toLocaleString('ru-RU') + '\u00a0₽/мес больше, чем в «Турбо 2.0»';
     }
 
     return packages;
@@ -200,7 +215,6 @@ function renderPackageCards() {
         const features = pkg.features.map(f => '<li><i class="fas fa-check"></i> ' + f + '</li>').join('');
         const warn = pkg.warning ? '<div class="pkg-warning"><i class="fas fa-exclamation-triangle"></i> ' + pkg.warning + '</div>' : '';
         const badge = pkg.badge ? '<span class="pkg-badge">' + pkg.badge + '</span>' : '';
-        const rec = pkg.recommended ? '<span class="pkg-rec">Рекомендуем</span>' : '';
         const recDelta = pkg.recommended
             ? '<div class="pkg-rate-compose">Турбо 2.0 · база ' + base.toFixed(1) + '%' +
               (esiaDisc ? ' − ЕСИА ' + esiaDisc.toFixed(1) + '%' : '') +
@@ -209,12 +223,12 @@ function renderPackageCards() {
 
         return '<label class="pkg-card' + (selected ? ' selected' : '') + (pkg.recommended ? ' featured' : '') + '" data-pkg="' + pkg.id + '">' +
             '<input type="radio" name="offerPackage" value="' + pkg.id + '"' + (selected ? ' checked' : '') + ' onchange="selectOfferPackage(\'' + pkg.id + '\')">' +
-            '<div class="pkg-card-head">' + rec + badge + '<div class="pkg-title">' + pkg.title + '</div></div>' +
+            '<div class="pkg-card-head">' + badge + '<div class="pkg-title">' + pkg.title + '</div></div>' +
             recDelta +
             '<div class="pkg-metrics">' +
             '<span><b>' + applied.rate.toFixed(1) + '%</b> ставка' + (pkg.rateNote ? '<small>' + pkg.rateNote + '</small>' : '') + '</span>' +
-            '<span><b>~' + applied.payment.toLocaleString('ru-RU') + ' ₽</b>/мес</span>' +
-            '<span>до <b>' + applied.limit.toLocaleString('ru-RU') + ' ₽</b></span>' +
+            '<span><b>~' + formatRub(applied.payment) + '</b>/мес</span>' +
+            '<span>до <b>' + formatRub(applied.limit) + '</b></span>' +
             '<span>LTV <b>' + Math.round(applied.ltv * 100) + '%</b></span>' +
             '</div>' +
             '<ul class="pkg-features">' + features + '</ul>' +
@@ -244,7 +258,7 @@ function renderPackageCards() {
             delta.className = 'pkg-delta';
             delta.textContent = (dRate >= 0 ? '+' : '') + dRate.toFixed(1) + ' п.п. · ' +
                 (dPay >= 0 ? '+' : '') + dPay.toLocaleString('ru-RU') + ' ₽/мес · переплата ' +
-                (dOver >= 0 ? '+' : '') + dOver.toLocaleString('ru-RU') + ' ₽ vs рекомендуемый';
+                (dOver >= 0 ? '+' : '') + dOver.toLocaleString('ru-RU') + '\u00a0₽ vs «Турбо 2.0»';
             card.appendChild(delta);
         });
     }
@@ -392,13 +406,14 @@ function acceptOfferPackage() {
             packageInsurance: catalog ? catalog.insurance : '',
             packageCommission: catalog ? catalog.commission : (pkg.commission || ''),
             offerValidUntil: state.offerValidUntil,
-            packageModifiers: state.packageModifiers || {}
+            packageModifiers: state.packageModifiers || {},
+            termsKind: 'preliminary'
         });
         updateApplicationStatus(
             activeId,
-            'processing',
+            'decision',
             'Условия приняты',
-            'Клиент принял пакет «' + pkg.title + '»: ставка ' + state.currentRate + '%, платёж ~' + state.currentPayment.toLocaleString('ru-RU') + ' ₽'
+            'Клиент принял пакет «' + pkg.title + '»: ставка ' + state.currentRate + '%, платёж ~' + state.currentPayment.toLocaleString('ru-RU') + ' ₽. Предварительные условия, повторный прескоринг не нужен.'
         );
         if (typeof refreshClientApplicationsUI === 'function') {
             refreshClientApplicationsUI(activeId);
@@ -423,15 +438,22 @@ function acceptOfferPackage() {
 
     const summary = document.getElementById('acceptedPackageSummary');
     if (summary) {
-        summary.innerHTML = 'Пакет: <b>' + pkg.title + '</b> · Ставка <b>' + state.currentRate.toFixed(1) + '%</b> · ' +
-            'Платёж <b>~' + state.currentPayment.toLocaleString('ru-RU') + ' ₽</b>/мес · ' +
-            'Сумма <b>' + state.currentLimit.toLocaleString('ru-RU') + ' ₽</b>';
+        var catalog = getPackageCatalogInfo(pkg.id);
+        summary.innerHTML = acceptedPackageSummaryHTML(
+            (catalog && catalog.title) || pkg.title,
+            state.currentRate,
+            state.currentPayment,
+            state.currentLimit
+        );
     }
 
     flashCard('cardRate');
     flashCard('cardPayment');
     if (typeof recordPreliminaryOffer === 'function') {
         try { recordPreliminaryOffer(activeId); } catch (eOff) {}
+    }
+    if (typeof recordPrescoreProtocol === 'function') {
+        try { recordPrescoreProtocol(activeId, 'client'); } catch (ePre) {}
     }
     if (typeof recordRateBreakdown === 'function') {
         try { recordRateBreakdown(activeId); } catch (eRb) {}

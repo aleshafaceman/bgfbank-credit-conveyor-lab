@@ -268,14 +268,14 @@ function renderPackages() {
     '<div class="row"><span>Запросили</span><b>' + fmt(state.amount) + "</b></div>";
   const years = 15;
   const pkgs = [
-    { id: "rec", title: "Рекомендуем", rec: true, rate: 18.5, amount: maxLoan, years },
-    { id: "spec", title: "Спец. опция", rec: false, rate: 16.9, amount: Math.min(maxLoan, Math.round(price * 0.5 / 100000) * 100000), years },
+    { id: "rec", title: "Турбо 2.0", rec: true, rate: 18.5, amount: maxLoan, years },
+    { id: "spec", title: "Спец. опция 4.0", rec: false, rate: 16.9, amount: Math.min(maxLoan, Math.round(price * 0.5 / 100000) * 100000), years },
     { id: "noins", title: "Без страхования жизни", rec: false, rate: 23.5, amount: maxLoan, years },
   ];
   $("pkg-list").innerHTML = pkgs.map((p) =>
     '<label class="pkg' + (p.id === state.pkg ? " on" : "") + '">' +
     '<input type="radio" name="pkg" value="' + p.id + '"' + (p.id === state.pkg ? " checked" : "") + ">" +
-    "<h3>" + p.title + (p.rec ? '<span class="rec">рекомендуем</span>' : "") + "</h3>" +
+    "<h3>" + p.title + "</h3>" +
     '<div class="metrics"><div>Сумма<b>' + fmt(p.amount) + "</b></div>" +
     "<div>Срок<b>" + p.years + " лет</b></div>" +
     "<div>Ставка<b>" + p.rate.toFixed(1) + "%</b></div>" +
@@ -291,7 +291,7 @@ function renderPackages() {
 
 function acceptOffer() {
   $("status-sum").innerHTML =
-    "<div class=\"row\"><span>Пакет</span><b>" + (state.pkg === "rec" ? "Рекомендуем" : state.pkg === "spec" ? "Спец. опция" : "Без страхования") + "</b></div>" +
+    "<div class=\"row\"><span>Пакет</span><b>" + (state.pkg === "rec" ? "Турбо 2.0" : state.pkg === "spec" ? "Спец. опция 4.0" : "Без страхования жизни") + "</b></div>" +
     "<div class=\"row\"><span>Объект</span><b>" + state.object.address + "</b></div>" +
     "<div class=\"row\"><span>Кадастр</span><b>" + state.object.cadastral + "</b></div>";
   show("status");

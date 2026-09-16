@@ -21,14 +21,16 @@ function renderApplicationList(filteredApps) {
         new: 'badge-new', processing: 'badge-processing', valuation: 'badge-valuation',
         decision: 'badge-decision', approved: 'badge-approved', rejected: 'badge-rejected'
     };
-    const safeApps = (apps || []).filter(function(a) { return a && a.id; });
+    const safeApps = (typeof visibleCabinetApplications === 'function')
+        ? visibleCabinetApplications(apps)
+        : (apps || []).filter(function(a) { return a && a.id && !(typeof isLkLabApplication === 'function' && isLkLabApplication(a)); });
 
     try {
         container.innerHTML = safeApps.map(function(app) {
             var amount = (typeof app.amount === 'number' && isFinite(app.amount)) ? app.amount : (Number(app.amount) || 0);
             return '<div class="m-app-card' + (app.id === selectedAppId ? ' active' : '') + '" data-app-id="' + String(app.id).replace(/"/g, '&quot;') + '">' +
                 '<div class="m-card-row">' +
-                    '<span><span class="m-card-id">№' + app.id + '</span>' + appOriginBadgeHTML(app) + '</span>' +
+                    '<span><span class="m-card-id">№' + app.id + '</span>' + (typeof cpConfirmBadgeHTML === 'function' ? cpConfirmBadgeHTML(app) : '') + '</span>' +
                     '<span class="m-card-date">' + (app.date || '') + '</span>' +
                 '</div>' +
                 '<div class="m-card-client">' + (app.client || '') + '</div>' +
@@ -145,11 +147,13 @@ function renderApplicationDetail(appId) {
             : (termsKind === 'final'
                 ? '<div class="m-detail-param" style="margin-top:8px;"><div class="m-param-label">Тип условий</div><div class="m-param-value" style="font-size:13px;color:#047857;">Итоговые · полный скоринг</div></div>'
                 : '');
+        var pkgInfo = (typeof getPackageCatalogInfo === 'function') ? getPackageCatalogInfo(app.selectedPackageId) : null;
+        var pkgLabel = (pkgInfo && pkgInfo.title) || app.selectedPackageLabel || '';
 
         container.innerHTML = `
         <div class="m-detail-header">
             <div>
-                <div class="m-detail-id">№${app.id}${appOriginBadgeHTML(app)}</div>
+                <div class="m-detail-id">№${app.id}${typeof cpConfirmBadgeHTML === 'function' ? cpConfirmBadgeHTML(app) : ''}</div>
                 <div class="m-detail-product">${app.product || 'Кредит под залог недвижимости'}</div>
             </div>
             <span class="m-badge ${statusClasses[app.status] || 'badge-processing'}">${app.statusLabel || app.status || ''}</span>
@@ -158,7 +162,7 @@ function renderApplicationDetail(appId) {
             ${app.client || '—'} <i class="fas fa-external-link-alt" style="font-size:10px;opacity:0.5;"></i>
         </div>
         <div class="m-detail-phone"><i class="fas fa-phone" style="margin-right:4px;"></i> ${app.phone || '—'}</div>
-        ${appOriginNoteHTML(app)}
+        ${typeof cpConfirmNoteHTML === 'function' ? cpConfirmNoteHTML(app) : ''}
         ${timelineHtml}
         ${cpHtml}
         ${cpHtml && typeof openArtifactByKind === 'function' ? '<div style="margin:-8px 0 16px;"><button type="button" class="m-btn m-btn-outline" data-m-action="open-artifact-kind" data-art-kind="cp_coverage" data-app-id="' + String(app.id).replace(/"/g, '&quot;') + '"><i class="fas fa-id-card"></i> Открыть выписку ЦП</button></div>' : ''}
@@ -171,7 +175,7 @@ function renderApplicationDetail(appId) {
             <div class="m-detail-param"><div class="m-param-label">${rateLabel}</div><div class="m-param-value ${app.rate ? '' : 'pending'}">${app.rate ? app.rate + '%' : 'ожидается'}</div></div>
             <div class="m-detail-param"><div class="m-param-label">${payLabel}</div><div class="m-param-value ${app.payment ? '' : 'pending'}">${app.payment ? '~ ' + Number(app.payment).toLocaleString('ru-RU') + ' ₽' : 'ожидается'}</div></div>
             ${termsNote}
-            ${app.selectedPackageLabel ? '<div class="m-detail-param"><div class="m-param-label">Рекомендуемый пакет условий</div><div class="m-param-value">' + app.selectedPackageLabel + (app.offerValidUntil ? ' <span style="font-size:11px;color:#7e9bb6;">(до ' + app.offerValidUntil + ')</span>' : '') + '</div></div>' : ''}
+            ${pkgLabel ? '<div class="m-detail-param"><div class="m-param-label">Пакет условий</div><div class="m-param-value">' + pkgLabel + (app.offerValidUntil ? ' <span style="font-size:11px;color:#7e9bb6;">(до ' + app.offerValidUntil + ')</span>' : '') + '</div></div>' : ''}
         </div>
         
         <div class="m-section">
@@ -307,7 +311,7 @@ function appTermsKind(app) {
     if (!app) return null;
     if (app.status === 'valuation') return null;
     if (app.termsKind === 'final' || app.status === 'approved' || app.status === 'rejected') return 'final';
-    if (app.termsKind === 'preliminary' || app.status === 'decision') return 'preliminary';
+    if (app.termsKind === 'preliminary' || app.status === 'decision' || clientAcceptedOffer(app)) return 'preliminary';
     if (app.rate != null && app.status !== 'new' && app.status !== 'processing') return 'preliminary';
     return null;
 }
@@ -324,25 +328,6 @@ function managerNotify(message) {
 }
 
 var ORIGINAL_DU_IDS = { du00: true, du01: true, du04: true, du19: true };
-
-function appOriginKind(app) {
-    if (typeof isLkLabApplication === 'function' && isLkLabApplication(app)) return 'lab';
-    return 'conveyor';
-}
-
-function appOriginBadgeHTML(app) {
-    if (appOriginKind(app) === 'lab') {
-        return '<span class="m-card-origin m-card-origin--lab" title="Лабораторная заявка: цифровой профиль TrustGate. Это не заявка из клиентского кабинета.">Лаб. ЦП</span>';
-    }
-    return '<span class="m-card-origin m-card-origin--conveyor" title="Заявка с конвейера клиентского кабинета.">Конвейер</span>';
-}
-
-function appOriginNoteHTML(app) {
-    if (appOriginKind(app) === 'lab') {
-        return '<p class="m-origin-note">Источник: лабораторный цифровой профиль TrustGate. Не пришла из клиентского кабинета — сценарий только для менеджера.</p>';
-    }
-    return '<p class="m-origin-note">Источник: конвейер клиентского кабинета.</p>';
-}
 
 function renderManagerRateBreakdownHTML(app) {
     if (!app || !app.selectedPackageId && app.rate == null) return '';
@@ -412,6 +397,21 @@ function missingOriginals(app) {
     return items;
 }
 
+function clientAcceptedOffer(app) {
+    if (!app) return false;
+    if (app.packageStatus === 'accepted') return true;
+    return !!(app.selectedPackageId && app.rate != null && app.payment != null);
+}
+
+function managerButtonStage(app) {
+    if (!app) return 'new';
+    if (app.status === 'approved' || app.status === 'rejected' || app.status === 'valuation') return app.status;
+    if (clientAcceptedOffer(app) || app.status === 'decision' || app.termsKind === 'preliminary' || app.termsKind === 'final') {
+        return 'decision';
+    }
+    return app.status || 'processing';
+}
+
 function getActionButtons(app) {
     var id = String((app && app.id) || '').replace(/'/g, "\\'");
     var scoringPrimary = '<button type="button" class="m-btn m-btn-primary" data-m-action="openScoring" data-app-id="' + id +
@@ -424,7 +424,8 @@ function getActionButtons(app) {
     var prescoreProtocol = (typeof openArtifactByKind === 'function')
         ? '<button type="button" class="m-btn m-btn-outline" data-m-action="open-artifact-kind" data-art-kind="prescore_protocol" data-app-id="' + id + '"><i class="fas fa-file-alt"></i> Протокол прескоринга</button>'
         : '';
-    switch(app.status) {
+    var stage = managerButtonStage(app);
+    switch(stage) {
         case 'new':
             return mActionButton(id, 'requestDocs', 'm-btn-primary', 'fa-file-upload', 'Запросить документы') +
                     mActionButton(id, 'startReview', 'm-btn-outline', 'fa-play', 'Начать рассмотрение');
@@ -438,19 +439,23 @@ function getActionButtons(app) {
                     prescoreOpen +
                     mActionButton(id, 'requestValuation', 'm-btn-outline', 'fa-home', 'Обновить оценку') +
                     mActionButton(id, 'requestDocs', 'm-btn-outline', 'fa-file-upload', 'Запросить документы');
-        case 'decision':
+        case 'decision': {
             var missing = missingOriginals(app);
+            var doneHint = clientAcceptedOffer(app)
+                ? 'Клиент принял предварительные условия в кабинете. Повторный прескоринг не нужен. '
+                : 'Прескоринг пройден. ';
             if (missing.length) {
-                return mActionsHint('Прескоринг пройден. Для полного скоринга не хватает оригиналов: ' + missing.join('; ') + '.', 'm-actions-hint--warn') +
+                return mActionsHint(doneHint + 'Для полного скоринга не хватает оригиналов: ' + missing.join('; ') + '.', 'm-actions-hint--warn') +
                     scoringSkip +
                     mActionButton(id, 'requestDocs', 'm-btn-outline', 'fa-file-upload', 'Запросить оригиналы') +
                     prescoreProtocol +
                     mActionButton(id, 'reject', 'm-btn-danger', 'fa-times', 'Клиент не подходит');
             }
-            return mActionsHint('Прескоринг пройден. Комплект оригиналов собран — можно запускать полный скоринг.') +
+            return mActionsHint(doneHint + 'Комплект оригиналов собран — можно запускать полный скоринг.') +
                     scoringPrimary +
                     prescoreProtocol +
                     mActionButton(id, 'reject', 'm-btn-danger', 'fa-times', 'Клиент не подходит');
+        }
         case 'approved':
             return mActionButton(id, 'sendContract', 'm-btn-outline', 'fa-signature', 'Отправить договор') +
                 mActionButton(id, 'recordDealPassport', 'm-btn-outline', 'fa-id-card', 'Паспорт сделки') +

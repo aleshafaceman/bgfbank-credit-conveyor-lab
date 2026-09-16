@@ -56,7 +56,7 @@ function getAppTimelineSteps(app) {
     var accepted = app.packageStatus === 'accepted' || (app.rate != null && app.selectedPackageId);
     var approved = app.status === 'approved';
     var rejected = app.status === 'rejected';
-    var scoring = app.status === 'decision' || approved || rejected;
+    var scoring = approved || rejected || app.termsKind === 'final';
     var docsDone = !(app.documents || []).some(function(d) { return d.status === 'missing'; });
 
     return [
@@ -194,11 +194,11 @@ function maybeShowPresenterChecklist(force) {
     el.innerHTML = '<div class="bgf-checklist-head"><b>Скрипт ведущего</b><button type="button" id="bgfChecklistClose">×</button></div>' +
         '<label><input type="checkbox"> Сброс демо</label>' +
         '<label><input type="checkbox"> Клиент: залог + ЕСИА</label>' +
-        '<label><input type="checkbox"> Пакет «Рекомендуем»</label>' +
+        '<label><input type="checkbox"> Пакет «Турбо 2.0»</label>' +
         '<label><input type="checkbox"> Чат → менеджер</label>' +
         '<label><input type="checkbox"> Скоринг → одобрение</label>' +
         '<label><input type="checkbox"> Тост «Одобрено»</label>' +
-        '<a href="manager/?autologin=1" target="_blank">Кабинет менеджера</a>';
+        '<a href="manager/?autologin=1" target="_blank">Менеджер (без сброса)</a>';
     document.body.appendChild(el);
     document.getElementById('bgfChecklistClose').onclick = function() { el.remove(); };
 }

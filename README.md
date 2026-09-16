@@ -21,6 +21,6 @@ LAB Pages: https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/
 АРМ сделки (ОЗС / ОПЕРУ, мок): https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/deal-ops/  
 Электронное заявление на счёт (клиент по SMS): https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/deal-ops/account-app.html?t=25BGFB00990001  
 
-Быстрый показ кабинета: `/?demo=1`, менеджер — `/manager/?autologin=1` (не `?demo=1` после клиента). Хранилище: `bgfbank_lab_*`.
+Быстрый показ кабинета: клиент `/?demo=1` (сброс + вход), менеджер `/manager/?autologin=1` (вход без сброса). Сброс у менеджера — кнопка на экране входа или `?demo=reset`. Хранилище: `bgfbank_lab_*`.
 
 Сценарий показа кабинета: см. `DEMO.md`.

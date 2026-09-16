@@ -172,7 +172,7 @@ function loadSharedContext() {
   ctx.getPackageCatalogInfo = function(id) {
     if (!id) return null;
     return {
-      title: 'Рекомендуем',
+      title: 'Турбо 2.0',
       description: 'Баланс ставки и лимита',
       insurance: 'Имущество',
       commission: '0%',
@@ -289,7 +289,7 @@ console.log('\n=== 3. Client conveyor continue / resume ===');
   ctx.updateApplication('4421-И', {
     packageStatus: 'accepted',
     selectedPackageId: 'PKG_RECOMMENDED',
-    selectedPackageLabel: 'Рекомендуем',
+    selectedPackageLabel: 'Турбо 2.0',
     rate: 12.5,
     payment: 54000,
     amount: 5000000,
@@ -502,6 +502,25 @@ console.log('\n=== 7. HTML script order / critical refs ===');
     'manager: lk-application after data');
   assert(mgrScripts.indexOf('../shared/lk-artifacts.js') > mgrScripts.indexOf('../shared/lk-application.js'),
     'manager: lk-artifacts after lk-application');
+  const mgrFeatSrc = fs.readFileSync(path.join(root, 'manager/js/features-lab.js'), 'utf8');
+  const clientFeatSrc = fs.readFileSync(path.join(root, 'js/features-lab.js'), 'utf8');
+  assert(!/mode === '1' \|\| mode === 'manager' \|\| mode === 'reset'/.test(mgrFeatSrc),
+    'manager ?demo=1 is not bundled with storage reset');
+  assert(/mode === 'reset' \|\| mode === 'manager'/.test(mgrFeatSrc) &&
+    /if \(mode === '1'\)/.test(mgrFeatSrc),
+    'manager resets storage only on demo=reset/manager, not demo=1');
+  assert(/manager\/\?autologin=1/.test(clientFeatSrc) && !/manager\/\?demo=1/.test(clientFeatSrc),
+    'presenter checklist opens manager without wiping storage');
+  assert(/autologin=1/.test(mgr) && /не стирает заявку/.test(mgr),
+    'manager login screen warns that demo=1 no longer wipes the client deal');
+  const demoMd = fs.readFileSync(path.join(root, 'DEMO.md'), 'utf8');
+  assert(/\/manager\/\?autologin=1/.test(demoMd) && /\/manager\/\?demo=reset/.test(demoMd),
+    'DEMO.md tells presenter to autologin manager without a second reset');
+  const readme = fs.readFileSync(path.join(root, 'README.md'), 'utf8');
+  assert(/\/manager\/\?autologin=1/.test(readme),
+    'README points manager demo at autologin, not wipe');
+  assert(/CDN GitHub Pages/.test(demoMd),
+    'DEMO.md notes incognito does not bypass Pages CDN');
   const extrasCss = fs.readFileSync(path.join(root, 'css/styles.css'), 'utf8');
   assert(extrasCss.indexOf('.pkg-extras-panel.hidden') > extrasCss.indexOf('.pkg-extras-panel {'),
     'Дополнительно panel .hidden overrides display:flex');
@@ -512,6 +531,15 @@ console.log('\n=== 7. HTML script order / critical refs ===');
   const acceptedCss = fs.readFileSync(path.join(root, 'css/styles.css'), 'utf8');
   assert(/\.offer-accepted-actions\s*\{[^}]*gap:\s*16px/.test(acceptedCss),
     'accepted offer actions have 16px gap');
+  const pkgSrc = fs.readFileSync(path.join(root, 'js/packages.js'), 'utf8');
+  assert(/title: 'Турбо 2.0'/.test(pkgSrc) && /title: 'Спец. опция 4.0'/.test(pkgSrc),
+    'package catalog uses tariff names, not Рекомендуем');
+  assert(!/pkg\('PKG_RECOMMENDED', 'Рекомендуем'/.test(pkgSrc),
+    'offer cards do not title the turbo package Рекомендуем');
+  assert(/acceptedPackageSummaryHTML/.test(pkgSrc) && /\\u00a0₽/.test(pkgSrc),
+    'accepted summary keeps ruble on the amount');
+  assert(/offer-accepted-summary \.money/.test(acceptedCss) && /white-space:\s*nowrap/.test(acceptedCss),
+    'accepted summary amounts do not wrap the ₽');
   const artSrc = fs.readFileSync(path.join(root, 'shared/lk-artifacts.js'), 'utf8');
   assert(!/Не бланк ELMA/.test(artSrc) && !/Байты файла не хранятся/.test(artSrc),
     'artifact preview has no ELMA/bytes lab disclaimer');
@@ -536,7 +564,7 @@ console.log('\n=== 7. HTML script order / critical refs ===');
     'changePackage copy has no eligible');
   assert(!/Протокол preScore/.test(artSrc) && !/Протокол getDecision/.test(artSrc),
     'artifact labels do not show preScore/getDecision');
-  assert(fs.readFileSync(path.join(root, 'js/applications.js'), 'utf8').includes('isLkLabApplication'),
+  assert(fs.readFileSync(path.join(root, 'js/applications.js'), 'utf8').includes('visibleCabinetApplications'),
     'client list filters manager-only TrustGate app');
   assert(!fs.readFileSync(path.join(root, 'js/applications.js'), 'utf8').includes('renderCpCoverageHTML'),
     'client detail does not render TrustGate coverage block');
@@ -598,10 +626,18 @@ console.log('\n=== 8. TrustGate lab app is manager-only ===');
   assert(clientApps.some(a => a.id === '4421-И'), 'client list still has 4421-И');
   const preferred = ctx.pickPreferredClientAppId('4636-И');
   assert(preferred === '4421-И', 'preferred client app skips 4636-И');
+  assert(ctx.clientGaveDigitalProfile('Александр Кузнецов') === true, 'Kuznetsov gave CP via 4421 ESIA docs');
+  assert(ctx.clientGaveDigitalProfile('Дмитрий Иванов') === false, 'Ivanov has no CP');
+  assert(ctx.clientGaveDigitalProfile('Сергей Волков') === false, 'Volkov has no CP');
+  assert(/Подтвержден ЦП/.test(ctx.cpConfirmBadgeHTML({ client: 'Александр Кузнецов' })),
+    'Kuznetsov badge is Подтвержден ЦП');
+  assert(/Не подтвержден ЦП/.test(ctx.cpConfirmBadgeHTML({ client: 'Дмитрий Иванов' })),
+    'Ivanov badge is Не подтвержден ЦП');
 
   const html4421 = ctx.getActiveApplicationHTML(clientApps.find(a => a.id === '4421-И'));
   assert(!html4421.includes('cp-coverage'), 'client 4421 detail has no CP coverage block');
   assert(!html4421.includes('data-cp-profile'), 'client 4421 detail has no CP profile switcher');
+  assert(html4421.includes('Подтвержден ЦП'), 'client 4421 detail shows Подтвержден ЦП');
 
   ctx.getRequiredDU = function() { return []; };
   ctx.duCategories = {};
@@ -619,7 +655,9 @@ console.log('\n=== 8. TrustGate lab app is manager-only ===');
     'manager CP block does not show engine field names');
   assert(mgrHtml.includes('Заёмщик') && !mgrHtml.includes('borrowers[0]'),
     'manager CP borrower row is human-readable');
-  assert(mgrHtml.includes('лабораторный цифровой профиль'), 'lab detail explains origin vs conveyor');
+  assert(mgrHtml.includes('Подтвержден ЦП'), 'lab detail of Kuznetsov still shows client CP badge');
+  assert(!mgrHtml.includes('Лаб. ЦП') && !mgrHtml.includes('Конвейер'),
+    'lab detail does not use origin Лаб. ЦП / Конвейер badges');
   assert(mgrHtml.includes('кадастр'), 'manager CP block maps realty hole to cadastral');
   assert(mgrHtml.includes('не ждём'), 'manager CP block says family is not a hole');
   assert(mgrHtml.includes('doc-skipped') || mgrHtml.includes('Не пришёл — это норма'),
@@ -642,6 +680,37 @@ console.log('\n=== 8. TrustGate lab app is manager-only ===');
   const procBtns = ctx.getActionButtons({ id: '4421-И', status: 'processing' });
   assert(/прескоринг/i.test(procBtns) && procBtns.indexOf('Полный скоринг') === -1,
     'processing shows prescoring only, not full scoring');
+  const acceptedBtns = ctx.getActionButtons({
+    id: '4421-И',
+    status: 'processing',
+    packageStatus: 'accepted',
+    selectedPackageId: 'PKG_RECOMMENDED',
+    rate: 12.5,
+    payment: 52998,
+    documents: [{ name: 'Выписка ЕГРН', status: 'missing' }]
+  });
+  assert(acceptedBtns.indexOf('Запустить прескоринг') === -1,
+    'accepted offer does not offer a new prescore');
+  assert(/Полный скоринг/.test(acceptedBtns), 'accepted offer goes to full scoring');
+  assert(/оригинал/i.test(acceptedBtns) && /ЕГРН/.test(acceptedBtns),
+    'accepted offer still asks for originals');
+  assert(/Повторный прескоринг не нужен/.test(acceptedBtns),
+    'accepted offer hint says not to rerun prescore');
+  const accSteps = ctx.getManagerAppTimelineSteps({
+    id: '4421-И',
+    status: 'processing',
+    packageStatus: 'accepted',
+    selectedPackageId: 'PKG_RECOMMENDED',
+    rate: 12.5,
+    documents: [{ status: 'missing' }]
+  });
+  assert(accSteps.find(s => s.id === 'package').done, 'accepted offer marks package done');
+  assert(accSteps.find(s => s.id === 'prescore').done, 'accepted offer marks prescore done');
+  assert(accSteps.find(s => s.id === 'scoring').done === false, 'accepted offer is not full scoring');
+  const pkgAcceptSrc = fs.readFileSync(path.join(root, 'js/packages.js'), 'utf8');
+  assert(/termsKind: 'preliminary'/.test(pkgAcceptSrc) &&
+    /updateApplicationStatus\(\s*activeId,\s*'decision'/.test(pkgAcceptSrc),
+    'accepting the offer persists preliminary terms as decision, not a fresh processing prescore');
   const valBtns = ctx.getActionButtons({ id: '4421-И', status: 'valuation' });
   assert(valBtns.indexOf('Открыть прескоринг') !== -1, 'valuation continues the started prescoring');
   assert(valBtns.indexOf('Запустить прескоринг') === -1, 'valuation does not re-offer a fresh prescore start');
@@ -710,14 +779,28 @@ console.log('\n=== 8. TrustGate lab app is manager-only ===');
     '4421 happy-path omits marriage DU without marital_status');
 
   ctx.renderApplicationList();
-  assert(ctx._els.mAppCards.innerHTML.includes('Лаб. ЦП'), 'list marks 4636 as lab CP');
-  assert(ctx._els.mAppCards.innerHTML.includes('Конвейер'), 'list marks conveyor apps');
+  assert(!ctx._els.mAppCards.innerHTML.includes('4636-И'), 'manager list hides lab 4636-И');
+  assert(ctx._els.mAppCards.innerHTML.includes('4421-И') && ctx._els.mAppCards.innerHTML.includes('3890-И'),
+    'manager list keeps Kuznetsov cabinet apps');
+  const mgrKuz = ctx.visibleCabinetApplications(ctx.getAllApplications())
+    .filter(a => a.client === 'Александр Кузнецов').map(a => a.id).sort();
+  const clientKuz = ctx.getClientApplications().map(a => a.id).sort();
+  assert(JSON.stringify(mgrKuz) === JSON.stringify(clientKuz),
+    'Kuznetsov application ids match in manager and client');
+  assert((ctx._els.mAppCards.innerHTML.match(/Подтвержден ЦП/g) || []).length >= 2,
+    'Kuznetsov apps in manager list are Подтвержден ЦП');
+  assert(ctx._els.mAppCards.innerHTML.includes('Не подтвержден ЦП'),
+    'other clients in manager list are Не подтвержден ЦП');
+  assert(!ctx._els.mAppCards.innerHTML.includes('Лаб. ЦП') && !ctx._els.mAppCards.innerHTML.includes('Конвейер'),
+    'manager list does not mark Лаб. ЦП / Конвейер');
   ctx.selectManagerApp('4636-И');
-  assert(ctx._els.mAppDetail.innerHTML.includes('Лаб. ЦП'), '4636 detail shows lab badge');
+  assert(ctx._els.mAppDetail.innerHTML.includes('4636-И'), '4636-И still opens for lab CP tools');
   ctx.selectManagerApp('4421-И');
-  assert(ctx._els.mAppDetail.innerHTML.includes('Конвейер'), '4421 detail shows conveyor badge');
-  assert(ctx._els.mAppDetail.innerHTML.includes('конвейер клиентского кабинета'),
-    '4421 detail explains conveyor origin');
+  assert(ctx._els.mAppDetail.innerHTML.includes('Подтвержден ЦП'), '4421 detail shows Подтвержден ЦП');
+  assert(!ctx._els.mAppDetail.innerHTML.includes('Конвейер') && !ctx._els.mAppDetail.innerHTML.includes('конвейер клиентского кабинета'),
+    '4421 detail has no conveyor origin copy');
+  ctx.selectManagerApp('3701-И');
+  assert(ctx._els.mAppDetail.innerHTML.includes('Не подтвержден ЦП'), 'Ivanov detail shows Не подтвержден ЦП');
   if (typeof ctx.attachEsiaProfileToConveyorApp === 'function') ctx.attachEsiaProfileToConveyorApp('4421-И');
   ctx.selectManagerApp('4421-И');
   assert(ctx._els.mAppDetail.innerHTML.includes('cp-coverage'), 'manager 4421 after ESIA shows CP coverage');
@@ -824,16 +907,19 @@ console.log('\n=== 9. L3 artifacts registry ===');
   const after = JSON.parse(ctx.localStorage.getItem('bgfbank_lab_artifacts') || 'null');
   assert(!after, 'resetDemoStorage clears artifacts key');
 
-  ctx.selectedAppId = '4636-И';
+  ctx.selectedAppId = '4421-И';
   ctx._els.mArtFilterApp.value = '';
   ctx._els.mArtFilterApp.attributes = {};
   ctx.fillArtifactAppFilter('mArtFilterApp', 'manager');
-  assert(ctx._els.mArtFilterApp.value === '4636-И', 'first paint follows selectedAppId');
-  ctx._els.mArtFilterApp.value = '4421-И';
+  assert(ctx._els.mArtFilterApp.value === '4421-И', 'first paint follows selectedAppId');
+  assert(!String(ctx._els.mArtFilterApp.innerHTML).includes('4636-И'),
+    'manager documents filter hides lab 4636');
+  ctx._els.mArtFilterApp.value = '3890-И';
+  ctx.selectedAppId = '4636-И';
   ctx.fillArtifactAppFilter('mArtFilterApp', 'manager');
-  assert(ctx._els.mArtFilterApp.value === '4421-И', 'onchange keeps 4421 even if selectedAppId is 4636');
+  assert(ctx._els.mArtFilterApp.value === '3890-И', 'onchange keeps 3890 even if selectedAppId is lab 4636');
   ctx.fillArtifactAppFilter('mArtFilterApp', 'manager', { followSelected: true });
-  assert(ctx._els.mArtFilterApp.value === '4636-И', 'documents tab followSelected resyncs to selected app');
+  assert(ctx._els.mArtFilterApp.value !== '4636-И', 'documents tab does not follow hidden lab app');
   const initHtml = fs.readFileSync(path.join(root, 'manager/index.html'), 'utf8');
   assert(/selectManagerApp\(happyPathId\)/.test(initHtml) && !/selectManagerApp\(typeof LK_LAB_ID/.test(initHtml),
     'manager init opens happy-path 4421, not lab 4636');
@@ -911,8 +997,8 @@ console.log('\n=== 10. L3 P2 passport / КОД / package ===');
     'client still hides broker SMS and preScore after КОД');
 
   ctx.persistEligiblePackagesSnapshot('4421-И', [
-    { id: 'PKG_RECOMMENDED', title: 'Рекомендуем', rate: 12.5, payment: 54000, ltv: 0.6, limit: 5000000, insurance: 'ККС' },
-    { id: 'PKG_SPEC_4_0', title: 'Снизить ставку', rate: 11.9, payment: 51000, ltv: 0.5, limit: 4250000, insurance: 'ККС', commission: '0,99%' },
+    { id: 'PKG_RECOMMENDED', title: 'Турбо 2.0', rate: 12.5, payment: 54000, ltv: 0.6, limit: 5000000, insurance: 'ККС' },
+    { id: 'PKG_SPEC_4_0', title: 'Спец. опция 4.0', rate: 11.9, payment: 51000, ltv: 0.5, limit: 4250000, insurance: 'ККС', commission: '0,99%' },
     { id: 'PKG_NO_INSURANCE', title: 'Без страхования жизни', rate: 17.5, payment: 72000, ltv: 0.6, limit: 5000000, insurance: 'Только залог' }
   ]);
   const okPkg = ctx.applyManagerEligiblePackage('4421-И', 'PKG_SPEC_4_0');

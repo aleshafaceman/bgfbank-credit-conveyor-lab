@@ -2,16 +2,27 @@
 
 window.BGF_DEMO = window.BGF_DEMO || { fastScoring: true, managerOnlyApproval: true, scoringGreen: true };
 
+function managerDemoRedirect(autologin) {
+    var url = new URL(window.location.href);
+    url.searchParams.delete('demo');
+    if (autologin) url.searchParams.set('autologin', '1');
+    window.location.replace(url.toString());
+}
+
 function runManagerDemoBoot() {
     try {
         var q = new URLSearchParams(window.location.search || '');
         var mode = q.get('demo');
-        if (mode === '1' || mode === 'manager' || mode === 'reset') {
+        // Только demo=reset / demo=manager чистят общий localStorage с клиентом.
+        // Старый ?demo=1 здесь стирал принятый пакет — в инкогнито после клиента кнопки
+        // оказывались на сиде processing, а не на той заявке, которую только что собрали.
+        if (mode === 'reset' || mode === 'manager') {
             if (typeof resetDemoStorage === 'function') resetDemoStorage({ includeUser: false });
-            var url = new URL(window.location.href);
-            url.searchParams.delete('demo');
-            url.searchParams.set('autologin', '1');
-            window.location.replace(url.toString());
+            managerDemoRedirect(true);
+            return;
+        }
+        if (mode === '1') {
+            managerDemoRedirect(true);
             return;
         }
         if (q.get('autologin') === '1') {
@@ -21,7 +32,7 @@ function runManagerDemoBoot() {
             setTimeout(function() {
                 var btn = document.getElementById('loginBtn');
                 if (btn) btn.click();
-                if (typeof showManagerToast === 'function') showManagerToast('Режим показа готов');
+                if (typeof showManagerToast === 'function') showManagerToast('Режим показа готов · данные клиента не сбрасывались');
             }, 250);
         }
     } catch (e) {
@@ -45,7 +56,7 @@ function getManagerAppTimelineSteps(app) {
     var approved = app.status === 'approved';
     var rejected = app.status === 'rejected';
     var termsKind = app.termsKind || (typeof appTermsKind === 'function' ? appTermsKind(app) : null);
-    var prescoreDone = app.status === 'decision' || approved || rejected || termsKind === 'preliminary' || termsKind === 'final';
+    var prescoreDone = app.status === 'decision' || approved || rejected || termsKind === 'preliminary' || termsKind === 'final' || accepted;
     var scoringDone = approved || rejected || termsKind === 'final';
     var docs = Array.isArray(app.documents) ? app.documents : [];
     var docsDone = !docs.some(function(d) { return d && d.status === 'missing'; });
@@ -78,7 +89,6 @@ function getManagerAppTimelineHTML(app) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    applyManagerEmbedMode();
     runManagerDemoBoot();
     var green = document.getElementById('chkScoringGreen');
     if (green) {

@@ -413,6 +413,56 @@ function isLkLabApplication(app) {
     return app.id === LK_LAB_ID || !!(app.lk && app.lk.id === LK_APP_UUID);
 }
 
+/** Стенд TrustGate 4636-И не заявка клиента — не показываем в списках кабинета и менеджера. */
+function visibleCabinetApplications(list) {
+    return (list || []).filter(function(a) {
+        return a && a.id && !isLkLabApplication(a);
+    });
+}
+
+function appHasDigitalProfile(app) {
+    if (!app) return false;
+    var cp = typeof getCpCoverage === 'function' ? getCpCoverage(app) : (app.lk && app.lk.extra_data && app.lk.extra_data.cp);
+    if (cp && cp.scopes && cp.scopes.passport && cp.scopes.passport.status === 'ok') return true;
+    if (app.source === 'esia') return true;
+    var docs = Array.isArray(app.documents) ? app.documents : [];
+    for (var i = 0; i < docs.length; i++) {
+        var d = docs[i];
+        if (!d || d.status !== 'uploaded') continue;
+        var blob = String(d.statusLabel || '') + ' ' + String(d.source || '');
+        if (/ЕСИА|Госуслуг|ЦП|TrustGate/i.test(blob)) return true;
+    }
+    return false;
+}
+
+/** ЦП — свойство клиента: дал профиль в кабинете → метка на всех его заявках. Стенд 4636 не считается. */
+function clientGaveDigitalProfile(clientName) {
+    if (!clientName) return false;
+    var apps = typeof getAllApplications === 'function' ? getAllApplications() : [];
+    for (var i = 0; i < apps.length; i++) {
+        var a = apps[i];
+        if (!a || a.client !== clientName) continue;
+        if (isLkLabApplication(a)) continue;
+        if (appHasDigitalProfile(a)) return true;
+    }
+    return false;
+}
+
+function cpConfirmBadgeHTML(app) {
+    var ok = clientGaveDigitalProfile(app && app.client);
+    if (ok) {
+        return '<span class="cp-confirm-badge cp-confirm-badge--yes" title="Клиент подтвердил цифровой профиль. Метка стоит на всех заявках этого человека.">Подтвержден ЦП</span>';
+    }
+    return '<span class="cp-confirm-badge cp-confirm-badge--no" title="Клиент не подтверждал цифровой профиль.">Не подтвержден ЦП</span>';
+}
+
+function cpConfirmNoteHTML(app) {
+    if (clientGaveDigitalProfile(app && app.client)) {
+        return '<p class="m-origin-note">Цифровой профиль подтверждён. Метка одна на все заявки этого клиента.</p>';
+    }
+    return '<p class="m-origin-note">Цифровой профиль не подтверждён.</p>';
+}
+
 function flattenLkToLabApp(lk) {
     var b = (lk && lk.borrowers && lk.borrowers[0]) || {};
     var cp = lk && lk.extra_data && lk.extra_data.cp;
