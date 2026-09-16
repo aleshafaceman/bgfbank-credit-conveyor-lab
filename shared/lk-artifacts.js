@@ -26,8 +26,22 @@ var ARTIFACT_KIND_LABEL = {
     originals_inventory: 'Опись документов',
     decision_protocol: 'Протокол getDecision',
     bank_decision: 'Решение банка',
-    broker_sms: 'SMS брокеру'
+    broker_sms: 'SMS брокеру',
+    review_started: 'Принятие в работу',
+    du_request: 'Запрос ДУ',
+    kod_inventory: 'Проект комплекта КОД',
+    bki_request: 'Запрос кредитного отчёта'
 };
+
+var LAB_KOD_TITLES = [
+    'Кредитный договор',
+    'График платежей',
+    'Договор об ипотеке',
+    'Заявление-анкета',
+    'СОПД полное',
+    'Договор страхования',
+    'Заявление на выпуск УКЭП'
+];
 
 var _artifactStore = null;
 
@@ -257,6 +271,14 @@ function artifactPreviewHTML(art, app) {
         row('Комиссия', artEscape(app.packageCommission || (catalog && catalog.commission) || '—'));
         if (app.collateralValue && app.amount) row('LTV', Math.round((app.amount / app.collateralValue) * 100) + '%');
         row('Тип условий', artEscape(app.termsKind || (kind === 'final_terms' ? 'final' : 'preliminary')));
+        var mods = app.packageModifiers || {};
+        if (mods.ltvBoost || mods.coBorrower || mods.fixedRate) {
+            row('Модификаторы', [
+                mods.ltvBoost ? 'LTV +10 п.п.' : '',
+                mods.coBorrower ? 'созаёмщик' : '',
+                mods.fixedRate ? 'фикс. ставка' : ''
+            ].filter(Boolean).join(' · '));
+        }
         var note = kind === 'final_terms'
             ? 'Итоговые условия после полного скоринга.'
             : 'Предварительное предложение, не является офертой. Турбо 2.0 · база − ЕСИА.';
@@ -301,6 +323,32 @@ function artifactPreviewHTML(art, app) {
         row('tracking_data', artEscape(sms.trackingData || art.appId));
         return artSheet(title, head + '<div class="box">' + rows + '</div>' +
             '<p class="muted">Брокерское SMS о решении банка (SMSTraffic). Не код входа в кабинет. Bearer не хранится.</p>');
+    }
+    if (kind === 'review_started') {
+        row('Оператор', artEscape((art.payload && art.payload.operator) || 'Елена Смирнова'));
+        row('Статус', 'processing · в обработке');
+        row('Заявка', artEscape(art.appId));
+        return artSheet(title, head + '<div class="box">' + rows + '</div>');
+    }
+    if (kind === 'du_request') {
+        var du = art.payload || {};
+        row('ДУ', artEscape(du.title || du.name || art.title));
+        row('ELMA type', artEscape(du.type != null ? du.type : '—'));
+        row('Статус', artEscape(du.status || 'requested'));
+        return artSheet(title, head + '<div class="box">' + rows + '</div>' +
+            '<p class="muted">Persist в lk.additional_conditions. Не RAM duStorage.</p>');
+    }
+    if (kind === 'kod_inventory') {
+        var titles = (art.payload && art.payload.titles) || LAB_KOD_TITLES;
+        var lis = titles.map(function(t) { return '<div class="row"><span>' + artEscape(t) + '</span><b>просмотр</b></div>'; }).join('');
+        return artSheet(title, head + '<div class="box">' + lis + '</div>' +
+            '<p class="muted">Опись кодов электронной сделки. Не стол ОЗС и не сырые файлы КОД.</p>');
+    }
+    if (kind === 'bki_request') {
+        row('Канал', 'Loginom / CREDIT Registry');
+        row('scopes.credit_report', 'consent_only · отчёт не XML в кабинете');
+        row('Статус', 'запрос отправлен');
+        return artSheet(title, head + '<div class="box">' + rows + '</div>');
     }
     if (kind === 'originals_inventory') {
         var docs = app.documents || [];
@@ -491,6 +539,10 @@ function ingestDocumentMeta(appId, docName, file) {
         size: (file && file.size) || 18432
     };
     if (typeof updateApplication === 'function') updateApplication(id, { documents: app.documents });
+    if (typeof persistDuStatus === 'function') {
+        if (/егрн/i.test(docName || '')) persistDuStatus(id, 'du04', 'received', { title: docName });
+        if (/ндфл|доход/i.test(docName || '')) persistDuStatus(id, 'du00', 'received', { title: docName });
+    }
     var isEgrn = /егрн/i.test(docName || '');
     var kind = isEgrn ? 'egrn' : 'file_meta';
     return recordArtifactForApp(id, kind, {
@@ -502,8 +554,56 @@ function ingestDocumentMeta(appId, docName, file) {
     });
 }
 
-function recordPrescoreProtocol(appId) {
-    return recordArtifactForApp(appId, 'prescore_protocol', { actor: 'manager', fn: 'applyManagerPrescoringResult' });
+function recordPrescoreProtocol(appId, actor) {
+    return recordArtifactForApp(appId, 'prescore_protocol', {
+        actor: actor || 'manager',
+        fn: 'recordPrescoreProtocol'
+    });
+}
+
+function recordReviewStarted(appId) {
+    return recordArtifactForApp(appId, 'review_started', {
+        actor: 'manager',
+        fn: 'startReview',
+        payload: { operator: 'Елена Смирнова', status: 'processing' }
+    });
+}
+
+function recordDuRequest(appId, du) {
+    du = du || {};
+    return recordArtifactForApp(appId, 'du_request', {
+        actor: 'manager',
+        fn: 'requestDUFromClient',
+        title: 'Запрос ДУ · ' + (du.name || du.title || du.id || ''),
+        payload: {
+            id: du.id,
+            title: du.name || du.title,
+            type: du.type != null ? du.type : (typeof elmaTypeForDuId === 'function' ? elmaTypeForDuId(du.id) : 1),
+            status: 'requested'
+        }
+    });
+}
+
+function recordKodInventory(appId) {
+    return recordArtifactForApp(appId, 'kod_inventory', {
+        actor: 'manager',
+        fn: 'sendContract',
+        payload: { titles: LAB_KOD_TITLES.slice() }
+    });
+}
+
+function recordBkiRequest(appId) {
+    return recordArtifactForApp(appId, 'bki_request', {
+        actor: 'client',
+        fn: 'purchaseBKICreditReport'
+    });
+}
+
+function persistPackageModifiers(appId, mods) {
+    if (!appId) return;
+    if (typeof updateApplication === 'function') {
+        updateApplication(appId, { packageModifiers: mods || {} });
+    }
 }
 
 function recordExternalEgrn(appId, duName) {
@@ -578,6 +678,7 @@ function clientVisibleArtifacts(list) {
     return (list || []).filter(function(a) {
         if (!a) return false;
         if (typeof isLkLabApplication === 'function' && isLkLabApplication({ id: a.appId })) return false;
+        if (a.kind === 'review_started') return false;
         return true;
     });
 }
@@ -756,4 +857,12 @@ if (typeof window !== 'undefined') {
     window.recordConveyorConsent = recordConveyorConsent;
     window.ingestDocumentMeta = ingestDocumentMeta;
     window.renderCpCoverageClientHTML = renderCpCoverageClientHTML;
+    window.recordPrescoreProtocol = recordPrescoreProtocol;
+    window.recordReviewStarted = recordReviewStarted;
+    window.recordDuRequest = recordDuRequest;
+    window.recordKodInventory = recordKodInventory;
+    window.recordBkiRequest = recordBkiRequest;
+    window.persistPackageModifiers = persistPackageModifiers;
+    window.recordExpressEvalFromCollateral = recordExpressEvalFromCollateral;
+    window.LAB_KOD_TITLES = LAB_KOD_TITLES;
 }

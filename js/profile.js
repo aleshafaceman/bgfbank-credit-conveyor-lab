@@ -32,7 +32,14 @@ function requestValuation(id) {
     p.valuationDate = new Date().toLocaleDateString('ru-RU');
     p.status = 'ready';
     renderPropertyGrid();
-    populateCollateralSelect();
+    if (typeof populateCollateralSelect === 'function') populateCollateralSelect();
+    var appId = (typeof state !== 'undefined' && (state.selectedApp || state.conveyorAppId)) || '4421-И';
+    if (typeof recordExpressEvalFromCollateral === 'function') {
+        try { recordExpressEvalFromCollateral(appId, p); } catch (e) {}
+    }
+    if (typeof showDemoToast === 'function') {
+        showDemoToast('Экспресс-оценка в разделе «Документы»', { icon: 'fa-home', duration: 2500 });
+    }
 }
 
 function deleteProperty(id) {
@@ -73,19 +80,40 @@ function addProperty() {
 
 // ========== ПЛАТНЫЕ СЕРВИСЫ ==========
 function purchaseBKICreditReport() {
-    if (confirm('Стоимость услуги: 450 ₽\n\nВы получите полный отчёт из БКИ.\n\nПодтвердите оплату?')) {
-        alert('✅ Запрос в БКИ отправлен.');
+    if (!confirm('Стоимость услуги: 450 ₽\n\nЗапрос кредитного отчёта. XML в кабинете не хранится.\n\nПодтвердите оплату?')) return;
+    var appId = (typeof state !== 'undefined' && (state.selectedApp || state.conveyorAppId)) || '4421-И';
+    if (typeof recordBkiRequest === 'function') recordBkiRequest(appId);
+    if (typeof showDemoToast === 'function') {
+        showDemoToast('Запрос в БКИ отправлен · Документы', { icon: 'fa-chart-bar', duration: 2800 });
+    } else {
+        alert('Запрос в БКИ отправлен. Смотрите раздел «Документы».');
     }
+    if (typeof navigateTo === 'function') navigateTo('documents');
 }
 
 function purchaseExpressValuation() {
-    if (confirm('Стоимость услуги: 990 ₽\n\nЭкспресс-оценка Ocenka.mobi.\n\nПодтвердите оплату?')) {
-        alert('✅ Запрос на экспресс-оценку отправлен.');
+    if (!confirm('Стоимость услуги: 990 ₽\n\nЭкспресс-оценка Ocenka.mobi (lookup).\n\nПодтвердите оплату?')) return;
+    var appId = (typeof state !== 'undefined' && (state.selectedApp || state.conveyorAppId)) || '4421-И';
+    var p = (typeof propertyPortfolio !== 'undefined' && propertyPortfolio[0]) ? propertyPortfolio[0] : null;
+    if (p && typeof recordExpressEvalFromCollateral === 'function') recordExpressEvalFromCollateral(appId, p);
+    if (typeof showDemoToast === 'function') {
+        showDemoToast('Экспресс-оценка в разделе «Документы»', { icon: 'fa-bolt', duration: 2500 });
+    } else {
+        alert('Экспресс-оценка записана в «Документы».');
     }
+    if (typeof navigateTo === 'function') navigateTo('documents');
 }
 
 function purchaseFullValuation() {
-    if (confirm('Стоимость услуги: 2 490 ₽\n\nПолная оценка Ocenka.mobi.\n\nПодтвердите оплату?')) {
-        alert('✅ Запрос на полную оценку отправлен.');
+    if (!confirm('Стоимость услуги: 2 490 ₽\n\nПолная оценка. PDF /orders в кабинете не храним.\n\nПодтвердите оплату?')) return;
+    var appId = (typeof state !== 'undefined' && (state.selectedApp || state.conveyorAppId)) || '4421-И';
+    if (typeof ingestDocumentMeta === 'function') {
+        ingestDocumentMeta(appId, 'Запрос полной оценки МО', { name: 'eval-request.html', type: 'text/html', size: 1024 });
     }
+    if (typeof showDemoToast === 'function') {
+        showDemoToast('Запрос отправлен. PDF отчёта в кабинете не храним.', { icon: 'fa-file', duration: 2800 });
+    } else {
+        alert('Запрос полной оценки отправлен.');
+    }
+    if (typeof navigateTo === 'function') navigateTo('documents');
 }

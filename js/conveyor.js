@@ -321,6 +321,9 @@ function startFlow(type) {
         if (typeof initPackageSelection === 'function') initPackageSelection();
         else updateResultCards();
         if (type === 'manual') document.getElementById('greetingName').innerText = 'Александр';
+        if (typeof recordPrescoreProtocol === 'function') {
+            try { recordPrescoreProtocol(appId, 'client'); } catch (ePre) {}
+        }
     }, 6800);
 }
 

@@ -285,6 +285,8 @@ function togglePackageExtra(key, checked) {
     // Старая логика
     state.packageModifiers = state.packageModifiers || {};
     state.packageModifiers[key] = checked;
+    var appId = (typeof state !== 'undefined' && (state.conveyorAppId || state.selectedApp)) || null;
+    if (appId && typeof persistPackageModifiers === 'function') persistPackageModifiers(appId, state.packageModifiers);
     syncStateFromSelectedPackage();
     renderPackageCards();
     updateResultCards();
@@ -395,7 +397,8 @@ function acceptOfferPackage() {
             packageStatus: 'accepted',
             packageInsurance: catalog ? catalog.insurance : '',
             packageCommission: catalog ? catalog.commission : (pkg.commission || ''),
-            offerValidUntil: state.offerValidUntil
+            offerValidUntil: state.offerValidUntil,
+            packageModifiers: state.packageModifiers || {}
         });
         updateApplicationStatus(
             activeId,

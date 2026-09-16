@@ -381,10 +381,12 @@ function getActionButtons(app) {
         case 'processing':
             return mActionsHint('Прескоринг — первый этап: паспорт и запрос в БКИ. Предварительные условия, не финальное одобрение.') +
                     prescore +
+                    mActionButton(id, 'requestValuation', 'm-btn-outline', 'fa-home', 'Обновить оценку') +
                     mActionButton(id, 'requestDocs', 'm-btn-outline', 'fa-file-upload', 'Запросить документы');
         case 'valuation':
             return mActionsHint('Идёт прескоринг (паспорт + БКИ). Полный скоринг станет доступен после предварительного решения.') +
                     prescore +
+                    mActionButton(id, 'requestValuation', 'm-btn-outline', 'fa-home', 'Обновить оценку') +
                     mActionButton(id, 'requestDocs', 'm-btn-outline', 'fa-file-upload', 'Запросить документы');
         case 'decision':
             var missing = missingOriginals(app);
@@ -404,7 +406,8 @@ function getActionButtons(app) {
             return mActionButton(id, 'sendContract', 'm-btn-outline', 'fa-signature', 'Отправить договор') +
                 (typeof openArtifactByKind === 'function'
                     ? '<button type="button" class="m-btn m-btn-outline" data-m-action="open-artifact-kind" data-art-kind="decision_protocol" data-app-id="' + id + '"><i class="fas fa-file-alt"></i> Протокол</button>' +
-                      '<button type="button" class="m-btn m-btn-outline" data-m-action="open-artifact-kind" data-art-kind="bank_decision" data-app-id="' + id + '"><i class="fas fa-stamp"></i> Решение банка</button>'
+                      '<button type="button" class="m-btn m-btn-outline" data-m-action="open-artifact-kind" data-art-kind="bank_decision" data-app-id="' + id + '"><i class="fas fa-stamp"></i> Решение банка</button>' +
+                      '<button type="button" class="m-btn m-btn-outline" data-m-action="open-artifact-kind" data-art-kind="kod_inventory" data-app-id="' + id + '"><i class="fas fa-folder"></i> Опись КОД</button>'
                     : '');
         case 'rejected':
             return mActionButton(id, 'suggestParams', 'm-btn-outline', 'fa-redo', 'Предложить изменить параметры');
@@ -496,7 +499,7 @@ function getRequiredDUForLabApp(app, clientEsiConnected) {
         var du = allDU.find(function(d) { return d.id === id; });
         if (!du) return;
         var storageKey = app.id + '_' + du.id;
-        var savedStatus = duStorage[storageKey];
+        var savedStatus = (typeof persistedDuStatus === 'function' ? persistedDuStatus(app, du.id) : null) || duStorage[storageKey];
         var status = savedStatus || 'pending';
         if (!savedStatus) {
             if (id === 'du09' && innOk) status = 'auto_received';
@@ -516,29 +519,15 @@ function getRequiredDU(app, clientEsiConnected) {
         return getRequiredDUForLabApp(app, clientEsiConnected);
     }
     var required = [];
-    var alwaysRequired = ['du01','du04','du09','du10','du11','du12','du19','du20'];
-    
-    allDU.forEach(function(du) {
-        var needed = false;
-        
-        if (alwaysRequired.indexOf(du.id) !== -1) needed = true;
-        else if (du.trigger === 'married') needed = true;
-        else if (du.trigger === 'has_children') needed = true;
-        else if (du.trigger === 'mortgage') needed = true;
-        
-        if (needed) {
-            var storageKey = app.id + '_' + du.id;
-            var savedStatus = duStorage[storageKey];
-            
-            var status = savedStatus || 'pending';
-            if (!savedStatus && du.source === 'esia' && clientEsiConnected) {
-                status = 'auto_received';
-            }
-            
-            required.push(duItemFromCatalog(app, du, status));
-        }
+    var ids = (typeof happyPathDuIds === 'function') ? happyPathDuIds(app) : ['du04'];
+    ids.forEach(function(id) {
+        var du = allDU.find(function(d) { return d.id === id; });
+        if (!du) return;
+        var savedStatus = (typeof persistedDuStatus === 'function' ? persistedDuStatus(app, du.id) : null) || duStorage[app.id + '_' + du.id];
+        var status = savedStatus || 'pending';
+        if (!savedStatus && du.source === 'esia' && clientEsiConnected) status = 'auto_received';
+        required.push(duItemFromCatalog(app, du, status));
     });
-    
     return required;
 }
 
@@ -547,6 +536,12 @@ function requestDUFromClient(appId, duId, clientName) {
     if (!du) return;
     
     duStorage[appId + '_' + duId] = 'requested';
+    if (typeof persistDuStatus === 'function') {
+        persistDuStatus(appId, duId, 'requested', { title: du.name, type: typeof elmaTypeForDuId === 'function' ? elmaTypeForDuId(duId) : 1 });
+    }
+    if (typeof recordDuRequest === 'function') {
+        try { recordDuRequest(appId, du); } catch (eDu) {}
+    }
     
     var msg = 'Пожалуйста, предоставьте документ: «' + du.name + '».';
     if (du.params.length > 0) {
@@ -583,6 +578,12 @@ function requestAllDUFromClient(appId, clientName) {
     
     pendingDUs.forEach(function(du) {
         duStorage[appId + '_' + du.id] = 'requested';
+        if (typeof persistDuStatus === 'function') {
+            persistDuStatus(appId, du.id, 'requested', { title: du.name });
+        }
+        if (typeof recordDuRequest === 'function') {
+            try { recordDuRequest(appId, du); } catch (eDu) {}
+        }
     });
     
     var msg = 'Для продолжения рассмотрения заявки №' + appId + ' необходимо предоставить следующие документы:\n\n';
@@ -654,6 +655,9 @@ function requestExternalDU(appId, duId) {
         var du = allDU.find(function(d) { return d.id === duId; });
         if (!du) return;
         duStorage[appId + '_' + duId] = 'ext_received';
+        if (typeof persistDuStatus === 'function') {
+            persistDuStatus(appId, duId, 'ext_received', { title: du.name });
+        }
         patchDocumentsFromExternalDU(appId, duId);
         var apps = (typeof getAllApplications === 'function')
             ? getAllApplications()

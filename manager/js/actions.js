@@ -20,6 +20,9 @@ function managerAction(appId, action) {
             case 'startReview':
                 updateApplicationStatus(appId, 'processing', 'В обработке', 'Заявка принята в обработку');
                 sendChatMessage('manager', app.client, 'Ваша заявка №' + appId + ' принята в обработку.', app.client);
+                if (typeof recordReviewStarted === 'function') {
+                    try { recordReviewStarted(appId); } catch (eRev) {}
+                }
                 break;
 
             case 'startScoring':
@@ -74,6 +77,16 @@ function managerAction(appId, action) {
                 updateApplication(appId, { collateralValue: nv });
                 updateApplicationStatus(appId, app.status, app.statusLabel, `Оценка Ocenka.mobi: ${nv.toLocaleString('ru-RU')} ₽`);
                 sendChatMessage('manager', app.client, 'Обновлена оценка недвижимости: ' + nv.toLocaleString('ru-RU') + ' ₽.', app.client);
+                if (typeof recordExpressEvalFromCollateral === 'function') {
+                    try {
+                        recordExpressEvalFromCollateral(appId, {
+                            address: app.collateralAddress,
+                            valuation: nv,
+                            cadastral: app.cadastral_number,
+                            year: null
+                        });
+                    } catch (eVal) {}
+                }
                 if (typeof managerNotify === 'function') {
                     managerNotify('Оценка обновлена: ' + nv.toLocaleString('ru-RU') + ' ₽');
                 } else {
@@ -107,8 +120,11 @@ function managerAction(appId, action) {
 
             case 'sendContract':
                 updateApplicationStatus(appId, app.status, app.statusLabel, 'Договор отправлен клиенту');
-                sendChatMessage('manager', app.client, 'Договор по заявке №' + appId + ' отправлен на подписание.', app.client);
-                if (typeof managerNotify === 'function') managerNotify('Договор отправлен клиенту ' + app.client);
+                sendChatMessage('manager', app.client, 'Договор по заявке №' + appId + ' отправлен на подписание. Комплект КОД — в разделе «Документы».', app.client);
+                if (typeof recordKodInventory === 'function') {
+                    try { recordKodInventory(appId); } catch (eKod) {}
+                }
+                if (typeof managerNotify === 'function') managerNotify('Договор отправлен клиенту ' + app.client + ' · опись КОД в Документах');
                 break;
 
             case 'suggestParams':
