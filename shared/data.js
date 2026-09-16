@@ -20,6 +20,52 @@ let userCredentials = {
     registered: true
 };
 
+var __sharedDataBusy = 0;
+var MAX_APP_HISTORY = 40;
+var MAX_MESSAGES = 200;
+
+function readStorageRaw(key) {
+    try { return localStorage.getItem(key); } catch (e) { return null; }
+}
+
+function writeStorageRaw(key, str, kind) {
+    var next = str == null ? '' : String(str);
+    var prev = readStorageRaw(key);
+    if (prev === next) return false;
+    try {
+        localStorage.setItem(key, next);
+    } catch (e) {
+        try { localStorage.removeItem(ARTIFACTS_KEY); } catch (eArt) {}
+        try { localStorage.setItem(key, next); } catch (e2) { return false; }
+    }
+    if (kind) bumpSharedSync(kind);
+    return true;
+}
+
+function slimClientRecord(c) {
+    if (!c || typeof c !== 'object') return c;
+    var o = {};
+    Object.keys(c).forEach(function(k) {
+        if (k === 'applications') {
+            o.applications = (Array.isArray(c.applications) ? c.applications : []).map(function(a) {
+                if (a && typeof a === 'object' && a.id) return a.id;
+                return a;
+            }).filter(function(id) { return id != null && id !== ''; });
+        } else {
+            o[k] = c[k];
+        }
+    });
+    return o;
+}
+
+function clientsPayloadForStorage(clients) {
+    var out = {};
+    Object.keys(clients || {}).forEach(function(name) {
+        out[name] = slimClientRecord(clients[name]);
+    });
+    return out;
+}
+
 function normalizeApplicationRecord(app) {
     if (!app || typeof app !== 'object') return { app: null, changed: false };
     var next = Object.assign({}, app);
@@ -39,6 +85,8 @@ function normalizeApplicationRecord(app) {
 }
 
 function loadSharedData() {
+    if (__sharedDataBusy) return;
+    __sharedDataBusy++;
     try {
         const savedApps = localStorage.getItem(STORAGE_KEY);
         const savedClients = localStorage.getItem(CLIENTS_KEY);
@@ -191,6 +239,8 @@ function loadSharedData() {
             localStorage.removeItem(MESSAGES_KEY);
             localStorage.removeItem(ARTIFACTS_KEY);
         } catch (e2) {}
+    } finally {
+        __sharedDataBusy--;
     }
 }
 
@@ -263,29 +313,29 @@ function bumpSharedSync(kind) {
 }
 
 function saveSharedData() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(sharedApplications));
-    bumpSharedSync('applications');
+    writeStorageRaw(STORAGE_KEY, JSON.stringify(sharedApplications), 'applications');
 }
 function saveClientsData() {
-    localStorage.setItem(CLIENTS_KEY, JSON.stringify(sharedClients));
-    bumpSharedSync('clients');
+    writeStorageRaw(CLIENTS_KEY, JSON.stringify(clientsPayloadForStorage(sharedClients)), 'clients');
 }
 function saveMessagesData() {
-    localStorage.setItem(MESSAGES_KEY, JSON.stringify(sharedMessages));
-    bumpSharedSync('messages');
+    writeStorageRaw(MESSAGES_KEY, JSON.stringify(sharedMessages), 'messages');
 }
 function saveUserData() {
-    localStorage.setItem(USER_KEY, JSON.stringify(userCredentials));
-    bumpSharedSync('user');
+    writeStorageRaw(USER_KEY, JSON.stringify(userCredentials), 'user');
 }
 
 function initSharedDataSync(handler) {
     if (window.__bgfSharedSyncBound) return;
     window.__bgfSharedSyncBound = true;
     window.addEventListener('storage', function(e) {
+        if (__sharedDataBusy) return;
         if (!e.key) return;
         if (e.key !== STORAGE_KEY && e.key !== CLIENTS_KEY && e.key !== MESSAGES_KEY && e.key !== USER_KEY && e.key !== SYNC_KEY && e.key !== ARTIFACTS_KEY) {
             return;
+        }
+        if (e.key === ARTIFACTS_KEY && typeof invalidateArtifactStore === 'function') {
+            try { invalidateArtifactStore(); } catch (eInv) {}
         }
         try { loadSharedData(); } catch (err) {}
         if (typeof handler === 'function') handler(e.key);
@@ -349,6 +399,7 @@ function updateApplicationStatus(appId, newStatus, statusLabel, historyText) {
         date: new Date().toLocaleDateString('ru-RU') + ', ' + new Date().toLocaleTimeString('ru-RU', { hour:'2-digit', minute:'2-digit' }),
         current: true
     });
+    if (app.history.length > MAX_APP_HISTORY) app.history = app.history.slice(0, MAX_APP_HISTORY);
     saveSharedData();
     return app;
 }
@@ -382,6 +433,7 @@ function sendChatMessage(from, to, text, clientName) {
     };
     if (!Array.isArray(sharedMessages)) sharedMessages = [];
     sharedMessages.push(msg);
+    if (sharedMessages.length > MAX_MESSAGES) sharedMessages = sharedMessages.slice(-MAX_MESSAGES);
     saveMessagesData();
     return msg;
 }
