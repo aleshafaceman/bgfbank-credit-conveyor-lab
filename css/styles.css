@@ -108,6 +108,7 @@ body { background: linear-gradient(160deg, #e8f0f8 0%, #f0f4f8 45%, #f8fbff 100%
 .pkg-warning { margin-top: 10px; font-size: 12px; color: #b45309; background: #fffbeb; border-radius: 8px; padding: 8px 10px; }
 .pkg-extras-toggle { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px; border: 1px dashed #cbd5e1; border-radius: 10px; background: #f8fbff; color: #0B4697; font-weight: 600; font-size: 13px; cursor: pointer; margin-bottom: 12px; }
 .pkg-extras-panel { background: #f8fbff; border-radius: 12px; padding: 14px 16px; margin-bottom: 16px; display: flex; flex-direction: column; gap: 10px; }
+.pkg-extras-panel.hidden { display: none; }
 .offer-validity { text-align: center; font-size: 13px; color: #7e9bb6; margin-bottom: 16px; }
 .offer-actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-bottom: 8px; }
 .offer-actions .btn { min-width: 220px; }
