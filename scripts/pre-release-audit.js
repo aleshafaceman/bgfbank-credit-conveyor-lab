@@ -1300,7 +1300,7 @@ console.log('\n=== 11. ARM underwriter / productolog ===');
     'productolog UI states green corridor is not a product');
   assert(/id="role-options"/.test(poHtml) && /createOptionDraft/.test(poJs) && /createDraftSlice/.test(poJs),
     'productolog has Options role and draft create');
-  assert(/setProductTab/.test(poJs) && /Условия/.test(poJs) && /Снимок OnePage/.test(poJs) && /setSelectedPackage/.test(poJs),
+  assert(/setProductTab/.test(poJs) && /Условия/.test(poJs) && /done-banner/.test(poJs) && /setSelectedPackage/.test(poJs),
     'productolog defaults to OnePage terms tab with package pills');
   assert(/id="role-regions"/.test(poHtml) && /toggleRegionProduct/.test(poJs) && /toggleRegionOption/.test(poJs),
     'productolog has Regions role and per-region product/option toggles');

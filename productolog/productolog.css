@@ -136,6 +136,12 @@
   margin-left: 0;
   justify-self: end;
 }
+.panel-head-help {
+  justify-content: flex-end;
+  margin-bottom: 4px;
+  padding-bottom: 0;
+  border-bottom: 0;
+}
 .work-head .filters { justify-content: center; }
 .card-deal {
   overflow: hidden;

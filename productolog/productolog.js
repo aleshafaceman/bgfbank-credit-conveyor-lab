@@ -690,7 +690,8 @@ function helpBtn(id) {
 }
 
 function panelHead(title, helpId) {
-  return '<div class="panel-head"><h2>' + title + "</h2>" + helpBtn(helpId) + "</div>";
+  const h = title ? "<h2>" + title + "</h2>" : "";
+  return '<div class="panel-head' + (title ? "" : " panel-head-help") + '">' + h + helpBtn(helpId) + "</div>";
 }
 
 function toggleHelp(ev, id) {
@@ -1698,7 +1699,7 @@ function renderTermsPanel(p) {
   const cap = pkgRates && pkgRates.ltv_cap
     ? " · доля кредита ≤ " + pkgRates.ltv_cap + "%"
     : (pkgMeta.ltv_cap ? " · доля кредита ≤ " + Math.round(pkgMeta.ltv_cap * 100) + "%" : "");
-  return '<div class="panel span-2">' + panelHead("Снимок OnePage", "product") +
+  return '<div class="panel span-2">' + panelHead("", "product") +
     '<div class="done-banner">' + escapeHtml(snapshot) + "</div>" +
     '<p class="hint">Лист «' + escapeHtml((op && op.sheet) || "—") +
     "». Цель кредита не меняется. Макет Figma устарел: срезы и статусы — соседняя вкладка.</p>" +
