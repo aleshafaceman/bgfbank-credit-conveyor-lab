@@ -197,7 +197,7 @@ function regionAllowsProduct(regionId, productId) {
   if (!r) return true;
   if (r.available === false) return false;
   const ids = r.product_ids;
-  if (!ids || !ids.length) return true;
+  if (!ids) return true;
   return ids.indexOf(Number(productId)) !== -1;
 }
 
@@ -1342,6 +1342,26 @@ function createOptionDraft() {
   render();
 }
 
+function createRegion() {
+  const r = {
+    id: nextId(state.regions),
+    sale_direction: "b2c",
+    value: "Новый регион",
+    liquidity: 2,
+    ltv_flat: 0.4,
+    available: true,
+    product_ids: [],
+    option_ids: []
+  };
+  state.regions.push(r);
+  state.selectedId = "region:" + r.id;
+  state.role = "regions";
+  logAction("POST", "/sales_regions", "черновик · " + r.value);
+  state.bus.regions_get = "ok";
+  save();
+  render();
+}
+
 function setOptionField(id, field, el) {
   const o = optionRecById(id);
   if (!o) return;
@@ -1644,11 +1664,13 @@ function renderInbox() {
       const nProd = (r.product_ids || []).length;
       const nOpt = (r.option_ids || []).length;
       return '<button type="button" class="card-deal' + on + '" onclick="selectItem(\'' + id + '\')">' +
-        "<b>" + r.value + "</b><span>" + channelLabel(r.sale_direction) +
+        "<b>" + escapeHtml(r.value) + "</b><span>" + channelLabel(r.sale_direction) +
         " · ликвидность " + r.liquidity + " · продуктов " + nProd + " · опций " + nOpt + "</span>" +
         (r.available === false ? '<i class="badge badge-wait">закрыт</i>' : '<i class="badge badge-ok">открыт</i>') +
         "</button>";
-    }).join("");
+    }).join("") +
+      '<button type="button" class="btn btn-primary" onclick="createRegion()">Добавить регион</button>' +
+      '<p class="hint">Новый город без якорей. Отметьте продукт, затем опции в матрице доступности.</p>';
   } else if (state.role === "risk") {
     cards = Object.keys(state.scales).map((slug) => {
       const sc = state.scales[slug];
@@ -2200,7 +2222,7 @@ function renderRegionCard() {
   const nOpt = (r.option_ids || []).length;
   const open = r.available !== false;
   return '<div class="work-inner"><div class="work-head">' +
-    "<h1>" + r.value + "</h1>" +
+    "<h1>" + escapeHtml(r.value) + "</h1>" +
     '<p class="stage-now">' + (open ? "открыт" : "закрыт") + " · " + channelLabel(r.sale_direction) + "</p>" +
     '<p class="lead">Где выдаём продукт и какие опции можно выбрать. Сетка доли кредита — из листов LTV OnePage. Не отдельная цель кредита.</p></div>' +
     '<div class="desk"><div class="panel span-2">' + panelHead("Доступность региона", "regions") +
@@ -2210,6 +2232,8 @@ function renderRegionCard() {
     '<div class="param"><small>Доля кредита (квартира)</small><b>' + Math.round(r.ltv_flat * 100) + "%</b></div>" +
     '<div class="param"><small>В витрине</small><b>продуктов ' + nProd + " · опций " + nOpt + "</b></div></div>" +
     '<div class="grid-4" style="margin-top:8px">' +
+    '<label>Название<input value="' + escapeHtml(r.value) +
+    '" onchange="saveRegionField(' + r.id + ", 'value', this)\"></label>" +
     '<label>Канал продаж<select onchange="saveRegionField(' + r.id + ", 'sale_direction', this)\">" +
     '<option value="b2c"' + (r.sale_direction === "b2c" ? " selected" : "") + ">прямой канал</option>" +
     '<option value="b2b"' + (r.sale_direction === "b2b" ? " selected" : "") + ">партнёры</option></select></label>" +
