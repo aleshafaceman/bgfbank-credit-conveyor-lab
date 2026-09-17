@@ -198,6 +198,22 @@
   font-size: 13px;
 }
 .out-scope li { margin: 0 0 6px; }
+.scale-table {
+  word-break: normal;
+  overflow-wrap: normal;
+}
+.scale-table th,
+.scale-table td {
+  word-break: normal;
+  overflow-wrap: normal;
+  white-space: nowrap;
+}
+.scale-table td:first-child {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  min-width: 200px;
+  max-width: 280px;
+}
 @media (max-width: 1100px) {
   .header-inner {
     grid-template-columns: minmax(0, 1fr) auto;
