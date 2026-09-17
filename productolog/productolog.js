@@ -1,9 +1,10 @@
 const STORE = "bgfbank_lab_productolog";
-const STORE_VER = 4;
+const STORE_VER = 5;
 const MOCK = window.PRODUCTOLOG_MOCK;
 
 const BUS_CATALOG = [
   { id: "products_get", title: "Список продуктов", system: "калькулятор предложений · витрина" },
+  { id: "onepage_get", title: "Условия OnePage", system: "снимок файла условий · не офер калькулятора" },
   { id: "slices_get", title: "Срезы витрины", system: "справочник продуктолога" },
   { id: "regions_get", title: "Регионы продаж", system: "калькулятор предложений · регионы" },
   { id: "score_get", title: "Балл шкалы", system: "калькулятор предложений · шкалы риска" },
@@ -17,8 +18,8 @@ const BUS_CATALOG = [
 const HELP = {
   inbox: {
     title: "Каталог",
-    about: "Не очередь заявок. Продукты, срезы, регионы, шкалы и матрица — то, что калькулятор предложений забирает для пакетов на входе в кабинет.",
-    next: "Откройте продукт, регион или срез. СПР и АНД сюда не ходят."
+    about: "Не очередь заявок. Рабочий канон условий — OnePage (лист = цель, колонка = пакет). Срезы и статусы из старого макета остаются витриной калькулятора.",
+    next: "Откройте продукт на вкладке «Условия». СПР и АНД сюда не ходят."
   },
   bus: {
     title: "Ход обмена",
@@ -26,9 +27,9 @@ const HELP = {
     next: "После сохранения шкалы калькулятор на следующем расчёте оффера увидит новую оценку."
   },
   product: {
-    title: "Продукт",
-    about: "Три цели кредита: покупка, залог, рефинансирование. Строки вроде «Залог_Москва…» — срезы витрины, не четвёртая цель.",
-    next: "Пакеты — витрина калькулятора, не решение АНД. Комиссия партнёра из презентации помечена сроком акции."
+    title: "Условия OnePage",
+    about: "Банк собирает условия из OnePage: лист — цель кредита, колонка — пакет, строки КИ1–КИ5. Категорию КИ назначает СПР, не этот стол. Проценты — снимок файла, не текущий офер калькулятора.",
+    next: "Выберите пакет. ДОМ.РФ и инвесты не становятся четвёртой целью. Срезы макета — соседняя вкладка."
   },
   slices: {
     title: "Срезы витрины",
@@ -42,7 +43,7 @@ const HELP = {
   },
   regions: {
     title: "Регионы",
-    about: "Где продукт доступен и какие опции можно выбрать в этом регионе. Ликвидность и доля кредита по квартире — для калькулятора, не для АНД.",
+    about: "Где продукт доступен и какие опции можно выбрать. Сетка доли кредита объект × КИ — из листов LTV OnePage, не из макета Figma.",
     next: "Выключите продукт или опцию в регионе — витрина перестанет их предлагать."
   },
   scale: {
@@ -66,7 +67,8 @@ function defaultState() {
     ver: STORE_VER,
     role: "products",
     selectedId: "product:2",
-    productTab: "card",
+    productTab: "terms",
+    selectedPackage: { 1: "purchase", 2: "turbo_2", 3: "refi_internal" },
     selectedSliceId: 501,
     selectedOptionId: 801,
     filterQuery: "",
@@ -228,6 +230,108 @@ function periodLabel(s) {
   return (s.period_from || "—") + " — " + (s.period_to || "—");
 }
 
+function kiTitle(id) {
+  const hit = ((MOCK.onepage && MOCK.onepage.ki) || []).find((k) => k.id === id);
+  return hit ? hit.title : (id || "—");
+}
+
+function objectKindTitle(id) {
+  return catalogTitle(MOCK.object_kinds, id) || id || "—";
+}
+
+function formatPct(v) {
+  if (v == null || v === "" || v === "-") return "—";
+  if (typeof v === "string") return v.indexOf("%") !== -1 || v === "нет" || v === "—" ? v : v;
+  const n = Number(v);
+  if (!isFinite(n)) return "—";
+  const shown = n <= 1 && n > 0 ? n * 100 : n;
+  const rounded = Math.round(shown * 100) / 100;
+  return String(rounded).replace(".", ",") + "%";
+}
+
+function onepageProduct(purpose) {
+  return MOCK.onepage && MOCK.onepage.products ? MOCK.onepage.products[purpose] : null;
+}
+
+function selectedPackageCode(productId) {
+  const p = productById(productId);
+  const map = state.selectedPackage || {};
+  const code = map[productId] || map[String(productId)];
+  if (code && p && (p.onepage_packages || p.packages || []).indexOf(code) !== -1) return code;
+  return (p && (p.onepage_packages || p.packages) || [])[0] || "";
+}
+
+function setSelectedPackage(productId, code) {
+  if (!state.selectedPackage) state.selectedPackage = {};
+  state.selectedPackage[productId] = code;
+  logAction("GET", "/onepage/packages/" + code, "product=" + productId);
+  state.bus.onepage_get = "ok";
+  save();
+  render();
+}
+
+function renderKiRateTable(pkg) {
+  if (!pkg || !pkg.rates) return '<p class="hint">Для пакета нет сетки КИ в снимке OnePage.</p>';
+  const axes = pkg.axes || ["base", "variable", "var_term"];
+  const labels = pkg.axis_labels || {};
+  const head = "<th>Категория КИ</th>" + axes.map(function (a) {
+    return "<th>" + (labels[a] || a) + "</th>";
+  }).join("");
+  const rows = pkg.rates.map(function (row) {
+    return "<tr><td>" + kiTitle(row.ki) + "</td>" + axes.map(function (a) {
+      const v = row[a];
+      const cell = a === "var_term" || typeof v === "string" ? (v || "—") : formatPct(v);
+      return "<td>" + cell + "</td>";
+    }).join("") + "</tr>";
+  }).join("");
+  const refuse = pkg.refuse_commission == null ? "" :
+    '<p class="hint">Ставка при отказе от комиссии: ' +
+    (typeof pkg.refuse_commission === "number" ? formatPct(pkg.refuse_commission) : pkg.refuse_commission) +
+    ". Факт отказа применяет калькулятор, не этот стол.</p>";
+  return '<div class="matrix-wrap"><table class="scale-table ki-table"><thead><tr>' + head +
+    "</tr></thead><tbody>" + rows + "</tbody></table></div>" + refuse;
+}
+
+function renderOnePageLtv(ltv) {
+  if (!ltv || !ltv.rows) return "";
+  const geos = ltv.geos || [];
+  const labels = ltv.geo_labels || {};
+  const head = "<th>КИ</th><th>Объект</th>" + geos.map(function (g) {
+    return "<th>" + (labels[g] || g) + "</th>";
+  }).join("");
+  const rows = ltv.rows.map(function (row) {
+    return "<tr><td>" + kiTitle(row.ki) + "</td><td>" + objectKindTitle(row.object) + "</td>" +
+      geos.map(function (g) {
+        return "<td>" + formatPct(row.values ? row.values[g] : null) + "</td>";
+      }).join("") + "</tr>";
+  }).join("");
+  return '<div class="matrix-wrap"><table class="scale-table ki-table"><thead><tr>' + head +
+    "</tr></thead><tbody>" + rows + "</tbody></table></div>";
+}
+
+function renderRegionLtvTable(regionId) {
+  const block = MOCK.onepage && MOCK.onepage.region_ltv ? MOCK.onepage.region_ltv[regionId] : null;
+  if (!block) return '<p class="hint">Для города нет сетки LTV в снимке OnePage.</p>';
+  const kis = block.ki || [];
+  const objects = ["flat", "apartments", "commerce"];
+  const head = "<th>Объект</th>" + kis.map(function (k) { return "<th>" + kiTitle(k) + "</th>"; }).join("");
+  const rows = objects.map(function (obj) {
+    const cells = (block.cells || {})[obj] || {};
+    return "<tr><td>" + objectKindTitle(obj) + "</td>" + kis.map(function (k) {
+      return "<td>" + formatPct(cells[k]) + "</td>";
+    }).join("") + "</tr>";
+  }).join("");
+  const buy = block.purchase && block.purchase.flat
+    ? '<p class="hint">Покупка, квартира: ' + kis.map(function (k) {
+      return kiTitle(k) + " " + formatPct(block.purchase.flat[k]);
+    }).join(" · ") + "</p>"
+    : "";
+  return '<p class="hint">' + escapeHtml(block.source || "") + ". " + escapeHtml(block.title || "") +
+    ". Категорию КИ назначает СПР.</p>" +
+    '<div class="matrix-wrap"><table class="scale-table ki-table"><thead><tr>' + head +
+    "</tr></thead><tbody>" + rows + "</tbody></table></div>" + buy;
+}
+
 function incomeLabel(s) {
   const ids = s.income_docs || [];
   if (!ids.length) return "—";
@@ -312,9 +416,9 @@ function nextId(list) {
 
 function setRole(role) {
   state.role = role;
-  if (role === "products") {
+    if (role === "products") {
     state.selectedId = "product:" + state.products[1].id;
-    state.productTab = "card";
+    state.productTab = "terms";
   }
   if (role === "risk") state.selectedId = "scale:fico";
   if (role === "matrix") state.selectedId = "matrix:1:2";
@@ -326,7 +430,9 @@ function setRole(role) {
 
 function selectItem(id) {
   state.selectedId = id;
-  if (String(id).indexOf("product:") === 0) state.productTab = state.productTab || "card";
+  if (String(id).indexOf("product:") === 0) {
+    if (!state.productTab || state.productTab === "card") state.productTab = "terms";
+  }
   save();
   render();
 }
@@ -1158,6 +1264,8 @@ async function previewSolver() {
   const names = state.products.filter((p) => p.available).map((p) => purposeLabel(p.purpose)).join(", ");
   state.bus.products_get = "ok";
   addModalLine("цели: " + names, "ok");
+  state.bus.onepage_get = "ok";
+  addModalLine("условия OnePage: снимок, не офер калькулятора", "ok");
   const vis = solverSlices();
   state.bus.slices_get = "ok";
   addModalLine("срезы витрины (доступный продукт + действующий + регион): " + vis.length, "ok");
@@ -1301,8 +1409,9 @@ function renderInbox() {
       const id = "product:" + p.id;
       const on = state.selectedId === id ? " on" : "";
       const n = state.slices.filter((s) => s.product_id === p.id && s.status !== "archived").length;
+      const nPkg = (p.onepage_packages || p.packages || []).length;
       return '<button type="button" class="card-deal' + on + '" onclick="selectItem(\'' + id + '\')">' +
-        "<b>" + p.name + "</b><span>" + purposeLabel(p.purpose) + " · срезов " + n + "</span>" +
+        "<b>" + p.name + "</b><span>" + purposeLabel(p.purpose) + " · пакетов " + nPkg + " · срезов " + n + "</span>" +
         (p.available ? '<i class="badge badge-ok">доступен</i>' : '<i class="badge badge-wait">выключен</i>') +
         "</button>";
     }).join("") +
@@ -1400,53 +1509,81 @@ function solverPanel() {
 }
 
 function productTabs(active) {
+  if (active === "card") active = "terms";
   return '<div class="filters">' +
-    '<button type="button" class="filter' + (active === "card" ? " on" : "") + '" onclick="setProductTab(\'card\')">Карточка</button>' +
+    '<button type="button" class="filter' + (active === "terms" ? " on" : "") + '" onclick="setProductTab(\'terms\')">Условия</button>' +
     '<button type="button" class="filter' + (active === "slices" ? " on" : "") + '" onclick="setProductTab(\'slices\')">Срезы</button>' +
     '<button type="button" class="filter' + (active === "options" ? " on" : "") + '" onclick="setProductTab(\'options\')">Опции</button>' +
     "</div>";
+}
+
+function renderTermsPanel(p) {
+  const op = onepageProduct(p.purpose);
+  const codes = p.onepage_packages || p.packages || [];
+  const selected = selectedPackageCode(p.id);
+  const pkgMeta = MOCK.packages[selected] || { label: selected };
+  const pkgRates = op && op.packages ? op.packages[selected] : null;
+  const snapshot = (MOCK.onepage && MOCK.onepage.snapshot) || "";
+  const pills = codes.map(function (code) {
+    const info = MOCK.packages[code] || { label: code };
+    const on = code === selected ? " on" : "";
+    return '<button type="button" class="pkg-pill' + on + '" onclick="setSelectedPackage(' + p.id + ", '" + code + "')\">" +
+      info.label + "</button>";
+  }).join("");
+  const out = ((MOCK.onepage && MOCK.onepage.out_of_scope) || []).map(function (x) {
+    return "<li><b>" + escapeHtml(x.title) + "</b> — " + escapeHtml(x.reason) + "</li>";
+  }).join("");
+  const cap = pkgRates && pkgRates.ltv_cap
+    ? " · доля кредита ≤ " + pkgRates.ltv_cap + "%"
+    : (pkgMeta.ltv_cap ? " · доля кредита ≤ " + Math.round(pkgMeta.ltv_cap * 100) + "%" : "");
+  return '<div class="panel span-2">' + panelHead("Снимок OnePage", "product") +
+    '<div class="done-banner">' + escapeHtml(snapshot) + "</div>" +
+    '<p class="hint">Лист «' + escapeHtml((op && op.sheet) || "—") +
+    "». Цель кредита не меняется. Макет Figma устарел: срезы и статусы — соседняя вкладка.</p>" +
+    '<div class="grid-4">' +
+    '<div class="param"><small>Цель кредита</small><b>' + purposeLabel(p.purpose) + "</b></div>" +
+    '<div class="param"><small>Срок</small><b>' + ((op && op.term) || "—") + "</b></div>" +
+    '<div class="param"><small>Возраст</small><b>' + ((op && op.age) || "—") + "</b></div>" +
+    '<div class="param"><small>КВ</small><b>' + p.kv_note + "</b></div></div>" +
+    '<label class="check"><input type="checkbox" ' + (p.available ? "checked" : "") +
+    ' onchange="toggleAvailable(' + p.id + ', this)"><span>Продукт доступен</span></label>' +
+    '<label class="check"><input type="checkbox" ' + (p.no_options ? "checked" : "") +
+    ' onchange="noOptionsToggle(' + p.id + ', this)"><span>Продукт без опций</span></label></div>' +
+    '<div class="panel span-2">' + panelHead("Пакеты листа", "product") +
+    '<p class="hint">Колонка OnePage. Клиент выбирает пакет, категорию КИ назначает СПР. Точные проценты калькулятора — из актуальной матрицы, не из этого снимка.</p>' +
+    '<div class="pkg-pills">' + pills + "</div>" +
+    '<div class="pkg-card' + (selected ? " on" : "") + '"><b>' + (pkgMeta.label || selected) + "</b>" +
+    '<span class="hint">' + (pkgMeta.insurance || "") + " · " + (pkgMeta.commission || "") + cap +
+    (pkgMeta.note ? " · " + pkgMeta.note : "") +
+    (pkgMeta.ki_scope ? " · " + pkgMeta.ki_scope : "") + "</span></div>" +
+    renderKiRateTable(pkgRates) +
+    '<p class="hint">' + ((op && op.insurance) || "") + "</p></div>" +
+    '<div class="panel span-2">' + panelHead("Доля кредита · объект × география × КИ", "product") +
+    '<p class="hint">Из того же листа OnePage. Регионы вне столиц — отдельный лист, открывается во вкладке «Регионы».</p>' +
+    (op ? renderOnePageLtv(op.ltv) : '<p class="hint">Нет сетки LTV.</p>') +
+    '<p class="hint">* Москва в МКАД, Мытищи, Люберцы, Химки, Красногорск и соседние. Первый этаж — мин. доля 35,01%.</p></div>' +
+    '<div class="panel">' + panelHead("Надбавки OnePage", "product") +
+    MOCK.surcharges.map((x) => '<div class="row"><span>' + x.title + "</span><b>" + x.effect +
+      "</b></div><p class=\"hint\">" + x.owner + "</p>").join("") +
+    "</div>" +
+    '<div class="panel">' + panelHead("Не отдельные цели", "product") +
+    "<ul class=\"out-scope\">" + out + "</ul>" +
+    '<p class="hint">Четвёртую цель под коридор, «купи ставку», ДОМ.РФ, инвесты или ЮЛ не добавляем.</p></div>';
 }
 
 function renderProduct() {
   const id = Number(String(state.selectedId).split(":")[1]);
   const p = productById(id);
   if (!p) return "";
-  const tab = state.productTab || "card";
+  const tab = state.productTab === "card" ? "terms" : (state.productTab || "terms");
   const head = '<div class="work-inner"><div class="work-head">' +
     "<h1>" + p.name + "</h1>" +
-    '<p class="stage-now">' + purposeLabel(p.purpose) + "</p>" +
-    "<p class=\"lead\">Витрина для калькулятора предложений. Решение АНД и категория КИ здесь не живут.</p>" +
+    '<p class="stage-now">' + purposeLabel(p.purpose) + " · OnePage</p>" +
+    "<p class=\"lead\">Рабочий документ банка — OnePage. Макет Figma оставили для срезов и статусов. Решение АНД и категория КИ здесь не живут.</p>" +
     productTabs(tab) + "</div><div class=\"desk\">";
   if (tab === "slices") return head + renderSlicesPanel(p) + solverPanel() + "</div></div>";
   if (tab === "options") return head + renderOptionsPanel(p) + solverPanel() + "</div></div>";
-  const pkgs = (p.packages || []).map((code) => {
-    const info = MOCK.packages[code] || { label: code };
-    return '<div class="pkg-card"><b>' + info.label + "</b><span class=\"hint\">" +
-      (info.insurance || "") + " · " + (info.commission || "") +
-      (info.ltv_cap ? " · доля кредита ≤ " + Math.round(info.ltv_cap * 100) + "%" : "") +
-      (info.surcharge_pp ? " · +" + info.surcharge_pp + " п.п." : "") +
-      "</span></div>";
-  }).join("");
-  return head +
-    '<div class="panel span-2">' + panelHead("Основные сведения", "product") +
-    '<p class="hint">Показатели делятся на группы: основные сведения, пакеты калькулятора, надбавки, опции.</p>' +
-    '<div class="grid-4">' +
-    '<div class="param"><small>Цель кредита</small><b>' + purposeLabel(p.purpose) + "</b></div>" +
-    '<div class="param"><small>Канал</small><b>прямой канал / партнёры</b></div>' +
-    '<div class="param"><small>КВ</small><b>' + p.kv_note + "</b></div>" +
-    '<div class="param"><small>Целей в справочнике</small><b>' + state.products.length + " из 3</b></div></div>" +
-    '<label class="check"><input type="checkbox" ' + (p.available ? "checked" : "") +
-    ' onchange="toggleAvailable(' + p.id + ', this)"><span>Продукт доступен</span></label>' +
-    '<label class="check"><input type="checkbox" ' + (p.no_options ? "checked" : "") +
-    ' onchange="noOptionsToggle(' + p.id + ', this)"><span>Продукт без опций</span></label>' +
-    '<p class="hint">Четвёртую цель под коридор, «купи ставку» или ЮЛ не добавляем. Срезы витрины — вкладка «Срезы».</p></div>' +
-    '<div class="panel">' + panelHead("Пакеты калькулятора", "product") + pkgs +
-    '<p class="hint">Клиент выбирает пакет, не правит ставку. Точные проценты — из актуальной матрицы, не из памяти.</p></div>' +
-    '<div class="panel">' + panelHead("Надбавки", "product") +
-    MOCK.surcharges.map((x) => '<div class="row"><span>' + x.title + "</span><b>" + x.effect +
-      "</b></div><p class=\"hint\">" + x.owner + "</p>").join("") +
-    "</div>" +
-    solverPanel() + "</div></div>";
+  return head + renderTermsPanel(p) + solverPanel() + "</div></div>";
 }
 
 function renderSlicesPanel(p) {
@@ -1488,7 +1625,7 @@ function renderSlicesPanel(p) {
     (cols.employment ? "<th>Трудовой статус</th>" : "") +
     "<th>Объект</th><th>Регион</th><th>Доля кредита</th><th>Размер города</th><th>Возраст</th><th></th>";
   return '<div class="panel span-2">' + panelHead("Срезы витрины", "slices") +
-    '<p class="hint">Как в старом макете «Настройка продуктов». Сорт по дате создания, от новых к старым. Новый срез не добавляет цель кредита.</p>' +
+    '<p class="hint">Как в старом макете «Настройка продуктов» — он устарел, но срезы и статусы оставляем. Сорт по дате создания, от новых к старым. Новый срез не добавляет цель кредита.</p>' +
     '<div class="col-gear"><small>Настройка таблицы</small>' +
     '<label class="check"><input type="checkbox" ' + (cols.options ? "checked" : "") +
     ' onchange="toggleCol(\'options\', this)"><span>Опции</span></label>' +
@@ -1650,15 +1787,32 @@ function renderGreen() {
     '<label class="check"><input type="checkbox" ' + (state.greenOn[p] ? "checked" : "") +
     ' onchange="toggleGreen(\'' + p + '\', this)"><span>Доступен на цели ' + purposeLabel(p) + "</span></label>"
   ).join("");
+  const variants = (gc.variants || []).map(function (v) {
+    return '<div class="pkg-card"><b>' + escapeHtml(v.label) + "</b>" +
+      '<span class="hint">' + escapeHtml(v.ki) + " · база " + formatPct(v.base) +
+      " · переменная " + formatPct(v.variable) + " · " + escapeHtml(v.var_term || "") + "</span>" +
+      '<p class="hint">' + escapeHtml(v.term || "") + "</p>" +
+      '<p class="hint">' + escapeHtml(v.insurance || "") + "</p>" +
+      '<p class="hint">' + escapeHtml(v.ltv_note || "") + "</p></div>";
+  }).join("");
   return '<div class="work-inner"><div class="work-head">' +
     "<h1>Зелёный коридор</h1>" +
-    '<p class="stage-now">опция</p>' +
+    '<p class="stage-now">опция · лист OnePage</p>' +
     "<p class=\"lead\">" + gc.note + "</p></div>" +
     '<div class="desk"><div class="panel span-2">' + panelHead("Привязка", "product") +
     toggles +
     "<p class=\"hint\">Не отдельная цель кредита. В справочнике по-прежнему три цели: " +
     MOCK.purposes.map(purposeLabel).join(", ") + ".</p>" +
-    '<div class="done-banner">Это не отдельный продукт и не отдельная стадия ELMA.</div></div>' +
+    '<div class="grid-4">' +
+    '<div class="param"><small>Возраст</small><b>' + (gc.age || "—") + "</b></div>" +
+    '<div class="param"><small>Срок рассмотрения</small><b>' + (gc.review || "—") + "</b></div>" +
+    '<div class="param"><small>КВ</small><b>' + (gc.kv_note || "—") + "</b></div>" +
+    '<div class="param"><small>Лист</small><b>' + (gc.onepage_sheet || "—") + "</b></div></div>" +
+    '<div class="done-banner">Это не отдельный продукт и не отдельная стадия ELMA. Лист OnePage назван «коридор», внутри — спец. 4.0 и «Просто КИ5».</div></div>' +
+    '<div class="panel span-2">' + panelHead("Условия листа", "product") +
+    '<p class="hint">Снимок OnePage, не офер калькулятора. Категория КИ5 приходит из СПР.</p>' +
+    variants +
+    '<p class="hint">Надбавки листа: отказ от страхования +5 п.п.; нет регистрации ипотеки 60 дней +6 п.п.; отказ от переменной ставки +6 п.п.</p></div>' +
     solverPanel() + "</div></div>";
 }
 
@@ -1831,7 +1985,7 @@ function renderRegionCard() {
   return '<div class="work-inner"><div class="work-head">' +
     "<h1>" + r.value + "</h1>" +
     '<p class="stage-now">' + (open ? "открыт" : "закрыт") + " · " + channelLabel(r.sale_direction) + "</p>" +
-    "<p class=\"lead\">Где выдаём продукт и какие опции можно выбрать. Не отдельная цель кредита и не очередь заявок.</p></div>" +
+    '<p class="lead">Где выдаём продукт и какие опции можно выбрать. Сетка доли кредита — из листов LTV OnePage. Не отдельная цель кредита.</p></div>' +
     '<div class="desk"><div class="panel span-2">' + panelHead("Доступность региона", "regions") +
     '<div class="grid-4">' +
     '<div class="param"><small>Канал</small><b>' + channelLabel(r.sale_direction) + "</b></div>" +
@@ -1855,6 +2009,9 @@ function renderRegionCard() {
     '<div class="panel span-2">' + panelHead("Опции в регионе", "options") +
     '<p class="hint">Какие оверлеи можно выбрать в этом регионе. Не новая цель кредита. Комиссия партнёра — только с периодом акции.</p>' +
     '<div class="check-grid">' + options + "</div></div>" +
+    '<div class="panel span-2">' + panelHead("Доля кредита OnePage", "regions") +
+    '<p class="hint">Залог: объект × КИ. Числа — снимок листа LTV, не ячейка матрицы калькулятора.</p>' +
+    renderRegionLtvTable(r.id) + "</div>" +
     solverPanel() + "</div></div>";
 }
 

@@ -168,6 +168,38 @@
   cursor: help;
   border-bottom: none;
 }
+.pkg-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 12px;
+}
+.pkg-pill {
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--navy);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font: 700 12px Roboto, sans-serif;
+  cursor: pointer;
+}
+.pkg-pill.on {
+  background: var(--navy);
+  color: #fff;
+  border-color: var(--navy);
+}
+.pkg-card.on {
+  border-color: var(--navy);
+  background: #eef4fb;
+}
+.ki-table td, .ki-table th { white-space: nowrap; }
+.out-scope {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  color: var(--navy);
+  font-size: 13px;
+}
+.out-scope li { margin: 0 0 6px; }
 @media (max-width: 1100px) {
   .header-inner {
     grid-template-columns: minmax(0, 1fr) auto;
