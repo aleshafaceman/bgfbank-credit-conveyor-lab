@@ -1,5 +1,5 @@
 window.PRODUCTOLOG_MOCK = {
-  officer: { name: "Продуктолог лаборатории", role: "productolog" },
+  officer: { name: "Продуктолог", role: "productolog" },
   purposes: ["mortgage", "cash_on_pledge", "refinancing"],
   products: [
     {

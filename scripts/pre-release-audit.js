@@ -1265,6 +1265,8 @@ console.log('\n=== 11. ARM underwriter / productolog ===');
     'underwriter talks ПДН, not DTI as SPR field');
 
   assert(po.products.length === 3, 'productolog has three products');
+  assert(po.officer && po.officer.name === 'Продуктолог' && !/лаборатор/i.test(po.officer.name),
+    'productolog officer label is the bank role, not a lab');
   assert(po.purposes.slice().sort().join() === 'cash_on_pledge,mortgage,refinancing',
     'productolog CreditPurposeEnum trio');
   assert(po.products.every(function(p) { return po.purposes.indexOf(p.purpose) !== -1; }),
