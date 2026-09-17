@@ -20,7 +20,7 @@ LAB Pages: https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/
 Форма v1: https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/form/  
 АРМ сделки (ОЗС / ОПЕРУ, мок): https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/deal-ops/  
 АРМ андеррайтера (АНД / АПЗ, мок): https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/underwriter/  
-АРМ продуктолога (конфиг Solver, мок): https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/productolog/  
+АРМ продуктолога / риск-менеджера (конфиг Solver, мок): https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/productolog/  
 Электронное заявление на счёт (клиент по SMS): https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/deal-ops/account-app.html?t=25BGFB00990001  
 
 Быстрый показ кабинета: клиент `/?demo=1` (сброс + вход), менеджер `/manager/?autologin=1` (вход без сброса). Сброс у менеджера — кнопка на экране входа или `?demo=reset`. Хранилище: `bgfbank_lab_*`.

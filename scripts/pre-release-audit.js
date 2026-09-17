@@ -1308,6 +1308,8 @@ console.log('\n=== 11. ARM underwriter / productolog ===');
     'productolog tab is issuance variants, not slices');
   assert(/id="role-regions"/.test(poHtml) && /toggleRegionProduct/.test(poJs) && /toggleRegionOption/.test(poJs),
     'productolog has Regions role and per-region product/option toggles');
+  assert(/id="arm-productolog"/.test(poHtml) && /id="arm-risk"/.test(poHtml) && /setArm/.test(poJs) && /Риск-менеджер/.test(poHtml),
+    'same page switches productolog and risk-manager ARMs');
   assert(/STORE_VER = 6/.test(poJs) && /seedAvailability/.test(poJs) && /toggleAvailCell/.test(poJs) && /sliceOptionsAllowed/.test(poJs),
     'productolog availability matrix is STORE_VER 6');
   assert(/renderAvailMatrix/.test(poJs) && /selectedId === "avail"/.test(poJs),
@@ -1373,7 +1375,9 @@ console.log('\n=== 11. ARM underwriter / productolog ===');
     '  return before > 0 && !state.availability.some(function(a) { return a.option_id === 808 && a.product_id === 2; });' +
     '})();' +
     'this._draft = (createDraftSlice(2), state.slices.some(function(s) { return s.status === "filling" && s.ltv_min == null; }));' +
-    'this._opt = (createOptionDraft(), state.options[state.options.length-1].is_purpose === false && state.options[state.options.length-1].status === "filling");',
+    'this._opt = (createOptionDraft(), state.options[state.options.length-1].is_purpose === false && state.options[state.options.length-1].status === "filling");' +
+    'this._armRisk = (setArm("risk"), currentArm() === "risk" && state.role === "risk");' +
+    'this._armPo = (setArm("productolog"), currentArm() === "productolog" && state.role === "products");',
     local,
     { filename: 'productolog.js' }
   );
@@ -1392,6 +1396,7 @@ console.log('\n=== 11. ARM underwriter / productolog ===');
   assert(local._hangDrop === true, 'unchecking option hang drops availability cells');
   assert(local._draft === true, 'draft slice is filling with empty LTV');
   assert(local._opt === true, 'draft option is filling and not a purpose');
+  assert(local._armRisk === true && local._armPo === true, 'setArm switches risk-manager and productolog desks');
   assert(local._terms === true && local._pkg0 === true && local._pkg === true,
     'OnePage terms tab defaults to turbo_2 and can switch package');
 }

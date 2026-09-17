@@ -540,6 +540,18 @@ function nextId(list) {
   return list.reduce(function (m, x) { return Math.max(m, Number(x.id) || 0); }, 0) + 1;
 }
 
+function currentArm() {
+  return (state.role === "risk" || state.role === "matrix") ? "risk" : "productolog";
+}
+
+function setArm(arm) {
+  if (arm === "risk") {
+    if (state.role !== "risk" && state.role !== "matrix") setRole("risk");
+    return;
+  }
+  if (state.role === "risk" || state.role === "matrix") setRole("products");
+}
+
 function setRole(role) {
   state.role = role;
   if (role === "products") {
@@ -1545,17 +1557,38 @@ function visibleSlices() {
   });
 }
 
+function syncArmChrome() {
+  const arm = currentArm();
+  const ap = document.getElementById("arm-productolog");
+  const ar = document.getElementById("arm-risk");
+  if (ap) ap.classList.toggle("on", arm === "productolog");
+  if (ar) ar.classList.toggle("on", arm === "risk");
+  ["role-products", "role-options", "role-regions"].forEach(function (id) {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle("hidden", arm !== "productolog");
+  });
+  ["role-risk", "role-matrix"].forEach(function (id) {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle("hidden", arm !== "risk");
+  });
+  if (document.title) {
+    document.title = arm === "risk" ? "БЖФ · АРМ риск-менеджера" : "БЖФ · АРМ продуктолога";
+  }
+}
+
 function renderInbox() {
   const rp = document.getElementById("role-products");
   if (!rp) return;
+  syncArmChrome();
   rp.classList.toggle("on", state.role === "products");
-  document.getElementById("role-risk").classList.toggle("on", state.role === "risk");
-  document.getElementById("role-matrix").classList.toggle("on", state.role === "matrix");
+  const rsk = document.getElementById("role-risk");
+  if (rsk) rsk.classList.toggle("on", state.role === "risk");
+  const mx = document.getElementById("role-matrix");
+  if (mx) mx.classList.toggle("on", state.role === "matrix");
   const ro = document.getElementById("role-options");
   if (ro) ro.classList.toggle("on", state.role === "options");
   const rr = document.getElementById("role-regions");
   if (rr) rr.classList.toggle("on", state.role === "regions");
-  document.getElementById("officer-label").textContent = MOCK.officer.name;
   const title = state.role === "products" ? "Продукты" : state.role === "risk" ? "Шкалы риска"
     : state.role === "options" ? "Опции" : state.role === "regions" ? "Регионы" : "Матрица";
   document.getElementById("inbox-title").innerHTML = title + helpBtn("inbox");
@@ -2298,10 +2331,17 @@ function render() {
   renderBus();
 }
 
-if (typeof location !== "undefined" && location.search && new URLSearchParams(location.search).get("demo") === "1") {
-  localStorage.removeItem(STORE);
-  state = defaultState();
-  save();
+if (typeof location !== "undefined" && location.search) {
+  const params = new URLSearchParams(location.search);
+  if (params.get("demo") === "1") {
+    localStorage.removeItem(STORE);
+    state = defaultState();
+    save();
+  }
+  if (params.get("arm") === "risk") {
+    state.role = "risk";
+    state.selectedId = "scale:fico";
+  }
 }
 
 if (typeof document !== "undefined" && document.getElementById("inbox-list")) {

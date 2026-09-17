@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,700;1,400&family=Roboto+Condensed:wght@600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../deal-ops/deal-ops.css?v=18">
-  <link rel="stylesheet" href="productolog.css?v=14">
+  <link rel="stylesheet" href="productolog.css?v=15">
 </head>
 <body>
   <header class="header">
@@ -17,15 +17,20 @@
       <div class="brand">
         <img class="brand-logo" src="../deal-ops/brand/logo-on-dark.png" alt="БЖФ Банк">
       </div>
-      <div class="roles" role="tablist">
-        <button type="button" class="role on" id="role-products" onclick="setRole('products')">Продукты</button>
-        <button type="button" class="role" id="role-options" onclick="setRole('options')">Опции</button>
-        <button type="button" class="role" id="role-regions" onclick="setRole('regions')">Регионы</button>
-        <button type="button" class="role" id="role-risk" onclick="setRole('risk')">Риск</button>
-        <button type="button" class="role" id="role-matrix" onclick="setRole('matrix')">Матрица</button>
+      <div class="header-tabs">
+        <div class="roles arms" role="tablist" aria-label="АРМ">
+          <button type="button" class="role on" id="arm-productolog" onclick="setArm('productolog')">Продуктолог</button>
+          <button type="button" class="role" id="arm-risk" onclick="setArm('risk')">Риск-менеджер</button>
+        </div>
+        <div class="roles" role="tablist" aria-label="Разделы">
+          <button type="button" class="role on" id="role-products" onclick="setRole('products')">Продукты</button>
+          <button type="button" class="role" id="role-options" onclick="setRole('options')">Опции</button>
+          <button type="button" class="role" id="role-regions" onclick="setRole('regions')">Регионы</button>
+          <button type="button" class="role hidden" id="role-risk" onclick="setRole('risk')">Риск</button>
+          <button type="button" class="role hidden" id="role-matrix" onclick="setRole('matrix')">Матрица</button>
+        </div>
       </div>
       <div class="header-actions">
-        <span id="officer-label"></span>
         <button type="button" onclick="resetDemo()">Сбросить сцену</button>
       </div>
     </div>
@@ -60,6 +65,6 @@
   </div>
 
   <script src="mock.js?v=10"></script>
-  <script src="productolog.js?v=12"></script>
+  <script src="productolog.js?v=13"></script>
 </body>
 </html>
