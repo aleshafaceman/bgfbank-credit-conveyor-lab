@@ -1308,6 +1308,8 @@ console.log('\n=== 11. ARM underwriter / productolog ===');
     'productolog tab is issuance variants, not slices');
   assert(/id="role-regions"/.test(poHtml) && /toggleRegionProduct/.test(poJs) && /toggleRegionOption/.test(poJs),
     'productolog has Regions role and per-region product/option toggles');
+  assert(/createRegion/.test(poJs) && /Добавить регион/.test(poJs),
+    'productolog can add a sales region');
   assert(/STORE_VER = 6/.test(poJs) && /seedAvailability/.test(poJs) && /toggleAvailCell/.test(poJs) && /sliceOptionsAllowed/.test(poJs),
     'productolog availability matrix is STORE_VER 6');
   assert(/renderAvailMatrix/.test(poJs) && /selectedId === "avail"/.test(poJs),
@@ -1373,7 +1375,13 @@ console.log('\n=== 11. ARM underwriter / productolog ===');
     '  return before > 0 && !state.availability.some(function(a) { return a.option_id === 808 && a.product_id === 2; });' +
     '})();' +
     'this._draft = (createDraftSlice(2), state.slices.some(function(s) { return s.status === "filling" && s.ltv_min == null; }));' +
-    'this._opt = (createOptionDraft(), state.options[state.options.length-1].is_purpose === false && state.options[state.options.length-1].status === "filling");',
+    'this._opt = (createOptionDraft(), state.options[state.options.length-1].is_purpose === false && state.options[state.options.length-1].status === "filling");' +
+    'this._newReg = (function() {' +
+    '  var n = state.regions.length;' +
+    '  createRegion();' +
+    '  var r = state.regions[state.regions.length-1];' +
+    '  return state.regions.length === n + 1 && r.value === "Новый регион" && Array.isArray(r.product_ids) && r.product_ids.length === 0 && !regionAllowsProduct(r.id, 2) && state.selectedId === "region:" + r.id;' +
+    '})();',
     local,
     { filename: 'productolog.js' }
   );
@@ -1392,6 +1400,7 @@ console.log('\n=== 11. ARM underwriter / productolog ===');
   assert(local._hangDrop === true, 'unchecking option hang drops availability cells');
   assert(local._draft === true, 'draft slice is filling with empty LTV');
   assert(local._opt === true, 'draft option is filling and not a purpose');
+  assert(local._newReg === true, 'new region starts without products and is selected');
   assert(local._terms === true && local._pkg0 === true && local._pkg === true,
     'OnePage terms tab defaults to turbo_2 and can switch package');
 }
