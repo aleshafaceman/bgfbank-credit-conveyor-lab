@@ -77,7 +77,7 @@ window.PRODUCTOLOG_MOCK = {
     spec_4: { label: "Спец. опция 4.0", insurance: "ККС · программа 1", commission: "0,99%", ltv_cap: 0.5, kind: "option", ki_scope: "КИ5" },
     spec_5: { label: "Спец. опция 5.0", insurance: "ККС", commission: "2,49%", kind: "option", ki_scope: "КИ5" },
     spec_6: { label: "Спец. опция 6.0", insurance: "ККС", commission: "по тарифу", kind: "option", ki_scope: "КИ5" },
-    lower_rate: { label: "Ставка ниже", insurance: "ККС", commission: "по тарифу", kind: "option", ki_scope: "КИ5 / рефин КИ1–КИ4" },
+    lower_rate: { label: "Ставка ниже", insurance: "ККС", commission: "по тарифу", kind: "option", ki_scope: "КИ5; на рефинансировании — КИ1–КИ4" },
     purchase: { label: "Кредит на приобретение", insurance: "ККС-12 · программа 1", commission: "по тарифу", ki_scope: "КИ1–КИ3" },
     purchase_pdn: { label: "Приобретение · ПДН до 50%", insurance: "программа 3", commission: "по тарифу", note: "официальный доход на всю сумму", ki_scope: "КИ1" },
     refi_internal: { label: "Внутреннее рефинансирование", insurance: "ККС-12 · программа 6", commission: "по тарифу", ki_scope: "КИ1–КИ3" },

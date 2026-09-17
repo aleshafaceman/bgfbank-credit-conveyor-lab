@@ -221,6 +221,7 @@
   border-color: var(--navy);
   background: #eef4fb;
 }
+.pkg-card .grid-4 { margin-top: 8px; }
 .ki-table td, .ki-table th { white-space: nowrap; }
 .out-scope {
   margin: 8px 0 0;

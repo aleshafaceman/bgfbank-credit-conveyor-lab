@@ -286,6 +286,20 @@ function cellCountFor(productId, optionId) {
   }).length;
 }
 
+function inRegionsPhrase(n) {
+  n = Number(n) || 0;
+  if (n <= 0) return "ни в одном регионе";
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return "в " + n + " регионе";
+  return "в " + n + " регионах";
+}
+
+function pkgParam(label, value) {
+  if (!value) return "";
+  return '<div class="param"><small>' + label + "</small><b>" + escapeHtml(String(value)) + "</b></div>";
+}
+
 function availCheckbox(regionId, productId, optionId, disabled) {
   const on = hasAvailCell(regionId, productId, optionId);
   return '<input type="checkbox"' + (on ? " checked" : "") + (disabled ? " disabled" : "") +
@@ -1672,7 +1686,7 @@ function renderPkgPills(p, codes, kind) {
     const info = MOCK.packages[code] || { label: code };
     const on = code === selected ? " on" : "";
     const rec = optionBySlug(code);
-    const extra = kind === "option" && rec ? " · клеток " + cellCountFor(p.id, rec.id) : "";
+    const extra = kind === "option" && rec ? " · " + inRegionsPhrase(cellCountFor(p.id, rec.id)) : "";
     return '<button type="button" class="pkg-pill' + (kind === "option" ? " opt" : "") + on +
       '" onclick="setSelectedPackage(' + p.id + ", '" + code + "')\">" +
       info.label + extra + "</button>";
@@ -1688,17 +1702,28 @@ function renderTermsPanel(p) {
   const snapshot = (MOCK.onepage && MOCK.onepage.snapshot) || "";
   const baseCodes = p.base_packages && p.base_packages.length ? p.base_packages : codes;
   const optCodes = p.option_packages || [];
-  const pills = '<p class="hint">Базовые пакеты</p><div class="pkg-pills">' + renderPkgPills(p, baseCodes, "base") + "</div>" +
+  const pills = '<p class="hint">Основные пакеты</p><div class="pkg-pills">' + renderPkgPills(p, baseCodes, "base") + "</div>" +
     (optCodes.length
-      ? '<p class="hint">Опции пакета — клетка витрины считается отдельно</p><div class="pkg-pills">' +
+      ? '<p class="hint">Дополнительно к основному пакету. Цифра — в скольких регионах опцию можно выбрать.</p><div class="pkg-pills">' +
         renderPkgPills(p, optCodes, "option") + "</div>"
       : "");
   const out = ((MOCK.onepage && MOCK.onepage.out_of_scope) || []).map(function (x) {
     return "<li><b>" + escapeHtml(x.title) + "</b> — " + escapeHtml(x.reason) + "</li>";
   }).join("");
-  const cap = pkgRates && pkgRates.ltv_cap
-    ? " · доля кредита ≤ " + pkgRates.ltv_cap + "%"
-    : (pkgMeta.ltv_cap ? " · доля кредита ≤ " + Math.round(pkgMeta.ltv_cap * 100) + "%" : "");
+  const isOptPkg = (p.option_packages || []).indexOf(selected) !== -1;
+  const rec = optionBySlug(selected);
+  const capText = pkgRates && pkgRates.ltv_cap
+    ? "не больше " + pkgRates.ltv_cap + "%"
+    : (pkgMeta.ltv_cap ? "не больше " + Math.round(pkgMeta.ltv_cap * 100) + "%" : "");
+  const pkgTitle = isOptPkg ? "Пакет «" + (pkgMeta.label || selected) + "»" : (pkgMeta.label || selected);
+  const where = isOptPkg && rec ? inRegionsPhrase(cellCountFor(p.id, rec.id)) : "";
+  const whereNote = where === "ни в одном регионе" ? " — откройте на вкладке «Регионы»" : "";
+  const pkgFields = pkgParam("Страхование", pkgMeta.insurance) +
+    pkgParam("Комиссия", pkgMeta.commission) +
+    pkgParam("Доля кредита", capText) +
+    pkgParam("Условие", pkgMeta.note) +
+    pkgParam("Категория кредитной истории", pkgMeta.ki_scope) +
+    pkgParam("Где можно выбрать", where ? where + whereNote : "");
   return '<div class="panel span-2">' + panelHead("", "product") +
     '<div class="done-banner">' + escapeHtml(snapshot) + "</div>" +
     '<p class="hint">Лист «' + escapeHtml((op && op.sheet) || "—") +
@@ -1712,13 +1737,11 @@ function renderTermsPanel(p) {
     ' onchange="toggleAvailable(' + p.id + ', this)"><span>Продукт доступен</span></label>' +
     '<label class="check"><input type="checkbox" ' + (p.no_options ? "checked" : "") +
     ' onchange="noOptionsToggle(' + p.id + ', this)"><span>Продукт без опций</span></label></div>' +
-    '<div class="panel span-2">' + panelHead("Пакеты листа", "product") +
-    '<p class="hint">Колонка OnePage. Клиент выбирает пакет, категорию КИ назначает СПР. Точные проценты калькулятора — из актуальной матрицы, не из этого снимка. Опция живёт только если повешена на якорь и клетка региона включена.</p>' +
+    '<div class="panel span-2">' + panelHead("Пакеты", "product") +
+    '<p class="hint">Клиент выбирает пакет. Категорию кредитной истории назначает СПР, не этот стол. Проценты ниже — снимок файла, не текущий офер калькулятора.</p>' +
     pills +
-    '<div class="pkg-card' + (selected ? " on" : "") + '"><b>' + (pkgMeta.label || selected) + "</b>" +
-    '<span class="hint">' + (pkgMeta.insurance || "") + " · " + (pkgMeta.commission || "") + cap +
-    (pkgMeta.note ? " · " + pkgMeta.note : "") +
-    (pkgMeta.ki_scope ? " · " + pkgMeta.ki_scope : "") + "</span></div>" +
+    '<div class="pkg-card' + (selected ? " on" : "") + '"><b>' + escapeHtml(pkgTitle) + "</b>" +
+    '<div class="grid-4">' + pkgFields + "</div></div>" +
     renderKiRateTable(pkgRates) +
     '<p class="hint">' + ((op && op.insurance) || "") + "</p></div>" +
     '<div class="panel span-2">' + panelHead("Доля кредита · объект × география × КИ", "product") +

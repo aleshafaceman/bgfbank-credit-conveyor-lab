@@ -1318,6 +1318,8 @@ console.log('\n=== 11. ARM underwriter / productolog ===');
   assert(po.products.every(function(p) {
     return Array.isArray(p.base_packages) && Array.isArray(p.option_packages);
   }), 'products split base vs option packages');
+  assert(/inRegionsPhrase/.test(poJs) && /ни в одном регионе/.test(poJs) && !/клетка витрины считается/.test(poJs),
+    'option pills name regions, not vitrine cells');
   assert(po.regions.every(function(r) { return Array.isArray(r.product_ids) && Array.isArray(r.option_ids); }),
     'regions carry product_ids and option_ids');
   assert(po.onepage && po.onepage.products && po.onepage.products.cash_on_pledge,
