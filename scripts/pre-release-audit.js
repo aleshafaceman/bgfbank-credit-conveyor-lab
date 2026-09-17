@@ -1304,6 +1304,20 @@ console.log('\n=== 11. ARM underwriter / productolog ===');
     'productolog defaults to OnePage terms tab with package pills');
   assert(/id="role-regions"/.test(poHtml) && /toggleRegionProduct/.test(poJs) && /toggleRegionOption/.test(poJs),
     'productolog has Regions role and per-region product/option toggles');
+  assert(/STORE_VER = 6/.test(poJs) && /seedAvailability/.test(poJs) && /toggleAvailCell/.test(poJs) && /sliceOptionsAllowed/.test(poJs),
+    'productolog availability matrix is STORE_VER 6');
+  assert(/renderAvailMatrix/.test(poJs) && /selectedId === "avail"/.test(poJs),
+    'productolog regions inbox opens availability matrix');
+  const kazan = po.regions.find(function(r) { return r.id === 4; });
+  const saratov = po.regions.find(function(r) { return r.id === 5; });
+  const buyRate = po.options.find(function(o) { return o.id === 808; });
+  assert(kazan && kazan.product_ids.indexOf(1) === -1, 'Kazan has no purchase product');
+  assert(saratov && saratov.option_ids.indexOf(808) === -1, 'Saratov has no buy_rate cell seed');
+  assert(buyRate && buyRate.slug === 'buy_rate' && buyRate.is_purpose === false && buyRate.product_ids.indexOf(1) === -1,
+    'buy_rate hangs on pledge/refi, not purchase');
+  assert(po.products.every(function(p) {
+    return Array.isArray(p.base_packages) && Array.isArray(p.option_packages);
+  }), 'products split base vs option packages');
   assert(po.regions.every(function(r) { return Array.isArray(r.product_ids) && Array.isArray(r.option_ids); }),
     'regions carry product_ids and option_ids');
   assert(po.onepage && po.onepage.products && po.onepage.products.cash_on_pledge,
@@ -1342,6 +1356,16 @@ console.log('\n=== 11. ARM underwriter / productolog ===');
     'this._addDup = addScaleRow("fico", 650, 9); this._addOk = addScaleRow("fico", 700, 18);' +
     'this._vis = solverSlices().every(function(s) { return s.status === "active"; });' +
     'this._mskOn = regionAllowsProduct(1, 1); this._kazanOff = !regionAllowsProduct(4, 1);' +
+    'this._kazanPurchaseCell = !state.availability.some(function(a) { return a.region_id === 4 && a.product_id === 1; });' +
+    'this._saratovBuy = !state.availability.some(function(a) { return a.region_id === 5 && a.option_id === 808; });' +
+    'this._slice501 = solverSlices().some(function(s) { return s.id === 501; });' +
+    'this._slice503 = !solverSlices().some(function(s) { return s.id === 503; });' +
+    'this._store6 = STORE_VER === 6 && Array.isArray(state.availability) && state.availability.length > 0;' +
+    'this._hangDrop = (function() {' +
+    '  var before = state.availability.filter(function(a) { return a.option_id === 808 && a.product_id === 2; }).length;' +
+    '  toggleOptionProduct(808, 2, { checked: false });' +
+    '  return before > 0 && !state.availability.some(function(a) { return a.option_id === 808 && a.product_id === 2; });' +
+    '})();' +
     'this._draft = (createDraftSlice(2), state.slices.some(function(s) { return s.status === "filling" && s.ltv_min == null; }));' +
     'this._opt = (createOptionDraft(), state.options[state.options.length-1].is_purpose === false && state.options[state.options.length-1].status === "filling");',
     local,
@@ -1356,6 +1380,10 @@ console.log('\n=== 11. ARM underwriter / productolog ===');
   assert(local._addOk && local._addOk.ok === true, 'POST scale row between neighbours');
   assert(local._vis === true, 'solverSlices keeps only active rows');
   assert(local._mskOn && local._kazanOff, 'Moscow allows purchase; Kazan does not');
+  assert(local._kazanPurchaseCell && local._saratovBuy, 'seed has no Kazan×purchase and no Saratov×buy_rate cells');
+  assert(local._slice501 === true && local._slice503 === true, 'solverSlices keeps Moscow esia+plain0 and drops Saratov buy_rate');
+  assert(local._store6 === true, 'STORE_VER 6 seeds availability cells');
+  assert(local._hangDrop === true, 'unchecking option hang drops availability cells');
   assert(local._draft === true, 'draft slice is filling with empty LTV');
   assert(local._opt === true, 'draft option is filling and not a purpose');
   assert(local._terms === true && local._pkg0 === true && local._pkg === true,

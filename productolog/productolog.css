@@ -186,6 +186,29 @@
   color: #fff;
   border-color: var(--navy);
 }
+.pkg-pill.opt {
+  border-style: dashed;
+}
+.avail-table th,
+.avail-table td {
+  text-align: center;
+}
+.avail-table th {
+  white-space: normal;
+  max-width: 120px;
+  overflow-wrap: anywhere;
+}
+.avail-table th:first-child,
+.avail-table td:first-child {
+  text-align: left;
+}
+.avail-table td.is-off {
+  color: var(--muted);
+  font-weight: 700;
+}
+.avail-table input[type="checkbox"]:disabled {
+  opacity: .35;
+}
 .pkg-card.on {
   border-color: var(--navy);
   background: #eef4fb;
