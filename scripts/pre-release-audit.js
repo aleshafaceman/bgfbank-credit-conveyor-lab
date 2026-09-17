@@ -1272,6 +1272,16 @@ console.log('\n=== 11. ARM underwriter / productolog ===');
   assert(po.green_corridor.is_purpose === false, 'green corridor is not a purpose');
   assert(po.green_corridor.applies_to.slice().sort().join() === po.purposes.slice().sort().join(),
     'green corridor overlays the same three purposes');
+  assert(Array.isArray(po.slices) && po.slices.length >= 5, 'productolog has showcase slices');
+  assert(po.slices.every(function(s) {
+    const p = po.products.find(function(x) { return x.id === s.product_id; });
+    return p && po.purposes.indexOf(p.purpose) !== -1;
+  }), 'every slice sits on an enum purpose');
+  assert(po.option_catalog.every(function(o) { return o.is_purpose === false; }),
+    'option catalog items are not purposes');
+  assert(po.slices.some(function(s) { return s.status === 'review'; }) &&
+    po.slices.some(function(s) { return s.status === 'archived'; }),
+    'slices have review and archived statuses');
 
   const poJs = fs.readFileSync(path.join(root, 'productolog/productolog.js'), 'utf8');
   const poHtml = fs.readFileSync(path.join(root, 'productolog/index.html'), 'utf8');
@@ -1289,12 +1299,20 @@ console.log('\n=== 11. ARM underwriter / productolog ===');
   vm.runInNewContext(
     fs.readFileSync(path.join(root, 'productolog/mock.js'), 'utf8') + '\n' +
     fs.readFileSync(path.join(root, 'productolog/productolog.js'), 'utf8') + '\n' +
-    'this._score = getScore("fico", 600); this._bound = isBoundary({ position: 0 }); this._inf = isBoundary({ position: null });',
+    'this._score = getScore("fico", 600); this._bound = isBoundary({ position: 0 }); this._inf = isBoundary({ position: null });' +
+    'this._okPos = isValidUpdatedPosition("fico", 13, 700); this._badPos = isValidUpdatedPosition("fico", 13, 400);' +
+    'this._addDup = addScaleRow("fico", 650, 9); this._addOk = addScaleRow("fico", 700, 18);' +
+    'this._vis = solverSlices().every(function(s) { return s.status === "active"; });',
     local,
     { filename: 'productolog.js' }
   );
   assert(local._score && local._score.score === 15.5, 'getScore(fico, 600) hits the 650 bucket');
   assert(local._bound && local._inf, 'position 0 and null are boundaries');
+  assert(local._okPos && !local._badPos, 'position updates stay between neighbours');
+  assert(local._addDup && local._addDup.ok === false && local._addDup.error === 'exists',
+    'duplicate scale position is AlreadyExists');
+  assert(local._addOk && local._addOk.ok === true, 'POST scale row between neighbours');
+  assert(local._vis === true, 'solverSlices keeps only active rows');
 }
 
 console.log('\n=== 12. Manager storage does not ping-pong ===');

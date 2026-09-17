@@ -18,6 +18,42 @@
   border-bottom: 1px solid var(--line);
   vertical-align: middle;
 }
+.inbox-tools { margin: 8px 0 10px; }
+.inbox-search {
+  width: 100%;
+  height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 10px;
+  font: 600 12px Roboto, sans-serif;
+  color: var(--navy);
+  margin-bottom: 8px;
+}
+.create-slice, .slice-editor {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.create-slice label, .slice-editor label, .scale-table + .actions label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+.create-slice select, .create-slice input,
+.slice-editor select, .slice-editor input,
+.actions input, .param input, .panel select {
+  height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 8px;
+  font: 700 13px Roboto, sans-serif;
+  color: var(--navy);
+  width: 100%;
+}
 .scale-table input[type="number"] {
   width: 88px;
   height: 34px;

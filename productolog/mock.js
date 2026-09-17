@@ -37,6 +37,31 @@ window.PRODUCTOLOG_MOCK = {
     PKG_SPEC_4_0: { label: "Спец. опция 4.0", insurance: "ККС", commission: "0,99%", ltv_cap: 0.5 },
     PKG_NO_INSURANCE: { label: "Без страхования жизни", insurance: "только имущество", commission: "по тарифу", surcharge_pp: 5 }
   },
+  object_kinds: [
+    { id: "flat", title: "квартира" },
+    { id: "apartments", title: "апартаменты" },
+    { id: "commerce", title: "коммерция" }
+  ],
+  option_catalog: [
+    { id: "green_corridor", title: "Зелёный коридор", is_purpose: false, note: "Опция сложной КИ. Не CreditPurposeEnum." },
+    { id: "buy_rate", title: "Купи ставку", is_purpose: false, note: "Оверлей на залог, не четвёртая цель." },
+    { id: "esia", title: "Цифровой профиль", is_purpose: false, note: "−0,5 п.п. из каталога надбавок." },
+    { id: "no_insurance", title: "Без ККС", is_purpose: false, note: "+5 п.п. Пакет PKG_NO_INSURANCE." }
+  ],
+  slice_statuses: [
+    { id: "active", title: "действующий" },
+    { id: "review", title: "на проверке" },
+    { id: "archived", title: "удалён" }
+  ],
+  slices: [
+    { id: 501, product_id: 2, name: "Залог_Москва+LTV40_60", region_id: 1, object_kind: "flat", ltv_min: 0.4, ltv_max: 0.6, status: "active", period_from: "2026-09-01", period_to: "2026-12-31", options: ["esia"], income_ref: true },
+    { id: 502, product_id: 2, name: "Залог_Москва+LTV30_40", region_id: 1, object_kind: "flat", ltv_min: 0.3, ltv_max: 0.4, status: "review", period_from: "2026-09-01", period_to: "2026-12-31", options: [], income_ref: true },
+    { id: 503, product_id: 2, name: "Залог_Сделка+LTV30_40", region_id: 2, object_kind: "flat", ltv_min: 0.3, ltv_max: 0.4, status: "active", period_from: "2026-09-01", period_to: "2026-12-31", options: ["buy_rate"], income_ref: false },
+    { id: 504, product_id: 1, name: "Приобретение_Москва+LTV40_55", region_id: 1, object_kind: "flat", ltv_min: 0.4, ltv_max: 0.55, status: "active", period_from: "2026-09-01", period_to: "2026-12-31", options: ["green_corridor"], income_ref: true },
+    { id: 505, product_id: 3, name: "Рефинансирование_Москва", region_id: 1, object_kind: "flat", ltv_min: 0.3, ltv_max: 0.5, status: "active", period_from: "2026-09-01", period_to: "2026-12-31", options: [], income_ref: true },
+    { id: 506, product_id: 2, name: "Залог_апартаменты_СПб", region_id: 3, object_kind: "apartments", ltv_min: 0.35, ltv_max: 0.5, status: "review", period_from: "2026-09-15", period_to: "2026-12-31", options: [], income_ref: true },
+    { id: 507, product_id: 2, name: "Залог_коммерция_Казань", region_id: 4, object_kind: "commerce", ltv_min: 0.3, ltv_max: 0.45, status: "archived", period_from: "2026-01-01", period_to: "2026-08-31", options: [], income_ref: true }
+  ],
   surcharges: [
     { code: "SURCH_FSSP", title: "ФССП > 100 000 ₽", effect: "+2 п.п.", owner: "Loginom FSSP_001" },
     { code: "SURCH_NO_INSURANCE", title: "Отказ от ККС", effect: "+5 п.п.", owner: "пакет PKG_NO_INSURANCE" },
