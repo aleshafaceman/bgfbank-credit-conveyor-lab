@@ -125,8 +125,23 @@
   margin: 0 auto;
 }
 .header .brand { grid-area: brand; min-width: 0; }
-.header .roles {
+.header-tabs {
   grid-area: roles;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 8px 16px;
+}
+.header-tabs .arms {
+  padding-right: 16px;
+  border-right: 1px solid rgba(255, 255, 255, .28);
+}
+.header-tabs .arms .role,
+.header-tabs .roles .role {
+  white-space: nowrap;
+}
+.header .roles {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
@@ -271,5 +286,13 @@
     grid-template-areas:
       "brand actions"
       "roles roles";
+  }
+  .header-tabs .arms {
+    width: 100%;
+    justify-content: center;
+    padding-right: 0;
+    border-right: 0;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, .28);
   }
 }

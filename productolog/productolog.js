@@ -197,7 +197,7 @@ function regionAllowsProduct(regionId, productId) {
   if (!r) return true;
   if (r.available === false) return false;
   const ids = r.product_ids;
-  if (!ids || !ids.length) return true;
+  if (!ids) return true;
   return ids.indexOf(Number(productId)) !== -1;
 }
 
@@ -538,6 +538,18 @@ function sliceById(id) {
 
 function nextId(list) {
   return list.reduce(function (m, x) { return Math.max(m, Number(x.id) || 0); }, 0) + 1;
+}
+
+function currentArm() {
+  return (state.role === "risk" || state.role === "matrix") ? "risk" : "productolog";
+}
+
+function setArm(arm) {
+  if (arm === "risk") {
+    if (state.role !== "risk" && state.role !== "matrix") setRole("risk");
+    return;
+  }
+  if (state.role === "risk" || state.role === "matrix") setRole("products");
 }
 
 function setRole(role) {
@@ -1330,6 +1342,26 @@ function createOptionDraft() {
   render();
 }
 
+function createRegion() {
+  const r = {
+    id: nextId(state.regions),
+    sale_direction: "b2c",
+    value: "Новый регион",
+    liquidity: 2,
+    ltv_flat: 0.4,
+    available: true,
+    product_ids: [],
+    option_ids: []
+  };
+  state.regions.push(r);
+  state.selectedId = "region:" + r.id;
+  state.role = "regions";
+  logAction("POST", "/sales_regions", "черновик · " + r.value);
+  state.bus.regions_get = "ok";
+  save();
+  render();
+}
+
 function setOptionField(id, field, el) {
   const o = optionRecById(id);
   if (!o) return;
@@ -1545,17 +1577,38 @@ function visibleSlices() {
   });
 }
 
+function syncArmChrome() {
+  const arm = currentArm();
+  const ap = document.getElementById("arm-productolog");
+  const ar = document.getElementById("arm-risk");
+  if (ap) ap.classList.toggle("on", arm === "productolog");
+  if (ar) ar.classList.toggle("on", arm === "risk");
+  ["role-products", "role-options", "role-regions"].forEach(function (id) {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle("hidden", arm !== "productolog");
+  });
+  ["role-risk", "role-matrix"].forEach(function (id) {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle("hidden", arm !== "risk");
+  });
+  if (document.title) {
+    document.title = arm === "risk" ? "БЖФ · АРМ риск-менеджера" : "БЖФ · АРМ продуктолога";
+  }
+}
+
 function renderInbox() {
   const rp = document.getElementById("role-products");
   if (!rp) return;
+  syncArmChrome();
   rp.classList.toggle("on", state.role === "products");
-  document.getElementById("role-risk").classList.toggle("on", state.role === "risk");
-  document.getElementById("role-matrix").classList.toggle("on", state.role === "matrix");
+  const rsk = document.getElementById("role-risk");
+  if (rsk) rsk.classList.toggle("on", state.role === "risk");
+  const mx = document.getElementById("role-matrix");
+  if (mx) mx.classList.toggle("on", state.role === "matrix");
   const ro = document.getElementById("role-options");
   if (ro) ro.classList.toggle("on", state.role === "options");
   const rr = document.getElementById("role-regions");
   if (rr) rr.classList.toggle("on", state.role === "regions");
-  document.getElementById("officer-label").textContent = MOCK.officer.name;
   const title = state.role === "products" ? "Продукты" : state.role === "risk" ? "Шкалы риска"
     : state.role === "options" ? "Опции" : state.role === "regions" ? "Регионы" : "Матрица";
   document.getElementById("inbox-title").innerHTML = title + helpBtn("inbox");
@@ -1611,11 +1664,13 @@ function renderInbox() {
       const nProd = (r.product_ids || []).length;
       const nOpt = (r.option_ids || []).length;
       return '<button type="button" class="card-deal' + on + '" onclick="selectItem(\'' + id + '\')">' +
-        "<b>" + r.value + "</b><span>" + channelLabel(r.sale_direction) +
+        "<b>" + escapeHtml(r.value) + "</b><span>" + channelLabel(r.sale_direction) +
         " · ликвидность " + r.liquidity + " · продуктов " + nProd + " · опций " + nOpt + "</span>" +
         (r.available === false ? '<i class="badge badge-wait">закрыт</i>' : '<i class="badge badge-ok">открыт</i>') +
         "</button>";
-    }).join("");
+    }).join("") +
+      '<button type="button" class="btn btn-primary" onclick="createRegion()">Добавить регион</button>' +
+      '<p class="hint">Новый город без якорей. Отметьте продукт, затем опции в матрице доступности.</p>';
   } else if (state.role === "risk") {
     cards = Object.keys(state.scales).map((slug) => {
       const sc = state.scales[slug];
@@ -2167,7 +2222,7 @@ function renderRegionCard() {
   const nOpt = (r.option_ids || []).length;
   const open = r.available !== false;
   return '<div class="work-inner"><div class="work-head">' +
-    "<h1>" + r.value + "</h1>" +
+    "<h1>" + escapeHtml(r.value) + "</h1>" +
     '<p class="stage-now">' + (open ? "открыт" : "закрыт") + " · " + channelLabel(r.sale_direction) + "</p>" +
     '<p class="lead">Где выдаём продукт и какие опции можно выбрать. Сетка доли кредита — из листов LTV OnePage. Не отдельная цель кредита.</p></div>' +
     '<div class="desk"><div class="panel span-2">' + panelHead("Доступность региона", "regions") +
@@ -2177,6 +2232,8 @@ function renderRegionCard() {
     '<div class="param"><small>Доля кредита (квартира)</small><b>' + Math.round(r.ltv_flat * 100) + "%</b></div>" +
     '<div class="param"><small>В витрине</small><b>продуктов ' + nProd + " · опций " + nOpt + "</b></div></div>" +
     '<div class="grid-4" style="margin-top:8px">' +
+    '<label>Название<input value="' + escapeHtml(r.value) +
+    '" onchange="saveRegionField(' + r.id + ", 'value', this)\"></label>" +
     '<label>Канал продаж<select onchange="saveRegionField(' + r.id + ", 'sale_direction', this)\">" +
     '<option value="b2c"' + (r.sale_direction === "b2c" ? " selected" : "") + ">прямой канал</option>" +
     '<option value="b2b"' + (r.sale_direction === "b2b" ? " selected" : "") + ">партнёры</option></select></label>" +
@@ -2298,10 +2355,17 @@ function render() {
   renderBus();
 }
 
-if (typeof location !== "undefined" && location.search && new URLSearchParams(location.search).get("demo") === "1") {
-  localStorage.removeItem(STORE);
-  state = defaultState();
-  save();
+if (typeof location !== "undefined" && location.search) {
+  const params = new URLSearchParams(location.search);
+  if (params.get("demo") === "1") {
+    localStorage.removeItem(STORE);
+    state = defaultState();
+    save();
+  }
+  if (params.get("arm") === "risk") {
+    state.role = "risk";
+    state.selectedId = "scale:fico";
+  }
 }
 
 if (typeof document !== "undefined" && document.getElementById("inbox-list")) {
