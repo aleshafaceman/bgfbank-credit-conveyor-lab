@@ -34,7 +34,8 @@
   padding-top: 12px;
   border-top: 1px solid var(--line);
 }
-.create-slice label, .slice-editor label, .scale-table + .actions label {
+.create-slice label, .slice-editor label, .scale-table + .actions label,
+.panel label:not(.check) {
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -45,7 +46,8 @@
 }
 .create-slice select, .create-slice input,
 .slice-editor select, .slice-editor input,
-.actions input, .param input, .panel select {
+.actions input, .param input, .panel select,
+.panel label:not(.check) input {
   height: 34px;
   border: 1px solid var(--line);
   border-radius: 8px;

@@ -1489,6 +1489,7 @@ function renderOptionCard() {
     '<div class="param"><small>Этап</small><b>' + (o.stage === "lead" ? "Лид" : o.stage) + "</b></div>" +
     '<div class="param"><small>Период</small><b>' + periodLabel(o) + "</b></div>" +
     '<div class="param"><small>По умолчанию</small><b>' + (o.is_default ? "да" : "нет") + "</b></div></div>" +
+    '<div class="grid-4" style="margin-top:8px">' +
     '<label>Название<input value="' + String(o.name).replace(/"/g, "&quot;") +
     '" onchange="setOptionField(' + o.id + ", 'name', this)\"></label>" +
     '<label>Надбавка к комиссии<input value="' + String(o.commission_note || "").replace(/"/g, "&quot;") +
@@ -1501,7 +1502,7 @@ function renderOptionCard() {
     '<label>С<input type="date" value="' + (o.period_from || "") +
     '" onchange="setOptionField(' + o.id + ", 'period_from', this)\"></label>" +
     '<label>По<input type="date" value="' + (o.period_to || "") +
-    '" onchange="setOptionField(' + o.id + ", 'period_to', this)\"></label>" +
+    '" onchange="setOptionField(' + o.id + ", 'period_to', this)\"></label></div>" +
     '<label class="check"><input type="checkbox" ' + (o.is_default ? "checked" : "") +
     ' onchange="setOptionField(' + o.id + ", 'is_default', this)\"><span>По умолчанию</span></label>" +
     "<p class=\"hint\">Продукты (множественный выбор)</p>" + products +
