@@ -203,10 +203,19 @@ function catalogTitle(list, id) {
   return hit ? hit.title : (id || "—");
 }
 
+function escapeHtml(s) {
+  return String(s || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 function ellip(text, n) {
   const s = String(text || "");
-  if (s.length <= n) return s;
-  return '<span class="ellip" title="' + s.replace(/"/g, "&quot;") + '">' + s.slice(0, n) + "…</span>";
+  const shown = escapeHtml(s).replace(/_/g, "_\u200b");
+  if (s.length <= n) return shown;
+  return '<span class="ellip" title="' + escapeHtml(s) + '">' + shown + "</span>";
 }
 
 function ltvLabel(s) {
@@ -345,8 +354,8 @@ function sliceCardsHtml() {
       ? "поля пустые"
       : ("доля кредита " + Math.round(s.ltv_min * 100) + "–" + Math.round(s.ltv_max * 100) + "%");
     return '<button type="button" class="card-deal' + on + '" onclick="selectSlice(' + s.id + ')" title="' +
-      String(s.name).replace(/"/g, "&quot;") + '">' +
-      "<b>" + ellip(s.name, 28) + "</b><span>" + objectTitle(s.object_kind) + " · " + ltv + "</span>" +
+      escapeHtml(s.name) + '">' +
+      "<b>" + ellip(s.name, 0) + "</b><span>" + objectTitle(s.object_kind) + " · " + ltv + "</span>" +
       '<i class="badge ' + badgeForStatus(s.status) + '">' + statusMeta(s.status).title + "</i></button>";
   }).join("");
 }
@@ -1318,8 +1327,8 @@ function renderInbox() {
       const id = "optrec:" + o.id;
       const on = state.selectedId === id ? " on" : "";
       return '<button type="button" class="card-deal' + on + '" onclick="selectItem(\'' + id + '\')" title="' +
-        String(o.name).replace(/"/g, "&quot;") + '">' +
-        "<b>" + ellip(o.name, 28) + "</b><span>этап: " + stageLabel(o.stage) + " · опция</span>" +
+        escapeHtml(o.name) + '">' +
+        "<b>" + ellip(o.name, 0) + "</b><span>этап: " + stageLabel(o.stage) + " · опция</span>" +
         '<i class="badge ' + badgeForStatus(o.status) + '">' + statusMeta(o.status).title + "</i></button>";
     }).join("") +
       '<button type="button" class="btn btn-primary" onclick="createOptionDraft()">Создать опцию</button>' +
@@ -1448,12 +1457,12 @@ function renderSlicesPanel(p) {
   const rows = list.map(function (s) {
     const region = regionById(s.region_id);
     const on = state.selectedSliceId === s.id ? " on" : "";
-    let html = '<tr class="' + on.trim() + '"><td title="' + String(s.name).replace(/"/g, "&quot;") + '"><b>' +
-      ellip(s.name, 36) + "</b></td><td>" + purposeLabel(p.purpose) + "</td><td>" +
+    let html = '<tr class="' + on.trim() + '"><td title="' + escapeHtml(s.name) + '"><b>' +
+      ellip(s.name, 0) + "</b></td><td>" + purposeLabel(p.purpose) + "</td><td>" +
       '<i class="badge ' + badgeForStatus(s.status) + '">' + statusMeta(s.status).title + "</i></td><td>" +
       periodLabel(s) + "</td>";
-    if (cols.options) html += "<td>" + ellip(optionLabel(s), 28) + "</td>";
-    if (cols.income) html += "<td>" + ellip(incomeLabel(s), 24) + "</td>";
+    if (cols.options) html += "<td>" + ellip(optionLabel(s), 0) + "</td>";
+    if (cols.income) html += "<td>" + ellip(incomeLabel(s), 0) + "</td>";
     if (cols.employment) html += "<td>" + catalogTitle(MOCK.employment, s.employment) + "</td>";
     html += "<td>" + objectTitle(s.object_kind) + "</td><td>" + (region ? region.value : "—") +
       "</td><td>" + ltvLabel(s) + "</td><td>" + catalogTitle(MOCK.city_sizes, s.city_size) +
@@ -1563,7 +1572,7 @@ function renderOptionsPanel(p) {
     return (o.product_ids || []).indexOf(p.id) !== -1;
   });
   const table = recs.map(function (o) {
-    return "<tr><td>" + ellip(o.name, 32) + "</td><td>" +
+    return "<tr><td>" + ellip(o.name, 0) + "</td><td>" +
       '<i class="badge ' + badgeForStatus(o.status) + '">' + statusMeta(o.status).title + "</i></td><td>" +
       periodLabel(o) + "</td><td>" + stageLabel(o.stage) + "</td><td>" +
       (o.commission_note || "—") + "</td><td>" + (o.rate_note || "—") + "</td><td>" +
@@ -1608,7 +1617,7 @@ function renderOptionCard() {
     '<div class="param"><small>Период</small><b>' + periodLabel(o) + "</b></div>" +
     '<div class="param"><small>По умолчанию</small><b>' + (o.is_default ? "да" : "нет") + "</b></div></div>" +
     '<div class="grid-4" style="margin-top:8px">' +
-    '<label>Название<input value="' + String(o.name).replace(/"/g, "&quot;") +
+    '<label>Название<input value="' + escapeHtml(o.name) +
     '" onchange="setOptionField(' + o.id + ", 'name', this)\"></label>" +
     '<label>Надбавка к комиссии<input value="' + String(o.commission_note || "").replace(/"/g, "&quot;") +
     '" onchange="setOptionField(' + o.id + ", 'commission_note', this)\"></label>" +
