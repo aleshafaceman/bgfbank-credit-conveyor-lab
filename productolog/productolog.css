@@ -136,6 +136,12 @@
   margin-left: 0;
   justify-self: end;
 }
+.panel-head-help {
+  justify-content: flex-end;
+  margin-bottom: 4px;
+  padding-bottom: 0;
+  border-bottom: 0;
+}
 .work-head .filters { justify-content: center; }
 .card-deal {
   overflow: hidden;
@@ -215,6 +221,7 @@
   border-color: var(--navy);
   background: #eef4fb;
 }
+.pkg-card .grid-4 { margin-top: 8px; }
 .ki-table td, .ki-table th { white-space: nowrap; }
 .out-scope {
   margin: 8px 0 0;

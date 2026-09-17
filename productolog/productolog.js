@@ -5,7 +5,7 @@ const MOCK = window.PRODUCTOLOG_MOCK;
 const BUS_CATALOG = [
   { id: "products_get", title: "Список продуктов", system: "калькулятор предложений · витрина" },
   { id: "onepage_get", title: "Условия OnePage", system: "снимок файла условий · не офер калькулятора" },
-  { id: "slices_get", title: "Срезы витрины", system: "справочник продуктолога" },
+  { id: "slices_get", title: "Варианты выдачи", system: "справочник продуктолога" },
   { id: "regions_get", title: "Регионы продаж", system: "калькулятор предложений · регионы" },
   { id: "score_get", title: "Балл шкалы", system: "калькулятор предложений · шкалы риска" },
   { id: "matrix_get", title: "Ячейка доли кредита и оценки риска", system: "калькулятор предложений · матрица" },
@@ -18,7 +18,7 @@ const BUS_CATALOG = [
 const HELP = {
   inbox: {
     title: "Каталог",
-    about: "Не очередь заявок. Рабочий канон условий — OnePage (лист = цель, колонка = пакет). Срезы и статусы из старого макета остаются витриной калькулятора.",
+    about: "Не очередь заявок. Рабочий канон условий — OnePage (лист = цель, колонка = пакет). Варианты выдачи и статусы из старого макета остаются справочником калькулятора.",
     next: "Откройте продукт на вкладке «Условия». СПР и АНД сюда не ходят."
   },
   bus: {
@@ -29,12 +29,12 @@ const HELP = {
   product: {
     title: "Условия OnePage",
     about: "Банк собирает условия из OnePage: лист — цель кредита, колонка — пакет, строки КИ1–КИ5. Категорию КИ назначает СПР, не этот стол. Проценты — снимок файла, не текущий офер калькулятора.",
-    next: "Выберите пакет. ДОМ.РФ и инвесты не становятся четвёртой целью. Срезы макета — соседняя вкладка."
+    next: "Выберите пакет. ДОМ.РФ и инвесты не становятся четвёртой целью. Варианты выдачи — соседняя вкладка."
   },
   slices: {
-    title: "Срезы витрины",
+    title: "Варианты выдачи",
     about: "Название, тип объекта, статус, период, опции, справка о доходе. Это справочник калькулятора, не новая цель кредита.",
-    next: "Создайте срез на выбранной цели. «Удалён» — архив, число целей не растёт."
+    next: "Создайте вариант на выбранной цели. «Удалён» — архив, число целей не растёт."
   },
   options: {
     title: "Опции",
@@ -284,6 +284,20 @@ function cellCountFor(productId, optionId) {
   return (state.regions || []).filter(function (r) {
     return hasAvailCell(r.id, productId, optionId);
   }).length;
+}
+
+function inRegionsPhrase(n) {
+  n = Number(n) || 0;
+  if (n <= 0) return "ни в одном регионе";
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return "в " + n + " регионе";
+  return "в " + n + " регионах";
+}
+
+function pkgParam(label, value) {
+  if (!value) return "";
+  return '<div class="param"><small>' + label + "</small><b>" + escapeHtml(String(value)) + "</b></div>";
 }
 
 function availCheckbox(regionId, productId, optionId, disabled) {
@@ -690,7 +704,8 @@ function helpBtn(id) {
 }
 
 function panelHead(title, helpId) {
-  return '<div class="panel-head"><h2>' + title + "</h2>" + helpBtn(helpId) + "</div>";
+  const h = title ? "<h2>" + title + "</h2>" : "";
+  return '<div class="panel-head' + (title ? "" : " panel-head-help") + '">' + h + helpBtn(helpId) + "</div>";
 }
 
 function toggleHelp(ev, id) {
@@ -1409,7 +1424,7 @@ async function previewSolver() {
   addModalLine("условия OnePage: снимок, не офер калькулятора", "ok");
   const vis = solverSlices();
   state.bus.slices_get = "ok";
-  addModalLine("срезы витрины (продукт + регион + клетка опции): " + vis.length, "ok");
+  addModalLine("варианты выдачи (продукт + регион + опция): " + vis.length, "ok");
   addModalLine("клеток доступности опция × регион × продукт: " + (state.availability || []).length, "ok");
   const hit = getScore("fico", 650);
   state.bus.score_get = "pending";
@@ -1436,10 +1451,10 @@ async function previewSolver() {
 async function exportExcel() {
   if (busy) return;
   busy = true;
-  showModal("Выгрузить таблицу", "Учебный стол: выгрузка срезов без ПДн. Не СПР.");
+  showModal("Выгрузить таблицу", "Учебный стол: выгрузка вариантов выдачи без ПДн. Не СПР.");
   state.bus.excel = "pending";
   renderBus();
-  addModalLine("выгрузка срезов витрины", "on");
+  addModalLine("выгрузка вариантов выдачи", "on");
   await sleep(400);
   const rows = state.slices.map((s) => {
     const p = productById(s.product_id);
@@ -1459,10 +1474,10 @@ async function exportExcel() {
 async function importExcel() {
   if (busy) return;
   busy = true;
-  showModal("Загрузить таблицу", "Импорт не создаёт новую цель кредита. Срез садится на залог.");
+  showModal("Загрузить таблицу", "Импорт не создаёт новую цель кредита. Вариант садится на залог.");
   state.bus.excel = "pending";
   renderBus();
-  addModalLine("загрузка срезов витрины", "on");
+  addModalLine("загрузка вариантов выдачи", "on");
   await sleep(400);
   const region = regionById(1);
   const p = productById(2);
@@ -1553,7 +1568,7 @@ function renderInbox() {
       const n = state.slices.filter((s) => s.product_id === p.id && s.status !== "archived").length;
       const nPkg = (p.onepage_packages || p.packages || []).length;
       return '<button type="button" class="card-deal' + on + '" onclick="selectItem(\'' + id + '\')">' +
-        "<b>" + p.name + "</b><span>" + purposeLabel(p.purpose) + " · пакетов " + nPkg + " · срезов " + n + "</span>" +
+        "<b>" + p.name + "</b><span>" + purposeLabel(p.purpose) + " · пакетов " + nPkg + " · вариантов " + n + "</span>" +
         (p.available ? '<i class="badge badge-ok">доступен</i>' : '<i class="badge badge-wait">выключен</i>') +
         "</button>";
     }).join("") +
@@ -1561,7 +1576,7 @@ function renderInbox() {
       '" onclick="selectItem(\'option:green\')"><b>Зелёный коридор</b><span>опция, не продукт</span>' +
       '<i class="badge badge-run">опция</i></button>' +
       '<div class="inbox-tools">' +
-      '<input class="inbox-search" type="search" placeholder="Поиск среза…" value="' +
+      '<input class="inbox-search" type="search" placeholder="Поиск варианта…" value="' +
       String(state.filterQuery || "").replace(/"/g, "&quot;") +
       '" oninput="setFilterQuery(this)">' +
       '<div class="filters">' +
@@ -1583,7 +1598,7 @@ function renderInbox() {
         '<i class="badge ' + badgeForStatus(o.status) + '">' + statusMeta(o.status).title + "</i></button>";
     }).join("") +
       '<button type="button" class="btn btn-primary" onclick="createOptionDraft()">Создать опцию</button>' +
-      '<p class="hint">Опции накрывают срезы и регионы. Сначала повесьте на якорь, затем клетка в «Регионы → Доступность». Не новая цель кредита.</p>';
+      '<p class="hint">Опции накрывают варианты выдачи и регионы. Сначала повесьте на якорь, затем откройте в «Регионы → Доступность». Не новая цель кредита.</p>';
   } else if (state.role === "regions") {
     const nCells = (state.availability || []).length;
     cards = '<button type="button" class="card-deal' + (state.selectedId === "avail" ? " on" : "") +
@@ -1660,7 +1675,7 @@ function productTabs(active) {
   if (active === "card") active = "terms";
   return '<div class="filters">' +
     '<button type="button" class="filter' + (active === "terms" ? " on" : "") + '" onclick="setProductTab(\'terms\')">Условия</button>' +
-    '<button type="button" class="filter' + (active === "slices" ? " on" : "") + '" onclick="setProductTab(\'slices\')">Срезы</button>' +
+    '<button type="button" class="filter' + (active === "slices" ? " on" : "") + '" onclick="setProductTab(\'slices\')">Варианты выдачи</button>' +
     '<button type="button" class="filter' + (active === "options" ? " on" : "") + '" onclick="setProductTab(\'options\')">Опции</button>' +
     "</div>";
 }
@@ -1671,7 +1686,7 @@ function renderPkgPills(p, codes, kind) {
     const info = MOCK.packages[code] || { label: code };
     const on = code === selected ? " on" : "";
     const rec = optionBySlug(code);
-    const extra = kind === "option" && rec ? " · клеток " + cellCountFor(p.id, rec.id) : "";
+    const extra = kind === "option" && rec ? " · " + inRegionsPhrase(cellCountFor(p.id, rec.id)) : "";
     return '<button type="button" class="pkg-pill' + (kind === "option" ? " opt" : "") + on +
       '" onclick="setSelectedPackage(' + p.id + ", '" + code + "')\">" +
       info.label + extra + "</button>";
@@ -1684,24 +1699,33 @@ function renderTermsPanel(p) {
   const selected = selectedPackageCode(p.id);
   const pkgMeta = MOCK.packages[selected] || { label: selected };
   const pkgRates = op && op.packages ? op.packages[selected] : null;
-  const snapshot = (MOCK.onepage && MOCK.onepage.snapshot) || "";
   const baseCodes = p.base_packages && p.base_packages.length ? p.base_packages : codes;
   const optCodes = p.option_packages || [];
-  const pills = '<p class="hint">Базовые пакеты</p><div class="pkg-pills">' + renderPkgPills(p, baseCodes, "base") + "</div>" +
+  const pills = '<p class="hint">Основные пакеты</p><div class="pkg-pills">' + renderPkgPills(p, baseCodes, "base") + "</div>" +
     (optCodes.length
-      ? '<p class="hint">Опции пакета — клетка витрины считается отдельно</p><div class="pkg-pills">' +
+      ? '<p class="hint">Дополнительно к основному пакету. Цифра — в скольких регионах опцию можно выбрать.</p><div class="pkg-pills">' +
         renderPkgPills(p, optCodes, "option") + "</div>"
       : "");
   const out = ((MOCK.onepage && MOCK.onepage.out_of_scope) || []).map(function (x) {
     return "<li><b>" + escapeHtml(x.title) + "</b> — " + escapeHtml(x.reason) + "</li>";
   }).join("");
-  const cap = pkgRates && pkgRates.ltv_cap
-    ? " · доля кредита ≤ " + pkgRates.ltv_cap + "%"
-    : (pkgMeta.ltv_cap ? " · доля кредита ≤ " + Math.round(pkgMeta.ltv_cap * 100) + "%" : "");
-  return '<div class="panel span-2">' + panelHead("Снимок OnePage", "product") +
-    '<div class="done-banner">' + escapeHtml(snapshot) + "</div>" +
+  const isOptPkg = (p.option_packages || []).indexOf(selected) !== -1;
+  const rec = optionBySlug(selected);
+  const capText = pkgRates && pkgRates.ltv_cap
+    ? "не больше " + pkgRates.ltv_cap + "%"
+    : (pkgMeta.ltv_cap ? "не больше " + Math.round(pkgMeta.ltv_cap * 100) + "%" : "");
+  const pkgTitle = isOptPkg ? "Пакет «" + (pkgMeta.label || selected) + "»" : (pkgMeta.label || selected);
+  const where = isOptPkg && rec ? inRegionsPhrase(cellCountFor(p.id, rec.id)) : "";
+  const whereNote = where === "ни в одном регионе" ? " — откройте на вкладке «Регионы»" : "";
+  const pkgFields = pkgParam("Страхование", pkgMeta.insurance) +
+    pkgParam("Комиссия", pkgMeta.commission) +
+    pkgParam("Доля кредита", capText) +
+    pkgParam("Условие", pkgMeta.note) +
+    pkgParam("Категория кредитной истории", pkgMeta.ki_scope) +
+    pkgParam("Где можно выбрать", where ? where + whereNote : "");
+  return '<div class="panel span-2">' + panelHead("", "product") +
     '<p class="hint">Лист «' + escapeHtml((op && op.sheet) || "—") +
-    "». Цель кредита не меняется. Макет Figma устарел: срезы и статусы — соседняя вкладка.</p>" +
+    "». Цель кредита не меняется.</p>" +
     '<div class="grid-4">' +
     '<div class="param"><small>Цель кредита</small><b>' + purposeLabel(p.purpose) + "</b></div>" +
     '<div class="param"><small>Срок</small><b>' + ((op && op.term) || "—") + "</b></div>" +
@@ -1711,13 +1735,11 @@ function renderTermsPanel(p) {
     ' onchange="toggleAvailable(' + p.id + ', this)"><span>Продукт доступен</span></label>' +
     '<label class="check"><input type="checkbox" ' + (p.no_options ? "checked" : "") +
     ' onchange="noOptionsToggle(' + p.id + ', this)"><span>Продукт без опций</span></label></div>' +
-    '<div class="panel span-2">' + panelHead("Пакеты листа", "product") +
-    '<p class="hint">Колонка OnePage. Клиент выбирает пакет, категорию КИ назначает СПР. Точные проценты калькулятора — из актуальной матрицы, не из этого снимка. Опция живёт только если повешена на якорь и клетка региона включена.</p>' +
+    '<div class="panel span-2">' + panelHead("Пакеты", "product") +
+    '<p class="hint">Клиент выбирает пакет. Категорию кредитной истории назначает СПР, не этот стол. Проценты ниже — снимок файла, не текущий офер калькулятора.</p>' +
     pills +
-    '<div class="pkg-card' + (selected ? " on" : "") + '"><b>' + (pkgMeta.label || selected) + "</b>" +
-    '<span class="hint">' + (pkgMeta.insurance || "") + " · " + (pkgMeta.commission || "") + cap +
-    (pkgMeta.note ? " · " + pkgMeta.note : "") +
-    (pkgMeta.ki_scope ? " · " + pkgMeta.ki_scope : "") + "</span></div>" +
+    '<div class="pkg-card' + (selected ? " on" : "") + '"><b>' + escapeHtml(pkgTitle) + "</b>" +
+    '<div class="grid-4">' + pkgFields + "</div></div>" +
     renderKiRateTable(pkgRates) +
     '<p class="hint">' + ((op && op.insurance) || "") + "</p></div>" +
     '<div class="panel span-2">' + panelHead("Доля кредита · объект × география × КИ", "product") +
@@ -1740,8 +1762,7 @@ function renderProduct() {
   const tab = state.productTab === "card" ? "terms" : (state.productTab || "terms");
   const head = '<div class="work-inner"><div class="work-head">' +
     "<h1>" + p.name + "</h1>" +
-    '<p class="stage-now">' + purposeLabel(p.purpose) + " · OnePage</p>" +
-    "<p class=\"lead\">Рабочий документ банка — OnePage. Макет Figma оставили для срезов и статусов. Решение АНД и категория КИ здесь не живут.</p>" +
+    '<p class="stage-now">' + purposeLabel(p.purpose) + "</p>" +
     productTabs(tab) + "</div><div class=\"desk\">";
   if (tab === "slices") return head + renderSlicesPanel(p) + solverPanel() + "</div></div>";
   if (tab === "options") return head + renderOptionsPanel(p) + solverPanel() + "</div></div>";
@@ -1770,7 +1791,7 @@ function renderSlicesPanel(p) {
     return html;
   }).join("");
   const sl = sliceById(state.selectedSliceId);
-  const editor = sl && sl.product_id === p.id ? renderSliceEditor(sl, p) : '<p class="hint">Выберите срез в таблице или слева.</p>';
+  const editor = sl && sl.product_id === p.id ? renderSliceEditor(sl, p) : '<p class="hint">Выберите вариант в таблице или слева.</p>';
   const regionOpts = state.regions.map((r) =>
     '<option value="' + r.id + '">' + r.value + "</option>"
   ).join("");
@@ -1786,8 +1807,8 @@ function renderSlicesPanel(p) {
     (cols.income ? "<th>Справка о доходах</th>" : "") +
     (cols.employment ? "<th>Трудовой статус</th>" : "") +
     "<th>Объект</th><th>Регион</th><th>Доля кредита</th><th>Размер города</th><th>Возраст</th><th></th>";
-  return '<div class="panel span-2">' + panelHead("Срезы витрины", "slices") +
-    '<p class="hint">Как в старом макете «Настройка продуктов» — он устарел, но срезы и статусы оставляем. Сорт по дате создания, от новых к старым. Новый срез не добавляет цель кредита.</p>' +
+  return '<div class="panel span-2">' + panelHead("Варианты выдачи", "slices") +
+    '<p class="hint">Регион, объект, доля кредита, занятость и опции для калькулятора. Новый вариант не добавляет цель кредита. Сорт по дате создания, от новых к старым.</p>' +
     '<div class="col-gear"><small>Настройка таблицы</small>' +
     '<label class="check"><input type="checkbox" ' + (cols.options ? "checked" : "") +
     ' onchange="toggleCol(\'options\', this)"><span>Опции</span></label>' +
@@ -1796,10 +1817,10 @@ function renderSlicesPanel(p) {
     '<label class="check"><input type="checkbox" ' + (cols.employment ? "checked" : "") +
     ' onchange="toggleCol(\'employment\', this)"><span>Трудовой статус</span></label></div>' +
     '<div class="matrix-wrap"><table class="scale-table"><thead><tr>' + head +
-    "</tr></thead><tbody>" + (rows || '<tr><td colspan="' + colCount + '">Нет срезов на этой цели</td></tr>') +
+    "</tr></thead><tbody>" + (rows || '<tr><td colspan="' + colCount + '">Нет вариантов на этой цели</td></tr>') +
     "</tbody></table></div>" +
     '<div class="create-slice">' +
-    "<b>Создать срез</b>" +
+    "<b>Создать вариант</b>" +
     '<div class="grid-4" style="margin-top:8px">' +
     "<label>Регионы<select id=\"new-slice-region\">" + regionOpts + "</select></label>" +
     "<label>Объект<select id=\"new-slice-kind\">" + kindOpts + "</select></label>" +
@@ -1810,9 +1831,9 @@ function renderSlicesPanel(p) {
     '<label>Доля кредита до<input id="new-slice-max" type="number" step="0.01" value="0.55"></label>' +
     '<label>С<input id="new-slice-from" type="date" value="2026-09-17"></label>' +
     '<label>По<input id="new-slice-to" type="date" value="2026-12-31"></label></div>' +
-    '<button type="button" class="btn btn-primary" onclick="createSlice(' + p.id + ')">Создать срез</button>' +
+    '<button type="button" class="btn btn-primary" onclick="createSlice(' + p.id + ')">Создать вариант</button>' +
     '<button type="button" class="btn btn-ghost" onclick="createDraftSlice(' + p.id + ')">Создать черновик</button>' +
-    '<p class="hint">«Создать продукт» в макете = срез на цели «' + purposeLabel(p.purpose) +
+    '<p class="hint">Новая строка на цели «' + purposeLabel(p.purpose) +
     '». Выход без заполнения даёт статус «Заполняется».</p></div>' +
     editor + "</div>";
 }
@@ -1839,7 +1860,7 @@ function renderSliceEditor(sl, p) {
   const ltvMin = sl.ltv_min == null ? "" : sl.ltv_min;
   const ltvMax = sl.ltv_max == null ? "" : sl.ltv_max;
   return '<div class="slice-editor">' +
-    "<b>Срез " + sl.name + "</b>" +
+    "<b>" + sl.name + "</b>" +
     '<i class="badge ' + badgeForStatus(sl.status) + '">' + statusMeta(sl.status).title + "</i>" +
     '<div class="grid-4" style="margin-top:8px">' +
     '<label>Регионы<select onchange="setSliceField(' + sl.id + ", 'region_id', this)\">" + regionOpts + "</select></label>" +
@@ -1854,7 +1875,7 @@ function renderSliceEditor(sl, p) {
     '<label class="check"><input type="checkbox" ' + (sl.no_options ? "checked" : "") +
     ' onchange="setSliceField(' + sl.id + ", 'no_options', this)\"><span>Продукт без опций</span></label>" +
     "<p class=\"hint\">Справка о доходах</p>" + docs +
-    "<p class=\"hint\">Опции среза</p>" + opts +
+    "<p class=\"hint\">Опции варианта</p>" + opts +
     '<div class="actions">' +
     '<button type="button" class="btn btn-primary" onclick="setSliceStatusValue(' + sl.id + ", 'active')\">В действие</button>" +
     '<button type="button" class="btn btn-ghost" onclick="setSliceStatusValue(' + sl.id + ", 'review')\">На проверку</button>" +
@@ -1863,7 +1884,7 @@ function renderSliceEditor(sl, p) {
     '<button type="button" class="btn btn-danger" onclick="archiveSlice(' + sl.id + ')">В архив</button>' +
     "</div>" +
     '<p class="hint">Цель остаётся «' + purposeLabel(p.purpose) +
-    '». Калькулятор видит только доступный продукт в открытом регионе и действующий срез.</p></div>';
+    '». Калькулятор видит только доступный продукт в открытом регионе и действующий вариант.</p></div>';
 }
 
 function renderOptionsPanel(p) {
@@ -1909,7 +1930,7 @@ function renderOptionCard() {
   return '<div class="work-inner"><div class="work-head">' +
     "<h1>" + o.name + "</h1>" +
     '<p class="stage-now">' + (o.is_purpose ? "цель" : "опция, не отдельная цель") + "</p>" +
-    "<p class=\"lead\">Опция накрывает срезы. Не отдельная цель кредита. Надбавка к комиссии только с периодом акции.</p></div>" +
+    "<p class=\"lead\">Опция накрывает варианты выдачи. Не отдельная цель кредита. Надбавка к комиссии только с периодом акции.</p></div>" +
     '<div class="desk"><div class="panel span-2">' + panelHead("Основные сведения", "options") +
     '<div class="grid-4">' +
     '<div class="param"><small>Статус</small><b>' + statusMeta(o.status).title + "</b></div>" +
@@ -2247,7 +2268,7 @@ function renderAvailMatrix() {
     '<p class="lead">Клетка витрины: продукт доступен И регион открыт И якорь продаётся в городе И опция повешена И галка включена. Саратов не продаёт «купи ставку», Казань — покупку.</p>' +
     '<div class="filters">' + productSwitch + "</div></div>" +
     '<div class="desk"><div class="panel span-2">' + panelHead("Матрица опция × регион", "regions") +
-    '<p class="hint">Прочерк — якорь выключен в городе. Снимите галку — срез с этой опцией пропадёт из витрины калькулятора. Не отдельная цель кредита.</p>' +
+    '<p class="hint">Прочерк — якорь выключен в городе. Снимите галку — вариант с этой опцией пропадёт из калькулятора. Не отдельная цель кредита.</p>' +
     '<div class="matrix-wrap"><table class="scale-table avail-table"><thead>' + head +
     "</thead><tbody>" + (body || '<tr><td colspan="' + (state.regions.length + 1) +
     '">На этом якоре нет повешенных опций</td></tr>') +

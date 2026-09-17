@@ -1300,8 +1300,12 @@ console.log('\n=== 11. ARM underwriter / productolog ===');
     'productolog UI states green corridor is not a product');
   assert(/id="role-options"/.test(poHtml) && /createOptionDraft/.test(poJs) && /createDraftSlice/.test(poJs),
     'productolog has Options role and draft create');
-  assert(/setProductTab/.test(poJs) && /Условия/.test(poJs) && /Снимок OnePage/.test(poJs) && /setSelectedPackage/.test(poJs),
+  assert(/setProductTab/.test(poJs) && /Условия/.test(poJs) && /setSelectedPackage/.test(poJs),
     'productolog defaults to OnePage terms tab with package pills');
+  assert(!/Рабочий документ банка — OnePage/.test(poJs) && !/Снимок рабочего файла OnePage/.test(poJs),
+    'productolog terms screen does not show the OnePage lab disclaimers');
+  assert(/>Варианты выдачи</.test(poJs) && !/>Срезы</.test(poJs),
+    'productolog tab is issuance variants, not slices');
   assert(/id="role-regions"/.test(poHtml) && /toggleRegionProduct/.test(poJs) && /toggleRegionOption/.test(poJs),
     'productolog has Regions role and per-region product/option toggles');
   assert(/STORE_VER = 6/.test(poJs) && /seedAvailability/.test(poJs) && /toggleAvailCell/.test(poJs) && /sliceOptionsAllowed/.test(poJs),
@@ -1318,6 +1322,8 @@ console.log('\n=== 11. ARM underwriter / productolog ===');
   assert(po.products.every(function(p) {
     return Array.isArray(p.base_packages) && Array.isArray(p.option_packages);
   }), 'products split base vs option packages');
+  assert(/inRegionsPhrase/.test(poJs) && /ни в одном регионе/.test(poJs) && !/клетка витрины считается/.test(poJs),
+    'option pills name regions, not vitrine cells');
   assert(po.regions.every(function(r) { return Array.isArray(r.product_ids) && Array.isArray(r.option_ids); }),
     'regions carry product_ids and option_ids');
   assert(po.onepage && po.onepage.products && po.onepage.products.cash_on_pledge,
