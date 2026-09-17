@@ -1300,10 +1300,26 @@ console.log('\n=== 11. ARM underwriter / productolog ===');
     'productolog UI states green corridor is not a product');
   assert(/id="role-options"/.test(poHtml) && /createOptionDraft/.test(poJs) && /createDraftSlice/.test(poJs),
     'productolog has Options role and draft create');
+  assert(/setProductTab/.test(poJs) && /Условия/.test(poJs) && /Снимок OnePage/.test(poJs) && /setSelectedPackage/.test(poJs),
+    'productolog defaults to OnePage terms tab with package pills');
   assert(/id="role-regions"/.test(poHtml) && /toggleRegionProduct/.test(poJs) && /toggleRegionOption/.test(poJs),
     'productolog has Regions role and per-region product/option toggles');
   assert(po.regions.every(function(r) { return Array.isArray(r.product_ids) && Array.isArray(r.option_ids); }),
     'regions carry product_ids and option_ids');
+  assert(po.onepage && po.onepage.products && po.onepage.products.cash_on_pledge,
+    'productolog has OnePage snapshot for pledge');
+  assert(po.onepage.out_of_scope.every(function(x) {
+    return po.purposes.indexOf(x.id) === -1;
+  }), 'OnePage out-of-scope sheets are not CreditPurposeEnum values');
+  assert(!/domrf|DOM\.RF|инвест/.test(po.purposes.join()),
+    'DOM.RF and invest are not purposes');
+  assert(po.products.every(function(p) {
+    return Array.isArray(p.onepage_packages) && p.onepage_packages.length >= 1;
+  }), 'each product lists OnePage packages');
+  assert(po.green_corridor.variants && po.green_corridor.variants.length >= 1,
+    'green corridor carries OnePage variants');
+  assert(po.onepage.region_ltv[1] && po.onepage.region_ltv[1].cells.flat.ki1 === 70,
+    'Moscow OnePage LTV snapshot has KI1 flat 70');
   assert(/Файлы другого типа не перетаскиваются/.test(poJs) && /\.xlsx\$/.test(poJs),
     'productolog rejects non-xlsx Excel drops');
   assert(/addMissingRow/.test(poJs) && /нет значения/.test(poJs) && /Автонастройка шагов/.test(poJs),
@@ -1319,6 +1335,8 @@ console.log('\n=== 11. ARM underwriter / productolog ===');
     fs.readFileSync(path.join(root, 'productolog/mock.js'), 'utf8') + '\n' +
     fs.readFileSync(path.join(root, 'productolog/productolog.js'), 'utf8') + '\n' +
     'this._score = getScore("fico", 600); this._bound = isBoundary({ position: 0 }); this._inf = isBoundary({ position: null });' +
+    'this._terms = state.productTab === "terms"; this._pkg0 = selectedPackageCode(2) === "turbo_2";' +
+    'this._pkg = (setSelectedPackage(2, "spec_4"), selectedPackageCode(2) === "spec_4");' +
     'this._missB = isBoundary({ position: "missing", missing: true });' +
     'this._okPos = isValidUpdatedPosition("fico", 13, 700); this._badPos = isValidUpdatedPosition("fico", 13, 400);' +
     'this._addDup = addScaleRow("fico", 650, 9); this._addOk = addScaleRow("fico", 700, 18);' +
@@ -1340,6 +1358,8 @@ console.log('\n=== 11. ARM underwriter / productolog ===');
   assert(local._mskOn && local._kazanOff, 'Moscow allows purchase; Kazan does not');
   assert(local._draft === true, 'draft slice is filling with empty LTV');
   assert(local._opt === true, 'draft option is filling and not a purpose');
+  assert(local._terms === true && local._pkg0 === true && local._pkg === true,
+    'OnePage terms tab defaults to turbo_2 and can switch package');
 }
 
 console.log('\n=== 12. Manager storage does not ping-pong ===');
