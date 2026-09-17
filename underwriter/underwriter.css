@@ -1,0 +1,43 @@
+.ki-pill {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: #e4eef9;
+  color: var(--navy-deep);
+  font-size: 11px;
+  font-weight: 700;
+  vertical-align: middle;
+}
+.calc-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 8px 0;
+}
+.note-short {
+  width: 100%;
+  margin-top: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font: inherit;
+  resize: vertical;
+  min-height: 64px;
+}
+.flag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0;
+}
+.flag {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--sky);
+  color: var(--navy);
+}
+.flag.warn { background: #fff4ec; color: #b34d08; }
+.flag.ok { background: #eef8f1; color: #0f7a2c; }

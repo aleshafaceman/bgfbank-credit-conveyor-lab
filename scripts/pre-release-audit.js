@@ -1218,7 +1218,86 @@ console.log('\n=== 10. L3 P2 passport / КОД / package ===');
     'C16 client sign button opens КОД kit, not a dead alert');
 }
 
-console.log('\n=== 11. Manager storage does not ping-pong ===');
+console.log('\n=== 11. ARM underwriter / productolog ===');
+{
+  const ctx = { window: {}, console: console };
+  ctx.window = ctx;
+  vm.runInNewContext(
+    fs.readFileSync(path.join(root, 'underwriter/mock.js'), 'utf8') + '\n' +
+    fs.readFileSync(path.join(root, 'productolog/mock.js'), 'utf8'),
+    ctx,
+    { filename: 'arm-mocks.js' }
+  );
+  const uw = ctx.UNDERWRITER_MOCK;
+  const po = ctx.PRODUCTOLOG_MOCK;
+  const apps = uw.applications;
+  const purposes = Array.from(new Set(apps.map(function(a) { return a.credit_purpose; })));
+  assert(purposes.length === 1 && purposes[0] === 'cash_on_pledge',
+    'underwriter lab deals stay on cash_on_pledge');
+  const duKeys = Object.keys(uw.du_catalog).map(Number).sort(function(a, b) { return a - b; });
+  assert(duKeys[0] === 0 && duKeys[duKeys.length - 1] === 18 && duKeys.length === 19,
+    'underwriter DU catalog is ELMA 0–18');
+  apps.forEach(function(a) {
+    (a.additional_conditions || []).forEach(function(d) {
+      assert(d.elma_type >= 0 && d.elma_type <= 18, 'DU type in 0–18 for ' + a.deal_id);
+    });
+  });
+  const auto = apps.find(function(a) { return a.scenario === 'auto_approve'; });
+  assert(auto && auto.skip_phone_verify === true && auto.ltv < 0.5,
+    'auto-approve skips phone verify and has LTV < 50%');
+  assert(apps.filter(function(a) { return a.track === 'and'; }).length === 2, 'AND queue has two cards');
+  assert(apps.filter(function(a) { return a.track === 'apz'; }).length === 2, 'APZ queue has two cards');
+  const commerce = apps.find(function(a) { return a.scenario === 'commerce_kk'; });
+  assert(commerce && commerce.need_bank_appraiser && commerce.need_kk,
+    'commerce APZ requires bank appraiser and KK');
+
+  const uwJs = fs.readFileSync(path.join(root, 'underwriter/underwriter.js'), 'utf8');
+  const uwHtml = fs.readFileSync(path.join(root, 'underwriter/index.html'), 'utf8');
+  assert(/getDecision/.test(uwJs) && /getPdn/.test(uwJs) && /getEval/.test(uwJs),
+    'underwriter names Loginom methods on the bus');
+  assert(/не этот АРМ/.test(uwJs) && /Паспорт сделки/.test(uwJs),
+    'underwriter does not host deal passport');
+  assert(!/FetchEgrnByCadastral/.test(uwJs) && /файл \+ OCR/.test(uwJs),
+    'EGRN on underwriter is file+OCR, not SMEV');
+  assert(/оркестратор/.test(uwHtml) && /АНД/.test(uwHtml) && /АПЗ/.test(uwHtml),
+    'underwriter chrome has AND/APZ roles');
+  assert(!/PTI|DTI/.test(uwJs) || /не DTI/.test(uwJs),
+    'underwriter talks ПДН, not DTI as SPR field');
+
+  assert(po.products.length === 3, 'productolog has three products');
+  assert(po.purposes.slice().sort().join() === 'cash_on_pledge,mortgage,refinancing',
+    'productolog CreditPurposeEnum trio');
+  assert(po.products.every(function(p) { return po.purposes.indexOf(p.purpose) !== -1; }),
+    'every product maps to an enum purpose');
+  assert(po.green_corridor.is_purpose === false, 'green corridor is not a purpose');
+  assert(po.green_corridor.applies_to.slice().sort().join() === po.purposes.slice().sort().join(),
+    'green corridor overlays the same three purposes');
+
+  const poJs = fs.readFileSync(path.join(root, 'productolog/productolog.js'), 'utf8');
+  const poHtml = fs.readFileSync(path.join(root, 'productolog/index.html'), 'utf8');
+  assert(/не вызываем/.test(poJs) && /ConflictDataException/.test(poJs),
+    'productolog does not call Loginom and keeps boundary-delete 409');
+  assert(/is_purpose/.test(poJs) && /не новая цель|не продукт/.test(poJs + poHtml),
+    'productolog UI states green corridor is not a product');
+  const ficoNull = po.scales.fico.rows.filter(function(r) { return r.position === 0 || r.position === null; });
+  assert(ficoNull.length === 2, 'FICO scale has 0 and ∞ boundaries');
+
+  const local = { window: ctx.window, console: console, localStorage: makeLocalStorage(), document: { getElementById: function() { return null; } } };
+  local.window = local;
+  local.URLSearchParams = URLSearchParams;
+  local.location = { search: '' };
+  vm.runInNewContext(
+    fs.readFileSync(path.join(root, 'productolog/mock.js'), 'utf8') + '\n' +
+    fs.readFileSync(path.join(root, 'productolog/productolog.js'), 'utf8') + '\n' +
+    'this._score = getScore("fico", 600); this._bound = isBoundary({ position: 0 }); this._inf = isBoundary({ position: null });',
+    local,
+    { filename: 'productolog.js' }
+  );
+  assert(local._score && local._score.score === 15.5, 'getScore(fico, 600) hits the 650 bucket');
+  assert(local._bound && local._inf, 'position 0 and null are boundaries');
+}
+
+console.log('\n=== 12. Manager storage does not ping-pong ===');
 {
   const ctx = loadSharedContext();
   ctx.loadSharedData();
