@@ -1282,6 +1282,15 @@ console.log('\n=== 11. ARM underwriter / productolog ===');
   assert(po.slices.some(function(s) { return s.status === 'review'; }) &&
     po.slices.some(function(s) { return s.status === 'archived'; }),
     'slices have review and archived statuses');
+  assert(po.slices.some(function(s) { return s.status === 'filling'; }) &&
+    po.slices.some(function(s) { return s.status === 'risk_reject'; }),
+    'slices have filling and risk_reject statuses');
+  assert(Array.isArray(po.options) && po.options.every(function(o) { return o.is_purpose === false; }),
+    'option records are not purposes');
+  assert(po.scales.fico.rows.some(function(r) { return r.missing || r.position === 'missing'; }),
+    'FICO scale has a Missings row');
+  assert(po.matrix.some(function(m) { return m.score === null; }),
+    'matrix has a dash hole (score null)');
 
   const poJs = fs.readFileSync(path.join(root, 'productolog/productolog.js'), 'utf8');
   const poHtml = fs.readFileSync(path.join(root, 'productolog/index.html'), 'utf8');
@@ -1289,10 +1298,16 @@ console.log('\n=== 11. ARM underwriter / productolog ===');
     'productolog does not call Loginom and keeps boundary-delete 409');
   assert(/is_purpose/.test(poJs) && /не новая цель|не продукт/.test(poJs + poHtml),
     'productolog UI states green corridor is not a product');
+  assert(/id="role-options"/.test(poHtml) && /createOptionDraft/.test(poJs) && /createDraftSlice/.test(poJs),
+    'productolog has Options role and draft create');
+  assert(/Файлы другого типа не перетаскиваются/.test(poJs) && /\.xlsx\$/.test(poJs),
+    'productolog rejects non-xlsx Excel drops');
+  assert(/Missings/.test(poJs) && /Автонастройка шагов/.test(poJs),
+    'productolog has Missings row and matrix autostep');
   const ficoNull = po.scales.fico.rows.filter(function(r) { return r.position === 0 || r.position === null; });
   assert(ficoNull.length === 2, 'FICO scale has 0 and ∞ boundaries');
 
-  const local = { window: ctx.window, console: console, localStorage: makeLocalStorage(), document: { getElementById: function() { return null; } } };
+  const local = { window: ctx.window, console: console, localStorage: makeLocalStorage(), document: { getElementById: function() { return null; }, querySelectorAll: function() { return []; } } };
   local.window = local;
   local.URLSearchParams = URLSearchParams;
   local.location = { search: '' };
@@ -1300,19 +1315,25 @@ console.log('\n=== 11. ARM underwriter / productolog ===');
     fs.readFileSync(path.join(root, 'productolog/mock.js'), 'utf8') + '\n' +
     fs.readFileSync(path.join(root, 'productolog/productolog.js'), 'utf8') + '\n' +
     'this._score = getScore("fico", 600); this._bound = isBoundary({ position: 0 }); this._inf = isBoundary({ position: null });' +
+    'this._missB = isBoundary({ position: "missing", missing: true });' +
     'this._okPos = isValidUpdatedPosition("fico", 13, 700); this._badPos = isValidUpdatedPosition("fico", 13, 400);' +
     'this._addDup = addScaleRow("fico", 650, 9); this._addOk = addScaleRow("fico", 700, 18);' +
-    'this._vis = solverSlices().every(function(s) { return s.status === "active"; });',
+    'this._vis = solverSlices().every(function(s) { return s.status === "active"; });' +
+    'this._draft = (createDraftSlice(2), state.slices.some(function(s) { return s.status === "filling" && s.ltv_min == null; }));' +
+    'this._opt = (createOptionDraft(), state.options[state.options.length-1].is_purpose === false && state.options[state.options.length-1].status === "filling");',
     local,
     { filename: 'productolog.js' }
   );
   assert(local._score && local._score.score === 15.5, 'getScore(fico, 600) hits the 650 bucket');
   assert(local._bound && local._inf, 'position 0 and null are boundaries');
+  assert(!local._missB, 'Missings row is not a 0/∞ boundary');
   assert(local._okPos && !local._badPos, 'position updates stay between neighbours');
   assert(local._addDup && local._addDup.ok === false && local._addDup.error === 'exists',
     'duplicate scale position is AlreadyExists');
   assert(local._addOk && local._addOk.ok === true, 'POST scale row between neighbours');
   assert(local._vis === true, 'solverSlices keeps only active rows');
+  assert(local._draft === true, 'draft slice is filling with empty LTV');
+  assert(local._opt === true, 'draft option is filling and not a purpose');
 }
 
 console.log('\n=== 12. Manager storage does not ping-pong ===');

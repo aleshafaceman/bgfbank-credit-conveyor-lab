@@ -77,3 +77,30 @@
 .pkg-card b { display: block; color: var(--navy); margin-bottom: 4px; }
 .log-mini { font-size: 12px; color: var(--muted); margin-top: 8px; max-height: 160px; overflow: auto; }
 .log-mini div { padding: 4px 0; border-bottom: 1px solid var(--line); }
+.ellip {
+  cursor: help;
+  border-bottom: 1px dotted var(--muted);
+}
+.dash-cell { color: var(--muted); font-weight: 700; }
+.col-gear {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  align-items: center;
+  margin: 8px 0;
+}
+.col-gear small {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.autostep {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.autostep .grid-4 { margin-top: 8px; }
+.scale-table tr.is-missing td { background: #f8fbff; }
+.drop-excel { min-height: 48px; }
