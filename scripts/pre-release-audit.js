@@ -70,12 +70,13 @@ function makeEl(id, tag) {
   return el;
 }
 
-function loadSharedContext() {
-  const localStorage = makeLocalStorage();
+function loadSharedContext(opts) {
+  opts = opts || {};
+  const localStorage = opts.localStorage || makeLocalStorage();
   const documentEls = {};
   const needed = [
     'view-applications', 'view-dashboard', 'view-conveyor', 'view-choice',
-    'view-result', 'view-loading', 'view-manual-form', 'view-documents', 'documentsList', 'pageTitle', 'pageSubtitle',
+    'view-result', 'view-loading', 'view-manual-form', 'view-documents', 'documentsList', 'docsUploadPanel', 'mDocsUploadPanel', 'pageTitle', 'pageSubtitle',
     'packageSelectionBlock', 'offerAcceptedBlock', 'acceptedPackageSummary',
     'ocenkaPreview', 'ocenkaPreviewText', 'btnEsia', 'btnManual', 'collateralSelect',
     'applicationDetail', 'applicationsList',     'mAppCards', 'mAppDetail', 'mClientDetail', 'mArtFilterApp', 'mDocumentsList',
@@ -124,10 +125,15 @@ function loadSharedContext() {
     clearInterval() {},
     _alerts: [],
     _confirms: [],
-    _els: documentEls
+    _els: documentEls,
+    _listeners: { storage: [] }
   };
   ctx.window = ctx;
   ctx.global = ctx;
+  ctx.addEventListener = function(type, fn) {
+    if (!ctx._listeners[type]) ctx._listeners[type] = [];
+    ctx._listeners[type].push(fn);
+  };
 
   // Load shared/data.js
   const dataCode = fs.readFileSync(path.join(root, 'shared/data.js'), 'utf8');
@@ -349,6 +355,43 @@ console.log('\n=== 4. Client applications HTML / CTA ===');
   const dashSrc = fs.readFileSync(path.join(root, 'js/applications.js'), 'utf8');
   assert(/dashboard-card \.mini-stepper/.test(dashSrc) && /getStepperHTML\(app\)/.test(dashSrc),
     'dashboard refresh rewrites the status stepper from the live application');
+  assert(/renderClientDUSection\(app\)/.test(dashSrc) &&
+    !/renderClientDUSection\(\{ collateralAddress/.test(dashSrc),
+    'client DU section is rendered from the live application');
+
+  const beforeDu = ctx.renderClientDUSection(ctx.getAllApplications().find(a => a.id === '4421-И'));
+  assert(/client-du-dropzone/.test(beforeDu), 'pending DU section has a file dropzone');
+  ctx.renderClientDocsUploadPanel();
+  assert(/Загрузить документы/.test(ctx._els.docsUploadPanel.innerHTML),
+    'documents tab shows an upload zone');
+  assert(/Справка о доходе или 2-НДФЛ/.test(ctx._els.docsUploadPanel.innerHTML),
+    'documents upload zone lists 2-НДФЛ');
+
+  ctx.ingestDocumentMeta('4421-И', 'Справка о доходе или 2-НДФЛ', { name: 'Справка_о_доходе_или_2-НДФЛ.pdf', size: 18432 });
+  const afterApp = ctx.getAllApplications().find(a => a.id === '4421-И');
+  const afterDu = ctx.renderClientDUSection(afterApp);
+  assert(/Справка о доходе или 2-НДФЛ/.test(afterDu) && /client-du-item--done/.test(afterDu),
+    'uploaded 2-НДФЛ stays visible as a green card');
+  assert(/Загружено/.test(afterDu), 'uploaded 2-НДФЛ shows status Загружено');
+  const needAfter = Number((afterDu.match(/Требуется загрузить: <b>(\d+)/) || [0, '0'])[1]);
+  assert(needAfter <= 1, 'required-upload count is not stuck at 2 after a successful upload');
+  assert(/Выписка из ЕГРН/.test(afterDu) && /client-du-item--pending/.test(afterDu),
+    'EGRN stays in the list as still pending');
+
+  const featCode = fs.readFileSync(path.join(root, 'js/features-lab.js'), 'utf8');
+  vm.runInNewContext(featCode, ctx, { filename: 'js/features-lab.js' });
+  ctx.showDemoToast = function() {};
+  ctx.uploadMissingDocDemo('Справка о доходе или 2-НДФЛ', '4421-И');
+  const afterCancel = ctx.renderClientDUSection(ctx.getAllApplications().find(a => a.id === '4421-И'));
+  assert(/Загружено/.test(afterCancel), 'canceling the file picker does not clear an already uploaded card');
+  ctx.uploadMissingDocDemo('Выписка из ЕГРН с документами-основаниями', '4421-И', {
+    file: { name: 'egrn.pdf', size: 2048 },
+    duId: 'du04'
+  });
+  const bothDu = ctx.renderClientDUSection(ctx.getAllApplications().find(a => a.id === '4421-И'));
+  assert(/Загружено/.test(bothDu) && !/Требуется загрузить/.test(bothDu),
+    'file-picker upload of EGRN clears the remaining required count');
+  assert(!/client-du-dropzone/.test(bothDu), 'dropzone hides when every required file is uploaded');
 }
 
 console.log('\n=== 5. Manager app selection ===');
@@ -531,6 +574,12 @@ console.log('\n=== 7. HTML script order / critical refs ===');
   const readme = fs.readFileSync(path.join(root, 'README.md'), 'utf8');
   assert(/\/manager\/\?autologin=1/.test(readme),
     'README points manager demo at autologin, not wipe');
+  assert(/id="docsUploadPanel"/.test(index) && /id="bgfLabFileInput"/.test(index),
+    'client documents page has an upload panel and a file input');
+  assert(/id="mDocsUploadPanel"/.test(mgr) && /id="bgfLabFileInput"/.test(mgr),
+    'manager documents page has an upload panel and a file input');
+  assert(/startClientDocUpload/.test(index),
+    'dashboard 2-НДФЛ shortcut goes to document upload');
   assert(/CDN GitHub Pages/.test(demoMd),
     'DEMO.md notes incognito does not bypass Pages CDN');
   const extrasCss = fs.readFileSync(path.join(root, 'css/styles.css'), 'utf8');
@@ -553,6 +602,8 @@ console.log('\n=== 7. HTML script order / critical refs ===');
   assert(/offer-accepted-summary \.money/.test(acceptedCss) && /white-space:\s*nowrap/.test(acceptedCss),
     'accepted summary amounts do not wrap the ₽');
   const artSrc = fs.readFileSync(path.join(root, 'shared/lk-artifacts.js'), 'utf8');
+  assert(/function pickLabFile/.test(artSrc) && /function labUploadDocument/.test(artSrc),
+    'shared upload helper opens a file picker');
   assert(!/Не бланк ELMA/.test(artSrc) && !/Байты файла не хранятся/.test(artSrc),
     'artifact preview has no ELMA/bytes lab disclaimer');
   assert(/art-doc-row/.test(artSrc) && /m-doc-list/.test(artSrc) && /ensureArtifactModal/.test(artSrc) &&
@@ -767,11 +818,58 @@ console.log('\n=== 8. TrustGate lab app is manager-only ===');
     rate: 12.5,
     documents: [{ status: 'missing' }]
   });
-  assert(accSteps.find(s => s.id === 'package').done, 'accepted offer marks package done');
+  assert(accSteps.find(s => s.id === 'package') && accSteps.find(s => s.id === 'package').done === false,
+    'accepted offer does not highlight package until originals are assembled');
   assert(accSteps[accSteps.length - 1] && accSteps[accSteps.length - 1].id === 'package',
     'package is the last manager timeline step');
+  const accIds = accSteps.map(s => s.id);
+  assert(accIds.indexOf('prescore') < accIds.indexOf('docs'),
+    'prescoring comes before documents on the manager timeline');
+  const assembledSteps = ctx.getManagerAppTimelineSteps({
+    id: '4421-И',
+    status: 'decision',
+    packageStatus: 'accepted',
+    selectedPackageId: 'PKG_RECOMMENDED',
+    rate: 12.5,
+    documents: [
+      { name: 'Выписка ЕГРН', status: 'uploaded' },
+      { name: 'Справка 2-НДФЛ', status: 'uploaded' }
+    ]
+  });
+  assert(assembledSteps.find(s => s.id === 'package').done,
+    'package lights up only when the document kit is assembled');
+  const holeHtml = ctx.getManagerAppTimelineHTML({
+    id: '4421-И',
+    status: 'decision',
+    packageStatus: 'accepted',
+    selectedPackageId: 'PKG_RECOMMENDED',
+    rate: 12.5,
+    collateralValue: 8500000,
+    documents: [
+      { name: 'Паспорт (разворот)', status: 'uploaded' },
+      { name: 'Выписка ЕГРН', status: 'missing' }
+    ]
+  });
+  assert(holeHtml.indexOf('Прескоринг') < holeHtml.indexOf('Документы'),
+    'rendered timeline puts Прескоринг before Документы');
+  assert(/app-timeline-step done"><div class="app-timeline-dot"><\/div><div class="app-timeline-label">Прескоринг/.test(holeHtml),
+    'prescore stays done after the offer is accepted');
+  assert(/app-timeline-step current"><div class="app-timeline-dot"><\/div><div class="app-timeline-label">Документы/.test(holeHtml),
+    'documents is the current open step while originals are missing');
+  assert(!/app-timeline-step done"><div class="app-timeline-dot"><\/div><div class="app-timeline-label">Пакет/.test(holeHtml),
+    'package step is not painted done while the kit is incomplete');
   assert(accSteps.find(s => s.id === 'prescore').done, 'accepted offer marks prescore done');
   assert(accSteps.find(s => s.id === 'scoring').done === false, 'accepted offer is not full scoring');
+  const mgrDuHtml = ctx.renderDUSection(ctx.getAllApplications().find(a => a.id === '4421-И'));
+  assert(/data-m-action="uploadDu"/.test(mgrDuHtml), 'manager DU rows have a Загрузить button');
+  assert(/m-du-dropzone/.test(mgrDuHtml), 'manager DU section has a file dropzone');
+  ctx.labUploadDocument('Справка о доходе или 2-НДФЛ', '4421-И', {
+    file: { name: 'ndfl.pdf', size: 2048 },
+    duId: 'du00',
+    actor: 'manager'
+  });
+  const mgrDuAfter = ctx.renderDUSection(ctx.getAllApplications().find(a => a.id === '4421-И'));
+  assert(/Загружено/.test(mgrDuAfter), 'manager upload marks 2-НДФЛ as Загружено');
   const pkgAcceptSrc = fs.readFileSync(path.join(root, 'js/packages.js'), 'utf8');
   assert(/termsKind: 'preliminary'/.test(pkgAcceptSrc) &&
     /updateApplicationStatus\(\s*activeId,\s*'decision'/.test(pkgAcceptSrc),
@@ -1197,6 +1295,71 @@ console.log('\n=== 11. ARM underwriter / productolog ===');
   );
   assert(local._score && local._score.score === 15.5, 'getScore(fico, 600) hits the 650 bucket');
   assert(local._bound && local._inf, 'position 0 and null are boundaries');
+}
+
+console.log('\n=== 12. Manager storage does not ping-pong ===');
+{
+  const ctx = loadSharedContext();
+  ctx.loadSharedData();
+  const writes = [];
+  const origSet = ctx.localStorage.setItem.bind(ctx.localStorage);
+  ctx.localStorage.setItem = function(k, v) {
+    writes.push(k);
+    origSet(k, v);
+  };
+  ctx.getAllClients();
+  ctx.loadSharedData();
+  ctx.getAllClients();
+  ctx.getAllClients();
+  assert(writes.length === 0, 'repeat load/getAllClients does not rewrite localStorage (' + writes.length + ': ' + writes.join(',') + ')');
+
+  const rawClients = ctx.localStorage.getItem('bgfbank_lab_clients');
+  const parsedClients = rawClients ? JSON.parse(rawClients) : {};
+  const kuzStored = parsedClients['Александр Кузнецов'];
+  const storedApps = kuzStored && kuzStored.applications;
+  assert(Array.isArray(storedApps) && storedApps.length >= 1, 'clients storage has application ids');
+  assert(storedApps.every(function(a) { return typeof a === 'string'; }),
+    'clients storage keeps application ids, not nested заявки');
+  const liveKuz = ctx.getAllClients()['Александр Кузнецов'];
+  assert(liveKuz && Array.isArray(liveKuz.applications) && liveKuz.applications.some(function(a) {
+    return a && typeof a === 'object' && a.id === '4421-И';
+  }), 'in-memory clients still expose live application objects');
+
+  const pairStore = new Map();
+  const pairCtxs = [];
+  function linkedStorage(idx) {
+    return {
+      getItem(k) { return pairStore.has(k) ? pairStore.get(k) : null; },
+      setItem(k, v) {
+        const old = pairStore.has(k) ? pairStore.get(k) : null;
+        const next = String(v);
+        pairStore.set(k, next);
+        if (old === next) return;
+        pairCtxs.forEach(function(other, i) {
+          if (i === idx || !other) return;
+          (other._listeners.storage || []).forEach(function(fn) {
+            fn({ key: k, oldValue: old, newValue: next });
+          });
+        });
+      },
+      removeItem(k) { pairStore.delete(k); },
+      clear() { pairStore.clear(); },
+      _store: pairStore
+    };
+  }
+  const tabA = loadSharedContext({ localStorage: linkedStorage(0) });
+  pairCtxs.push(tabA);
+  const tabB = loadSharedContext({ localStorage: linkedStorage(1) });
+  pairCtxs.push(tabB);
+  let hops = 0;
+  tabA.initSharedDataSync(function() { hops++; });
+  tabB.initSharedDataSync(function() { hops++; });
+  tabA.getAllClients();
+  tabB.getAllClients();
+  tabA.updateApplicationStatus('4421-И', 'processing', 'В обработке', 'пинг-понг проверка');
+  assert(hops <= 4, 'two cabinets sync a status write without looping (' + hops + ' hops)');
+  assert(tabB.getAllApplications().find(function(a) { return a && a.id === '4421-И'; }).history[0].text === 'пинг-понг проверка',
+    'peer tab picks up the history line once');
 }
 
 console.log('\n=== Summary ===');

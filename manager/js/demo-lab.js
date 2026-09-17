@@ -45,8 +45,7 @@ function showManagerToast(message) {
 var _mgrLastMsgCount = 0;
 
 function checkIncomingClientMessages() {
-    if (typeof loadSharedData !== 'function' || typeof getChatHistory !== 'function') return;
-    loadSharedData();
+    if (typeof getChatHistory !== 'function') return;
     var name = 'Александр Кузнецов';
     var history = getChatHistory(name) || [];
     var clientMsgs = history.filter(function(m) { return m.from === 'client'; });

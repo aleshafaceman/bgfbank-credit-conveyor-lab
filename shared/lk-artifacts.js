@@ -105,6 +105,13 @@ var DEAL_PASSPORT_APP_KEYS = [
 var LAB_ELIGIBLE_PACKAGE_IDS = ['PKG_RECOMMENDED', 'PKG_SPEC_4_0', 'PKG_NO_INSURANCE'];
 
 var _artifactStore = null;
+var __seedingArtifacts = false;
+var __holdArtifactSave = false;
+var __heldArtifactDirty = false;
+
+function invalidateArtifactStore() {
+    _artifactStore = null;
+}
 
 function artEscape(s) {
     return String(s == null ? '' : s)
@@ -132,9 +139,16 @@ function loadArtifactStore() {
 }
 
 function saveArtifactStore() {
+    if (__holdArtifactSave) {
+        __heldArtifactDirty = true;
+        return;
+    }
     var store = loadArtifactStore();
+    var json = JSON.stringify(store);
     try {
-        localStorage.setItem(artifactsStorageKey(), JSON.stringify(store));
+        var prev = localStorage.getItem(artifactsStorageKey());
+        if (prev === json) return;
+        localStorage.setItem(artifactsStorageKey(), json);
         if (typeof bumpSharedSync === 'function') bumpSharedSync('artifacts');
     } catch (e) {}
 }
@@ -176,6 +190,7 @@ function upsertArtifact(partial) {
     }
     if (idx >= 0) store.items[idx] = next;
     else store.items.unshift(next);
+    if (store.items.length > 250) store.items.length = 250;
     saveArtifactStore();
     return next;
 }
@@ -782,14 +797,17 @@ function recordRateBreakdown(appId) {
     });
 }
 
-function ingestDocumentMeta(appId, docName, file) {
+function ingestDocumentMeta(appId, docName, file, extra) {
+    extra = extra || {};
     if (typeof loadSharedData === 'function') loadSharedData();
     var id = appId || (typeof state !== 'undefined' && (state.selectedApp || state.conveyorAppId)) || '4421-И';
     var apps = typeof getAllApplications === 'function' ? getAllApplications() : [];
     var app = apps.find(function(a) { return a.id === id; });
     if (!app) return null;
     if (!Array.isArray(app.documents)) app.documents = [];
-    var doc = app.documents.find(function(d) { return d.name === docName; });
+    var doc = (typeof findMatchingAppDocument === 'function')
+        ? findMatchingAppDocument(app.documents, docName)
+        : app.documents.find(function(d) { return d.name === docName; });
     if (doc) {
         doc.status = 'uploaded';
         doc.statusLabel = 'Загружен';
@@ -802,18 +820,138 @@ function ingestDocumentMeta(appId, docName, file) {
         size: (file && file.size) || 18432
     };
     if (typeof updateApplication === 'function') updateApplication(id, { documents: app.documents });
+    var duId = extra.duId || '';
     if (typeof persistDuStatus === 'function') {
-        if (/егрн/i.test(docName || '')) persistDuStatus(id, 'du04', 'received', { title: docName });
-        if (/ндфл|доход/i.test(docName || '')) persistDuStatus(id, 'du00', 'received', { title: docName });
+        if (duId) {
+            persistDuStatus(id, duId, 'uploaded', { title: docName });
+        } else {
+            if (typeof isClientEgrnFile === 'function' ? isClientEgrnFile(docName) : /егрн/i.test(docName || '')) {
+                persistDuStatus(id, 'du04', 'uploaded', { title: docName });
+            }
+            if (typeof isClientIncomeFile === 'function' ? isClientIncomeFile(docName) : /ндфл|справка о доходе/i.test(docName || '')) {
+                persistDuStatus(id, 'du00', 'uploaded', { title: docName });
+            }
+        }
     }
-    var isEgrn = /егрн/i.test(docName || '');
-    var kind = isEgrn ? 'egrn' : 'file_meta';
+    var isEgrn = duId === 'du04' || duId === 'du19' ||
+        (typeof isClientEgrnFile === 'function' ? isClientEgrnFile(docName) : /егрн/i.test(docName || ''));
+    var isNdfl = duId === 'du00' ||
+        (typeof isClientIncomeFile === 'function' ? isClientIncomeFile(docName) : /ндфл|справка о доходе/i.test(docName || ''));
+    var kind = isEgrn ? 'egrn' : (isNdfl ? 'ndfl' : 'file_meta');
     return recordArtifactForApp(id, kind, {
-        actor: 'client',
+        actor: extra.actor || 'client',
         fn: 'ingestDocumentMeta',
-        title: isEgrn ? 'Выписка ЕГРН' : ('Файл принят · ' + docName),
+        title: isEgrn ? 'Выписка ЕГРН' : (isNdfl ? 'Справка о доходах' : ('Файл принят · ' + docName)),
         file: meta,
-        payload: { docName: docName }
+        payload: { docName: docName, duId: duId || undefined }
+    });
+}
+
+function pickLabFile(onPicked) {
+    if (typeof onPicked !== 'function') return;
+    var doc = typeof document !== 'undefined' ? document : null;
+    if (!doc) {
+        onPicked(null);
+        return;
+    }
+    var input = doc.getElementById('bgfLabFileInput');
+    if (!input && typeof doc.createElement === 'function' && doc.body) {
+        input = doc.createElement('input');
+        input.type = 'file';
+        input.id = 'bgfLabFileInput';
+        input.accept = '.pdf,.jpg,.jpeg,.png,.webp';
+        input.setAttribute('aria-label', 'Выберите файл документа');
+        input.style.position = 'absolute';
+        input.style.width = '1px';
+        input.style.height = '1px';
+        input.style.opacity = '0';
+        doc.body.appendChild(input);
+    }
+    if (!input || typeof input.click !== 'function') {
+        onPicked(null);
+        return;
+    }
+    input.value = '';
+    input.onchange = function() {
+        var file = (input.files && input.files[0]) || null;
+        try { input.value = ''; } catch (eVal) {}
+        onPicked(file);
+    };
+    try {
+        input.click();
+    } catch (eClick) {
+        onPicked(null);
+    }
+}
+
+function labUploadDocument(docName, appId, opts) {
+    opts = opts || {};
+    if (typeof loadSharedData === 'function') loadSharedData();
+    var id = appId ||
+        (typeof state !== 'undefined' && (state.selectedApp || state.conveyorAppId)) ||
+        (typeof selectedAppId !== 'undefined' && selectedAppId) ||
+        '';
+    if (!id) {
+        var sel = typeof document !== 'undefined'
+            ? (document.getElementById('artFilterApp') || document.getElementById('mArtFilterApp'))
+            : null;
+        if (sel && sel.value) id = sel.value;
+    }
+    var apps = typeof getAllApplications === 'function' ? getAllApplications() : [];
+    if (!id && apps[0]) id = apps[0].id;
+    id = id || '4421-И';
+    var actor = opts.actor || ((typeof selectedAppId !== 'undefined' && document && document.getElementById('mAppDetail')) ? 'manager' : 'client');
+    var duId = opts.duId || '';
+
+    function finish(file) {
+        var app = apps.find(function(a) { return a && a.id === id; }) ||
+            ((typeof getAllApplications === 'function' ? getAllApplications() : []).find(function(a) { return a && a.id === id; }));
+        var name = docName;
+        if (!name && typeof inferUploadedDocName === 'function') name = inferUploadedDocName(file, app);
+        if (!name) name = (file && file.name) || 'Документ';
+        ingestDocumentMeta(id, name, file || null, { duId: duId, actor: actor });
+        if (typeof duStorage === 'object' && duStorage && duId) {
+            duStorage[id + '_' + duId] = 'uploaded';
+        }
+        var app2 = (typeof getAllApplications === 'function' ? getAllApplications() : []).find(function(a) { return a && a.id === id; });
+        if (app2 && typeof updateApplicationStatus === 'function') {
+            var who = actor === 'manager' ? 'Менеджер приложил' : 'Клиент загрузил';
+            updateApplicationStatus(id, app2.status, app2.statusLabel || app2.status, who + ' документ: «' + name + '»');
+        }
+        if (typeof sendChatMessage === 'function' && app2) {
+            var chatName = app2.client || (typeof getClientDisplayName === 'function' ? getClientDisplayName() : '');
+            if (actor === 'manager') {
+                sendChatMessage('manager', chatName, 'Документ «' + name + '» принят по заявке №' + id + '.', chatName);
+            } else {
+                sendChatMessage('client', chatName, 'Загрузил документ: «' + name + '».', chatName);
+            }
+        }
+        if (typeof refreshClientApplicationsUI === 'function') refreshClientApplicationsUI(id);
+        if (typeof refreshData === 'function') {
+            try { refreshData(); } catch (eRef) {}
+        }
+        if (typeof renderApplicationDetail === 'function') {
+            try { renderApplicationDetail(id); } catch (eDet) {}
+        }
+        if (typeof renderApplicationList === 'function') {
+            try { renderApplicationList(); } catch (eList) {}
+        }
+        if (typeof refreshDocumentsViews === 'function') refreshDocumentsViews();
+        var fname = (file && file.name) || (String(name).replace(/\s+/g, '_') + '.pdf');
+        var fsize = (file && file.size) || 18432;
+        var msg = 'Документ «' + name + '» принят · ' + fname + ' · ' + fsize + ' Б';
+        if (typeof managerNotify === 'function' && actor === 'manager') managerNotify(msg);
+        else if (typeof showDemoToast === 'function') showDemoToast(msg, { icon: 'fa-file-upload', duration: 2500 });
+        else if (typeof showManagerToast === 'function') showManagerToast(msg);
+    }
+
+    if (opts.file) {
+        finish(opts.file);
+        return;
+    }
+    pickLabFile(function(file) {
+        if (!file) return;
+        finish(file);
     });
 }
 
@@ -938,23 +1076,28 @@ function recordDecisionAndApproval(appId) {
     });
 }
 
-var __seedingArtifacts = false;
 function seedDemoArtifacts() {
     if (__seedingArtifacts) return;
     __seedingArtifacts = true;
+    __holdArtifactSave = true;
+    __heldArtifactDirty = false;
     try {
-    var apps = typeof getAllApplications === 'function' ? getAllApplications() : [];
-    apps.forEach(function(app) {
-        if (!app || !app.id) return;
-        if (typeof isLkLabApplication === 'function' && isLkLabApplication(app)) {
-            if (!getArtifact(artStableId(app.id, 'cp_coverage'))) recordCpArtifactsFromApp(app, 'manager');
-            return;
-        }
-        if (app.id === '4421-И' && !getArtifact(artStableId(app.id, 'short_application'))) {
-            recordShortApplication(app);
-        }
-    });
+        _artifactStore = null;
+        loadArtifactStore();
+        var apps = typeof getAllApplications === 'function' ? getAllApplications() : [];
+        apps.forEach(function(app) {
+            if (!app || !app.id) return;
+            if (typeof isLkLabApplication === 'function' && isLkLabApplication(app)) {
+                if (!getArtifact(artStableId(app.id, 'cp_coverage'))) recordCpArtifactsFromApp(app, 'manager');
+                return;
+            }
+            if (app.id === '4421-И' && !getArtifact(artStableId(app.id, 'short_application'))) {
+                recordShortApplication(app);
+            }
+        });
     } finally {
+        __holdArtifactSave = false;
+        if (__heldArtifactDirty) saveArtifactStore();
         __seedingArtifacts = false;
     }
 }
@@ -1044,14 +1187,130 @@ function fillArtifactAppFilter(selectId, role, opts) {
     sel.setAttribute('data-art-filter-ready', '1');
 }
 
+function bindClientDocsUploadPanel(el) {
+    if (!el || el._bgfUploadBound) return;
+    el._bgfUploadBound = true;
+    el.addEventListener('click', function(e) {
+        var btn = e.target.closest && e.target.closest('[data-action]');
+        if (!btn || !el.contains(btn)) return;
+        var action = btn.getAttribute('data-action');
+        var appId = btn.getAttribute('data-app-id') || undefined;
+        var actor = el.getAttribute('data-upload-actor') || 'client';
+        if (action === 'upload-doc') {
+            e.preventDefault();
+            var up = typeof labUploadDocument === 'function' ? labUploadDocument : uploadMissingDocDemo;
+            if (typeof up === 'function') {
+                up(btn.getAttribute('data-doc-name'), appId, {
+                    duId: btn.getAttribute('data-du-id') || '',
+                    actor: actor
+                });
+            }
+            return;
+        }
+        if (action === 'upload-any-doc') {
+            e.preventDefault();
+            var upAny = typeof labUploadDocument === 'function' ? labUploadDocument : uploadMissingDocDemo;
+            if (typeof upAny === 'function') upAny(null, appId, { actor: actor });
+        }
+    });
+    el.addEventListener('dragover', function(e) {
+        if (e.target.closest && e.target.closest('[data-action="upload-any-doc"]')) e.preventDefault();
+    });
+    el.addEventListener('drop', function(e) {
+        var zone = e.target.closest && e.target.closest('[data-action="upload-any-doc"]');
+        if (!zone || !el.contains(zone)) return;
+        e.preventDefault();
+        var file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+        if (!file) return;
+        var appId = zone.getAttribute('data-app-id') || undefined;
+        var actor = el.getAttribute('data-upload-actor') || 'client';
+        if (typeof labUploadDocument === 'function') {
+            labUploadDocument(null, appId, { file: file, actor: actor });
+        } else if (typeof uploadMissingDocDemo === 'function') {
+            uploadMissingDocDemo(null, appId, { file: file });
+        }
+    });
+}
+
+function renderClientDocsUploadPanel(mountId) {
+    mountId = mountId || 'docsUploadPanel';
+    var isManager = mountId === 'mDocsUploadPanel';
+    var el = document.getElementById(mountId);
+    if (!el) return;
+    el.setAttribute('data-upload-actor', isManager ? 'manager' : 'client');
+    var filterSel = document.getElementById(isManager ? 'mArtFilterApp' : 'artFilterApp');
+    var appId = (filterSel && filterSel.value) ||
+        (isManager && typeof selectedAppId !== 'undefined' ? selectedAppId : '') ||
+        (typeof state !== 'undefined' && (state.selectedApp || state.conveyorAppId)) || '';
+    var apps = typeof getAllApplications === 'function' ? getAllApplications() : [];
+    if (typeof visibleCabinetApplications === 'function') {
+        apps = visibleCabinetApplications(apps);
+    }
+    if (!appId) {
+        if (isManager) {
+            appId = (apps[0] && apps[0].id) || '';
+        } else {
+            var name = typeof getClientDisplayName === 'function' ? getClientDisplayName() : '';
+            var first = apps.find(function(a) { return a && a.client === name; }) || apps[0];
+            appId = first && first.id ? first.id : '';
+        }
+    }
+    var app = apps.find(function(a) { return a && a.id === appId; });
+    if (!app) {
+        el.innerHTML = '<div class="docs-upload-card"><p class="docs-upload-desc">Выберите заявку, чтобы загрузить документы.</p></div>';
+        bindClientDocsUploadPanel(el);
+        return;
+    }
+    var done = { uploaded: true, auto_received: true, ext_received: true, received: true };
+    var dus = typeof getRequiredDU === 'function' ? getRequiredDU(app, true) : [];
+    var pendingDu = dus.filter(function(d) { return d && !done[d.status] && d.source !== 'esia'; });
+    var missingDocs = (app.documents || []).filter(function(d) { return d && d.status === 'missing'; });
+    var rows = [];
+    pendingDu.forEach(function(d) {
+        rows.push({ name: d.name, duId: d.id });
+    });
+    missingDocs.forEach(function(d) {
+        var already = rows.some(function(r) {
+            if (r.name === d.name) return true;
+            if (typeof isClientEgrnFile === 'function' && isClientEgrnFile(d.name) && isClientEgrnFile(r.name)) return true;
+            if (typeof isClientIncomeFile === 'function' && isClientIncomeFile(d.name) && isClientIncomeFile(r.name)) return true;
+            return false;
+        });
+        if (!already) rows.push({ name: d.name, duId: '' });
+    });
+    var h = '<div class="docs-upload-card">';
+    h += '<h3 class="docs-upload-title"><i class="fas fa-cloud-upload-alt"></i> Загрузить документы</h3>';
+    h += '<p class="docs-upload-desc">Приложите файлы к заявке №' + String(app.id).replace(/</g, '') +
+        '. Принятый пакет условий лежит в списке ниже — его не нужно загружать повторно.</p>';
+    h += '<div class="file-upload-area" data-action="upload-any-doc" data-app-id="' + String(app.id).replace(/"/g, '&quot;') + '">';
+    h += '<i class="fas fa-cloud-upload-alt"></i>';
+    h += '<div class="upload-text">Нажмите или перетащите файл</div>';
+    h += '<div class="upload-hint">PDF, JPG или PNG до 10 МБ</div></div>';
+    if (rows.length) {
+        h += '<div class="docs-need-list">';
+        rows.forEach(function(r) {
+            h += '<div class="docs-need-row"><span>' + String(r.name).replace(/</g, '') + '</span>';
+            h += '<button type="button" class="action-btn" data-action="upload-doc" data-app-id="' +
+                String(app.id).replace(/"/g, '&quot;') + '" data-doc-name="' + String(r.name).replace(/"/g, '&quot;') +
+                '" data-du-id="' + String(r.duId || '').replace(/"/g, '&quot;') + '">Загрузить</button></div>';
+        });
+        h += '</div>';
+    }
+    h += '</div>';
+    el.innerHTML = h;
+    bindClientDocsUploadPanel(el);
+}
+
 function refreshDocumentsViews(opts) {
     opts = opts || {};
     if (document.getElementById('documentsList')) {
         fillArtifactAppFilter('artFilterApp', 'client', opts);
+        renderClientDocsUploadPanel();
         renderDocumentsSection('client', { mountId: 'documentsList' });
     }
     if (document.getElementById('mDocumentsList')) {
         fillArtifactAppFilter('mArtFilterApp', 'manager', opts);
+        renderClientDocsUploadPanel('mDocsUploadPanel');
         renderDocumentsSection('manager', { mountId: 'mDocumentsList' });
     }
 }
@@ -1154,8 +1413,11 @@ if (typeof window !== 'undefined') {
     window.openArtifactByKind = openArtifactByKind;
     window.renderDocumentsSection = renderDocumentsSection;
     window.refreshDocumentsViews = refreshDocumentsViews;
+    window.renderClientDocsUploadPanel = renderClientDocsUploadPanel;
     window.recordConveyorConsent = recordConveyorConsent;
     window.ingestDocumentMeta = ingestDocumentMeta;
+    window.pickLabFile = pickLabFile;
+    window.labUploadDocument = labUploadDocument;
     window.renderCpCoverageClientHTML = renderCpCoverageClientHTML;
     window.recordPrescoreProtocol = recordPrescoreProtocol;
     window.recordReviewStarted = recordReviewStarted;
@@ -1175,4 +1437,7 @@ if (typeof window !== 'undefined') {
     window.ARTIFACT_KIND_LABEL = ARTIFACT_KIND_LABEL;
     window.CLIENT_VISIBLE_KINDS = CLIENT_VISIBLE_KINDS;
     window.clientVisibleArtifacts = clientVisibleArtifacts;
+    window.invalidateArtifactStore = invalidateArtifactStore;
 }
+
+try { seedDemoArtifacts(); } catch (eSeedInit) {}

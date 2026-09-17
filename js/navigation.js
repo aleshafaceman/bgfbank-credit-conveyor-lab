@@ -53,7 +53,7 @@ function navigateTo(page) {
         case 'documents':
             document.getElementById('view-documents').classList.remove('hidden');
             document.getElementById('pageTitle').innerText = 'Документы';
-            document.getElementById('pageSubtitle').innerText = 'Согласия, паспорт, оценка и условия по заявкам';
+            document.getElementById('pageSubtitle').innerText = 'Загрузка файлов, согласия, оценка и условия по заявкам';
             if (typeof refreshDocumentsViews === 'function') refreshDocumentsViews();
             break;
         case 'mortgage':

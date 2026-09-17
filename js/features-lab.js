@@ -63,64 +63,67 @@ function getAppTimelineSteps(app) {
         { id: 'create', label: 'Заявка', done: true },
         { id: 'esia', label: 'ЕСИА / данные', done: true },
         { id: 'collateral', label: 'Залог', done: !!app.collateralValue },
+        { id: 'prescore', label: 'Прескоринг', done: accepted || scoring || app.termsKind === 'preliminary' },
         { id: 'docs', label: 'Документы', done: docsDone || approved },
         { id: 'scoring', label: 'Скоринг', done: scoring },
         { id: 'decision', label: approved ? 'Одобрено' : (rejected ? 'Отказ' : 'Решение'), done: approved || rejected, fail: rejected },
-        { id: 'package', label: 'Пакет условий', done: accepted }
+        { id: 'package', label: 'Пакет условий', done: accepted && (docsDone || approved) }
     ];
 }
 
 function renderAppTimelineHTML(app) {
     var steps = getAppTimelineSteps(app);
+    var firstOpen = -1;
+    for (var i = 0; i < steps.length; i++) {
+        if (!steps[i].done && !steps[i].fail) { firstOpen = i; break; }
+    }
     var h = '<div class="app-timeline" aria-label="Этапы заявки">';
-    steps.forEach(function(s, i) {
-        if (i) h += '<div class="app-timeline-sep' + (s.done ? ' done' : '') + '"></div>';
-        h += '<div class="app-timeline-step' + (s.done ? ' done' : '') + (s.fail ? ' fail' : '') + '">';
+    steps.forEach(function(s, idx) {
+        if (idx) {
+            var prevDone = !!(steps[idx - 1] && steps[idx - 1].done);
+            h += '<div class="app-timeline-sep' + (prevDone && s.done ? ' done' : '') + '"></div>';
+        }
+        var cls = s.done ? ' done' : '';
+        if (s.fail) cls += ' fail';
+        if (idx === firstOpen) cls += ' current';
+        h += '<div class="app-timeline-step' + cls + '">';
         h += '<div class="app-timeline-dot"></div><div class="app-timeline-label">' + s.label + '</div></div>';
     });
     h += '</div>';
     return h;
 }
 
-function uploadMissingDocDemo(docName, appId) {
-    if (typeof loadSharedData === 'function') loadSharedData();
-    var id = appId || (typeof state !== 'undefined' && state.selectedApp) || '4421-И';
-
-    function finish(file) {
-        if (typeof ingestDocumentMeta === 'function') {
-            ingestDocumentMeta(id, docName, file || null);
-        } else {
-            var apps = typeof getAllApplications === 'function' ? getAllApplications() : [];
-            var app = apps.find(function(a) { return a.id === id; });
-            if (!app) return;
-            if (!Array.isArray(app.documents)) app.documents = [];
-            var doc = app.documents.find(function(d) { return d.name === docName; });
-            if (doc) {
-                doc.status = 'uploaded';
-                doc.statusLabel = 'Загружен';
-            } else {
-                app.documents.push({ name: docName, status: 'uploaded', statusLabel: 'Загружен' });
-            }
-            if (typeof updateApplication === 'function') updateApplication(id, { documents: app.documents });
-        }
-        var apps2 = typeof getAllApplications === 'function' ? getAllApplications() : [];
-        var app2 = apps2.find(function(a) { return a.id === id; });
-        if (app2 && typeof updateApplicationStatus === 'function') {
-            updateApplicationStatus(id, app2.status, app2.statusLabel || app2.status, 'Клиент загрузил документ: «' + docName + '»');
-        }
-        if (typeof sendChatMessage === 'function') {
-            var name = typeof getClientDisplayName === 'function' ? getClientDisplayName() : (app2 && app2.client);
-            sendChatMessage('client', name, 'Загрузил документ: «' + docName + '».', name);
-        }
-        if (typeof refreshClientApplicationsUI === 'function') refreshClientApplicationsUI(id);
-        var fname = (file && file.name) || (docName.replace(/\s+/g, '_') + '.pdf');
-        var fsize = (file && file.size) || 18432;
-        if (typeof showDemoToast === 'function') {
-            showDemoToast('Документ «' + docName + '» принят · ' + fname + ' · ' + fsize + ' Б', { icon: 'fa-file-upload', duration: 2500 });
-        }
+function uploadMissingDocDemo(docName, appId, opts) {
+    opts = opts || {};
+    if (!opts.actor) opts.actor = 'client';
+    if (typeof labUploadDocument === 'function') {
+        labUploadDocument(docName, appId, opts);
+        return;
     }
+    pickLabFile(function(file) {
+        if (!file && !opts.file) return;
+        if (typeof ingestDocumentMeta === 'function') {
+            ingestDocumentMeta(appId || '4421-И', docName || 'Документ', opts.file || file);
+        }
+    });
+}
 
-    finish(null);
+function startClientDocUpload(docName) {
+    if (typeof navigateTo === 'function') navigateTo('documents');
+    setTimeout(function() {
+        uploadMissingDocDemo(docName);
+    }, 50);
+}
+
+function bindProfileIncomeUpload() {
+    var incomeInput = typeof document !== 'undefined' ? document.getElementById('file-upload-5') : null;
+    if (!incomeInput || incomeInput._bgfBound) return;
+    incomeInput._bgfBound = true;
+    incomeInput.addEventListener('change', function() {
+        var file = incomeInput.files && incomeInput.files[0];
+        if (!file) return;
+        uploadMissingDocDemo('Справка о доходе или 2-НДФЛ', null, { file: file, duId: 'du00' });
+    });
 }
 
 function printOfferPackage() {
@@ -206,6 +209,7 @@ function maybeShowPresenterChecklist(force) {
 document.addEventListener('DOMContentLoaded', function() {
     if (!document.getElementById('appShell')) return;
     runClientDemoBoot();
+    bindProfileIncomeUpload();
     setTimeout(function() {
         var auth = document.getElementById('authFullscreen');
         if (auth && auth.classList.contains('hidden')) maybeShowOnboarding();
