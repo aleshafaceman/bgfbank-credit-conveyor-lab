@@ -1,54 +1,59 @@
 const STORE = "bgfbank_lab_productolog";
-const STORE_VER = 3;
+const STORE_VER = 4;
 const MOCK = window.PRODUCTOLOG_MOCK;
 
 const BUS_CATALOG = [
-  { id: "products_get", title: "Список продуктов", system: "Solver GET /products" },
-  { id: "slices_get", title: "Срезы витрины", system: "productolog GET /product_slices" },
-  { id: "regions_get", title: "Регионы продаж", system: "Solver GET /sales_regions" },
-  { id: "score_get", title: "Оценка шкалы", system: "Solver GET /riskmanager/scores/{slug}/score" },
-  { id: "matrix_get", title: "Ячейка RBP-LTV", system: "Solver GET /rbp_ltv_matrix" },
-  { id: "options_get", title: "Опции", system: "productolog GET /options" },
-  { id: "excel", title: "Excel", system: "xlsx · отказ иных типов" },
-  { id: "action_log", title: "Журнал изменений", system: "productolog ActionLog" },
-  { id: "loginom", title: "Loginom", system: "не вызываем из этого АРМ" }
+  { id: "products_get", title: "Список продуктов", system: "калькулятор предложений · витрина" },
+  { id: "slices_get", title: "Срезы витрины", system: "справочник продуктолога" },
+  { id: "regions_get", title: "Регионы продаж", system: "калькулятор предложений · регионы" },
+  { id: "score_get", title: "Балл шкалы", system: "калькулятор предложений · шкалы риска" },
+  { id: "matrix_get", title: "Ячейка доли кредита и оценки риска", system: "калькулятор предложений · матрица" },
+  { id: "options_get", title: "Опции", system: "справочник продуктолога · опции" },
+  { id: "excel", title: "Таблица", system: "только файл .xlsx" },
+  { id: "action_log", title: "Журнал изменений", system: "запись действий продуктолога" },
+  { id: "loginom", title: "СПР банка", system: "не вызываем из этого АРМ" }
 ];
 
 const HELP = {
   inbox: {
     title: "Каталог",
-    about: "Не очередь заявок. Продукты, срезы витрины, шкалы и матрица — то, что Solver забирает для пакетов на входе в ЛК.",
-    next: "Откройте продукт или срез. Loginom / АНД сюда не ходят."
+    about: "Не очередь заявок. Продукты, срезы, регионы, шкалы и матрица — то, что калькулятор предложений забирает для пакетов на входе в кабинет.",
+    next: "Откройте продукт, регион или срез. СПР и АНД сюда не ходят."
   },
   bus: {
     title: "Ход обмена",
-    about: "Кто читает конфиг. Стол не бьёт в Loginom, ЦФТ и SmartDeal.",
-    next: "После сохранения шкалы Solver на следующем расчёте оффера увидит новую оценку."
+    about: "Кто читает справочник. Стол не бьёт в СПР, ЦФТ и SmartDeal.",
+    next: "После сохранения шкалы калькулятор на следующем расчёте оффера увидит новую оценку."
   },
   product: {
     title: "Продукт",
-    about: "В коде три цели: mortgage / cash_on_pledge / refinancing. Строки вроде «Залог_Москва+LTV40_60» — срезы витрины, не четвёртая запись enum.",
-    next: "Пакеты — витрина Solver, не решение АНД. КВ из презентации партнёрам помечены сроком акции."
+    about: "Три цели кредита: покупка, залог, рефинансирование. Строки вроде «Залог_Москва…» — срезы витрины, не четвёртая цель.",
+    next: "Пакеты — витрина калькулятора, не решение АНД. Комиссия партнёра из презентации помечена сроком акции."
   },
   slices: {
     title: "Срезы витрины",
-    about: "Старый макет «Настройка продуктов»: название, тип объекта, статус, период, опции, справка о доходе. Это конфиг Solver, не новая цель кредита.",
-    next: "Создайте срез на выбранной цели. «Удалён» — архив, enum не сжимается."
+    about: "Название, тип объекта, статус, период, опции, справка о доходе. Это справочник калькулятора, не новая цель кредита.",
+    next: "Создайте срез на выбранной цели. «Удалён» — архив, число целей не растёт."
   },
   options: {
     title: "Опции",
-    about: "Коридор и «купи ставку» — оверлеи. is_purpose=false. Не плодим CreditPurposeEnum.",
-    next: "Включите опцию на цели, затем повесьте её на срез."
+    about: "Коридор и «купи ставку» — оверлеи, не отдельная цель кредита.",
+    next: "Включите опцию на цели, повесьте на срез и на регион."
+  },
+  regions: {
+    title: "Регионы",
+    about: "Где продукт доступен и какие опции можно выбрать в этом регионе. Ликвидность и доля кредита по квартире — для калькулятора, не для АНД.",
+    next: "Выключите продукт или опцию в регионе — витрина перестанет их предлагать."
   },
   scale: {
     title: "Шкала",
-    about: "Колонки От / До / Score. 0 и inf — границы, Missings — отдельный ряд. Эти две границы нельзя удалить. −1 у 2-НДФЛ — «нет значения».",
-    next: "Измените score или До внутри соседей. + добавляет ступень, Missings — отдельной кнопкой."
+    about: "Колонки «От», «До», «Балл». 0 и «без ограничения» — границы, «нет значения» — отдельный ряд. Границы нельзя удалить.",
+    next: "Измените балл или верхнюю границу внутри соседей. «+» добавляет ступень."
   },
   matrix: {
-    title: "Матрица RBP-LTV",
-    about: "Фильтры канал/регион/тип. Ячейки не правят руками: шаг оси добавляет значения, невозможная клетка — прочерк. Числа — score Solver, не ставка с холста.",
-    next: "Смените оси или автонастройку шагов. Loginom не вызываем."
+    title: "Матрица доли кредита и оценки риска",
+    about: "Фильтры канал / регион / тип. Ячейки не правят руками: шаг оси добавляет значения, невозможная клетка — прочерк. Числа — балл калькулятора, не ставка с макета.",
+    next: "Смените оси или автонастройку шагов. СПР не вызываем."
   }
 };
 
@@ -116,6 +121,63 @@ function purposeLabel(code) {
   return code;
 }
 
+function enumPositionLabel(slug, position) {
+  if (slug === "marital_status") {
+    if (position === "married") return "в браке";
+    if (position === "single") return "не в браке";
+    if (position === "divorced") return "в разводе";
+    if (position === "other") return "иное";
+  }
+  if (slug === "ndfl2") {
+    if (position === -1) return "нет данных";
+    if (position === 0) return "нулевой";
+    if (position === 1) return "есть";
+  }
+  return position == null ? "—" : String(position);
+}
+
+function channelLabel(code) {
+  if (code === "b2b") return "партнёры";
+  if (code === "b2c") return "прямой канал";
+  return "все каналы";
+}
+
+function stageLabel(code) {
+  if (code === "lead") return "лид";
+  if (code === "application") return "заявка";
+  return code || "—";
+}
+
+function axisLabel(kind) {
+  if (kind === "ltv") return "доля кредита";
+  if (kind === "rbp") return "оценка по риску";
+  return kind;
+}
+
+function regionAllowsProduct(regionId, productId) {
+  const r = regionById(regionId);
+  if (!r) return true;
+  if (r.available === false) return false;
+  const ids = r.product_ids;
+  if (!ids || !ids.length) return true;
+  return ids.indexOf(Number(productId)) !== -1;
+}
+
+function regionAllowsOption(regionId, optionId) {
+  const r = regionById(regionId);
+  if (!r) return true;
+  const ids = r.option_ids;
+  if (!ids || !ids.length) return true;
+  const rec = optionRecById(optionId);
+  const num = rec ? rec.id : Number(optionId);
+  if (ids.indexOf(num) !== -1) return true;
+  const slug = rec ? rec.slug : optionId;
+  return ids.some(function (id) {
+    const hit = optionRecById(id);
+    return hit && hit.slug === slug;
+  });
+}
+
 function statusMeta(id) {
   return (MOCK.slice_statuses || []).find((s) => s.id === id) || { id: id, title: id };
 }
@@ -177,7 +239,7 @@ function selectOpts(list, selected) {
 
 function fromTo(rows, i) {
   const cur = rows[i];
-  if (cur.missing || cur.position === "missing") return { from: "Missings", to: "" };
+  if (cur.missing || cur.position === "missing") return { from: "нет значения", to: "" };
   if (cur.position === -1) return { from: "нет значения", to: "−1" };
   if (typeof cur.position === "string") return { from: String(cur.position), to: "" };
   let prevPos = 0;
@@ -190,7 +252,7 @@ function fromTo(rows, i) {
     }
   }
   if (cur.position === 0) return { from: "0", to: "0" };
-  if (cur.position == null) return { from: String(prevPos), to: "inf" };
+  if (cur.position == null) return { from: String(prevPos), to: "без ограничения" };
   return { from: String(prevPos), to: String(cur.position) };
 }
 
@@ -248,6 +310,7 @@ function setRole(role) {
   if (role === "risk") state.selectedId = "scale:fico";
   if (role === "matrix") state.selectedId = "matrix:1:2";
   if (role === "options") state.selectedId = "optrec:801";
+  if (role === "regions") state.selectedId = "region:1";
   save();
   render();
 }
@@ -280,7 +343,7 @@ function sliceCardsHtml() {
     const on = state.selectedSliceId === s.id && state.productTab === "slices" ? " on" : "";
     const ltv = (s.ltv_min == null || s.ltv_max == null)
       ? "поля пустые"
-      : ("LTV " + Math.round(s.ltv_min * 100) + "–" + Math.round(s.ltv_max * 100) + "%");
+      : ("доля кредита " + Math.round(s.ltv_min * 100) + "–" + Math.round(s.ltv_max * 100) + "%");
     return '<button type="button" class="card-deal' + on + '" onclick="selectSlice(' + s.id + ')" title="' +
       String(s.name).replace(/"/g, "&quot;") + '">' +
       "<b>" + ellip(s.name, 28) + "</b><span>" + objectTitle(s.object_kind) + " · " + ltv + "</span>" +
@@ -375,7 +438,8 @@ function addModalLine(text, cls) {
 }
 
 function flashConflict(title, line) {
-  showModal(title, "Граничные и уникальные значения API productolog.");
+  // ConflictDataException: 409 when deleting or moving 0 / inf boundary
+  showModal(title, "Проверка границ справочника продуктолога.");
   addModalLine(line, "fail");
   setTimeout(hideModal, 1400);
 }
@@ -460,7 +524,7 @@ function isMissingRow(row) {
 
 function rangeLabel(rows, i) {
   const cur = rows[i];
-  if (cur.missing || cur.position === "missing") return "Missings";
+  if (cur.missing || cur.position === "missing") return "нет значения";
   if (cur.position === -1) return "нет значения (−1)";
   if (typeof cur.position === "string") return cur.position;
   const prev = i === 0 ? null : rows[i - 1];
@@ -519,7 +583,7 @@ function isConsistent(slug) {
 function solverSlices() {
   return state.slices.filter(function (s) {
     const p = productById(s.product_id);
-    return p && p.available && s.status === "active";
+    return p && p.available && s.status === "active" && regionAllowsProduct(s.region_id, s.product_id);
   });
 }
 
@@ -527,7 +591,7 @@ function toggleAvailable(id, el) {
   const p = productById(id);
   if (!p) return;
   p.available = el.checked;
-  logAction("PUT", "/products/" + id, "available=" + p.available);
+  logAction("PUT", "/products/" + id, "доступен=" + p.available);
   state.bus.products_get = "ok";
   save();
   render();
@@ -565,18 +629,18 @@ function savePosition(slug, rowId, el) {
   const row = scale.rows.find((r) => r.id === Number(rowId));
   if (!row) return;
   if (isBoundary(row)) {
-    flashConflict("Конфликт", "HTTP 409 ConflictDataException · границу 0/∞ не двигаем");
+    flashConflict("Конфликт", "Границу 0 или «без ограничения» сдвигать нельзя");
     render();
     return;
   }
   const raw = el.value === "" ? null : Number(el.value);
   if (scale.rows.some((r) => r.id !== row.id && r.position === raw)) {
-    flashConflict("Уже есть", "HTTP 409 AlreadyExistsException · position занята");
+    flashConflict("Уже есть", "Такая граница уже занята");
     render();
     return;
   }
   if (typeof raw === "number" && !isValidUpdatedPosition(slug, row.id, raw)) {
-    flashConflict("Позиция", "HTTP 400 InvalidDataException · только между соседями");
+    flashConflict("Позиция", "Границу можно ставить только между соседними ступенями");
     render();
     return;
   }
@@ -621,9 +685,9 @@ function addScaleRowFromForm(slug) {
   const posEl = document.getElementById("new-pos-" + slug);
   const scEl = document.getElementById("new-score-" + slug);
   const res = addScaleRow(slug, posEl ? posEl.value : "", scEl ? scEl.value : 0);
-  if (!res.ok && res.error === "exists") flashConflict("Уже есть", "HTTP 409 AlreadyExistsException");
-  else if (!res.ok && res.error === "range") flashConflict("Позиция", "HTTP 400 InvalidDataException");
-  else if (!res.ok && res.error === "fixed") flashConflict("Фиксированная шкала", "enum / 2-НДФЛ не расширяем");
+  if (!res.ok && res.error === "exists") flashConflict("Уже есть", "Такая граница уже есть");
+  else if (!res.ok && res.error === "range") flashConflict("Позиция", "Границу можно ставить только между соседними ступенями");
+  else if (!res.ok && res.error === "fixed") flashConflict("Фиксированная шкала", "семейное положение и 2-НДФЛ не расширяем");
   save();
   render();
 }
@@ -632,12 +696,12 @@ function addMissingRow(slug) {
   const scale = state.scales[slug];
   if (!scale) return;
   if (scale.rows.some(isMissingRow)) {
-    flashConflict("Уже есть", "HTTP 409 · ряд Missings уже есть");
+    flashConflict("Уже есть", "Строка «нет значения» уже есть");
     return;
   }
   scale.rows.push({ id: nextId(scale.rows), position: "missing", score: 2, missing: true });
   sortScaleRows(scale.rows);
-  logAction("POST", "/riskmanager/" + slug, "Missings");
+  logAction("POST", "/riskmanager/" + slug, "нет значения");
   save();
   render();
 }
@@ -647,7 +711,7 @@ function deleteRow(slug, rowId) {
   const row = scale.rows.find((r) => r.id === Number(rowId));
   if (!row) return;
   if (isBoundary(row)) {
-    flashConflict("Конфликт", "HTTP 409 ConflictDataException");
+    flashConflict("Конфликт", "Границу 0 или «без ограничения» удалять нельзя");
     return;
   }
   scale.rows = scale.rows.filter((r) => r.id !== row.id);
@@ -670,7 +734,7 @@ function probeScore(slug) {
   save();
   render();
   const out = document.getElementById("probe-out-" + slug);
-  if (out) out.textContent = hit ? ("id=" + hit.id + " · score=" + hit.score) : "HTTP 404 Not Found";
+  if (out) out.textContent = hit ? ("балл " + hit.score) : "оценка не найдена";
 }
 
 function saveMatrixCell(id, el) {
@@ -714,7 +778,7 @@ function addMatrixCell(regionId, productId) {
     });
   });
   if (!added) {
-    flashConflict("Уже есть", "HTTP 409 · все ячейки (ltv, rbp, region, product) заняты");
+    flashConflict("Уже есть", "Все ячейки этой сетки уже заполнены");
     return;
   }
   logAction("POST", "/rbp_ltv_matrix", "region_id=" + regionId + "&product_id=" + productId);
@@ -728,7 +792,7 @@ function addBucket(kind, regionId, productId) {
   const subset = list.filter((x) => x.region_id === regionId && x.product_id === productId);
   const score = subset.length ? Math.max.apply(null, subset.map((x) => x.score)) + 1 : 1;
   if (subset.some((x) => x.score === score)) {
-    flashConflict("Уже есть", "HTTP 409 · (score, region, product) уникален");
+    flashConflict("Уже есть", "Такой шаг оси уже есть");
     return;
   }
   const nid = nextId(list);
@@ -800,6 +864,46 @@ function saveRegionField(id, field, el) {
   render();
 }
 
+function toggleRegionAvailable(id, el) {
+  const r = regionById(id);
+  if (!r) return;
+  r.available = el.checked;
+  logAction("PUT", "/sales_regions/" + id, "доступен=" + r.available);
+  state.bus.regions_get = "ok";
+  save();
+  render();
+}
+
+function toggleRegionProduct(regionId, productId, el) {
+  const r = regionById(regionId);
+  if (!r) return;
+  r.product_ids = r.product_ids || [];
+  const pid = Number(productId);
+  if (el.checked) {
+    if (r.product_ids.indexOf(pid) === -1) r.product_ids.push(pid);
+  } else r.product_ids = r.product_ids.filter((x) => x !== pid);
+  logAction("PUT", "/sales_regions/" + regionId + "/products", String(pid));
+  state.bus.regions_get = "ok";
+  save();
+  render();
+}
+
+function toggleRegionOption(regionId, optionId, el) {
+  const r = regionById(regionId);
+  if (!r) return;
+  const o = optionRecById(optionId);
+  if (o && o.is_purpose) return;
+  r.option_ids = r.option_ids || [];
+  const oid = Number(optionId);
+  if (el.checked) {
+    if (r.option_ids.indexOf(oid) === -1) r.option_ids.push(oid);
+  } else r.option_ids = r.option_ids.filter((x) => x !== oid);
+  logAction("PUT", "/sales_regions/" + regionId + "/options", String(oid));
+  state.bus.options_get = "ok";
+  save();
+  render();
+}
+
 function setSliceField(id, field, el) {
   const sl = sliceById(id);
   if (!sl) return;
@@ -857,7 +961,7 @@ function sliceName(product, region, ltvMin, ltvMax, employment, age, kind) {
   const emp = catalogTitle(MOCK.employment, employment).replace("наемный", "Наем");
   const ageT = catalogTitle(MOCK.age_bands, age);
   const obj = objectTitle(kind).replace("квартира", "Квартира");
-  const ltv = (ltvMin == null || ltvMax == null) ? "LTV" : ("LTV" + Math.round(ltvMin * 100) + "_" + Math.round(ltvMax * 100));
+  const ltv = (ltvMin == null || ltvMax == null) ? "доля" : ("доля" + Math.round(ltvMin * 100) + "_" + Math.round(ltvMax * 100));
   return head + "_" + city + "_" + ltv + "_" + emp + "_" + ageT + "_" + obj;
 }
 
@@ -902,7 +1006,7 @@ function createSlice(productId) {
   state.slices.push(sl);
   state.selectedSliceId = sl.id;
   state.productTab = "slices";
-  logAction("POST", "/product_slices", sl.name + " · purpose=" + p.purpose);
+  logAction("POST", "/product_slices", sl.name + " · цель=" + purposeLabel(p.purpose));
   state.bus.slices_get = "ok";
   save();
   render();
@@ -937,7 +1041,7 @@ function createDraftSlice(productId) {
   state.selectedSliceId = sl.id;
   state.selectedId = "product:" + p.id;
   state.productTab = "slices";
-  logAction("POST", "/product_slices", "draft filling · purpose=" + p.purpose);
+  logAction("POST", "/product_slices", "черновик · цель=" + purposeLabel(p.purpose));
   save();
   render();
 }
@@ -1037,32 +1141,32 @@ function noOptionsToggle(productId, el) {
 async function previewSolver() {
   if (busy) return;
   busy = true;
-  showModal("Как это увидит Solver", "Пакеты на входе в ЛК. Это не getDecision и не АНД.");
+  showModal("Как это увидит калькулятор", "Пакеты на входе в кабинет. Это не решение СПР и не АНД.");
   state.bus.products_get = "pending";
   renderBus();
-  addModalLine("GET /products · available=true", "on");
+  addModalLine("запрос витрины: только доступные продукты", "on");
   await sleep(500);
-  const names = state.products.filter((p) => p.available).map((p) => p.purpose).join(", ");
+  const names = state.products.filter((p) => p.available).map((p) => purposeLabel(p.purpose)).join(", ");
   state.bus.products_get = "ok";
   addModalLine("цели: " + names, "ok");
   const vis = solverSlices();
   state.bus.slices_get = "ok";
-  addModalLine("срезы витрины available+active: " + vis.length, "ok");
+  addModalLine("срезы витрины (доступный продукт + действующий + регион): " + vis.length, "ok");
   const hit = getScore("fico", 650);
   state.bus.score_get = "pending";
   renderBus();
-  addModalLine("GET /riskmanager/scores/fico/score?position_value=650", "on");
+  addModalLine("запрос балла кредитной шкалы при значении 650", "on");
   await sleep(400);
   state.bus.score_get = "ok";
-  addModalLine("score=" + (hit ? hit.score : "—"), "ok");
+  addModalLine("балл " + (hit ? hit.score : "—"), "ok");
   const cell = state.matrix.find((m) => m.ltv_id === 202 && m.rbp_id === 302);
   state.bus.matrix_get = "pending";
   renderBus();
-  addModalLine("GET /rbp_ltv_matrix?region_id=1&product_id=2", "on");
+  addModalLine("запрос матрицы: Москва, залог", "on");
   await sleep(400);
   state.bus.matrix_get = "ok";
-  addModalLine("ячейка LTV2×RBP2 = " + (cell ? cell.score : "—"), "ok");
-  addModalLine("Loginom не вызывали", "ok");
+  addModalLine("ячейка доля кредита 2 × оценка риска 2 = " + (cell ? cell.score : "—"), "ok");
+  addModalLine("СПР не вызывали", "ok");
   save();
   await sleep(600);
   hideModal();
@@ -1073,10 +1177,10 @@ async function previewSolver() {
 async function exportExcel() {
   if (busy) return;
   busy = true;
-  showModal("Выгрузить в Excel", "Учебный стол: выгрузка срезов без ПДн. Не Loginom.");
+  showModal("Выгрузить таблицу", "Учебный стол: выгрузка срезов без ПДн. Не СПР.");
   state.bus.excel = "pending";
   renderBus();
-  addModalLine("GET /product_slices.xlsx", "on");
+  addModalLine("выгрузка срезов витрины", "on");
   await sleep(400);
   const rows = state.slices.map((s) => {
     const p = productById(s.product_id);
@@ -1096,10 +1200,10 @@ async function exportExcel() {
 async function importExcel() {
   if (busy) return;
   busy = true;
-  showModal("Загрузить из Excel", "Импорт не создаёт новую цель enum. Срез садится на cash_on_pledge.");
+  showModal("Загрузить таблицу", "Импорт не создаёт новую цель кредита. Срез садится на залог.");
   state.bus.excel = "pending";
   renderBus();
-  addModalLine("POST /product_slices.xlsx", "on");
+  addModalLine("загрузка срезов витрины", "on");
   await sleep(400);
   const region = regionById(1);
   const p = productById(2);
@@ -1127,8 +1231,8 @@ async function importExcel() {
   state.selectedId = "product:2";
   state.productTab = "slices";
   state.bus.excel = "ok";
-  addModalLine(sl.name + " · status=на проверке", "ok");
-  addModalLine("CreditPurposeEnum без изменений", "ok");
+  addModalLine(sl.name + " · статус: на проверке", "ok");
+  addModalLine("целей кредита по-прежнему три", "ok");
   logAction("POST", "/product_slices.xlsx", sl.name);
   save();
   await sleep(700);
@@ -1175,9 +1279,11 @@ function renderInbox() {
   document.getElementById("role-matrix").classList.toggle("on", state.role === "matrix");
   const ro = document.getElementById("role-options");
   if (ro) ro.classList.toggle("on", state.role === "options");
+  const rr = document.getElementById("role-regions");
+  if (rr) rr.classList.toggle("on", state.role === "regions");
   document.getElementById("officer-label").textContent = MOCK.officer.name;
   const title = state.role === "products" ? "Продукты" : state.role === "risk" ? "Шкалы риска"
-    : state.role === "options" ? "Опции" : "Матрица";
+    : state.role === "options" ? "Опции" : state.role === "regions" ? "Регионы" : "Матрица";
   document.getElementById("inbox-title").innerHTML = title + helpBtn("inbox");
 
   let cards = "";
@@ -1187,7 +1293,7 @@ function renderInbox() {
       const on = state.selectedId === id ? " on" : "";
       const n = state.slices.filter((s) => s.product_id === p.id && s.status !== "archived").length;
       return '<button type="button" class="card-deal' + on + '" onclick="selectItem(\'' + id + '\')">' +
-        "<b>" + p.name + "</b><span>" + purposeLabel(p.purpose) + " · " + p.purpose + " · срезов " + n + "</span>" +
+        "<b>" + p.name + "</b><span>" + purposeLabel(p.purpose) + " · срезов " + n + "</span>" +
         (p.available ? '<i class="badge badge-ok">доступен</i>' : '<i class="badge badge-wait">выключен</i>') +
         "</button>";
     }).join("") +
@@ -1213,18 +1319,30 @@ function renderInbox() {
       const on = state.selectedId === id ? " on" : "";
       return '<button type="button" class="card-deal' + on + '" onclick="selectItem(\'' + id + '\')" title="' +
         String(o.name).replace(/"/g, "&quot;") + '">' +
-        "<b>" + ellip(o.name, 28) + "</b><span>этап " + o.stage + " · is_purpose=" + o.is_purpose + "</span>" +
+        "<b>" + ellip(o.name, 28) + "</b><span>этап: " + stageLabel(o.stage) + " · опция</span>" +
         '<i class="badge ' + badgeForStatus(o.status) + '">' + statusMeta(o.status).title + "</i></button>";
     }).join("") +
       '<button type="button" class="btn btn-primary" onclick="createOptionDraft()">Создать опцию</button>' +
-      '<p class="hint">Опции накрывают срезы. Не CreditPurposeEnum.</p>';
+      '<p class="hint">Опции накрывают срезы и регионы. Не новая цель кредита.</p>';
+  } else if (state.role === "regions") {
+    cards = state.regions.map(function (r) {
+      const id = "region:" + r.id;
+      const on = state.selectedId === id ? " on" : "";
+      const nProd = (r.product_ids || []).length;
+      const nOpt = (r.option_ids || []).length;
+      return '<button type="button" class="card-deal' + on + '" onclick="selectItem(\'' + id + '\')">' +
+        "<b>" + r.value + "</b><span>" + channelLabel(r.sale_direction) +
+        " · ликвидность " + r.liquidity + " · продуктов " + nProd + " · опций " + nOpt + "</span>" +
+        (r.available === false ? '<i class="badge badge-wait">закрыт</i>' : '<i class="badge badge-ok">открыт</i>') +
+        "</button>";
+    }).join("");
   } else if (state.role === "risk") {
     cards = Object.keys(state.scales).map((slug) => {
       const sc = state.scales[slug];
       const id = "scale:" + slug;
       const on = state.selectedId === id ? " on" : "";
       return '<button type="button" class="card-deal' + on + '" onclick="selectItem(\'' + id + '\')">' +
-        "<b>" + sc.title + "</b><span>/riskmanager/" + slug +
+        "<b>" + sc.title + "</b><span>шкала риска" +
         (isConsistent(slug) ? "" : " · неконсистентна") + "</span></button>";
     }).join("");
   } else {
@@ -1235,8 +1353,8 @@ function renderInbox() {
       const id = "matrix:" + r.id + ":2";
       const on = String(state.selectedId).indexOf("matrix:" + r.id + ":") === 0 ? " on" : "";
       return '<button type="button" class="card-deal' + on + '" onclick="selectItem(\'' + id + '\')">' +
-        "<b>" + r.value + "</b><span>" + r.sale_direction + " · ликвидность " + r.liquidity +
-        " · LTV кв. " + Math.round(r.ltv_flat * 100) + "%</span></button>";
+        "<b>" + r.value + "</b><span>" + channelLabel(r.sale_direction) + " · ликвидность " + r.liquidity +
+        " · доля кредита (квартира) " + Math.round(r.ltv_flat * 100) + "%</span></button>";
     }).join("");
   }
   document.getElementById("inbox-list").innerHTML = cards;
@@ -1255,7 +1373,7 @@ function renderBus() {
 }
 
 function logHtml() {
-  if (!state.log.length) return '<p class="hint">Пока нет записей ActionLog.</p>';
+  if (!state.log.length) return '<p class="hint">Пока нет записей журнала.</p>';
   return '<div class="log-mini">' + state.log.map((x) =>
     "<div><b>" + x.method + "</b> " + x.endpoint + (x.extra ? " · " + x.extra : "") + "</div>"
   ).join("") + "</div>";
@@ -1263,12 +1381,12 @@ function logHtml() {
 
 function solverPanel() {
   return '<div class="panel span-2 drop-excel" ondragover="event.preventDefault()" ondrop="onExcelDrop(event)">' +
-    panelHead("Проверка Solver", "bus") +
-    '<button type="button" class="btn btn-primary" onclick="previewSolver()">Как это увидит Solver</button>' +
-    '<button type="button" class="btn btn-ghost" onclick="exportExcel()">Выгрузить в Excel</button>' +
+    panelHead("Проверка витрины", "bus") +
+    '<button type="button" class="btn btn-primary" onclick="previewSolver()">Как это увидит калькулятор</button>' +
+    '<button type="button" class="btn btn-ghost" onclick="exportExcel()">Выгрузить таблицу</button>' +
     '<label class="file-pick"><input type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onchange="onExcelFile(this)">' +
-    '<span class="file-pick-btn">Загрузить из Excel</span></label>' +
-    '<p class="hint">Только XLSX. Файлы другого типа не перетаскиваются.</p>' +
+    '<span class="file-pick-btn">Загрузить таблицу .xlsx</span></label>' +
+    '<p class="hint">Только файл .xlsx. Файлы другого типа не перетаскиваются.</p>' +
     logHtml() + "</div>";
 }
 
@@ -1287,37 +1405,37 @@ function renderProduct() {
   const tab = state.productTab || "card";
   const head = '<div class="work-inner"><div class="work-head">' +
     "<h1>" + p.name + "</h1>" +
-    '<p class="stage-now">' + p.purpose + "</p>" +
-    "<p class=\"lead\">Витрина для Solver. Решение АНД и категория КИ здесь не живут.</p>" +
+    '<p class="stage-now">' + purposeLabel(p.purpose) + "</p>" +
+    "<p class=\"lead\">Витрина для калькулятора предложений. Решение АНД и категория КИ здесь не живут.</p>" +
     productTabs(tab) + "</div><div class=\"desk\">";
   if (tab === "slices") return head + renderSlicesPanel(p) + solverPanel() + "</div></div>";
   if (tab === "options") return head + renderOptionsPanel(p) + solverPanel() + "</div></div>";
   const pkgs = (p.packages || []).map((code) => {
     const info = MOCK.packages[code] || { label: code };
-    return '<div class="pkg-card"><b>' + info.label + "</b><span class=\"hint\">" + code +
-      " · " + (info.insurance || "") + " · " + (info.commission || "") +
-      (info.ltv_cap ? " · LTV ≤ " + Math.round(info.ltv_cap * 100) + "%" : "") +
+    return '<div class="pkg-card"><b>' + info.label + "</b><span class=\"hint\">" +
+      (info.insurance || "") + " · " + (info.commission || "") +
+      (info.ltv_cap ? " · доля кредита ≤ " + Math.round(info.ltv_cap * 100) + "%" : "") +
       (info.surcharge_pp ? " · +" + info.surcharge_pp + " п.п." : "") +
       "</span></div>";
   }).join("");
   return head +
     '<div class="panel span-2">' + panelHead("Основные сведения", "product") +
-    '<p class="hint">Показатели делятся на группы: основные сведения, пакеты Solver, надбавки, опции.</p>' +
+    '<p class="hint">Показатели делятся на группы: основные сведения, пакеты калькулятора, надбавки, опции.</p>' +
     '<div class="grid-4">' +
-    '<div class="param"><small>Цель enum</small><b>' + p.purpose + "</b></div>" +
-    '<div class="param"><small>Направление</small><b>b2c / b2b</b></div>' +
+    '<div class="param"><small>Цель кредита</small><b>' + purposeLabel(p.purpose) + "</b></div>" +
+    '<div class="param"><small>Канал</small><b>прямой канал / партнёры</b></div>' +
     '<div class="param"><small>КВ</small><b>' + p.kv_note + "</b></div>" +
-    '<div class="param"><small>Записей enum</small><b>' + state.products.length + " из 3</b></div></div>" +
+    '<div class="param"><small>Целей в справочнике</small><b>' + state.products.length + " из 3</b></div></div>" +
     '<label class="check"><input type="checkbox" ' + (p.available ? "checked" : "") +
-    ' onchange="toggleAvailable(' + p.id + ', this)"><span>Продукт доступен (available)</span></label>' +
+    ' onchange="toggleAvailable(' + p.id + ', this)"><span>Продукт доступен</span></label>' +
     '<label class="check"><input type="checkbox" ' + (p.no_options ? "checked" : "") +
     ' onchange="noOptionsToggle(' + p.id + ', this)"><span>Продукт без опций</span></label>' +
     '<p class="hint">Четвёртую цель под коридор, «купи ставку» или ЮЛ не добавляем. Срезы витрины — вкладка «Срезы».</p></div>' +
-    '<div class="panel">' + panelHead("Пакеты Solver", "product") + pkgs +
+    '<div class="panel">' + panelHead("Пакеты калькулятора", "product") + pkgs +
     '<p class="hint">Клиент выбирает пакет, не правит ставку. Точные проценты — из актуальной матрицы, не из памяти.</p></div>' +
     '<div class="panel">' + panelHead("Надбавки", "product") +
-    MOCK.surcharges.map((x) => '<div class="row"><span>' + x.code + "</span><b>" + x.effect +
-      "</b></div><p class=\"hint\">" + x.title + " · " + x.owner + "</p>").join("") +
+    MOCK.surcharges.map((x) => '<div class="row"><span>' + x.title + "</span><b>" + x.effect +
+      "</b></div><p class=\"hint\">" + x.owner + "</p>").join("") +
     "</div>" +
     solverPanel() + "</div></div>";
 }
@@ -1359,9 +1477,9 @@ function renderSlicesPanel(p) {
     (cols.options ? "<th>Опции</th>" : "") +
     (cols.income ? "<th>Справка о доходах</th>" : "") +
     (cols.employment ? "<th>Трудовой статус</th>" : "") +
-    "<th>Объект</th><th>Регион</th><th>LTV</th><th>Размер города</th><th>Возраст</th><th></th>";
+    "<th>Объект</th><th>Регион</th><th>Доля кредита</th><th>Размер города</th><th>Возраст</th><th></th>";
   return '<div class="panel span-2">' + panelHead("Срезы витрины", "slices") +
-    '<p class="hint">Как в старом макете «Настройка продуктов». Сорт по дате создания, от новых к старым. POST не добавляет цель в enum.</p>' +
+    '<p class="hint">Как в старом макете «Настройка продуктов». Сорт по дате создания, от новых к старым. Новый срез не добавляет цель кредита.</p>' +
     '<div class="col-gear"><small>Настройка таблицы</small>' +
     '<label class="check"><input type="checkbox" ' + (cols.options ? "checked" : "") +
     ' onchange="toggleCol(\'options\', this)"><span>Опции</span></label>' +
@@ -1380,14 +1498,14 @@ function renderSlicesPanel(p) {
     "<label>Трудовой статус<select id=\"new-slice-emp\">" + empOpts + "</select></label>" +
     "<label>Возраст<select id=\"new-slice-age\">" + ageOpts + "</select></label>" +
     "<label>Размер города<select id=\"new-slice-city\">" + cityOpts + "</select></label>" +
-    '<label>LTV от<input id="new-slice-min" type="number" step="0.01" value="0.35"></label>' +
-    '<label>LTV до<input id="new-slice-max" type="number" step="0.01" value="0.55"></label>' +
+    '<label>Доля кредита от<input id="new-slice-min" type="number" step="0.01" value="0.35"></label>' +
+    '<label>Доля кредита до<input id="new-slice-max" type="number" step="0.01" value="0.55"></label>' +
     '<label>С<input id="new-slice-from" type="date" value="2026-09-17"></label>' +
     '<label>По<input id="new-slice-to" type="date" value="2026-12-31"></label></div>' +
     '<button type="button" class="btn btn-primary" onclick="createSlice(' + p.id + ')">Создать срез</button>' +
     '<button type="button" class="btn btn-ghost" onclick="createDraftSlice(' + p.id + ')">Создать черновик</button>' +
-    '<p class="hint">«Создать продукт» в макете = срез на цели ' + p.purpose +
-    ". Выход без заполнения даёт статус Заполняется.</p></div>" +
+    '<p class="hint">«Создать продукт» в макете = срез на цели «' + purposeLabel(p.purpose) +
+    '». Выход без заполнения даёт статус «Заполняется».</p></div>' +
     editor + "</div>";
 }
 
@@ -1408,7 +1526,7 @@ function renderSliceEditor(sl, p) {
   const opts = (MOCK.option_catalog || []).map((o) =>
     '<label class="check"><input type="checkbox" ' + ((sl.options || []).indexOf(o.id) !== -1 ? "checked" : "") +
     ' onchange="toggleSliceOption(' + sl.id + ", '" + o.id + "', this)\"><span>" + o.title +
-    (o.is_purpose ? " (запрещено как цель)" : "") + "</span></label>"
+    (o.is_purpose ? " (это не опция)" : "") + "</span></label>"
   ).join("");
   const ltvMin = sl.ltv_min == null ? "" : sl.ltv_min;
   const ltvMax = sl.ltv_max == null ? "" : sl.ltv_max;
@@ -1421,8 +1539,8 @@ function renderSliceEditor(sl, p) {
     '<label>Трудовой статус<select onchange="setSliceField(' + sl.id + ", 'employment', this)\">" + empOpts + "</select></label>" +
     '<label>Возраст<select onchange="setSliceField(' + sl.id + ", 'age_band', this)\">" + ageOpts + "</select></label>" +
     '<label>Размер города<select onchange="setSliceField(' + sl.id + ", 'city_size', this)\">" + cityOpts + "</select></label>" +
-    '<label>LTV от<input type="number" step="0.01" value="' + ltvMin + '" onchange="setSliceField(' + sl.id + ", 'ltv_min', this)\"></label>" +
-    '<label>LTV до<input type="number" step="0.01" value="' + ltvMax + '" onchange="setSliceField(' + sl.id + ", 'ltv_max', this)\"></label>" +
+    '<label>Доля кредита от<input type="number" step="0.01" value="' + ltvMin + '" onchange="setSliceField(' + sl.id + ", 'ltv_min', this)\"></label>" +
+    '<label>Доля кредита до<input type="number" step="0.01" value="' + ltvMax + '" onchange="setSliceField(' + sl.id + ", 'ltv_max', this)\"></label>" +
     '<label>С<input type="date" value="' + (sl.period_from || "") + '" onchange="setSliceField(' + sl.id + ", 'period_from', this)\"></label>" +
     '<label>По<input type="date" value="' + (sl.period_to || "") + '" onchange="setSliceField(' + sl.id + ", 'period_to', this)\"></label></div>" +
     '<label class="check"><input type="checkbox" ' + (sl.no_options ? "checked" : "") +
@@ -1436,7 +1554,8 @@ function renderSliceEditor(sl, p) {
     '<button type="button" class="btn btn-ghost" onclick="setSliceStatusValue(' + sl.id + ", 'filling')\">Заполняется</button>" +
     '<button type="button" class="btn btn-danger" onclick="archiveSlice(' + sl.id + ')">В архив</button>' +
     "</div>" +
-    '<p class="hint">Цель остаётся ' + p.purpose + ". Solver видит только available+действующий.</p></div>";
+    '<p class="hint">Цель остаётся «' + purposeLabel(p.purpose) +
+    '». Калькулятор видит только доступный продукт в открытом регионе и действующий срез.</p></div>';
 }
 
 function renderOptionsPanel(p) {
@@ -1446,19 +1565,18 @@ function renderOptionsPanel(p) {
   const table = recs.map(function (o) {
     return "<tr><td>" + ellip(o.name, 32) + "</td><td>" +
       '<i class="badge ' + badgeForStatus(o.status) + '">' + statusMeta(o.status).title + "</i></td><td>" +
-      periodLabel(o) + "</td><td>" + (o.stage === "lead" ? "Лид" : o.stage) + "</td><td>" +
+      periodLabel(o) + "</td><td>" + stageLabel(o.stage) + "</td><td>" +
       (o.commission_note || "—") + "</td><td>" + (o.rate_note || "—") + "</td><td>" +
       '<button type="button" class="btn btn-ghost" onclick="selectItem(\'optrec:' + o.id + '\')">Карточка</button></td></tr>';
   }).join("");
   const catalog = (MOCK.option_catalog || []).map((o) =>
-    '<div class="pkg-card"><b>' + o.title + "</b><span class=\"hint\">" + o.note +
-    " · is_purpose=" + o.is_purpose + "</span>" +
+    '<div class="pkg-card"><b>' + o.title + "</b><span class=\"hint\">" + o.note + "</span>" +
     '<label class="check"><input type="checkbox" ' + (state.optionOn[o.id] ? "checked" : "") +
     ' onchange="toggleOption(\'' + o.id + '\', this)"><span>Опция доступна в каталоге</span></label></div>'
   ).join("");
   const green = MOCK.green_corridor.applies_to.indexOf(p.purpose) !== -1 && state.greenOn[p.purpose];
   return '<div class="panel span-2">' + panelHead("Опции продукта", "options") +
-    '<p class="hint">Вкладка «Опции» из макета. На цели ' + p.purpose +
+    '<p class="hint">Вкладка «Опции» из макета. На цели «' + purposeLabel(p.purpose) + '»' +
     (green ? " коридор включён." : " коридор выключен.") +
     " КВ только вместе с периодом акции.</p>" +
     '<label class="check"><input type="checkbox" ' + (p.no_options ? "checked" : "") +
@@ -1481,12 +1599,12 @@ function renderOptionCard() {
   }).join("");
   return '<div class="work-inner"><div class="work-head">' +
     "<h1>" + o.name + "</h1>" +
-    '<p class="stage-now">is_purpose=' + o.is_purpose + "</p>" +
-    "<p class=\"lead\">Опция накрывает срезы. Не CreditPurposeEnum. Надбавка к комиссии только с периодом акции.</p></div>" +
+    '<p class="stage-now">' + (o.is_purpose ? "цель" : "опция, не отдельная цель") + "</p>" +
+    "<p class=\"lead\">Опция накрывает срезы. Не отдельная цель кредита. Надбавка к комиссии только с периодом акции.</p></div>" +
     '<div class="desk"><div class="panel span-2">' + panelHead("Основные сведения", "options") +
     '<div class="grid-4">' +
     '<div class="param"><small>Статус</small><b>' + statusMeta(o.status).title + "</b></div>" +
-    '<div class="param"><small>Этап</small><b>' + (o.stage === "lead" ? "Лид" : o.stage) + "</b></div>" +
+    '<div class="param"><small>Этап</small><b>' + stageLabel(o.stage) + "</b></div>" +
     '<div class="param"><small>Период</small><b>' + periodLabel(o) + "</b></div>" +
     '<div class="param"><small>По умолчанию</small><b>' + (o.is_default ? "да" : "нет") + "</b></div></div>" +
     '<div class="grid-4" style="margin-top:8px">' +
@@ -1513,7 +1631,7 @@ function renderOptionCard() {
     '<button type="button" class="btn btn-ghost" onclick="setOptionStatus(' + o.id + ", 'risk_reject')\">Не принято рисками</button>" +
     '<button type="button" class="btn btn-ghost" onclick="setOptionStatus(' + o.id + ", 'filling')\">Заполняется</button>" +
     '<button type="button" class="btn btn-danger" onclick="setOptionStatus(' + o.id + ", 'archived')\">Удален</button></div>" +
-    '<p class="hint">is_purpose=' + o.is_purpose + ". Loginom не вызываем.</p></div>" +
+    '<p class="hint">Опция не становится отдельной целью кредита. СПР не вызываем.</p></div>' +
     solverPanel() + "</div></div>";
 }
 
@@ -1521,7 +1639,7 @@ function renderGreen() {
   const gc = MOCK.green_corridor;
   const toggles = gc.applies_to.map((p) =>
     '<label class="check"><input type="checkbox" ' + (state.greenOn[p] ? "checked" : "") +
-    ' onchange="toggleGreen(\'' + p + '\', this)"><span>Доступен на цели ' + purposeLabel(p) + " (" + p + ")</span></label>"
+    ' onchange="toggleGreen(\'' + p + '\', this)"><span>Доступен на цели ' + purposeLabel(p) + "</span></label>"
   ).join("");
   return '<div class="work-inner"><div class="work-head">' +
     "<h1>Зелёный коридор</h1>" +
@@ -1529,8 +1647,8 @@ function renderGreen() {
     "<p class=\"lead\">" + gc.note + "</p></div>" +
     '<div class="desk"><div class="panel span-2">' + panelHead("Привязка", "product") +
     toggles +
-    "<p class=\"hint\">is_purpose=" + gc.is_purpose + ". В CreditPurposeEnum по-прежнему три значения: " +
-    MOCK.purposes.join(", ") + ".</p>" +
+    "<p class=\"hint\">Не отдельная цель кредита. В справочнике по-прежнему три цели: " +
+    MOCK.purposes.map(purposeLabel).join(", ") + ".</p>" +
     '<div class="done-banner">Это не отдельный продукт и не отдельная стадия ELMA.</div></div>' +
     solverPanel() + "</div></div>";
 }
@@ -1543,14 +1661,14 @@ function renderScale() {
   let rows;
   let thead;
   if (sc.kind === "enum") {
-    thead = "<th>Статус</th><th>Значение</th><th>Score</th><th></th>";
+    thead = "<th>Статус</th><th>Значение</th><th>Балл</th><th></th>";
     rows = sc.rows.map(function (row) {
-      return "<tr><td>" + String(row.position) + "</td><td>" + (row.value == null ? "—" : row.value) + "</td><td>" +
+      return "<tr><td>" + enumPositionLabel(slug, row.position) + "</td><td>" + (row.value == null ? "—" : row.value) + "</td><td>" +
         '<input type="number" step="0.1" value="' + row.score +
         '" onchange="saveScore(\'' + slug + "'," + row.id + ', this)"></td><td></td></tr>';
     }).join("");
   } else {
-    thead = "<th>От</th><th>До</th><th>Score</th><th></th>";
+    thead = "<th>От</th><th>До</th><th>Балл</th><th></th>";
     rows = sc.rows.map(function (row, i) {
       const ft = fromTo(sc.rows, i);
       const boundary = isBoundary(row);
@@ -1571,22 +1689,27 @@ function renderScale() {
   const addForm = canPos
     ? '<div class="actions" style="margin-top:8px">' +
       '<input id="new-pos-' + slug + '" type="number" step="0.1" placeholder="До">' +
-      '<input id="new-score-' + slug + '" type="number" step="0.1" placeholder="score">' +
+      '<input id="new-score-' + slug + '" type="number" step="0.1" placeholder="балл">' +
       '<button type="button" class="btn btn-ghost" onclick="addScaleRowFromForm(\'' + slug + '\')">+</button>' +
-      '<button type="button" class="btn btn-ghost" onclick="addMissingRow(\'' + slug + '\')">Missings</button></div>'
-    : '<p class="hint">Ступени enum / 2-НДФЛ фиксированы API (−1 / 0 / 1 или married…other).</p>';
+      '<button type="button" class="btn btn-ghost" onclick="addMissingRow(\'' + slug + '\')">Нет значения</button></div>'
+    : '<p class="hint">Ступени семейного положения и 2-НДФЛ фиксированы (нет данных / нулевой / есть либо в браке…иное).</p>';
   const probePh = slug === "marital_status" ? "married" : slug === "ltv" ? "0.5" : "600";
   const note = sc.note ? '<p class="hint">' + sc.note + "</p>" : "";
+  const probeControl = sc.kind === "enum"
+    ? '<select id="probe-' + slug + '">' + sc.rows.map(function (row) {
+      return '<option value="' + row.position + '">' + enumPositionLabel(slug, row.position) + "</option>";
+    }).join("") + "</select>"
+    : '<input id="probe-' + slug + '" placeholder="' + probePh + '" value="' + probePh + '">';
   return '<div class="work-inner"><div class="work-head">' +
     "<h1>" + sc.title + "</h1>" +
-    '<p class="stage-now">/riskmanager/' + slug + "</p>" +
-    "<p class=\"lead\">Solver спрашивает get_score. Loginom getDecision эту шкалу не редактирует." +
-    (isConsistent(slug) ? "" : " Шкала неконсистентна: нужны границы 0 и ∞.") + "</p></div>" +
+    '<p class="stage-now">шкала риска</p>' +
+    "<p class=\"lead\">Калькулятор предложений спрашивает балл шкалы. СПР это решение не редактирует." +
+    (isConsistent(slug) ? "" : " Шкала неконсистентна: нужны границы 0 и «без ограничения».") + "</p></div>" +
     '<div class="desk"><div class="panel span-2">' + panelHead("Диапазоны", "scale") + note +
     '<table class="scale-table"><thead><tr>' + thead + "</tr></thead><tbody>" +
     rows + "</tbody></table>" + addForm +
-    '<div class="actions"><input id="probe-' + slug + '" placeholder="' + probePh + '" value="' + probePh + '">' +
-    '<button type="button" class="btn btn-primary" onclick="probeScore(\'' + slug + '\')">get_score</button>' +
+    '<div class="actions">' + probeControl +
+    '<button type="button" class="btn btn-primary" onclick="probeScore(\'' + slug + '\')">Посчитать балл</button>' +
     '<span class="hint" id="probe-out-' + slug + '"></span></div></div>' +
     solverPanel() + "</div></div>";
 }
@@ -1604,8 +1727,8 @@ function renderMatrix() {
   const hIsLtv = (state.matrixH || "rbp") === "ltv";
   const cols = hIsLtv ? useLtv : useRbp;
   const rowsAxis = hIsLtv ? useRbp : useLtv;
-  const colName = hIsLtv ? "LTV" : "RBP";
-  const rowName = hIsLtv ? "RBP" : "LTV";
+  const colName = hIsLtv ? axisLabel("ltv") : axisLabel("rbp");
+  const rowName = hIsLtv ? axisLabel("rbp") : axisLabel("ltv");
   const rid = ltv.length ? regionId : 1;
   const pid = ltv.length ? productId : 2;
   const productSwitch = state.products.map((p) =>
@@ -1630,20 +1753,20 @@ function renderMatrix() {
   const table = '<div class="matrix-wrap"><table class="scale-table matrix-table"><thead>' + head +
     "</thead><tbody>" + body + "</tbody></table></div>";
   const note = ltv.length
-    ? '<p class="hint">Редактировать значения нельзя: они ставятся при добавлении столбца/строки. Невозможная клетка — прочерк. Числа — score Solver, не ставка с холста Figma.</p>'
-    : '<p class="hint">Для этой пары региона и продукта матрица в лаборатории не размечена — открыта сетка залога × Москва как канон Solver.</p>';
+    ? '<p class="hint">Редактировать значения нельзя: они ставятся при добавлении столбца/строки. Невозможная клетка — прочерк. Числа — балл калькулятора, не ставка с макета.</p>'
+    : '<p class="hint">Для этой пары региона и продукта матрица в лаборатории не размечена — открыта сетка залога × Москва как канон калькулятора.</p>';
   const ch = state.matrixChannel || "all";
   return '<div class="work-inner"><div class="work-head">' +
     "<h1>" + region.value + "</h1>" +
-    '<p class="stage-now">' + (product ? product.purpose : "cash_on_pledge") + "</p>" +
-    "<p class=\"lead\">Матрица для Solver. АНД считает Loginom, не эту сетку. Покупка в фильтре = mortgage, не 4-я цель.</p>" +
+    '<p class="stage-now">' + (product ? purposeLabel(product.purpose) : purposeLabel("cash_on_pledge")) + "</p>" +
+    "<p class=\"lead\">Матрица для калькулятора предложений. АНД считает СПР, не эту сетку. Покупка в фильтре — цель «покупка», не четвёртая цель.</p>" +
     '<div class="filters">' + productSwitch + "</div></div>" +
-    '<div class="desk"><div class="panel span-2">' + panelHead("RBP × LTV", "matrix") +
+    '<div class="desk"><div class="panel span-2">' + panelHead("Оценка по риску × доля кредита", "matrix") +
     '<div class="grid-4">' +
     '<label>Канал продаж<select onchange="setMatrixChannel(this)">' +
     '<option value="all"' + (ch === "all" ? " selected" : "") + ">все</option>" +
-    '<option value="b2c"' + (ch === "b2c" ? " selected" : "") + ">b2c</option>" +
-    '<option value="b2b"' + (ch === "b2b" ? " selected" : "") + ">b2b</option></select></label>" +
+    '<option value="b2c"' + (ch === "b2c" ? " selected" : "") + ">прямой канал</option>" +
+    '<option value="b2b"' + (ch === "b2b" ? " selected" : "") + ">партнёры</option></select></label>" +
     '<label>Регион<select onchange="selectItem(\'matrix:\'+this.value+\':' + productId + '\')">' +
     state.regions.map(function (r) {
       return '<option value="' + r.id + '"' + (r.id === region.id ? " selected" : "") + ">" + r.value + "</option>";
@@ -1654,25 +1777,75 @@ function renderMatrix() {
         purposeLabel(p.purpose) + "</option>";
     }).join("") + "</select></label>" +
     '<label>Горизонталь<select onchange="setMatrixAxis(\'h\', this)">' +
-    '<option value="rbp"' + (!hIsLtv ? " selected" : "") + ">RBP</option>" +
-    '<option value="ltv"' + (hIsLtv ? " selected" : "") + ">LTV</option></select></label>" +
+    '<option value="rbp"' + (!hIsLtv ? " selected" : "") + ">" + axisLabel("rbp") + "</option>" +
+    '<option value="ltv"' + (hIsLtv ? " selected" : "") + ">" + axisLabel("ltv") + "</option></select></label>" +
     '<label>Вертикаль<select onchange="setMatrixAxis(\'v\', this)">' +
-    '<option value="ltv"' + (hIsLtv ? " selected" : "") + ">LTV</option>" +
-    '<option value="rbp"' + (!hIsLtv ? " selected" : "") + ">RBP</option></select></label>" +
+    '<option value="ltv"' + (hIsLtv ? " selected" : "") + ">" + axisLabel("ltv") + "</option>" +
+    '<option value="rbp"' + (!hIsLtv ? " selected" : "") + ">" + axisLabel("rbp") + "</option></select></label>" +
     '<div class="param"><small>Ликвидность</small><b>' +
     '<input type="number" step="1" value="' + region.liquidity +
     '" onchange="saveRegionField(' + region.id + ", 'liquidity', this)\"></b></div></div>" +
     note + table +
     '<div class="actions">' +
-    '<button type="button" class="btn btn-ghost" onclick="addBucket(\'ltv\',' + regionId + "," + productId + ')">+ LTV</button>' +
-    '<button type="button" class="btn btn-ghost" onclick="addBucket(\'rbp\',' + regionId + "," + productId + ')">+ RBP</button>' +
+    '<button type="button" class="btn btn-ghost" onclick="addBucket(\'ltv\',' + regionId + "," + productId + ')">+ доля кредита</button>' +
+    '<button type="button" class="btn btn-ghost" onclick="addBucket(\'rbp\',' + regionId + "," + productId + ')">+ оценка по риску</button>' +
     "</div>" +
     '<div class="autostep"><b>Автонастройка шагов</b>' +
     '<div class="grid-4">' +
     '<label>Горизонталь<input id="auto-h" type="number" value="20"></label>' +
     '<label>Вертикаль<input id="auto-v" type="number" value="50"></label></div>' +
     '<button type="button" class="btn btn-ghost" onclick="autoStepMatrix(' + regionId + "," + productId + ')">Применить</button>' +
-    '<p class="hint">Автомат заменяет шаг оси; ячейки заполняются сами. Loginom не вызываем.</p></div></div>' +
+    '<p class="hint">Автомат заменяет шаг оси; ячейки заполняются сами. СПР не вызываем.</p></div></div>' +
+    solverPanel() + "</div></div>";
+}
+
+function renderRegionCard() {
+  const id = Number(String(state.selectedId).split(":")[1]);
+  const r = regionById(id);
+  if (!r) return "";
+  const products = state.products.map(function (p) {
+    const on = (r.product_ids || []).indexOf(p.id) !== -1;
+    return '<label class="check"><input type="checkbox" ' + (on ? "checked" : "") +
+      ' onchange="toggleRegionProduct(' + r.id + ", " + p.id + ', this)"><span>' +
+      p.name + " · " + purposeLabel(p.purpose) + "</span></label>";
+  }).join("");
+  const options = (state.options || []).map(function (o) {
+    const on = (r.option_ids || []).indexOf(o.id) !== -1;
+    return '<label class="check"><input type="checkbox" ' + (on ? "checked" : "") +
+      (o.is_purpose ? " disabled" : "") +
+      ' onchange="toggleRegionOption(' + r.id + ", " + o.id + ', this)"><span>' +
+      o.name + "</span></label>";
+  }).join("");
+  const nProd = (r.product_ids || []).length;
+  const nOpt = (r.option_ids || []).length;
+  const open = r.available !== false;
+  return '<div class="work-inner"><div class="work-head">' +
+    "<h1>" + r.value + "</h1>" +
+    '<p class="stage-now">' + (open ? "открыт" : "закрыт") + " · " + channelLabel(r.sale_direction) + "</p>" +
+    "<p class=\"lead\">Где выдаём продукт и какие опции можно выбрать. Не отдельная цель кредита и не очередь заявок.</p></div>" +
+    '<div class="desk"><div class="panel span-2">' + panelHead("Доступность региона", "regions") +
+    '<div class="grid-4">' +
+    '<div class="param"><small>Канал</small><b>' + channelLabel(r.sale_direction) + "</b></div>" +
+    '<div class="param"><small>Ликвидность</small><b>' + r.liquidity + "</b></div>" +
+    '<div class="param"><small>Доля кредита (квартира)</small><b>' + Math.round(r.ltv_flat * 100) + "%</b></div>" +
+    '<div class="param"><small>В витрине</small><b>продуктов ' + nProd + " · опций " + nOpt + "</b></div></div>" +
+    '<div class="grid-4" style="margin-top:8px">' +
+    '<label>Канал продаж<select onchange="saveRegionField(' + r.id + ", 'sale_direction', this)\">" +
+    '<option value="b2c"' + (r.sale_direction === "b2c" ? " selected" : "") + ">прямой канал</option>" +
+    '<option value="b2b"' + (r.sale_direction === "b2b" ? " selected" : "") + ">партнёры</option></select></label>" +
+    '<label>Ликвидность<input type="number" step="1" value="' + r.liquidity +
+    '" onchange="saveRegionField(' + r.id + ", 'liquidity', this)\"></label>" +
+    '<label>Доля кредита по квартире<input type="number" step="0.01" value="' + r.ltv_flat +
+    '" onchange="saveRegionField(' + r.id + ", 'ltv_flat', this)\"></label></div>" +
+    '<label class="check"><input type="checkbox" ' + (open ? "checked" : "") +
+    ' onchange="toggleRegionAvailable(' + r.id + ', this)"><span>Регион открыт для продаж</span></label>' +
+    '<p class="hint">Если регион закрыт, калькулятор предложений не отдаёт ни один продукт по этому городу. СПР не вызываем.</p></div>' +
+    '<div class="panel span-2">' + panelHead("Продукты в регионе", "regions") +
+    '<p class="hint">Три цели кредита. Коридор и «купи ставку» сюда не добавляем — они в списке опций.</p>' +
+    '<div class="check-grid">' + products + "</div></div>" +
+    '<div class="panel span-2">' + panelHead("Опции в регионе", "options") +
+    '<p class="hint">Какие оверлеи можно выбрать в этом регионе. Не новая цель кредита. Комиссия партнёра — только с периодом акции.</p>' +
+    '<div class="check-grid">' + options + "</div></div>" +
     solverPanel() + "</div></div>";
 }
 
@@ -1685,6 +1858,7 @@ function renderWork() {
   if (state.selectedId === "option:green") box.innerHTML = renderGreen();
   else if (String(state.selectedId).indexOf("product:") === 0) box.innerHTML = renderProduct();
   else if (String(state.selectedId).indexOf("optrec:") === 0) box.innerHTML = renderOptionCard();
+  else if (String(state.selectedId).indexOf("region:") === 0) box.innerHTML = renderRegionCard();
   else if (String(state.selectedId).indexOf("scale:") === 0) box.innerHTML = renderScale();
   else box.innerHTML = renderMatrix();
 }

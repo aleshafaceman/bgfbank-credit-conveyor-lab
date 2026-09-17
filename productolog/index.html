@@ -9,17 +9,18 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,700;1,400&family=Roboto+Condensed:wght@600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../deal-ops/deal-ops.css?v=18">
-  <link rel="stylesheet" href="productolog.css?v=4">
+  <link rel="stylesheet" href="productolog.css?v=5">
 </head>
 <body>
   <header class="header">
     <div class="brand">
       <img class="brand-logo" src="../deal-ops/brand/logo-on-dark.png" alt="БЖФ Банк">
-      <small>Конфиг продуктов и шкал · Solver читает, Loginom не вызываем</small>
+      <small>Справочник продуктов и шкал · калькулятор предложений читает, СПР не вызываем</small>
     </div>
     <div class="roles" role="tablist">
       <button type="button" class="role on" id="role-products" onclick="setRole('products')">Продукты</button>
       <button type="button" class="role" id="role-options" onclick="setRole('options')">Опции</button>
+      <button type="button" class="role" id="role-regions" onclick="setRole('regions')">Регионы</button>
       <button type="button" class="role" id="role-risk" onclick="setRole('risk')">Риск</button>
       <button type="button" class="role" id="role-matrix" onclick="setRole('matrix')">Матрица</button>
     </div>
@@ -44,7 +45,7 @@
       <div class="aside-head" id="bus-head">
         <h2>Ход обмена</h2>
       </div>
-      <p class="hint bus-hint">Кто читает этот конфиг. Живого Solver нет — учебный стол.</p>
+      <p class="hint bus-hint">Кто читает этот справочник. Живого калькулятора нет — учебный стол.</p>
       <div id="bus-list"></div>
     </aside>
   </div>
@@ -57,7 +58,7 @@
     </div>
   </div>
 
-  <script src="mock.js?v=3"></script>
-  <script src="productolog.js?v=4"></script>
+  <script src="mock.js?v=5"></script>
+  <script src="productolog.js?v=5"></script>
 </body>
 </html>
