@@ -1300,10 +1300,14 @@ console.log('\n=== 11. ARM underwriter / productolog ===');
     'productolog UI states green corridor is not a product');
   assert(/id="role-options"/.test(poHtml) && /createOptionDraft/.test(poJs) && /createDraftSlice/.test(poJs),
     'productolog has Options role and draft create');
+  assert(/id="role-regions"/.test(poHtml) && /toggleRegionProduct/.test(poJs) && /toggleRegionOption/.test(poJs),
+    'productolog has Regions role and per-region product/option toggles');
+  assert(po.regions.every(function(r) { return Array.isArray(r.product_ids) && Array.isArray(r.option_ids); }),
+    'regions carry product_ids and option_ids');
   assert(/Файлы другого типа не перетаскиваются/.test(poJs) && /\.xlsx\$/.test(poJs),
     'productolog rejects non-xlsx Excel drops');
-  assert(/Missings/.test(poJs) && /Автонастройка шагов/.test(poJs),
-    'productolog has Missings row and matrix autostep');
+  assert(/addMissingRow/.test(poJs) && /нет значения/.test(poJs) && /Автонастройка шагов/.test(poJs),
+    'productolog has missing-value row and matrix autostep');
   const ficoNull = po.scales.fico.rows.filter(function(r) { return r.position === 0 || r.position === null; });
   assert(ficoNull.length === 2, 'FICO scale has 0 and ∞ boundaries');
 
@@ -1319,6 +1323,7 @@ console.log('\n=== 11. ARM underwriter / productolog ===');
     'this._okPos = isValidUpdatedPosition("fico", 13, 700); this._badPos = isValidUpdatedPosition("fico", 13, 400);' +
     'this._addDup = addScaleRow("fico", 650, 9); this._addOk = addScaleRow("fico", 700, 18);' +
     'this._vis = solverSlices().every(function(s) { return s.status === "active"; });' +
+    'this._mskOn = regionAllowsProduct(1, 1); this._kazanOff = !regionAllowsProduct(4, 1);' +
     'this._draft = (createDraftSlice(2), state.slices.some(function(s) { return s.status === "filling" && s.ltv_min == null; }));' +
     'this._opt = (createOptionDraft(), state.options[state.options.length-1].is_purpose === false && state.options[state.options.length-1].status === "filling");',
     local,
@@ -1332,6 +1337,7 @@ console.log('\n=== 11. ARM underwriter / productolog ===');
     'duplicate scale position is AlreadyExists');
   assert(local._addOk && local._addOk.ok === true, 'POST scale row between neighbours');
   assert(local._vis === true, 'solverSlices keeps only active rows');
+  assert(local._mskOn && local._kazanOff, 'Moscow allows purchase; Kazan does not');
   assert(local._draft === true, 'draft slice is filling with empty LTV');
   assert(local._opt === true, 'draft option is filling and not a purpose');
 }

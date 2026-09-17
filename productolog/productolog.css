@@ -106,3 +106,13 @@
 .autostep .grid-4 { margin-top: 8px; }
 .scale-table tr.is-missing td { background: #f8fbff; }
 .drop-excel { min-height: 48px; }
+.check-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 16px;
+  margin: 8px 0 4px;
+}
+@media (max-width: 900px) {
+  .check-grid { grid-template-columns: 1fr; }
+}
+.header .roles { flex-wrap: wrap; }

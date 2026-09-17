@@ -30,7 +30,7 @@ window.PRODUCTOLOG_MOCK = {
   green_corridor: {
     is_purpose: false,
     applies_to: ["mortgage", "cash_on_pledge", "refinancing"],
-    note: "Опция сложной КИ. Не CreditPurposeEnum и не четвёртый продукт."
+    note: "Опция сложной КИ. Не отдельная цель кредита и не четвёртый продукт."
   },
   packages: {
     PKG_RECOMMENDED: { label: "Рекомендуем / Турбо 2.0", insurance: "ККС-12", commission: "по тарифу", ltv_cap: null },
@@ -62,19 +62,19 @@ window.PRODUCTOLOG_MOCK = {
     { id: "medium", title: "средний" }
   ],
   option_catalog: [
-    { id: "green_corridor", title: "Зелёный коридор", is_purpose: false, note: "Опция сложной КИ. Не CreditPurposeEnum." },
+    { id: "green_corridor", title: "Зелёный коридор", is_purpose: false, note: "Опция сложной КИ. Не отдельная цель кредита." },
     { id: "buy_rate", title: "Купи ставку", is_purpose: false, note: "Оверлей на залог, не четвёртая цель." },
     { id: "esia", title: "Цифровой профиль", is_purpose: false, note: "−0,5 п.п. из каталога надбавок." },
-    { id: "no_insurance", title: "Без ККС", is_purpose: false, note: "+5 п.п. Пакет PKG_NO_INSURANCE." },
-    { id: "plain0", title: "Просто 0", is_purpose: false, note: "Опция макета, не цель enum." },
-    { id: "bank_balance", title: "Объект с баланса банка", is_purpose: false, note: "Опция объекта, не 4-я цель." },
+    { id: "no_insurance", title: "Без ККС", is_purpose: false, note: "+5 п.п. Пакет без страхования жизни." },
+    { id: "plain0", title: "Просто 0", is_purpose: false, note: "Опция макета, не отдельная цель." },
+    { id: "bank_balance", title: "Объект с баланса банка", is_purpose: false, note: "Опция объекта, не четвёртая цель." },
     { id: "kv_up", title: "Повышенное КВ партнера", is_purpose: false, note: "КВ только с периодом акции." },
     { id: "discount25", title: "Скидка 25%", is_purpose: false, note: "Опция макета, не боевая ставка." },
     { id: "low_rate_pledge", title: "Залог по сниженной ставке", is_purpose: false, note: "Не «купи ставку» как цель." },
     { id: "fast_deal", title: "Быстрый выход на сделку", is_purpose: false, note: "Этап воронки, не цель кредита." }
   ],
   options: [
-    { id: 801, slug: "kv_up", name: "Повышенное КВ партнера", is_purpose: false, status: "risk_reject", period_from: "2026-09-01", period_to: "2026-09-30", stage: "lead", commission_note: "надбавка к комиссии · макет", rate_note: "не ставка Solver", is_default: false, product_ids: [2], promo: "акция выдач 01.09–30.09.2026" },
+    { id: 801, slug: "kv_up", name: "Повышенное КВ партнера", is_purpose: false, status: "risk_reject", period_from: "2026-09-01", period_to: "2026-09-30", stage: "lead", commission_note: "надбавка к комиссии · макет", rate_note: "не ставка калькулятора", is_default: false, product_ids: [2], promo: "акция выдач 01.09–30.09.2026" },
     { id: 802, slug: "plain0", name: "Просто 0", is_purpose: false, status: "active", period_from: "2026-09-01", period_to: "2026-12-31", stage: "lead", commission_note: "—", rate_note: "—", is_default: true, product_ids: [1, 2, 3], promo: "" },
     { id: 803, slug: "bank_balance", name: "Объект с баланса банка", is_purpose: false, status: "review", period_from: "2026-09-01", period_to: "2026-12-31", stage: "lead", commission_note: "—", rate_note: "—", is_default: false, product_ids: [2], promo: "" },
     { id: 804, slug: "discount25", name: "Скидка 25%", is_purpose: false, status: "review", period_from: "2026-09-01", period_to: "2026-09-30", stage: "lead", commission_note: "—", rate_note: "скидка макета, не боевая ставка", is_default: false, product_ids: [2, 3], promo: "акция выдач 01.09–30.09.2026" },
@@ -90,32 +90,32 @@ window.PRODUCTOLOG_MOCK = {
     { id: "archived", title: "Удален" }
   ],
   slices: [
-    { id: 501, product_id: 2, name: "Залог_Москва_LTV40_60_Наем_До50лет_Квартира", region_id: 1, object_kind: "flat", ltv_min: 0.4, ltv_max: 0.6, status: "active", period_from: "2026-09-01", period_to: "2026-12-31", options: ["esia", "plain0"], income_docs: ["bank_form"], employment: "hired", age_band: "to50", city_size: "capital", no_options: false, created: "2026-09-16T12:00:00Z" },
-    { id: 502, product_id: 2, name: "Залог_Москва_LTV30_40_Наем_До50лет_Квартира", region_id: 1, object_kind: "flat", ltv_min: 0.3, ltv_max: 0.4, status: "review", period_from: "2026-09-01", period_to: "2026-12-31", options: [], income_docs: ["ndfl2", "bank_form"], employment: "hired", age_band: "to50", city_size: "capital", no_options: false, created: "2026-09-15T12:00:00Z" },
-    { id: 503, product_id: 2, name: "Залог_Саратов_LTV30_40_Наем_До50лет_Квартира", region_id: 5, object_kind: "flat", ltv_min: 0.3, ltv_max: 0.4, status: "risk_reject", period_from: "2026-09-01", period_to: "2026-12-31", options: ["buy_rate"], income_docs: ["bank_form"], employment: "hired", age_band: "to50", city_size: "large", no_options: false, created: "2026-09-14T12:00:00Z" },
-    { id: 504, product_id: 1, name: "Приобретение_Москва_LTV40_55_Наем_До50лет_Квартира", region_id: 1, object_kind: "flat", ltv_min: 0.4, ltv_max: 0.55, status: "active", period_from: "2026-09-01", period_to: "2026-12-31", options: ["green_corridor"], income_docs: ["bank_form"], employment: "hired", age_band: "to50", city_size: "capital", no_options: false, created: "2026-09-13T12:00:00Z" },
-    { id: 505, product_id: 3, name: "Рефинансирование_Москва_LTV30_50_Наем_До50лет_Квартира", region_id: 1, object_kind: "flat", ltv_min: 0.3, ltv_max: 0.5, status: "active", period_from: "2026-09-01", period_to: "2026-12-31", options: [], income_docs: ["ndfl2"], employment: "hired", age_band: "to50", city_size: "capital", no_options: true, created: "2026-09-12T12:00:00Z" },
-    { id: 506, product_id: 2, name: "Залог_СПб_LTV35_50_ИП_До75лет_Апартаменты", region_id: 3, object_kind: "apartments", ltv_min: 0.35, ltv_max: 0.5, status: "review", period_from: "2026-09-15", period_to: "2026-12-31", options: [], income_docs: ["ndfl6", "bank_form"], employment: "ip", age_band: "to75", city_size: "capital", no_options: false, created: "2026-09-11T12:00:00Z" },
-    { id: 507, product_id: 2, name: "Залог_Казань_LTV30_45_Наем_До50лет_Коммерция", region_id: 4, object_kind: "commerce", ltv_min: 0.3, ltv_max: 0.45, status: "archived", period_from: "2026-01-01", period_to: "2026-08-31", options: [], income_docs: ["bank_form"], employment: "hired", age_band: "to50", city_size: "large", no_options: false, created: "2026-08-01T12:00:00Z" },
+    { id: 501, product_id: 2, name: "Залог_Москва_доля40_60_Наем_До50лет_Квартира", region_id: 1, object_kind: "flat", ltv_min: 0.4, ltv_max: 0.6, status: "active", period_from: "2026-09-01", period_to: "2026-12-31", options: ["esia", "plain0"], income_docs: ["bank_form"], employment: "hired", age_band: "to50", city_size: "capital", no_options: false, created: "2026-09-16T12:00:00Z" },
+    { id: 502, product_id: 2, name: "Залог_Москва_доля30_40_Наем_До50лет_Квартира", region_id: 1, object_kind: "flat", ltv_min: 0.3, ltv_max: 0.4, status: "review", period_from: "2026-09-01", period_to: "2026-12-31", options: [], income_docs: ["ndfl2", "bank_form"], employment: "hired", age_band: "to50", city_size: "capital", no_options: false, created: "2026-09-15T12:00:00Z" },
+    { id: 503, product_id: 2, name: "Залог_Саратов_доля30_40_Наем_До50лет_Квартира", region_id: 5, object_kind: "flat", ltv_min: 0.3, ltv_max: 0.4, status: "risk_reject", period_from: "2026-09-01", period_to: "2026-12-31", options: ["buy_rate"], income_docs: ["bank_form"], employment: "hired", age_band: "to50", city_size: "large", no_options: false, created: "2026-09-14T12:00:00Z" },
+    { id: 504, product_id: 1, name: "Приобретение_Москва_доля40_55_Наем_До50лет_Квартира", region_id: 1, object_kind: "flat", ltv_min: 0.4, ltv_max: 0.55, status: "active", period_from: "2026-09-01", period_to: "2026-12-31", options: ["green_corridor"], income_docs: ["bank_form"], employment: "hired", age_band: "to50", city_size: "capital", no_options: false, created: "2026-09-13T12:00:00Z" },
+    { id: 505, product_id: 3, name: "Рефинансирование_Москва_доля30_50_Наем_До50лет_Квартира", region_id: 1, object_kind: "flat", ltv_min: 0.3, ltv_max: 0.5, status: "active", period_from: "2026-09-01", period_to: "2026-12-31", options: [], income_docs: ["ndfl2"], employment: "hired", age_band: "to50", city_size: "capital", no_options: true, created: "2026-09-12T12:00:00Z" },
+    { id: 506, product_id: 2, name: "Залог_СПб_доля35_50_ИП_До75лет_Апартаменты", region_id: 3, object_kind: "apartments", ltv_min: 0.35, ltv_max: 0.5, status: "review", period_from: "2026-09-15", period_to: "2026-12-31", options: [], income_docs: ["ndfl6", "bank_form"], employment: "ip", age_band: "to75", city_size: "capital", no_options: false, created: "2026-09-11T12:00:00Z" },
+    { id: 507, product_id: 2, name: "Залог_Казань_доля30_45_Наем_До50лет_Коммерция", region_id: 4, object_kind: "commerce", ltv_min: 0.3, ltv_max: 0.45, status: "archived", period_from: "2026-01-01", period_to: "2026-08-31", options: [], income_docs: ["bank_form"], employment: "hired", age_band: "to50", city_size: "large", no_options: false, created: "2026-08-01T12:00:00Z" },
     { id: 508, product_id: 2, name: "Залог_Москва_черновик", region_id: 1, object_kind: "flat", ltv_min: null, ltv_max: null, status: "filling", period_from: "", period_to: "", options: [], income_docs: [], employment: "", age_band: "", city_size: "", no_options: false, created: "2026-09-17T08:00:00Z" }
   ],
   surcharges: [
-    { code: "SURCH_FSSP", title: "ФССП > 100 000 ₽", effect: "+2 п.п.", owner: "Loginom FSSP_001" },
-    { code: "SURCH_NO_INSURANCE", title: "Отказ от ККС", effect: "+5 п.п.", owner: "пакет PKG_NO_INSURANCE" },
+    { code: "SURCH_FSSP", title: "ФССП > 100 000 ₽", effect: "+2 п.п.", owner: "СПР, проверка ФССП" },
+    { code: "SURCH_NO_INSURANCE", title: "Отказ от ККС", effect: "+5 п.п.", owner: "пакет без страхования жизни" },
     { code: "SURCH_STANDARD_INCOME", title: "Доход Стандарт/Бизнес на Турбо", effect: "+1 п.п.", owner: "каталог опций" },
-    { code: "SURCH_ESIA", title: "Цифровой профиль", effect: "−0,5 п.п.", owner: "пакет PKG_ESIA" }
+    { code: "SURCH_ESIA", title: "Цифровой профиль", effect: "−0,5 п.п.", owner: "пакет цифрового профиля" }
   ],
   regions: [
-    { id: 1, sale_direction: "b2c", value: "Москва", liquidity: 1, ltv_flat: 0.55 },
-    { id: 2, sale_direction: "b2c", value: "Московская область 20–50 км", liquidity: 2, ltv_flat: 0.45 },
-    { id: 3, sale_direction: "b2c", value: "Санкт-Петербург", liquidity: 1, ltv_flat: 0.52 },
-    { id: 4, sale_direction: "b2b", value: "Казань", liquidity: 2, ltv_flat: 0.48 },
-    { id: 5, sale_direction: "b2c", value: "Саратов", liquidity: 2, ltv_flat: 0.4 }
+    { id: 1, sale_direction: "b2c", value: "Москва", liquidity: 1, ltv_flat: 0.55, available: true, product_ids: [1, 2, 3], option_ids: [801, 802, 806, 807] },
+    { id: 2, sale_direction: "b2c", value: "Московская область 20–50 км", liquidity: 2, ltv_flat: 0.45, available: true, product_ids: [1, 2, 3], option_ids: [802, 805, 807] },
+    { id: 3, sale_direction: "b2c", value: "Санкт-Петербург", liquidity: 1, ltv_flat: 0.52, available: true, product_ids: [1, 2, 3], option_ids: [802, 803, 806, 807] },
+    { id: 4, sale_direction: "b2b", value: "Казань", liquidity: 2, ltv_flat: 0.48, available: true, product_ids: [2, 3], option_ids: [801, 803, 805] },
+    { id: 5, sale_direction: "b2c", value: "Саратов", liquidity: 2, ltv_flat: 0.4, available: true, product_ids: [2], option_ids: [804, 805] }
   ],
   scales: {
     fico: {
       slug: "fico",
-      title: "FICO",
+      title: "Кредитный балл",
       kind: "float_range",
       rows: [
         { id: 11, position: 0, score: 0 },
@@ -128,9 +128,9 @@ window.PRODUCTOLOG_MOCK = {
     },
     clu: {
       slug: "clu",
-      title: "CLU",
+      title: "Использование лимита",
       kind: "float_range",
-      note: "Максимальный CLU по всем договорам, открытым за последние 36 месяцев",
+      note: "Максимальное использование лимита по всем договорам, открытым за последние 36 месяцев",
       rows: [
         { id: 21, position: 0, score: 0 },
         { id: 22, position: 40, score: 6 },
@@ -141,7 +141,7 @@ window.PRODUCTOLOG_MOCK = {
     },
     ltv: {
       slug: "ltv",
-      title: "LTV",
+      title: "Доля кредита к стоимости",
       kind: "float_range",
       rows: [
         { id: 31, position: 0, score: 0 },
