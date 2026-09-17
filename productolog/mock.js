@@ -8,6 +8,8 @@ window.PRODUCTOLOG_MOCK = {
       purpose: "mortgage",
       available: true,
       kv_note: "КВ 0,2% независимо от объёма (акция выдач 01.09–30.09.2026)",
+      base_packages: ["purchase", "purchase_pdn"],
+      option_packages: ["spec_4"],
       packages: ["purchase", "purchase_pdn", "spec_4"],
       onepage_packages: ["purchase", "purchase_pdn", "spec_4"]
     },
@@ -17,6 +19,8 @@ window.PRODUCTOLOG_MOCK = {
       purpose: "cash_on_pledge",
       available: true,
       kv_note: "КВ 0,8% до 20 млн ₽; 1,0% от 20 млн ₽ (акция 01.09–30.09.2026)",
+      base_packages: ["turbo_2", "turbo_3", "turbo_4"],
+      option_packages: ["express", "buy_rate", "spec_4", "spec_5", "spec_6", "lower_rate"],
       packages: ["turbo_2", "turbo_3", "turbo_4", "express", "buy_rate", "spec_4", "spec_5", "spec_6", "lower_rate"],
       onepage_packages: ["turbo_2", "turbo_3", "turbo_4", "express", "buy_rate", "spec_4", "spec_5", "spec_6", "lower_rate"]
     },
@@ -26,6 +30,8 @@ window.PRODUCTOLOG_MOCK = {
       purpose: "refinancing",
       available: true,
       kv_note: "Внутренний рефин банка — КВ не предусмотрено",
+      base_packages: ["refi_internal", "turbo_3"],
+      option_packages: ["lower_rate", "buy_rate", "spec_4"],
       packages: ["refi_internal", "turbo_3", "lower_rate", "buy_rate", "spec_4"],
       onepage_packages: ["refi_internal", "turbo_3", "lower_rate", "buy_rate", "spec_4"]
     }
@@ -113,7 +119,12 @@ window.PRODUCTOLOG_MOCK = {
     { id: "kv_up", title: "Повышенное КВ партнера", is_purpose: false, note: "КВ только с периодом акции." },
     { id: "discount25", title: "Скидка 25%", is_purpose: false, note: "Опция макета, не боевая ставка." },
     { id: "low_rate_pledge", title: "Залог по сниженной ставке", is_purpose: false, note: "Не «купи ставку» как цель." },
-    { id: "fast_deal", title: "Быстрый выход на сделку", is_purpose: false, note: "Этап воронки, не цель кредита." }
+    { id: "fast_deal", title: "Быстрый выход на сделку", is_purpose: false, note: "Этап воронки, не цель кредита." },
+    { id: "spec_4", title: "Спец. опция 4.0", is_purpose: false, note: "Оверлей OnePage, не цель." },
+    { id: "spec_5", title: "Спец. опция 5.0", is_purpose: false, note: "Оверлей залога КИ5, не цель." },
+    { id: "spec_6", title: "Спец. опция 6.0", is_purpose: false, note: "Оверлей залога КИ5, не цель." },
+    { id: "express", title: "Экспресс", is_purpose: false, note: "Оверлей потока, не цель." },
+    { id: "lower_rate", title: "Ставка ниже", is_purpose: false, note: "Колонка OnePage, не цель." }
   ],
   options: [
     { id: 801, slug: "kv_up", name: "Повышенное КВ партнера", is_purpose: false, status: "risk_reject", period_from: "2026-09-01", period_to: "2026-09-30", stage: "lead", commission_note: "надбавка к комиссии · макет", rate_note: "не ставка калькулятора", is_default: false, product_ids: [2], promo: "акция выдач 01.09–30.09.2026" },
@@ -122,7 +133,15 @@ window.PRODUCTOLOG_MOCK = {
     { id: 804, slug: "discount25", name: "Скидка 25%", is_purpose: false, status: "review", period_from: "2026-09-01", period_to: "2026-09-30", stage: "lead", commission_note: "—", rate_note: "скидка макета, не боевая ставка", is_default: false, product_ids: [2, 3], promo: "акция выдач 01.09–30.09.2026" },
     { id: 805, slug: "low_rate_pledge", name: "Залог по сниженной ставке", is_purpose: false, status: "active", period_from: "2026-09-01", period_to: "2026-12-31", stage: "lead", commission_note: "—", rate_note: "оверлей, не цель", is_default: false, product_ids: [2], promo: "" },
     { id: 806, slug: "fast_deal", name: "Быстрый выход на сделку", is_purpose: false, status: "active", period_from: "2026-09-01", period_to: "2026-12-31", stage: "lead", commission_note: "—", rate_note: "—", is_default: false, product_ids: [1, 2], promo: "" },
-    { id: 807, slug: "green_corridor", name: "Зелёный коридор", is_purpose: false, status: "active", period_from: "2026-09-01", period_to: "2026-12-31", stage: "lead", commission_note: "КВ 0,2% при акции", rate_note: "не 4-я цель", is_default: false, product_ids: [1, 2, 3], promo: "акция выдач 01.09–30.09.2026" }
+    { id: 807, slug: "green_corridor", name: "Зелёный коридор", is_purpose: false, status: "active", period_from: "2026-09-01", period_to: "2026-12-31", stage: "lead", commission_note: "КВ 0,2% при акции", rate_note: "не 4-я цель", is_default: false, product_ids: [1, 2, 3], promo: "акция выдач 01.09–30.09.2026" },
+    { id: 808, slug: "buy_rate", name: "Купи ставку", is_purpose: false, status: "active", period_from: "2026-09-01", period_to: "2026-12-31", stage: "lead", commission_note: "5% за снижение ставки", rate_note: "колонка OnePage, не цель", is_default: false, product_ids: [2, 3], promo: "" },
+    { id: 809, slug: "spec_4", name: "Спец. опция 4.0", is_purpose: false, status: "active", period_from: "2026-09-01", period_to: "2026-12-31", stage: "lead", commission_note: "0,99%", rate_note: "доля кредита ≤ 50%", is_default: false, product_ids: [1, 2, 3], promo: "" },
+    { id: 810, slug: "spec_5", name: "Спец. опция 5.0", is_purpose: false, status: "active", period_from: "2026-09-01", period_to: "2026-12-31", stage: "lead", commission_note: "2,49%", rate_note: "КИ5 · OnePage", is_default: false, product_ids: [2], promo: "" },
+    { id: 811, slug: "spec_6", name: "Спец. опция 6.0", is_purpose: false, status: "review", period_from: "2026-09-01", period_to: "2026-12-31", stage: "lead", commission_note: "по тарифу", rate_note: "КИ5 · OnePage", is_default: false, product_ids: [2], promo: "" },
+    { id: 812, slug: "express", name: "Экспресс", is_purpose: false, status: "active", period_from: "2026-09-01", period_to: "2026-12-31", stage: "lead", commission_note: "по тарифу", rate_note: "оверлей потока", is_default: false, product_ids: [2], promo: "" },
+    { id: 813, slug: "lower_rate", name: "Ставка ниже", is_purpose: false, status: "active", period_from: "2026-09-01", period_to: "2026-12-31", stage: "lead", commission_note: "по тарифу", rate_note: "колонка OnePage", is_default: false, product_ids: [2, 3], promo: "" },
+    { id: 814, slug: "esia", name: "Цифровой профиль", is_purpose: false, status: "active", period_from: "2026-09-01", period_to: "2026-12-31", stage: "lead", commission_note: "—", rate_note: "−0,5 п.п.", is_default: false, product_ids: [1, 2, 3], promo: "" },
+    { id: 815, slug: "no_insurance", name: "Без ККС", is_purpose: false, status: "active", period_from: "2026-09-01", period_to: "2026-12-31", stage: "lead", commission_note: "—", rate_note: "+5 п.п.", is_default: false, product_ids: [1, 2, 3], promo: "" }
   ],
   slice_statuses: [
     { id: "active", title: "Действующий" },
@@ -448,10 +467,10 @@ window.PRODUCTOLOG_MOCK = {
     }
   },
   regions: [
-    { id: 1, sale_direction: "b2c", value: "Москва", liquidity: 1, ltv_flat: 0.55, available: true, product_ids: [1, 2, 3], option_ids: [801, 802, 806, 807] },
-    { id: 2, sale_direction: "b2c", value: "Московская область 20–50 км", liquidity: 2, ltv_flat: 0.45, available: true, product_ids: [1, 2, 3], option_ids: [802, 805, 807] },
-    { id: 3, sale_direction: "b2c", value: "Санкт-Петербург", liquidity: 1, ltv_flat: 0.52, available: true, product_ids: [1, 2, 3], option_ids: [802, 803, 806, 807] },
-    { id: 4, sale_direction: "b2b", value: "Казань", liquidity: 2, ltv_flat: 0.48, available: true, product_ids: [2, 3], option_ids: [801, 803, 805] },
+    { id: 1, sale_direction: "b2c", value: "Москва", liquidity: 1, ltv_flat: 0.55, available: true, product_ids: [1, 2, 3], option_ids: [801, 802, 806, 807, 808, 809, 812, 813, 814] },
+    { id: 2, sale_direction: "b2c", value: "Московская область 20–50 км", liquidity: 2, ltv_flat: 0.45, available: true, product_ids: [1, 2, 3], option_ids: [802, 805, 807, 809, 814] },
+    { id: 3, sale_direction: "b2c", value: "Санкт-Петербург", liquidity: 1, ltv_flat: 0.52, available: true, product_ids: [1, 2, 3], option_ids: [802, 803, 806, 807, 808, 809, 814] },
+    { id: 4, sale_direction: "b2b", value: "Казань", liquidity: 2, ltv_flat: 0.48, available: true, product_ids: [2, 3], option_ids: [801, 803, 805, 808, 813] },
     { id: 5, sale_direction: "b2c", value: "Саратов", liquidity: 2, ltv_flat: 0.4, available: true, product_ids: [2], option_ids: [804, 805] }
   ],
   scales: {

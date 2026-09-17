@@ -186,6 +186,31 @@
   color: #fff;
   border-color: var(--navy);
 }
+.pkg-pill.opt {
+  border-style: dashed;
+}
+.avail-table th,
+.avail-table td {
+  text-align: center;
+}
+.avail-table th {
+  white-space: normal;
+  max-width: 132px;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+.avail-table th:first-child,
+.avail-table td:first-child {
+  text-align: left;
+  max-width: 220px;
+}
+.avail-table td.is-off {
+  color: var(--muted);
+  font-weight: 700;
+}
+.avail-table input[type="checkbox"]:disabled {
+  opacity: .35;
+}
 .pkg-card.on {
   border-color: var(--navy);
   background: #eef4fb;
@@ -213,6 +238,25 @@
   overflow-wrap: anywhere;
   min-width: 200px;
   max-width: 280px;
+}
+.scale-table.avail-table th {
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-break: normal;
+  max-width: 140px;
+  text-align: center;
+}
+.scale-table.avail-table th:first-child,
+.scale-table.avail-table td:first-child {
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: break-word;
+  min-width: 160px;
+  max-width: 240px;
+}
+.scale-table.avail-table td:not(:first-child) {
+  white-space: nowrap;
+  text-align: center;
 }
 @media (max-width: 1100px) {
   .header-inner {

@@ -1,5 +1,5 @@
 const STORE = "bgfbank_lab_productolog";
-const STORE_VER = 5;
+const STORE_VER = 6;
 const MOCK = window.PRODUCTOLOG_MOCK;
 
 const BUS_CATALOG = [
@@ -38,13 +38,13 @@ const HELP = {
   },
   options: {
     title: "Опции",
-    about: "Коридор и «купи ставку» — оверлеи, не отдельная цель кредита.",
-    next: "Включите опцию на цели, повесьте на срез и на регион."
+    about: "Опция висит на якоре (три цели) и включается в регионе. Не отдельная цель кредита.",
+    next: "Сначала повесьте опцию на продукт, затем отметьте клетку в матрице доступности."
   },
   regions: {
-    title: "Регионы",
-    about: "Где продукт доступен и какие опции можно выбрать. Сетка доли кредита объект × КИ — из листов LTV OnePage, не из макета Figma.",
-    next: "Выключите продукт или опцию в регионе — витрина перестанет их предлагать."
+    title: "Доступность",
+    about: "Клетка витрины: продукт открыт в городе И опция повешена на этот продукт И клетка включена. Без продукта опция в регионе не живёт. Доля кредита OnePage — условие, матрица LTV×оценка риска — балл калькулятора.",
+    next: "Выключите якорь в городе — опции этого якоря пропадут из витрины."
   },
   scale: {
     title: "Шкала",
@@ -84,13 +84,15 @@ function defaultState() {
     slices: clone(MOCK.slices),
     options: clone(MOCK.options),
     regions: clone(MOCK.regions),
+    availability: seedAvailability(),
+    availProductId: 2,
     ltv_scale: clone(MOCK.ltv_scale),
     rbp_scale: clone(MOCK.rbp_scale),
     greenOn: { mortgage: true, cash_on_pledge: true, refinancing: true },
     optionOn: {
       green_corridor: true, buy_rate: true, esia: true, no_insurance: true,
       plain0: true, bank_balance: true, kv_up: true, discount25: true,
-      low_rate_pledge: true, fast_deal: true
+      spec_4: true, spec_5: true, spec_6: true, express: true, lower_rate: true
     },
     log: [],
     bus: { loginom: "ok" }
@@ -103,6 +105,7 @@ function load() {
     if (!raw) return defaultState();
     const parsed = JSON.parse(raw);
     if (parsed.ver !== STORE_VER || !parsed.products || !parsed.slices || !parsed.options) return defaultState();
+    if (!Array.isArray(parsed.availability)) parsed.availability = seedAvailability();
     return parsed;
   } catch (e) {
     return defaultState();
@@ -156,6 +159,39 @@ function axisLabel(kind) {
   return kind;
 }
 
+function seedAvailability() {
+  const rows = [];
+  (MOCK.regions || []).forEach(function (r) {
+    (r.option_ids || []).forEach(function (oid) {
+      const o = (MOCK.options || []).find(function (x) { return x.id === oid; });
+      if (!o || o.is_purpose) return;
+      (o.product_ids || []).forEach(function (pid) {
+        if ((r.product_ids || []).indexOf(pid) === -1) return;
+        rows.push({ region_id: r.id, product_id: pid, option_id: oid });
+      });
+    });
+  });
+  return rows;
+}
+
+function optionBySlug(slug) {
+  return (state.options || []).find(function (o) { return o.slug === slug; });
+}
+
+function optionHangsOn(option, productId) {
+  if (!option || option.is_purpose) return false;
+  return (option.product_ids || []).indexOf(Number(productId)) !== -1;
+}
+
+function hasAvailCell(regionId, productId, optionId) {
+  const rid = Number(regionId);
+  const pid = Number(productId);
+  const oid = Number(optionId);
+  return (state.availability || []).some(function (a) {
+    return a.region_id === rid && a.product_id === pid && a.option_id === oid;
+  });
+}
+
 function regionAllowsProduct(regionId, productId) {
   const r = regionById(regionId);
   if (!r) return true;
@@ -165,19 +201,95 @@ function regionAllowsProduct(regionId, productId) {
   return ids.indexOf(Number(productId)) !== -1;
 }
 
-function regionAllowsOption(regionId, optionId) {
-  const r = regionById(regionId);
-  if (!r) return true;
-  const ids = r.option_ids;
-  if (!ids || !ids.length) return true;
-  const rec = optionRecById(optionId);
-  const num = rec ? rec.id : Number(optionId);
-  if (ids.indexOf(num) !== -1) return true;
-  const slug = rec ? rec.slug : optionId;
-  return ids.some(function (id) {
-    const hit = optionRecById(id);
-    return hit && hit.slug === slug;
+function optionLiveInCell(regionId, productId, optionId) {
+  const p = productById(productId);
+  const o = optionRecById(optionId);
+  if (!p || !p.available || p.no_options) return false;
+  if (!o || o.is_purpose || o.status !== "active") return false;
+  if (state.optionOn[o.slug] === false) return false;
+  if (o.slug === "green_corridor" && state.greenOn[p.purpose] === false) return false;
+  if (!regionAllowsProduct(regionId, productId)) return false;
+  if (!optionHangsOn(o, productId)) return false;
+  return hasAvailCell(regionId, productId, optionId);
+}
+
+function regionAllowsOption(regionId, optionId, productId) {
+  if (productId != null && productId !== "") return optionLiveInCell(regionId, productId, optionId);
+  return state.products.some(function (p) {
+    return optionLiveInCell(regionId, p.id, optionId);
   });
+}
+
+function sliceOptionsAllowed(s) {
+  if (s.no_options || !(s.options || []).length) return true;
+  return s.options.every(function (slug) {
+    const rec = optionBySlug(slug);
+    if (!rec) return state.optionOn[slug] !== false;
+    return optionLiveInCell(s.region_id, s.product_id, rec.id);
+  });
+}
+
+function syncRegionOptionIds(regionId) {
+  const r = regionById(regionId);
+  if (!r) return;
+  const ids = [];
+  (state.availability || []).forEach(function (a) {
+    if (a.region_id !== Number(regionId)) return;
+    if (ids.indexOf(a.option_id) === -1) ids.push(a.option_id);
+  });
+  r.option_ids = ids;
+}
+
+function setAvailCell(regionId, productId, optionId, on) {
+  const rid = Number(regionId);
+  const pid = Number(productId);
+  const oid = Number(optionId);
+  const o = optionRecById(oid);
+  if (o && o.is_purpose) return;
+  if (on && !optionHangsOn(o, pid)) return;
+  if (on && !regionAllowsProduct(rid, pid)) return;
+  state.availability = state.availability || [];
+  const exists = hasAvailCell(rid, pid, oid);
+  if (on && !exists) state.availability.push({ region_id: rid, product_id: pid, option_id: oid });
+  if (!on) {
+    state.availability = state.availability.filter(function (a) {
+      return !(a.region_id === rid && a.product_id === pid && a.option_id === oid);
+    });
+  }
+  syncRegionOptionIds(rid);
+}
+
+function toggleAvailCell(regionId, productId, optionId, el) {
+  setAvailCell(regionId, productId, optionId, el.checked);
+  logAction("PUT", "/availability", regionId + "/" + productId + "/" + optionId + "=" + el.checked);
+  state.bus.options_get = "ok";
+  state.bus.regions_get = "ok";
+  save();
+  render();
+}
+
+function setAvailProduct(id) {
+  state.availProductId = Number(id);
+  state.selectedId = "avail";
+  state.role = "regions";
+  save();
+  render();
+}
+
+function allowedProductsInRegion(regionId) {
+  return state.products.filter(function (p) { return regionAllowsProduct(regionId, p.id); });
+}
+
+function cellCountFor(productId, optionId) {
+  return (state.regions || []).filter(function (r) {
+    return hasAvailCell(r.id, productId, optionId);
+  }).length;
+}
+
+function availCheckbox(regionId, productId, optionId, disabled) {
+  const on = hasAvailCell(regionId, productId, optionId);
+  return '<input type="checkbox"' + (on ? " checked" : "") + (disabled ? " disabled" : "") +
+    ' onchange="toggleAvailCell(' + regionId + ", " + productId + ", " + optionId + ', this)">';
 }
 
 function statusMeta(id) {
@@ -416,14 +528,21 @@ function nextId(list) {
 
 function setRole(role) {
   state.role = role;
-    if (role === "products") {
+  if (role === "products") {
     state.selectedId = "product:" + state.products[1].id;
     state.productTab = "terms";
   }
   if (role === "risk") state.selectedId = "scale:fico";
-  if (role === "matrix") state.selectedId = "matrix:1:2";
-  if (role === "options") state.selectedId = "optrec:801";
-  if (role === "regions") state.selectedId = "region:1";
+  if (role === "matrix") {
+    const rid = 1;
+    const first = state.products.find(function (p) { return regionAllowsProduct(rid, p.id); });
+    state.selectedId = "matrix:" + rid + ":" + (first ? first.id : 2);
+  }
+  if (role === "options") state.selectedId = "optrec:808";
+  if (role === "regions") {
+    state.selectedId = "avail";
+    state.availProductId = state.availProductId || 2;
+  }
   save();
   render();
 }
@@ -698,7 +817,9 @@ function isConsistent(slug) {
 function solverSlices() {
   return state.slices.filter(function (s) {
     const p = productById(s.product_id);
-    return p && p.available && s.status === "active" && regionAllowsProduct(s.region_id, s.product_id);
+    return p && p.available && s.status === "active"
+      && regionAllowsProduct(s.region_id, s.product_id)
+      && sliceOptionsAllowed(s);
   });
 }
 
@@ -996,7 +1117,13 @@ function toggleRegionProduct(regionId, productId, el) {
   const pid = Number(productId);
   if (el.checked) {
     if (r.product_ids.indexOf(pid) === -1) r.product_ids.push(pid);
-  } else r.product_ids = r.product_ids.filter((x) => x !== pid);
+  } else {
+    r.product_ids = r.product_ids.filter((x) => x !== pid);
+    state.availability = (state.availability || []).filter(function (a) {
+      return !(a.region_id === Number(regionId) && a.product_id === pid);
+    });
+    syncRegionOptionIds(regionId);
+  }
   logAction("PUT", "/sales_regions/" + regionId + "/products", String(pid));
   state.bus.regions_get = "ok";
   save();
@@ -1008,11 +1135,13 @@ function toggleRegionOption(regionId, optionId, el) {
   if (!r) return;
   const o = optionRecById(optionId);
   if (o && o.is_purpose) return;
-  r.option_ids = r.option_ids || [];
   const oid = Number(optionId);
-  if (el.checked) {
-    if (r.option_ids.indexOf(oid) === -1) r.option_ids.push(oid);
-  } else r.option_ids = r.option_ids.filter((x) => x !== oid);
+  const products = state.products.filter(function (p) {
+    return optionHangsOn(o, p.id) && regionAllowsProduct(regionId, p.id);
+  });
+  products.forEach(function (p) {
+    setAvailCell(regionId, p.id, oid, el.checked);
+  });
   logAction("PUT", "/sales_regions/" + regionId + "/options", String(oid));
   state.bus.options_get = "ok";
   save();
@@ -1213,8 +1342,20 @@ function toggleOptionProduct(id, productId, el) {
   const pid = Number(productId);
   if (el.checked) {
     if (o.product_ids.indexOf(pid) === -1) o.product_ids.push(pid);
-  } else o.product_ids = o.product_ids.filter((x) => x !== pid);
+  } else {
+    o.product_ids = o.product_ids.filter((x) => x !== pid);
+    const affected = {};
+    state.availability = (state.availability || []).filter(function (a) {
+      if (a.option_id === o.id && a.product_id === pid) {
+        affected[a.region_id] = true;
+        return false;
+      }
+      return true;
+    });
+    Object.keys(affected).forEach(function (rid) { syncRegionOptionIds(rid); });
+  }
   logAction("PUT", "/options/" + id + "/products", String(pid));
+  state.bus.options_get = "ok";
   save();
   render();
 }
@@ -1268,7 +1409,8 @@ async function previewSolver() {
   addModalLine("условия OnePage: снимок, не офер калькулятора", "ok");
   const vis = solverSlices();
   state.bus.slices_get = "ok";
-  addModalLine("срезы витрины (доступный продукт + действующий + регион): " + vis.length, "ok");
+  addModalLine("срезы витрины (продукт + регион + клетка опции): " + vis.length, "ok");
+  addModalLine("клеток доступности опция × регион × продукт: " + (state.availability || []).length, "ok");
   const hit = getScore("fico", 650);
   state.bus.score_get = "pending";
   renderBus();
@@ -1441,9 +1583,14 @@ function renderInbox() {
         '<i class="badge ' + badgeForStatus(o.status) + '">' + statusMeta(o.status).title + "</i></button>";
     }).join("") +
       '<button type="button" class="btn btn-primary" onclick="createOptionDraft()">Создать опцию</button>' +
-      '<p class="hint">Опции накрывают срезы и регионы. Не новая цель кредита.</p>';
+      '<p class="hint">Опции накрывают срезы и регионы. Сначала повесьте на якорь, затем клетка в «Регионы → Доступность». Не новая цель кредита.</p>';
   } else if (state.role === "regions") {
-    cards = state.regions.map(function (r) {
+    const nCells = (state.availability || []).length;
+    cards = '<button type="button" class="card-deal' + (state.selectedId === "avail" ? " on" : "") +
+      '" onclick="selectItem(\'avail\')"><b>Доступность</b><span>якорь × опция × регион · клеток ' + nCells +
+      "</span>" +
+      '<i class="badge badge-run">матрица</i></button>' +
+      state.regions.map(function (r) {
       const id = "region:" + r.id;
       const on = state.selectedId === id ? " on" : "";
       const nProd = (r.product_ids || []).length;
@@ -1468,7 +1615,8 @@ function renderInbox() {
       return !state.matrixChannel || state.matrixChannel === "all" || r.sale_direction === state.matrixChannel;
     });
     cards = regs.map((r) => {
-      const id = "matrix:" + r.id + ":2";
+      const first = allowedProductsInRegion(r.id)[0];
+      const id = "matrix:" + r.id + ":" + (first ? first.id : 2);
       const on = String(state.selectedId).indexOf("matrix:" + r.id + ":") === 0 ? " on" : "";
       return '<button type="button" class="card-deal' + on + '" onclick="selectItem(\'' + id + '\')">' +
         "<b>" + r.value + "</b><span>" + channelLabel(r.sale_direction) + " · ликвидность " + r.liquidity +
@@ -1517,6 +1665,19 @@ function productTabs(active) {
     "</div>";
 }
 
+function renderPkgPills(p, codes, kind) {
+  const selected = selectedPackageCode(p.id);
+  return (codes || []).map(function (code) {
+    const info = MOCK.packages[code] || { label: code };
+    const on = code === selected ? " on" : "";
+    const rec = optionBySlug(code);
+    const extra = kind === "option" && rec ? " · клеток " + cellCountFor(p.id, rec.id) : "";
+    return '<button type="button" class="pkg-pill' + (kind === "option" ? " opt" : "") + on +
+      '" onclick="setSelectedPackage(' + p.id + ", '" + code + "')\">" +
+      info.label + extra + "</button>";
+  }).join("");
+}
+
 function renderTermsPanel(p) {
   const op = onepageProduct(p.purpose);
   const codes = p.onepage_packages || p.packages || [];
@@ -1524,12 +1685,13 @@ function renderTermsPanel(p) {
   const pkgMeta = MOCK.packages[selected] || { label: selected };
   const pkgRates = op && op.packages ? op.packages[selected] : null;
   const snapshot = (MOCK.onepage && MOCK.onepage.snapshot) || "";
-  const pills = codes.map(function (code) {
-    const info = MOCK.packages[code] || { label: code };
-    const on = code === selected ? " on" : "";
-    return '<button type="button" class="pkg-pill' + on + '" onclick="setSelectedPackage(' + p.id + ", '" + code + "')\">" +
-      info.label + "</button>";
-  }).join("");
+  const baseCodes = p.base_packages && p.base_packages.length ? p.base_packages : codes;
+  const optCodes = p.option_packages || [];
+  const pills = '<p class="hint">Базовые пакеты</p><div class="pkg-pills">' + renderPkgPills(p, baseCodes, "base") + "</div>" +
+    (optCodes.length
+      ? '<p class="hint">Опции пакета — клетка витрины считается отдельно</p><div class="pkg-pills">' +
+        renderPkgPills(p, optCodes, "option") + "</div>"
+      : "");
   const out = ((MOCK.onepage && MOCK.onepage.out_of_scope) || []).map(function (x) {
     return "<li><b>" + escapeHtml(x.title) + "</b> — " + escapeHtml(x.reason) + "</li>";
   }).join("");
@@ -1550,8 +1712,8 @@ function renderTermsPanel(p) {
     '<label class="check"><input type="checkbox" ' + (p.no_options ? "checked" : "") +
     ' onchange="noOptionsToggle(' + p.id + ', this)"><span>Продукт без опций</span></label></div>' +
     '<div class="panel span-2">' + panelHead("Пакеты листа", "product") +
-    '<p class="hint">Колонка OnePage. Клиент выбирает пакет, категорию КИ назначает СПР. Точные проценты калькулятора — из актуальной матрицы, не из этого снимка.</p>' +
-    '<div class="pkg-pills">' + pills + "</div>" +
+    '<p class="hint">Колонка OnePage. Клиент выбирает пакет, категорию КИ назначает СПР. Точные проценты калькулятора — из актуальной матрицы, не из этого снимка. Опция живёт только если повешена на якорь и клетка региона включена.</p>' +
+    pills +
     '<div class="pkg-card' + (selected ? " on" : "") + '"><b>' + (pkgMeta.label || selected) + "</b>" +
     '<span class="hint">' + (pkgMeta.insurance || "") + " · " + (pkgMeta.commission || "") + cap +
     (pkgMeta.note ? " · " + pkgMeta.note : "") +
@@ -1713,6 +1875,7 @@ function renderOptionsPanel(p) {
       '<i class="badge ' + badgeForStatus(o.status) + '">' + statusMeta(o.status).title + "</i></td><td>" +
       periodLabel(o) + "</td><td>" + stageLabel(o.stage) + "</td><td>" +
       (o.commission_note || "—") + "</td><td>" + (o.rate_note || "—") + "</td><td>" +
+      cellCountFor(p.id, o.id) + "</td><td>" +
       '<button type="button" class="btn btn-ghost" onclick="selectItem(\'optrec:' + o.id + '\')">Карточка</button></td></tr>';
   }).join("");
   const catalog = (MOCK.option_catalog || []).map((o) =>
@@ -1724,12 +1887,12 @@ function renderOptionsPanel(p) {
   return '<div class="panel span-2">' + panelHead("Опции продукта", "options") +
     '<p class="hint">Вкладка «Опции» из макета. На цели «' + purposeLabel(p.purpose) + '»' +
     (green ? " коридор включён." : " коридор выключен.") +
-    " КВ только вместе с периодом акции.</p>" +
+    " Клетка витрины = якорь открыт в городе И опция повешена И клетка включена. КВ только вместе с периодом акции.</p>" +
     '<label class="check"><input type="checkbox" ' + (p.no_options ? "checked" : "") +
     ' onchange="noOptionsToggle(' + p.id + ', this)"><span>Продукт без опций</span></label>' +
     '<div class="matrix-wrap"><table class="scale-table"><thead><tr>' +
-    "<th>Название</th><th>Статус</th><th>Период</th><th>Этап применения</th><th>Надбавка к комиссии</th><th>Надбавка к ставке</th><th></th>" +
-    "</tr></thead><tbody>" + (table || '<tr><td colspan="7">Нет опций на этой цели</td></tr>') +
+    "<th>Название</th><th>Статус</th><th>Период</th><th>Этап применения</th><th>Надбавка к комиссии</th><th>Надбавка к ставке</th><th>Клеток</th><th></th>" +
+    "</tr></thead><tbody>" + (table || '<tr><td colspan="8">Нет опций на этой цели</td></tr>') +
     "</tbody></table></div>" + catalog + "</div>";
 }
 
@@ -1769,7 +1932,9 @@ function renderOptionCard() {
     '" onchange="setOptionField(' + o.id + ", 'period_to', this)\"></label></div>" +
     '<label class="check"><input type="checkbox" ' + (o.is_default ? "checked" : "") +
     ' onchange="setOptionField(' + o.id + ", 'is_default', this)\"><span>По умолчанию</span></label>" +
-    "<p class=\"hint\">Продукты (множественный выбор)</p>" + products +
+    "<p class=\"hint\">Продукты (множественный выбор). Снимите якорь — клетки этой опции на нём пропадут.</p>" + products +
+    '<p class="hint">Клетка витрины: регион открыт И продукт продаётся И опция повешена И галка включена.</p>' +
+    renderOptionAvailGrid(o) +
     '<p class="hint">' + (o.promo || "Цифры надбавок — макет, не боевые ставки/КВ.") + "</p>" +
     '<div class="actions">' +
     '<button type="button" class="btn btn-primary" onclick="setOptionStatus(' + o.id + ", 'active')\">В действие</button>" +
@@ -1880,8 +2045,12 @@ function renderScale() {
 function renderMatrix() {
   const parts = String(state.selectedId).split(":");
   const regionId = Number(parts[1] || 1);
-  const productId = Number(parts[2] || 2);
+  let productId = Number(parts[2] || 2);
   const region = regionById(regionId) || state.regions[0];
+  const allowed = allowedProductsInRegion(regionId);
+  if (allowed.length && !regionAllowsProduct(regionId, productId)) {
+    productId = allowed[0].id;
+  }
   const product = productById(productId);
   const ltv = state.ltv_scale.filter((x) => x.region_id === regionId && x.product_id === productId);
   const rbp = state.rbp_scale.filter((x) => x.region_id === regionId && x.product_id === productId);
@@ -1894,7 +2063,8 @@ function renderMatrix() {
   const rowName = hIsLtv ? axisLabel("rbp") : axisLabel("ltv");
   const rid = ltv.length ? regionId : 1;
   const pid = ltv.length ? productId : 2;
-  const productSwitch = state.products.map((p) =>
+  const switchList = allowed.length ? allowed : state.products;
+  const productSwitch = switchList.map((p) =>
     '<button type="button" class="filter' + (p.id === productId ? " on" : "") +
     '" onclick="selectItem(\'matrix:' + regionId + ":" + p.id + "')\">" + purposeLabel(p.purpose) + "</button>"
   ).join("");
@@ -1935,7 +2105,7 @@ function renderMatrix() {
       return '<option value="' + r.id + '"' + (r.id === region.id ? " selected" : "") + ">" + r.value + "</option>";
     }).join("") + "</select></label>" +
     '<label>Тип продукта<select onchange="selectItem(\'matrix:' + regionId + ":\'+this.value)\">" +
-    state.products.map(function (p) {
+    switchList.map(function (p) {
       return '<option value="' + p.id + '"' + (p.id === productId ? " selected" : "") + ">" +
         purposeLabel(p.purpose) + "</option>";
     }).join("") + "</select></label>" +
@@ -1972,13 +2142,6 @@ function renderRegionCard() {
       ' onchange="toggleRegionProduct(' + r.id + ", " + p.id + ', this)"><span>' +
       p.name + " · " + purposeLabel(p.purpose) + "</span></label>";
   }).join("");
-  const options = (state.options || []).map(function (o) {
-    const on = (r.option_ids || []).indexOf(o.id) !== -1;
-    return '<label class="check"><input type="checkbox" ' + (on ? "checked" : "") +
-      (o.is_purpose ? " disabled" : "") +
-      ' onchange="toggleRegionOption(' + r.id + ", " + o.id + ', this)"><span>' +
-      o.name + "</span></label>";
-  }).join("");
   const nProd = (r.product_ids || []).length;
   const nOpt = (r.option_ids || []).length;
   const open = r.available !== false;
@@ -2004,14 +2167,91 @@ function renderRegionCard() {
     ' onchange="toggleRegionAvailable(' + r.id + ', this)"><span>Регион открыт для продаж</span></label>' +
     '<p class="hint">Если регион закрыт, калькулятор предложений не отдаёт ни один продукт по этому городу. СПР не вызываем.</p></div>' +
     '<div class="panel span-2">' + panelHead("Продукты в регионе", "regions") +
-    '<p class="hint">Три цели кредита. Коридор и «купи ставку» сюда не добавляем — они в списке опций.</p>' +
+    '<p class="hint">Три цели кредита. Коридор и «купи ставку» сюда не добавляем — они в списке опций. Снимите якорь — его клетки опций в городе пропадут.</p>' +
     '<div class="check-grid">' + products + "</div></div>" +
-    '<div class="panel span-2">' + panelHead("Опции в регионе", "options") +
-    '<p class="hint">Какие оверлеи можно выбрать в этом регионе. Не новая цель кредита. Комиссия партнёра — только с периодом акции.</p>' +
-    '<div class="check-grid">' + options + "</div></div>" +
+    '<div class="panel span-2">' + panelHead("Опции по якорям", "options") +
+    '<p class="hint">Клетка: продукт продаётся в городе И опция повешена на этот якорь. Без продукта галка не живёт. Комиссия партнёра — только с периодом акции.</p>' +
+    renderRegionOptionMatrix(r) + "</div>" +
     '<div class="panel span-2">' + panelHead("Доля кредита OnePage", "regions") +
     '<p class="hint">Залог: объект × КИ. Числа — снимок листа LTV, не ячейка матрицы калькулятора.</p>' +
     renderRegionLtvTable(r.id) + "</div>" +
+    solverPanel() + "</div></div>";
+}
+
+function renderRegionOptionMatrix(r) {
+  const products = allowedProductsInRegion(r.id);
+  if (!products.length) {
+    return '<p class="hint">Сначала отметьте якорь в регионе. Без продукта опция не живёт.</p>';
+  }
+  const opts = (state.options || []).filter(function (o) { return !o.is_purpose; });
+  const head = "<tr><th>Опция</th>" + products.map(function (p) {
+    return "<th>" + purposeLabel(p.purpose) + "</th>";
+  }).join("") + "</tr>";
+  const body = opts.map(function (o) {
+    const tds = products.map(function (p) {
+      if (!optionHangsOn(o, p.id)) return '<td class="is-off">—</td>';
+      return "<td>" + availCheckbox(r.id, p.id, o.id, r.available === false) + "</td>";
+    }).join("");
+    return "<tr><td>" + ellip(o.name, 0) + "</td>" + tds + "</tr>";
+  }).join("");
+  return '<div class="matrix-wrap"><table class="scale-table avail-table"><thead>' + head +
+    "</thead><tbody>" + body + "</tbody></table></div>";
+}
+
+function renderOptionAvailGrid(o) {
+  if (o.is_purpose) return "";
+  const products = state.products.filter(function (p) { return optionHangsOn(o, p.id); });
+  if (!products.length) {
+    return '<p class="hint">Повесьте опцию на продукт — затем отметьте клетку в регионе.</p>';
+  }
+  const head = "<tr><th>Регион</th>" + products.map(function (p) {
+    return "<th>" + purposeLabel(p.purpose) + "</th>";
+  }).join("") + "</tr>";
+  const body = state.regions.map(function (r) {
+    const tds = products.map(function (p) {
+      if (!regionAllowsProduct(r.id, p.id)) return '<td class="is-off">—</td>';
+      return "<td>" + availCheckbox(r.id, p.id, o.id, r.available === false) + "</td>";
+    }).join("");
+    return "<tr><td>" + escapeHtml(r.value) + (r.available === false ? " (закрыт)" : "") + "</td>" + tds + "</tr>";
+  }).join("");
+  return '<div class="matrix-wrap"><table class="scale-table avail-table"><thead>' + head +
+    "</thead><tbody>" + body + "</tbody></table></div>";
+}
+
+function renderAvailMatrix() {
+  const pid = Number(state.availProductId) || 2;
+  const product = productById(pid) || state.products[1];
+  const productSwitch = state.products.map(function (p) {
+    return '<button type="button" class="filter' + (p.id === product.id ? " on" : "") +
+      '" onclick="setAvailProduct(' + p.id + ')">' + purposeLabel(p.purpose) + "</button>";
+  }).join("");
+  const opts = (state.options || []).filter(function (o) {
+    return optionHangsOn(o, product.id);
+  });
+  const head = "<tr><th>Опция</th>" + state.regions.map(function (r) {
+    return "<th>" + escapeHtml(r.value) + "</th>";
+  }).join("") + "</tr>";
+  const body = opts.map(function (o) {
+    const tds = state.regions.map(function (r) {
+      if (!regionAllowsProduct(r.id, product.id)) {
+        return '<td class="is-off" title="якорь не продаётся в городе">—</td>';
+      }
+      return "<td>" + availCheckbox(r.id, product.id, o.id, r.available === false) + "</td>";
+    }).join("");
+    return "<tr><td>" + ellip(o.name, 0) + "</td>" + tds + "</tr>";
+  }).join("");
+  const nLive = (state.availability || []).filter(function (a) { return a.product_id === product.id; }).length;
+  return '<div class="work-inner"><div class="work-head">' +
+    "<h1>Доступность</h1>" +
+    '<p class="stage-now">' + purposeLabel(product.purpose) + " · клеток на якоре " + nLive + "</p>" +
+    '<p class="lead">Клетка витрины: продукт доступен И регион открыт И якорь продаётся в городе И опция повешена И галка включена. Саратов не продаёт «купи ставку», Казань — покупку.</p>' +
+    '<div class="filters">' + productSwitch + "</div></div>" +
+    '<div class="desk"><div class="panel span-2">' + panelHead("Матрица опция × регион", "regions") +
+    '<p class="hint">Прочерк — якорь выключен в городе. Снимите галку — срез с этой опцией пропадёт из витрины калькулятора. Не отдельная цель кредита.</p>' +
+    '<div class="matrix-wrap"><table class="scale-table avail-table"><thead>' + head +
+    "</thead><tbody>" + (body || '<tr><td colspan="' + (state.regions.length + 1) +
+    '">На этом якоре нет повешенных опций</td></tr>') +
+    "</tbody></table></div></div>" +
     solverPanel() + "</div></div>";
 }
 
@@ -2022,6 +2262,7 @@ function renderWork() {
   empty.classList.add("hidden");
   box.classList.remove("hidden");
   if (state.selectedId === "option:green") box.innerHTML = renderGreen();
+  else if (state.selectedId === "avail") box.innerHTML = renderAvailMatrix();
   else if (String(state.selectedId).indexOf("product:") === 0) box.innerHTML = renderProduct();
   else if (String(state.selectedId).indexOf("optrec:") === 0) box.innerHTML = renderOptionCard();
   else if (String(state.selectedId).indexOf("region:") === 0) box.innerHTML = renderRegionCard();
