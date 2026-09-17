@@ -1312,6 +1312,8 @@ console.log('\n=== 11. ARM underwriter / productolog ===');
     'same page switches productolog and risk-manager ARMs');
   assert(/createRegion/.test(poJs) && /Добавить регион/.test(poJs),
     'productolog can add a sales region');
+  assert(/createProductDraft/.test(poJs) && /Создать продукт/.test(poJs) && /clampPurpose/.test(poJs),
+    'productolog can add a product draft on one of three purposes');
   assert(/STORE_VER = 6/.test(poJs) && /seedAvailability/.test(poJs) && /toggleAvailCell/.test(poJs) && /sliceOptionsAllowed/.test(poJs),
     'productolog availability matrix is STORE_VER 6');
   assert(/renderAvailMatrix/.test(poJs) && /selectedId === "avail"/.test(poJs),
@@ -1385,6 +1387,14 @@ console.log('\n=== 11. ARM underwriter / productolog ===');
     '  createRegion();' +
     '  var r = state.regions[state.regions.length-1];' +
     '  return state.regions.length === n + 1 && r.value === "Новый регион" && Array.isArray(r.product_ids) && r.product_ids.length === 0 && !regionAllowsProduct(r.id, 2) && state.selectedId === "region:" + r.id;' +
+    '})();' +
+    'this._newProd = (function() {' +
+    '  var n = state.products.length;' +
+    '  createProductDraft();' +
+    '  var p = state.products[state.products.length-1];' +
+    '  saveProductField(p.id, "purpose", { value: "invest" });' +
+    '  p = state.products[state.products.length-1];' +
+    '  return state.products.length === n + 1 && p.name === "Новый продукт" && p.status === "filling" && p.available === false && MOCK.purposes.indexOf(p.purpose) !== -1 && p.purpose === "cash_on_pledge" && (p.onepage_packages || []).length === 0 && state.selectedId === "product:" + p.id;' +
     '})();',
     local,
     { filename: 'productolog.js' }
@@ -1406,6 +1416,7 @@ console.log('\n=== 11. ARM underwriter / productolog ===');
   assert(local._opt === true, 'draft option is filling and not a purpose');
   assert(local._armRisk === true && local._armPo === true, 'setArm switches risk-manager and productolog desks');
   assert(local._newReg === true, 'new region starts without products and is selected');
+  assert(local._newProd === true, 'new product is filling on a CreditPurposeEnum value');
   assert(local._terms === true && local._pkg0 === true && local._pkg === true,
     'OnePage terms tab defaults to turbo_2 and can switch package');
 }

@@ -850,10 +850,34 @@ function solverSlices() {
   });
 }
 
+function clampPurpose(value) {
+  if (value === "mortgage" || value === "refinancing" || value === "cash_on_pledge") return value;
+  return "cash_on_pledge";
+}
+
+function productStatus(p) {
+  if (!p) return "active";
+  if (p.status) return p.status;
+  return p.available === false ? "filling" : "active";
+}
+
+function saveProductField(id, field, el) {
+  const p = productById(id);
+  if (!p) return;
+  if (field === "purpose") p.purpose = clampPurpose(el.value);
+  else if (field === "name" || field === "kv_note") p[field] = el.value;
+  else p[field] = el.value;
+  logAction("PUT", "/products/" + id, field + "=" + p[field]);
+  state.bus.products_get = "ok";
+  save();
+  render();
+}
+
 function toggleAvailable(id, el) {
   const p = productById(id);
   if (!p) return;
   p.available = el.checked;
+  if (el.checked && p.status === "filling") p.status = "active";
   logAction("PUT", "/products/" + id, "доступен=" + p.available);
   state.bus.products_get = "ok";
   save();
@@ -1317,6 +1341,30 @@ function createDraftSlice(productId) {
   render();
 }
 
+function createProductDraft() {
+  const p = {
+    id: nextId(state.products),
+    name: "Новый продукт",
+    purpose: "cash_on_pledge",
+    available: false,
+    status: "filling",
+    kv_note: "",
+    no_options: false,
+    base_packages: [],
+    option_packages: [],
+    packages: [],
+    onepage_packages: []
+  };
+  state.products.push(p);
+  state.selectedId = "product:" + p.id;
+  state.productTab = "terms";
+  state.role = "products";
+  logAction("POST", "/products", "черновик · цель=" + purposeLabel(p.purpose));
+  state.bus.products_get = "ok";
+  save();
+  render();
+}
+
 function createOptionDraft() {
   const o = {
     id: nextId(state.options),
@@ -1620,11 +1668,17 @@ function renderInbox() {
       const on = state.selectedId === id ? " on" : "";
       const n = state.slices.filter((s) => s.product_id === p.id && s.status !== "archived").length;
       const nPkg = (p.onepage_packages || p.packages || []).length;
+      const st = productStatus(p);
+      const badge = st === "filling"
+        ? '<i class="badge badge-wait">' + statusMeta("filling").title + "</i>"
+        : (p.available ? '<i class="badge badge-ok">доступен</i>' : '<i class="badge badge-wait">выключен</i>');
       return '<button type="button" class="card-deal' + on + '" onclick="selectItem(\'' + id + '\')">' +
-        "<b>" + p.name + "</b><span>" + purposeLabel(p.purpose) + " · пакетов " + nPkg + " · вариантов " + n + "</span>" +
-        (p.available ? '<i class="badge badge-ok">доступен</i>' : '<i class="badge badge-wait">выключен</i>') +
+        "<b>" + escapeHtml(p.name) + "</b><span>" + purposeLabel(p.purpose) + " · пакетов " + nPkg + " · вариантов " + n + "</span>" +
+        badge +
         "</button>";
     }).join("") +
+      '<button type="button" class="btn btn-primary" onclick="createProductDraft()">Создать продукт</button>' +
+      '<p class="hint">Черновик со статусом «Заполняется». Тип — покупка, залог или рефинансирование. Не четвёртая цель кредита.</p>' +
       '<button type="button" class="card-deal' + (state.selectedId === "option:green" ? " on" : "") +
       '" onclick="selectItem(\'option:green\')"><b>Зелёный коридор</b><span>опция, не продукт</span>' +
       '<i class="badge badge-run">опция</i></button>' +
@@ -1751,16 +1805,19 @@ function renderPkgPills(p, codes, kind) {
 function renderTermsPanel(p) {
   const op = onepageProduct(p.purpose);
   const codes = p.onepage_packages || p.packages || [];
+  const filling = productStatus(p) === "filling";
   const selected = selectedPackageCode(p.id);
   const pkgMeta = MOCK.packages[selected] || { label: selected };
-  const pkgRates = op && op.packages ? op.packages[selected] : null;
+  const pkgRates = op && op.packages && selected ? op.packages[selected] : null;
   const baseCodes = p.base_packages && p.base_packages.length ? p.base_packages : codes;
   const optCodes = p.option_packages || [];
-  const pills = '<p class="hint">Основные пакеты</p><div class="pkg-pills">' + renderPkgPills(p, baseCodes, "base") + "</div>" +
-    (optCodes.length
-      ? '<p class="hint">Дополнительно к основному пакету. Цифра — в скольких регионах опцию можно выбрать.</p><div class="pkg-pills">' +
-        renderPkgPills(p, optCodes, "option") + "</div>"
-      : "");
+  const pills = !codes.length
+    ? '<p class="hint">Пакеты появятся, когда заполните условия. Не отдельная цель кредита.</p>'
+    : '<p class="hint">Основные пакеты</p><div class="pkg-pills">' + renderPkgPills(p, baseCodes, "base") + "</div>" +
+      (optCodes.length
+        ? '<p class="hint">Дополнительно к основному пакету. Цифра — в скольких регионах опцию можно выбрать.</p><div class="pkg-pills">' +
+          renderPkgPills(p, optCodes, "option") + "</div>"
+        : "");
   const out = ((MOCK.onepage && MOCK.onepage.out_of_scope) || []).map(function (x) {
     return "<li><b>" + escapeHtml(x.title) + "</b> — " + escapeHtml(x.reason) + "</li>";
   }).join("");
@@ -1778,24 +1835,36 @@ function renderTermsPanel(p) {
     pkgParam("Условие", pkgMeta.note) +
     pkgParam("Категория кредитной истории", pkgMeta.ki_scope) +
     pkgParam("Где можно выбрать", where ? where + whereNote : "");
-  return '<div class="panel span-2">' + panelHead("", "product") +
+  const pkgBlock = !codes.length
+    ? ""
+    : '<div class="pkg-card' + (selected ? " on" : "") + '"><b>' + escapeHtml(pkgTitle) + "</b>" +
+      '<div class="grid-4">' + pkgFields + "</div></div>" +
+      renderKiRateTable(pkgRates);
+  return '<div class="panel span-2">' + panelHead("Основные сведения", "product") +
+    (filling ? '<p class="hint">Черновик. Можно выйти — в каталоге останется статус «Заполняется» с пустыми полями.</p>' : "") +
+    '<div class="grid-4" style="margin-top:8px">' +
+    '<label>Название<input value="' + escapeHtml(p.name) +
+    '" onchange="saveProductField(' + p.id + ", 'name', this)\"></label>" +
+    '<label>Тип продукта<select onchange="saveProductField(' + p.id + ", 'purpose', this)\">" +
+    '<option value="mortgage"' + (p.purpose === "mortgage" ? " selected" : "") + ">покупка</option>" +
+    '<option value="cash_on_pledge"' + (p.purpose === "cash_on_pledge" ? " selected" : "") + ">залог</option>" +
+    '<option value="refinancing"' + (p.purpose === "refinancing" ? " selected" : "") + ">рефинансирование</option></select></label>" +
+    '<label>КВ<input value="' + escapeHtml(p.kv_note || "") +
+    '" onchange="saveProductField(' + p.id + ", 'kv_note', this)\"></label></div>" +
     '<p class="hint">Лист «' + escapeHtml((op && op.sheet) || "—") +
-    "». Цель кредита не меняется.</p>" +
+    "». Тип — одна из трёх целей. Коридор, «купи ставку», ДОМ.РФ и инвесты сюда не ставим.</p>" +
     '<div class="grid-4">' +
     '<div class="param"><small>Цель кредита</small><b>' + purposeLabel(p.purpose) + "</b></div>" +
     '<div class="param"><small>Срок</small><b>' + ((op && op.term) || "—") + "</b></div>" +
     '<div class="param"><small>Возраст</small><b>' + ((op && op.age) || "—") + "</b></div>" +
-    '<div class="param"><small>КВ</small><b>' + p.kv_note + "</b></div></div>" +
+    '<div class="param"><small>Статус</small><b>' + statusMeta(productStatus(p)).title + "</b></div></div>" +
     '<label class="check"><input type="checkbox" ' + (p.available ? "checked" : "") +
     ' onchange="toggleAvailable(' + p.id + ', this)"><span>Продукт доступен</span></label>' +
     '<label class="check"><input type="checkbox" ' + (p.no_options ? "checked" : "") +
     ' onchange="noOptionsToggle(' + p.id + ', this)"><span>Продукт без опций</span></label></div>' +
     '<div class="panel span-2">' + panelHead("Пакеты", "product") +
     '<p class="hint">Клиент выбирает пакет. Категорию кредитной истории назначает СПР, не этот стол. Проценты ниже — снимок файла, не текущий офер калькулятора.</p>' +
-    pills +
-    '<div class="pkg-card' + (selected ? " on" : "") + '"><b>' + escapeHtml(pkgTitle) + "</b>" +
-    '<div class="grid-4">' + pkgFields + "</div></div>" +
-    renderKiRateTable(pkgRates) +
+    pills + pkgBlock +
     '<p class="hint">' + ((op && op.insurance) || "") + "</p></div>" +
     '<div class="panel span-2">' + panelHead("Доля кредита · объект × география × КИ", "product") +
     '<p class="hint">Из того же листа OnePage. Регионы вне столиц — отдельный лист, открывается во вкладке «Регионы».</p>' +
@@ -1816,8 +1885,9 @@ function renderProduct() {
   if (!p) return "";
   const tab = state.productTab === "card" ? "terms" : (state.productTab || "terms");
   const head = '<div class="work-inner"><div class="work-head">' +
-    "<h1>" + p.name + "</h1>" +
-    '<p class="stage-now">' + purposeLabel(p.purpose) + "</p>" +
+    "<h1>" + escapeHtml(p.name) + "</h1>" +
+    '<p class="stage-now">' + purposeLabel(p.purpose) +
+    (productStatus(p) === "filling" ? " · " + statusMeta("filling").title : "") + "</p>" +
     productTabs(tab) + "</div><div class=\"desk\">";
   if (tab === "slices") return head + renderSlicesPanel(p) + solverPanel() + "</div></div>";
   if (tab === "options") return head + renderOptionsPanel(p) + solverPanel() + "</div></div>";
@@ -2301,7 +2371,7 @@ function renderAvailMatrix() {
   const product = productById(pid) || state.products[1];
   const productSwitch = state.products.map(function (p) {
     return '<button type="button" class="filter' + (p.id === product.id ? " on" : "") +
-      '" onclick="setAvailProduct(' + p.id + ')">' + purposeLabel(p.purpose) + "</button>";
+      '" onclick="setAvailProduct(' + p.id + ')">' + escapeHtml(p.name) + "</button>";
   }).join("");
   const opts = (state.options || []).filter(function (o) {
     return optionHangsOn(o, product.id);
