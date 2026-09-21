@@ -1642,6 +1642,10 @@ console.log('\n=== 13. Demo hub (start.html) entry point ===');
     'advertising consents are not required to continue');
   assert(!/id="c-cpg"/.test(consumerHtml) && !/consents\.cpg/.test(consumerJs),
     'profile-transfer consent is not asked on the bank step');
+  // ?screen= работает один раз и снимается из адреса: иначе обновление страницы
+  // снова прыгало бы на этот шаг вместо начала пути.
+  assert(/searchParams\.delete\("screen"\)/.test(consumerJs) && /history\.replaceState/.test(consumerJs),
+    'screen deep link clears itself so a reload starts the path over');
   // Коды целей живут в данных (CPG_PURPOSES), а не в разметке — ищем в обоих файлах.
   const cpgSource = consumerHtml + consumerJs;
   assert(/CREDIT_REPORT/.test(cpgSource) && /FINANCIAL_NONFIN_SERVICES/.test(cpgSource),

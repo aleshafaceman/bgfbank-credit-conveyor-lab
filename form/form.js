@@ -472,15 +472,14 @@ document.addEventListener("DOMContentLoaded", function () {
   syncCta();
 
   /* ?screen=<id> — открыть форму сразу на нужном шаге.
-     Нужно для показа: можно показать экран, не проходя путь кликами.
-     Каждый экран нужно наполнить так же, как это делает обычный переход. */
+     Нужно для показа и проверки: можно показать экран, не проходя путь кликами.
+     Параметр срабатывает один раз и снимается из адреса: иначе каждое обновление
+     страницы снова прыгало бы на этот шаг вместо начала пути.
+     Каждый экран наполняем так же, как это делает обычный переход. */
   var jump = null;
   try { jump = new URLSearchParams(window.location.search || "").get("screen"); } catch (eJump) { jump = null; }
   var known = ["phone", "otp", "terms", "calc", "consents", "esia", "preview", "packages", "status", "offramp"];
   if (jump && known.indexOf(jump) !== -1 && $(jump)) {
-    if (jump === "terms" || jump === "calc") {
-      /* условия берём из состояния по умолчанию */
-    }
     if (jump === "consents") {
       /* отмечаем только обязательные: рекламные по умолчанию пустые */
       ["c-pd", "c-bki"].forEach(function (id) { if ($(id)) $(id).checked = true; });
@@ -496,6 +495,11 @@ document.addEventListener("DOMContentLoaded", function () {
       confirmEsia();
     }
     if (jump === "packages" || jump === "status") renderPackages();
+    try {
+      var cleanUrl = new URL(window.location.href);
+      cleanUrl.searchParams.delete("screen");
+      history.replaceState({}, "", cleanUrl.toString());
+    } catch (eClean) { /* адрес не критичен для работы формы */ }
     show(jump);
   }
 });
