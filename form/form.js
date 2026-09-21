@@ -447,4 +447,30 @@ document.addEventListener("DOMContentLoaded", function () {
 
   setMode("amount");
   syncCta();
+
+  /* ?screen=<id> — открыть форму сразу на нужном шаге.
+     Нужно для показа: можно показать экран, не проходя путь кликами.
+     Каждый экран нужно наполнить так же, как это делает обычный переход. */
+  var jump = null;
+  try { jump = new URLSearchParams(window.location.search || "").get("screen"); } catch (eJump) { jump = null; }
+  var known = ["phone", "otp", "terms", "calc", "consents", "esia", "preview", "packages", "status", "offramp"];
+  if (jump && known.indexOf(jump) !== -1 && $(jump)) {
+    if (jump === "terms" || jump === "calc") {
+      /* условия берём из состояния по умолчанию */
+    }
+    if (jump === "consents") {
+      ["c-pd", "c-bki", "c-cpg"].forEach(function (id) { if ($(id)) $(id).checked = true; });
+      readConsents();
+    }
+    if (jump === "esia") {
+      /* без этого контейнер целей остаётся пустым при прямом переходе */
+      renderEsiaPurposes();
+    }
+    if (jump === "preview" || jump === "packages" || jump === "status") {
+      if ($("c-esia-confirm")) $("c-esia-confirm").checked = true;
+      confirmEsia();
+    }
+    if (jump === "packages" || jump === "status") renderPackages();
+    show(jump);
+  }
 });

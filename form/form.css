@@ -57,7 +57,9 @@ body {
 .dot { height: 6px; flex: 1; border-radius: 6px; background: var(--line); }
 .dot.on { background: var(--accent); }
 .dot.done { background: var(--ok); }
-.screen { display: none; padding: 28px 40px 20px; overflow: auto; flex: 1; }
+/* min-height: 0 обязателен: без него flex-потомок не сжимается ниже содержимого
+   и нижняя часть экрана обрезается вместо прокрутки. */
+.screen { display: none; padding: 28px 40px 20px; overflow: auto; flex: 1; min-height: 0; }
 .screen.on { display: block; }
 h1 { font-size: 26px; margin-bottom: 8px; color: var(--navy); }
 .lead { color: var(--muted); font-size: 15px; line-height: 1.45; margin-bottom: 22px; max-width: 640px; }
@@ -138,11 +140,14 @@ input:focus { outline: 2px solid rgba(11, 70, 151,.2); border-color: var(--navy)
 }
 .demo { font-size: 13px; color: var(--muted); margin-top: 16px; line-height: 1.5; }
 .demo code { font-size: 12px; background: var(--sky); padding: 1px 5px; border-radius: 4px; }
-.esia { text-align: center; padding: 80px 16px; }
+/* Экран ЕСИА: блок занимает всю высоту экрана, поэтому фиксированный
+   padding не годится — на невысоком окне он вытесняет цели ЦПГ и галочку за край. */
+.esia { text-align: center; padding: clamp(10px, 4vh, 24px) 16px clamp(8px, 3vh, 20px); }
+.esia .lead { margin: 0 auto; }
 .esia .gs {
-  width: 72px; height: 72px; border-radius: 18px; margin: 0 auto 16px;
+  width: 64px; height: 64px; border-radius: 16px; margin: 0 auto 12px;
   background: #0b4ea2; color: #fff; display: flex; align-items: center; justify-content: center;
-  font-weight: 800; font-size: 24px;
+  font-weight: 800; font-size: 22px;
 }
 .hidden { display: none !important; }
 
