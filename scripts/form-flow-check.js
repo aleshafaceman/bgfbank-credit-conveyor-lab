@@ -8,7 +8,9 @@
  * Внешних зависимостей нет: WebSocket встроен в Node 22+, CDP — обычный JSON-RPC.
  *
  * Запуск:  node scripts/form-flow-check.js
- * Опции:   --chrome=<путь>   --port=<порт>   --keep   (не закрывать Chrome при ошибке)
+ * Опции:   --chrome=<путь>   --port=<порт>   --keep
+ *          --base=<url>      проверить опубликованный сайт вместо локальных файлов,
+ *                            например --base=https://user.github.io/repo
  */
 
 const http = require('http');
@@ -21,6 +23,8 @@ const ROOT = path.resolve(__dirname, '..');
 const PORT = Number((process.argv.find(a => a.startsWith('--port=')) || '').split('=')[1]) || 8123;
 const CDP_PORT = PORT + 1;
 const KEEP = process.argv.includes('--keep');
+/* С --base прогон идёт по опубликованному сайту: так проверяется и выкладка. */
+const EXTERNAL_BASE = ((process.argv.find(a => a.startsWith('--base=')) || '').split('=')[1] || '').replace(/\/+$/, '');
 
 const CHROME_CANDIDATES = [
   (process.argv.find(a => a.startsWith('--chrome=')) || '').split('=')[1],
@@ -463,7 +467,8 @@ async function runDeepLink(s, base) {
     process.exit(2);
   }
   console.log('Браузер: ' + chrome);
-  const server = await startServer();
+  const server = EXTERNAL_BASE ? null : await startServer();
+  if (EXTERNAL_BASE) console.log('Проверяем опубликованный сайт: ' + EXTERNAL_BASE);
   const profile = path.join(os.tmpdir(), 'bgf-flow-profile-' + Date.now());
   fs.mkdirSync(profile, { recursive: true });
 
@@ -480,7 +485,7 @@ async function runDeepLink(s, base) {
     const list = await fetchJson('http://127.0.0.1:' + CDP_PORT + '/json/list');
     const page = list.find(t => t.type === 'page') || list[0];
     session = await attach(page.webSocketDebuggerUrl);
-    const base = 'http://127.0.0.1:' + PORT;
+    const base = EXTERNAL_BASE || 'http://127.0.0.1:' + PORT;
 
     await runConsumer(session, base);
     await runPledge(session, base);
@@ -503,7 +508,7 @@ async function runDeepLink(s, base) {
       try { child.kill(); } catch (e) {}
       try { fs.rmSync(profile, { recursive: true, force: true }); } catch (e) {}
     }
-    server.close();
+    if (server) server.close();
   }
   process.exit(failed ? 1 : 0);
 })();
