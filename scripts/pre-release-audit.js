@@ -1632,33 +1632,48 @@ console.log('\n=== 13. Demo hub (start.html) entry point ===');
     'consumer form lets the client set amount, term and desired payment');
   assert(/mode-payment/.test(consumerHtml) && /amountFromPayment/.test(consumerJs),
     'consumer form can derive the amount from a desired monthly payment');
+  // Общий слой обеих форм: правка согласий или расчёта здесь меняет обе формы сразу.
+  const commonJs = fs.readFileSync(path.join(root, 'shared/form-common.js'), 'utf8');
+  const commonCss = fs.readFileSync(path.join(root, 'shared/form-common.css'), 'utf8');
+  ['form/index.html', 'form-pledge/index.html'].forEach(function(rel) {
+    const src = fs.readFileSync(path.join(root, rel), 'utf8');
+    assert(/\.\.\/shared\/form-common\.js/.test(src) && /\.\.\/shared\/form-common\.css/.test(src),
+      rel + ' loads the shared form layer');
+  });
+  assert(/window\.BGF_FORM/.test(commonJs) && /create: create/.test(commonJs),
+    'shared layer exposes the form factory');
+
   assert(/id="c-pd"/.test(consumerHtml) && /id="c-bki"/.test(consumerHtml),
     'consumer form has the two required consents');
   assert(/class="consent consent--optional"/.test(consumerHtml) &&
     /id="c-ads-bank"/.test(consumerHtml) && /id="c-ads-partners"/.test(consumerHtml),
     'consumer form offers optional advertising consents');
-  // Реклама необязательна: она не должна попадать в условие готовности шага.
-  assert(/function consentsOk\(\) \{ return state\.consents\.pd && state\.consents\.bki; \}/.test(consumerJs),
+  // Реклама необязательна: готовность шага считается только по обязательным согласиям.
+  assert(/function consentsOk\(state\)/.test(commonJs) &&
+    /CONSENTS\.every\(function \(item\) \{ return !!state\.consents\[item\.key\]; \}\)/.test(commonJs) &&
+    /key: "pd", id: "c-pd", required: true/.test(commonJs) &&
+    !/id: "c-ads[^"]*", required: true/.test(commonJs),
     'advertising consents are not required to continue');
-  assert(!/id="c-cpg"/.test(consumerHtml) && !/consents\.cpg/.test(consumerJs),
+  assert(!/id="c-cpg"/.test(consumerHtml) && !/consents\.cpg/.test(consumerJs + commonJs),
     'profile-transfer consent is not asked on the bank step');
   // ?screen= работает один раз и снимается из адреса: иначе обновление страницы
   // снова прыгало бы на этот шаг вместо начала пути.
-  assert(/searchParams\.delete\("screen"\)/.test(consumerJs) && /history\.replaceState/.test(consumerJs),
+  assert(/searchParams\.delete\("screen"\)/.test(consumerJs + commonJs) &&
+    /history\.replaceState/.test(consumerJs + commonJs),
     'screen deep link clears itself so a reload starts the path over');
-  // Коды целей живут в данных (CPG_PURPOSES), а не в разметке — ищем в обоих файлах.
-  const cpgSource = consumerHtml + consumerJs;
+  // Коды целей живут в данных общего слоя, а не в разметке.
+  const cpgSource = consumerHtml + consumerJs + commonJs;
   assert(/CREDIT_REPORT/.test(cpgSource) && /FINANCIAL_NONFIN_SERVICES/.test(cpgSource),
     'consumer form names the CPG purposes it asks for');
   /* Согласие на БКИ подписывается отдельно и не объясняет цели Госуслуг,
      иначе смысл одной цели дублируется на двух экранах. */
-  const bkiCard = (consumerHtml.match(/id="c-bki"[\s\S]{0,900}?<\/div>\s*<div class="consent"/) || [''])[0];
+  const bkiCard = (consumerHtml.match(/id="c-bki"[\s\S]{0,900}?<\/details>/) || [''])[0];
   assert(!/CREDIT_REPORT/.test(bkiCard), 'bank credit-history consent does not explain the Gosuslugi purpose');
   /* Один объединённый блок разрешений вместо карточек на каждую цель. */
-  assert(/class="cp-grant"/.test(consumerHtml) && /cp-row/.test(consumerJs),
+  assert(/class="cp-grant"/.test(consumerHtml) && /cp-row/.test(commonJs),
     'Gosuslugi step grants permissions in a single merged block');
   // Смысл цели не повторяем пояснением в списке разрешений.
-  assert(!/note:\s*"[^"]*БКИ/.test(consumerJs),
+  assert(!/note:\s*"[^"]*БКИ/.test(commonJs + consumerJs),
     'permission list carries no repeated credit-history explanation');
   assert(/id="c-esia-confirm"/.test(consumerHtml) && /function confirmEsia/.test(consumerJs),
     'consumer form simulates Gosuslugi sign-in with an explicit confirmation');
@@ -1666,9 +1681,9 @@ console.log('\n=== 13. Demo hub (start.html) entry point ===');
   // иначе клиентский путь обрывается после подтверждения.
   assert(/id="esiaGo"/.test(consumerHtml) && /id="esiaBack"/.test(consumerHtml),
     'Gosuslugi step carries its own continue and back buttons');
-  assert(/esiaGo/.test(consumerJs) && /inline\.disabled/.test(consumerJs),
+  assert(/esiaGo/.test(commonJs) && /inline\.disabled/.test(commonJs),
     'inline continue button follows the confirmation checkbox');
-  assert(/function annuity/.test(consumerJs) && /BASE_RATE/.test(consumerJs),
+  assert(/function annuity/.test(commonJs) && /BASE_RATE/.test(consumerJs),
     'consumer form computes the annuity payment');
   assert(/id="calc-payment"/.test(consumerHtml) && /id="calc-total"/.test(consumerHtml),
     'consumer form shows payment and total to repay');
@@ -1687,14 +1702,92 @@ console.log('\n=== 13. Demo hub (start.html) entry point ===');
   assert(/class="consent consent--optional"/.test(pledgeHtml) &&
     /id="c-ads-bank"/.test(pledgeHtml) && /id="c-ads-partners"/.test(pledgeHtml),
     'pledge form offers optional advertising consents');
-  assert(/function consentsOk\(\) \{ return state\.consents\.pd && state\.consents\.bki; \}/.test(pledgeJs),
+  assert(/function consentsOk\(state\)/.test(commonJs) && !/required: true/.test(commonJs.match(/ADS = \[[\s\S]*?\]/) || [''])[0],
     'pledge advertising consents are not required to continue');
   assert(/id="term"/.test(pledgeHtml) && /function pickTerm/.test(pledgeJs),
     'pledge form lets the client choose the term');
   assert(/id="goal-preview"/.test(pledgeHtml) && /function renderGoalPreview/.test(pledgeJs),
     'pledge form previews the monthly payment before consent');
-  assert(/searchParams\.delete\("screen"\)/.test(pledgeJs) && /id="esiaGo"/.test(pledgeHtml),
+  assert(/searchParams\.delete\("screen"\)/.test(commonJs) && /id="esiaGo"/.test(pledgeHtml),
     'pledge form clears its deep link and carries inline Gosuslugi actions');
+  // Кнопки нижней панели вызываются из onclick в разметке — значит должны быть в window.
+  assert(/window\.runCta = function/.test(commonJs) && /window\.goBack = function/.test(commonJs),
+    'shared layer exposes runCta and goBack for inline handlers');
+  // Сохранение прогресса: обе формы пишут сессию под одним ключом и одним форматом.
+  assert(/STORAGE_KEY = "bgfbank_form_session"/.test(commonJs) &&
+    /function writeSession\(kind, state, screen, main\)/.test(commonJs) &&
+    /function renderSessionBar\(/.test(commonJs),
+    'shared layer persists the progress and offers to resume');
+  assert(/kind: "consumer"/.test(consumerJs) && /kind: "pledge"/.test(pledgeJs),
+    'each form marks its own session kind');
+  // Блок «что если» на шаге предложений в обеих формах.
+  assert(/id="whatif"/.test(consumerHtml) && /function renderWhatIf/.test(consumerJs) &&
+    /type="range"/.test(consumerJs),
+    'consumer form allows trying other amount and term in place');
+  assert(/id="whatif"/.test(pledgeHtml) && /function renderWhatIf/.test(pledgeJs) &&
+    /type="range"/.test(pledgeJs),
+    'pledge form allows trying other amount and term in place');
+  // Правка суммы и срока с шага данных, не возвращаясь через согласия.
+  assert(/id="cond-links"/.test(consumerHtml) && /function renderCondLinks/.test(consumerJs),
+    'consumer form can jump back to the amount and term');
+  assert(/id="cond-links"/.test(pledgeHtml) && /function renderCondLinks/.test(pledgeJs),
+    'pledge form can jump back to the amount and term');
+  // Подписанные шаги прогресса: не просто шесть точек, а название шага и что дальше.
+  assert(/STAGE_LABELS/.test(commonJs) && /steps-caption/.test(commonJs) &&
+    /steps-caption/.test(commonCss),
+    'progress bar names the current stage and the next one');
+}
+
+console.log('\n=== 14. Shared form layer behaviour ===');
+{
+  // Гоняем общий слой в песочнице с подставным хранилищем: расчёт, согласия и сессия.
+  const store = new Map();
+  const sandbox = {
+    localStorage: {
+      getItem: (k) => (store.has(k) ? store.get(k) : null),
+      setItem: (k, v) => store.set(k, String(v)),
+      removeItem: (k) => store.delete(k)
+    },
+    document: { getElementById: () => null, querySelector: () => null, querySelectorAll: () => [] },
+    Date: Date, Math: Math, Number: Number, String: String, Object: Object, JSON: JSON,
+    Array: Array, parseInt: parseInt, isNaN: isNaN
+  };
+  sandbox.window = sandbox;
+  vm.createContext(sandbox);
+  vm.runInContext(fs.readFileSync(path.join(root, 'shared/form-common.js'), 'utf8'), sandbox,
+    { filename: 'shared/form-common.js' });
+  const F = sandbox.window.BGF_FORM;
+
+  assert(F && typeof F.create === 'function', 'shared layer exposes the factory');
+  assert(F.annuity(3000000, 19.9, 60) === 79315, 'annuity matches the calculator (79 315 ₽)');
+  assert(Math.abs(F.clamp(F.amountFromPayment(79315, 19.9, 60), 50000, 7000000) - 3000000) <= 1000,
+    'reverse payment keeps the amount within a thousand rubles');
+
+  const st = { consents: F.emptyConsents(), ads: F.emptyAds() };
+  assert(!F.consentsOk(st), 'step stays closed without the required consents');
+  st.consents.pd = true;
+  assert(!F.consentsOk(st), 'one required consent is not enough');
+  st.consents.bki = true;
+  assert(F.consentsOk(st), 'two required consents open the step');
+  st.ads.bank = true;
+  assert(F.consentsOk(st), 'advertising consent never gates the step');
+
+  const source = { phone: '9991234567', mode: 'payment', amount: 2500000, term: 36, payment: 88000,
+    insurance: true, pkg: 'insured', consents: { pd: true, bki: true }, ads: { bank: true, partners: false } };
+  F.writeSession('consumer', source, 'consents', []);
+  const saved = F.readSession();
+  assert(saved && saved.kind === 'consumer' && saved.screen === 'consents' && saved.ver === 1,
+    'session keeps the form kind, the step and a format version');
+  const restored = { consents: F.emptyConsents(), ads: F.emptyAds() };
+  F.applySession(saved, restored);
+  assert(restored.amount === 2500000 && restored.term === 36 && restored.payment === 88000 &&
+    restored.mode === 'payment' && restored.insurance === true && restored.pkg === 'insured',
+    'session restores the user input');
+  assert(restored.consents.pd && restored.consents.bki && restored.ads.bank && !restored.ads.partners,
+    'session restores consents and advertising choices');
+  F.clearSession();
+  assert(F.readSession() === null, 'discarding the session clears the storage');
+  assert(F.STAGE_LABELS.length === 7, 'progress has seven named stages');
 }
 
 console.log('\n=== Summary ===');

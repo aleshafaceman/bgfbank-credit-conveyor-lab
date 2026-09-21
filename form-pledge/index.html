@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,700;1,400&family=Roboto+Condensed:wght@600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="form.css">
+<link rel="stylesheet" href="../shared/form-common.css">
 </head>
 <body>
   <div class="shell">
@@ -26,6 +27,7 @@
 
     <section class="screen on" id="phone">
       <h1>Кредит под залог квартиры</h1>
+      <div class="session-bar hidden" id="sessionBar"></div>
       <p class="lead">Залог своей квартиры: сумма больше, ставка ниже. Начнём с телефона.</p>
       <label for="phone-input">Мобильный телефон</label>
       <input id="phone-input" type="tel" inputmode="tel" autocomplete="tel" placeholder="+7 999 123-45-67" value="+7 999 123-45-67">
@@ -130,6 +132,7 @@
       <p class="lead">Получены из ЕСИА. Редактировать нельзя — если что-то не так, измените данные на Госуслугах.</p>
       <div class="card" id="preview-card"></div>
       <div class="cp-scopes" id="cp-scopes"></div>
+      <div class="cond-links" id="cond-links"></div>
       <p class="hint">Квартиру ЕСИА не отдаёт: объект залога подтверждается выпиской ЕГРН на следующем шаге.</p>
     </section>
 
@@ -177,6 +180,7 @@
       <h1>Предварительные условия</h1>
       <p class="lead">Это витрина Solver, не решение андеррайтера. Лимит считается от оценки квартиры.</p>
       <div class="card" id="pkg-hero"></div>
+      <div id="whatif"></div>
       <div class="pkg-list" id="pkg-list"></div>
     </section>
 
@@ -216,6 +220,7 @@
       <button type="button" class="btn btn-primary" id="cta" onclick="runCta()">Получить код</button>
     </footer>
   </div>
-  <script src="form.js"></script>
+  <script src="../shared/form-common.js"></script>
+<script src="form.js"></script>
 </body>
 </html>

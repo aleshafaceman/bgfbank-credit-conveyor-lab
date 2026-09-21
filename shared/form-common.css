@@ -1,0 +1,129 @@
+/* Общие стили клиентских форм БЖФ: согласия, разрешения, шаги прогресса,
+   сохранённая сессия, блок «что если» и кнопки действий.
+   Подключается обеими формами после их собственного CSS. */
+
+/* ===== Шаги прогресса ===== */
+.steps-caption {
+  flex: 1 0 100%; order: 3; margin-top: 6px;
+  font-size: 12px; color: var(--muted, #64748b); font-weight: 500;
+}
+.top { flex-wrap: wrap; }
+.steps { flex-wrap: wrap; }
+
+/* ===== Согласия ===== */
+.consent {
+  border: 1.5px solid var(--line, #e1e9f1); border-radius: 14px;
+  padding: 13px 16px; margin-bottom: 9px; background: #fff;
+}
+.consent--accent { border-color: #f6c9a5; background: #fffaf6; }
+.consent-head { display: flex; gap: 12px; align-items: flex-start; margin: 0; cursor: pointer; }
+.consent-head input { margin-top: 3px; width: 18px; height: 18px; accent-color: var(--navy, #0B4697); flex-shrink: 0; }
+.consent-title { font-size: 15px; font-weight: 700; color: var(--navy, #0B4697); }
+.consent-note { font-size: 13px; color: var(--muted, #64748b); line-height: 1.5; margin: 10px 0 0 30px; }
+.consent-note code { font-size: 12px; background: var(--sky, #eef5fb); padding: 1px 5px; border-radius: 4px; color: var(--navy, #0B4697); }
+.consent-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 20px; margin: 11px 0 0 30px; }
+.consent-facts div { font-size: 12px; color: var(--muted, #64748b); }
+.consent-facts b { display: block; font-size: 13px; color: var(--ink, #1e293b); font-weight: 600; }
+.consent-warn {
+  margin: 11px 0 0 30px; padding: 8px 12px; font-size: 12.5px; color: #b45309;
+  background: #fff2e6; border-left: 3px solid var(--accent, #EC660A); border-radius: 8px; line-height: 1.5;
+}
+.consent-pills { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 0 30px; }
+.consent-legal { margin: 12px 0 0 30px; }
+.consent-legal summary { font-size: 12.5px; color: var(--navy, #0B4697); cursor: pointer; font-weight: 600; }
+.consent-legal p { font-size: 12.5px; color: var(--muted, #64748b); line-height: 1.6; margin-top: 8px; }
+
+/* Необязательные согласия: тише и компактнее обязательных */
+.consent--optional { background: #fbfcfe; border-style: dashed; border-color: #dbe5ef; padding: 10px 15px; margin-bottom: 7px; }
+.consent--optional .consent-title { color: var(--ink, #1e293b); font-weight: 600; font-size: 14px; }
+.consent--optional .consent-note { margin: 4px 0 0 30px; font-size: 12.5px; }
+.opt-mark {
+  display: inline-block; margin-left: 8px; font-size: 11px; font-weight: 600;
+  text-transform: lowercase; color: var(--muted, #64748b);
+  background: #eef2f7; border-radius: 6px; padding: 2px 7px;
+}
+.consent-foot { font-size: 12.5px; color: var(--muted, #64748b); margin: 8px 0 0 2px; }
+
+/* ===== Разрешения цифрового профиля ===== */
+.cp-grant { border: 1.5px solid var(--line, #e1e9f1); border-radius: 14px; padding: 16px 18px; margin: 16px 0 6px; text-align: left; }
+.cp-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.cp-head b { font-size: 15px; color: var(--navy, #0B4697); }
+.cp-badge {
+  font-size: 11px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase;
+  background: #0b4ea2; color: #fff; border-radius: 7px; padding: 3px 9px;
+}
+.cp-note { font-size: 13px; color: var(--muted, #64748b); margin: 8px 0 14px; }
+.cp-row { display: flex; gap: 10px; padding: 12px 0; border-top: 1px solid var(--line, #e1e9f1); }
+.cp-row:first-of-type { border-top: 0; }
+.cp-mark { color: var(--ok, #13A538); font-weight: 700; flex-shrink: 0; }
+.cp-title { font-size: 14px; font-weight: 700; color: var(--navy, #0B4697); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.cp-code {
+  font-family: ui-monospace, Consolas, monospace; font-size: 10.5px; font-weight: 600;
+  background: var(--sky, #eef5fb); border: 1px solid #d7e6f5; color: var(--navy, #0B4697);
+  border-radius: 6px; padding: 2px 6px;
+}
+.cp-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.pill-fact {
+  font-size: 11.5px; font-weight: 600; color: var(--navy, #0B4697);
+  background: var(--sky, #eef5fb); border: 1px solid #d7e6f5; border-radius: 999px; padding: 3px 10px;
+}
+.scopes-head { font-size: 12px; font-weight: 700; color: var(--navy, #0B4697); margin: 18px 0 8px; }
+.scopes { display: flex; flex-wrap: wrap; gap: 6px; }
+.scope { font-size: 12.5px; font-weight: 600; color: var(--ok, #13A538); background: #eaf7ee; border-radius: 999px; padding: 4px 11px; }
+
+/* ===== Действия на экране Госуслуг ===== */
+.esia-actions {
+  display: flex; justify-content: flex-end; gap: 12px; align-items: center;
+  margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line, #e1e9f1);
+}
+.esia-actions .btn { min-width: 200px; }
+.esia-actions .btn-ghost { min-width: 130px; }
+
+/* ===== Действия над суммой и сроком ===== */
+.cond-links {
+  display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center;
+  margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line, #e1e9f1);
+}
+.cond-links button {
+  background: none; border: 0; padding: 0; cursor: pointer;
+  font-family: inherit; font-size: 13px; font-weight: 600; color: var(--navy, #0B4697);
+  border-bottom: 1px dashed currentColor;
+}
+.cond-links button:hover { color: var(--accent, #EC660A); }
+.cond-links button:disabled { color: var(--muted, #64748b); cursor: default; border-bottom-color: transparent; }
+
+/* ===== Сохранённая сессия ===== */
+.session-bar {
+  display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; justify-content: space-between;
+  border: 1.5px solid #cfe0f4; background: #f4f9ff; border-radius: 14px;
+  padding: 14px 16px; margin-bottom: 20px;
+}
+.session-bar.hidden { display: none !important; }
+.session-note b { display: block; font-size: 14px; color: var(--navy, #0B4697); }
+.session-note span { font-size: 12.5px; color: var(--muted, #64748b); }
+.session-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.session-actions .btn { min-width: 0; height: 38px; padding: 0 14px; font-size: 13px; }
+
+/* ===== Блок «что если»: ползунки суммы и срока ===== */
+.whatif { border: 1.5px solid var(--line, #e1e9f1); border-radius: 14px; padding: 13px 16px; margin-top: 12px; }
+.whatif h3 { font-size: 14px; color: var(--navy, #0B4697); margin-bottom: 8px; }
+/* Ползунок в одну строку: подпись, шкала, значение — так блок не выдавливает
+   пакеты и кнопку за нижнюю границу экрана. */
+.whatif-row { display: grid; grid-template-columns: 72px minmax(120px, 1fr) 110px; gap: 10px 14px; align-items: center; margin-bottom: 8px; }
+.whatif-row:last-of-type { margin-bottom: 0; }
+.whatif-row label { margin: 0; font-size: 12px; color: var(--muted, #64748b); font-weight: 600; }
+.whatif-row output { font-size: 14px; font-weight: 700; color: var(--navy, #0B4697); text-align: right; white-space: nowrap; }
+.whatif input[type="range"] { width: 100%; min-width: 0; accent-color: var(--navy, #0B4697); }
+.whatif-result {
+  display: flex; flex-wrap: wrap; gap: 8px 28px; align-items: baseline;
+  margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line, #e1e9f1);
+}
+.whatif-result div { font-size: 12px; color: var(--muted, #64748b); }
+.whatif-result b { display: block; font-size: 16px; color: var(--navy, #0B4697); }
+.whatif .hint { margin-top: 8px; }
+
+@media (max-width: 900px) {
+  .consent-facts { grid-template-columns: 1fr; }
+  .whatif-row { grid-template-columns: 1fr; }
+  .whatif-row output { text-align: left; }
+}

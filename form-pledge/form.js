@@ -1,11 +1,16 @@
 /* Кредит под залог своей квартиры — второй сценарий формы.
-   Телефон → OTP → условия → согласия → ЕСИА → данные → объект ЕГРН → прескоринг → пакеты → заявка → ДУ. */
+   Общие механики (аннуитет, согласия, разрешения, шаги, сессия) берём из shared/form-common.js.
+   Срок здесь в годах: у залоговых кредитов длинный горизонт. */
 
 const MIN_AMOUNT = 450000;
 const MAX_AMOUNT = 20000000;
+const MIN_TERM = 5;
+const MAX_TERM = 20;
 
 /* Ставка витрины для залогового кредита — лабораторное значение, не оферта. */
 const PLEDGE_RATE = 18.5;
+
+const F = window.BGF_FORM;
 
 const DEMO_PERSON = {
   fio: "Кузнецов Александр Игоревич",
@@ -19,86 +24,36 @@ const DEMO_PERSON = {
   income: 185000
 };
 
-/* Разрешения цифрового профиля: финансовые и нефинансовые услуги одной целью
-   и отдельная цель запроса кредитного отчёта CREDIT_REPORT. */
-const CPG_PURPOSES = [
-  {
-    code: "FINANCIAL_NONFIN_SERVICES",
-    title: "Финансовые и нефинансовые предложения",
-    chips: ["Доход из СФР", "Занятость", "Паспорт и ИНН"]
-  },
-  {
-    code: "CREDIT_REPORT",
-    title: "Запрос кредитного отчёта",
-    chips: ["Запрос в БКИ", "Оценка нагрузки", "Без обязательств"]
-  }
-];
-
 const EGRN = {
   "77:07:0001075:1234": {
     address: "г. Москва, ул. Крылатская, д. 15, кв. 42",
-    type: "Квартира",
-    okType: true,
-    area: "65 м²",
-    floor: "7 из 12",
-    share: "100%",
-    owner: "Кузнецов Александр Игоревич",
-    ownerMatch: true,
-    encumbrance: "Нет",
-    encumbranceOk: true,
-    price: 8500000
+    type: "Квартира", okType: true, area: "65 м²", floor: "7 из 12", share: "100%",
+    owner: "Кузнецов Александр Игоревич", ownerMatch: true,
+    encumbrance: "Нет", encumbranceOk: true, price: 8500000
   },
   "77:01:0004041:5678": {
     address: "г. Москва, ул. Пресненская наб., д. 8, апарт. 120",
-    type: "Апартаменты",
-    okType: true,
-    area: "48 м²",
-    floor: "15 из 25",
-    share: "100%",
-    owner: "Кузнецов Александр Игоревич",
-    ownerMatch: true,
-    encumbrance: "Нет",
-    encumbranceOk: true,
-    price: 7200000
+    type: "Апартаменты", okType: true, area: "48 м²", floor: "15 из 25", share: "100%",
+    owner: "Кузнецов Александр Игоревич", ownerMatch: true,
+    encumbrance: "Нет", encumbranceOk: true, price: 7200000
   },
   "50:20:0010101:999": {
     address: "Московская обл., д. Жуковка, ул. Лесная, д. 5",
-    type: "Дом + земля",
-    okType: false,
-    area: "180 м²",
-    floor: "2",
-    share: "100%",
-    owner: "Кузнецов Александр Игоревич",
-    ownerMatch: true,
-    encumbrance: "Нет",
-    encumbranceOk: true,
-    price: 12000000
+    type: "Дом + земля", okType: false, area: "180 м²", floor: "2", share: "100%",
+    owner: "Кузнецов Александр Игоревич", ownerMatch: true,
+    encumbrance: "Нет", encumbranceOk: true, price: 12000000
   },
   "77:00:0000001:0001": {
     address: "г. Москва, ул. Арбат, д. 1, кв. 10",
-    type: "Квартира",
-    okType: true,
-    area: "42 м²",
-    floor: "3 из 8",
-    share: "100%",
-    owner: "Петрова Мария Сергеевна",
-    ownerMatch: false,
-    encumbrance: "Нет",
-    encumbranceOk: true,
-    price: 9100000
+    type: "Квартира", okType: true, area: "42 м²", floor: "3 из 8", share: "100%",
+    owner: "Петрова Мария Сергеевна", ownerMatch: false,
+    encumbrance: "Нет", encumbranceOk: true, price: 9100000
   },
   "77:00:0000002:0002": {
     address: "г. Москва, Ленинский пр-т, д. 40, кв. 18",
-    type: "Квартира",
-    okType: true,
-    area: "58 м²",
-    floor: "9 из 16",
-    share: "100%",
-    owner: "Кузнецов Александр Игоревич",
-    ownerMatch: true,
-    encumbrance: "Ипотека другого банка",
-    encumbranceOk: false,
-    price: 11000000
+    type: "Квартира", okType: true, area: "58 м²", floor: "9 из 16", share: "100%",
+    owner: "Кузнецов Александр Игоревич", ownerMatch: true,
+    encumbrance: "Ипотека другого банка", encumbranceOk: false, price: 11000000
   }
 };
 
@@ -106,71 +61,50 @@ const state = {
   phone: "",
   amount: 3000000,
   term: 15,
+  payment: 0,
+  insurance: false,
   object: null,
   pkg: "rec",
   egrnOk: false,
-  consents: { pd: false, bki: false },
-  ads: { bank: false, partners: false },
+  consents: F.emptyConsents(),
+  ads: F.emptyAds(),
   esiaAt: ""
 };
 
 const MAIN = ["phone", "goal", "consents", "esia", "preview", "cadastral", "packages", "status"];
+const FLOW = MAIN.concat(["otp", "egrn", "wait", "du", "offramp"]);
+
+const STEP_LABELS = {
+  goal: "Сумма и срок",
+  consents: "Согласия",
+  esia: "Госуслуги",
+  preview: "Данные профиля",
+  cadastral: "Объект залога",
+  packages: "Предложение",
+  status: "Заявка отправлена"
+};
 
 function $(id) { return document.getElementById(id); }
 
-function show(id) {
-  document.querySelectorAll(".screen").forEach(function (el) { el.classList.remove("on"); });
-  const el = $(id);
-  if (el) el.classList.add("on");
-  const bar = $("bar");
-  if (bar) bar.classList.toggle("hidden", id === "esia" || id === "wait");
-  updateDots(id);
-  syncCta();
+function paymentOf(amount, rate, years) {
+  return F.annuity(amount, rate, years * 12);
 }
 
-function updateDots(id) {
-  const norm = id === "otp" ? "phone" : id === "egrn" ? "cadastral" : id === "du" ? "status" : id;
-  const idx = MAIN.indexOf(norm);
-  document.querySelectorAll(".dot").forEach(function (d, i) {
-    d.classList.toggle("on", i === idx);
-    d.classList.toggle("done", idx > i);
-  });
-}
-
-function fmt(n) { return Number(n).toLocaleString("ru-RU") + " ₽"; }
-
-function digits(value) {
-  return parseInt(String(value == null ? "" : value).replace(/\D/g, ""), 10) || 0;
-}
-
-function fmtInput(el) {
-  const n = digits(el.value);
-  el.value = n ? n.toLocaleString("ru-RU") : "";
-  return n;
-}
-
-function annuity(amount, annualRate, years) {
-  const r = annualRate / 100 / 12;
-  const n = years * 12;
-  if (r <= 0) return Math.round(amount / n);
-  return Math.round(amount * r / (1 - Math.pow(1 + r, -n)));
-}
-
-function termLabel(years) {
-  return years + (years === 1 ? " год" : years < 5 ? " года" : " лет");
-}
+/* ---------- шаг условий ---------- */
 
 function renderGoalPreview() {
-  const pay = annuity(state.amount, PLEDGE_RATE, state.term);
+  const rate = PLEDGE_RATE;
+  const pay = paymentOf(state.amount, rate, state.term);
+  state.payment = pay;
   const total = pay * state.term * 12;
   const box = $("goal-preview");
   if (!box) return;
   box.innerHTML =
-    '<div class="row"><span>Сумма</span><b>' + fmt(state.amount) + "</b></div>" +
-    '<div class="row"><span>Срок</span><b>' + termLabel(state.term) + "</b></div>" +
-    '<div class="row"><span>Ставка витрины</span><b>' + PLEDGE_RATE.toFixed(1) + "%</b></div>" +
-    '<div class="row"><span>Платёж в месяц</span><b>' + fmt(pay) + "</b></div>" +
-    '<div class="row"><span>Проценты за весь срок</span><b>' + fmt(total - state.amount) + "</b></div>" +
+    '<div class="row"><span>Сумма</span><b>' + F.fmtMoney(state.amount) + "</b></div>" +
+    '<div class="row"><span>Срок</span><b>' + F.yearsLabel(state.term) + "</b></div>" +
+    '<div class="row"><span>Ставка витрины</span><b>' + rate.toFixed(1) + "%</b></div>" +
+    '<div class="row"><span>Платёж в месяц</span><b>' + F.fmtMoney(pay) + "</b></div>" +
+    '<div class="row"><span>Проценты за весь срок</span><b>' + F.fmtMoney(total - state.amount) + "</b></div>" +
     '<p class="hint" style="margin-top:8px;">Предварительно. Лимит ограничен оценкой квартиры — уточним на шаге объекта.</p>';
 }
 
@@ -187,6 +121,8 @@ function pickTerm(years) {
   state.term = Number(years);
   renderGoalPreview();
 }
+
+/* ---------- шаги пути ---------- */
 
 function phoneDigits() {
   let raw = (($("phone-input") && $("phone-input").value) || "").replace(/\D/g, "");
@@ -205,7 +141,7 @@ function sendOtp() {
   err.classList.remove("on");
   state.phone = raw;
   $("otp-phone").textContent = "+7 " + raw;
-  show("otp");
+  ctrl.go("otp");
 }
 
 function verifyOtp() {
@@ -218,11 +154,11 @@ function verifyOtp() {
   }
   err.classList.remove("on");
   renderGoalPreview();
-  show("goal");
+  ctrl.go("goal");
 }
 
 function nextGoal() {
-  const n = digits($("amount").value);
+  const n = F.digits($("amount").value);
   const err = $("err-amount");
   if (!n || n < MIN_AMOUNT) {
     err.textContent = "Минимум 450 000 ₽";
@@ -236,86 +172,49 @@ function nextGoal() {
   }
   err.classList.remove("on");
   state.amount = n;
-  show("consents");
-}
-
-/* Обязательных согласий два: персональные данные и запрос в БКИ.
-   Разрешения цифрового профиля клиент даёт в Госуслугах, реклама необязательна. */
-function readConsents() {
-  state.consents.pd = !!($("c-pd") && $("c-pd").checked);
-  state.consents.bki = !!($("c-bki") && $("c-bki").checked);
-}
-
-function readAds() {
-  state.ads.bank = !!($("c-ads-bank") && $("c-ads-bank").checked);
-  state.ads.partners = !!($("c-ads-partners") && $("c-ads-partners").checked);
-}
-
-function consentsOk() { return state.consents.pd && state.consents.bki; }
-
-/* Разрешения показываем списком внутри одной карточки: это не отдельные согласия,
-   а две цели цифрового профиля, подтверждаются одной галочкой ниже. */
-function renderEsiaPurposes() {
-  $("esia-purposes").innerHTML =
-    '<div class="cp-head"><span class="cp-badge">Госуслуги</span>' +
-    "<b>Запрос разрешений цифрового профиля</b></div>" +
-    '<p class="cp-note">Одно действие — доступ к данным профиля. Что именно передаётся:</p>' +
-    CPG_PURPOSES.map(function (p) {
-      return '<div class="cp-row"><span class="cp-mark">✓</span><div class="cp-body">' +
-        '<div class="cp-title">' + p.title + '<span class="cp-code">' + p.code + "</span></div>" +
-        '<div class="cp-chips">' + p.chips.map(function (c) { return '<span class="pill-fact">' + c + "</span>"; }).join("") + "</div>" +
-        "</div></div>";
-    }).join("");
+  renderGoalPreview();
+  ctrl.go("consents");
 }
 
 function goEsia() {
-  readConsents();
+  F.readConsents(state);
   const err = $("err-consents");
-  if (!consentsOk()) {
+  if (!F.consentsOk(state)) {
     err.textContent = "Отметьте оба согласия — иначе перейти на Госуслуги нельзя";
     err.classList.add("on");
-    syncCta();
+    ctrl.syncCta();
     return;
   }
   err.classList.remove("on");
-  renderEsiaPurposes();
-  show("esia");
+  F.renderPurposes("esia-purposes");
+  ctrl.go("esia");
 }
 
-/* Имитация авторизации на Госуслугах и передачи разрешений. */
+/* Имитация авторизации и передачи разрешений цифрового профиля. */
 function goEsiaNext() {
   const err = $("err-esia");
-  const box = $("c-esia-confirm");
-  if (!box || !box.checked) {
+  if (!($("c-esia-confirm") && $("c-esia-confirm").checked)) {
     err.textContent = "Подтвердите вход, чтобы передать данные банку";
     err.classList.add("on");
     return;
   }
   err.classList.remove("on");
-  state.esiaAt = new Date().toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
-
-  $("preview-card").innerHTML = [
-    ["ФИО", DEMO_PERSON.fio],
-    ["Дата рождения", DEMO_PERSON.birth],
-    ["Паспорт", DEMO_PERSON.passport],
-    ["ИНН / СНИЛС", DEMO_PERSON.inn + " · " + DEMO_PERSON.snils],
-    ["Адрес регистрации", DEMO_PERSON.address],
-    ["Место работы", DEMO_PERSON.employer + ", " + DEMO_PERSON.position],
-    ["Доход в месяц", fmt(DEMO_PERSON.income)]
-  ].map(function (pair) {
-    return '<div class="row"><span>' + pair[0] + "</span><b>" + pair[1] + "</b></div>";
-  }).join("");
-
-  $("cp-scopes").innerHTML =
-    '<div class="scopes-head">Получено из цифрового профиля · ' + state.esiaAt + "</div>" +
-    '<div class="scopes">' +
-      ["Паспорт", "ИНН и СНИЛС", "Доход из СФР", "Занятость", "Адрес регистрации"]
-        .map(function (s) { return '<span class="scope">' + s + "</span>"; }).join("") +
-    "</div>" +
-    '<p class="hint">Кредитный отчёт в этот список не входит: банк запрашивает его в БКИ отдельно, по вашему согласию.</p>';
-
-  show("preview");
+  state.esiaAt = F.esiaStamp();
+  F.renderPersonRows("preview-card", DEMO_PERSON);
+  F.renderScopes("cp-scopes", state.esiaAt);
+  renderCondLinks();
+  ctrl.go("preview");
 }
+
+/* Ссылки «изменить сумму/срок» — чтобы не возвращаться через согласия и Госуслуги */
+function renderCondLinks() {
+  const host = $("cond-links");
+  if (!host) return;
+  host.innerHTML = "<button type=\"button\" id=\"editAmount\">Изменить сумму или срок</button>";
+  $("editAmount").addEventListener("click", function () { ctrl.go("goal"); });
+}
+
+/* ---------- объект залога ---------- */
 
 function findEgrn() {
   const cad = ($("cadastral-input").value || "").trim();
@@ -329,7 +228,7 @@ function findEgrn() {
   if (!obj) {
     $("off-title").textContent = "ЕГРН не ответил";
     $("off-text").textContent = "По этому номеру выписку не получили. Можно ввести другой кадастр или оставить заявку менеджеру (сход: файл выписки).";
-    show("offramp");
+    ctrl.go("offramp");
     return;
   }
   state.object = Object.assign({ cadastral: cad }, obj);
@@ -354,12 +253,12 @@ function findEgrn() {
       (!obj.ownerMatch ? "ФИО не совпало с ЕСИА. " : "") +
       (!obj.encumbranceOk ? "есть обременение. " : "") +
       "</p>";
-  show("egrn");
+  ctrl.go("egrn");
 }
 
 function confirmObject() {
   if (!state.object || !state.egrnOk) return;
-  show("wait");
+  ctrl.go("wait");
   const items = document.querySelectorAll("#wait-log li");
   items.forEach(function (li) { li.className = ""; });
   [0, 1, 2, 3].forEach(function (i, n) {
@@ -371,35 +270,49 @@ function confirmObject() {
   setTimeout(function () {
     items.forEach(function (li) { li.className = "done"; });
     renderPackages();
-    show("packages");
+    ctrl.go("packages");
   }, 2800);
 }
 
-function renderPackages() {
-  const price = state.object.price;
-  const ltv = 0.6;
-  const maxLoan = Math.min(Math.round(price * ltv / 100000) * 100000, state.amount, MAX_AMOUNT);
-  $("pkg-hero").innerHTML =
-    '<div class="row"><span>Оценка МО</span><b>' + fmt(price) + "</b></div>" +
-    '<div class="row"><span>Лимит LTV 60%</span><b>' + fmt(maxLoan) + "</b></div>" +
-    '<div class="row"><span>Запросили</span><b>' + fmt(state.amount) + "</b></div>";
-  const years = state.term;
-  const pkgs = [
-    { id: "rec", title: "Турбо 2.0", rec: true, rate: 18.5, amount: maxLoan },
-    { id: "spec", title: "Спец. опция 4.0", rec: false, rate: 16.9, amount: Math.min(maxLoan, Math.round(price * 0.5 / 100000) * 100000) },
-    { id: "noins", title: "Без страхования жизни", rec: false, rate: 23.5, amount: maxLoan }
+/* ---------- предложения ---------- */
+
+function maxLoan() {
+  const price = (state.object && state.object.price) || 0;
+  return Math.min(Math.round(price * 0.6 / 100000) * 100000, state.amount, MAX_AMOUNT);
+}
+
+function packageList() {
+  const price = (state.object && state.object.price) || 0;
+  return [
+    { id: "rec", title: "Турбо 2.0", rec: true, rate: 18.5, amount: maxLoan() },
+    { id: "spec", title: "Спец. опция 4.0", rec: false, rate: 16.9,
+      amount: Math.min(maxLoan(), Math.round(price * 0.5 / 100000) * 100000) },
+    { id: "noins", title: "Без страхования жизни", rec: false, rate: 23.5, amount: maxLoan() }
   ];
-  $("pkg-list").innerHTML = pkgs.map(function (p) {
+}
+
+function renderPackages() {
+  if (!state.object) return;
+  const years = state.term;
+  const price = state.object.price;
+  $("pkg-hero").innerHTML =
+    '<div class="row"><span>Оценка МО</span><b>' + F.fmtMoney(price) + "</b></div>" +
+    '<div class="row"><span>Лимит LTV 60%</span><b>' + F.fmtMoney(maxLoan()) + "</b></div>" +
+    '<div class="row"><span>Запросили</span><b>' + F.fmtMoney(state.amount) + "</b></div>" +
+    '<div class="row"><span>Срок</span><b>' + F.yearsLabel(years) + "</b></div>";
+
+  $("pkg-list").innerHTML = packageList().map(function (p) {
     return '<label class="pkg' + (p.id === state.pkg ? " on" : "") + '">' +
       '<input type="radio" name="pkg" value="' + p.id + '"' + (p.id === state.pkg ? " checked" : "") + ">" +
       "<h3>" + p.title + "</h3>" +
       '<div class="metrics">' +
-        "<div>Сумма<b>" + fmt(p.amount) + "</b></div>" +
-        "<div>Срок<b>" + termLabel(years) + "</b></div>" +
+        "<div>Сумма<b>" + F.fmtMoney(p.amount) + "</b></div>" +
+        "<div>Срок<b>" + F.yearsLabel(years) + "</b></div>" +
         "<div>Ставка<b>" + p.rate.toFixed(1) + "%</b></div>" +
-        "<div>Платёж<b>" + fmt(annuity(p.amount, p.rate, years)) + "</b></div>" +
+        "<div>Платёж<b>" + F.fmtMoney(paymentOf(p.amount, p.rate, years)) + "</b></div>" +
       "</div></label>";
   }).join("");
+
   $("pkg-list").querySelectorAll("input").forEach(function (inp) {
     inp.addEventListener("change", function () {
       state.pkg = inp.value;
@@ -408,24 +321,83 @@ function renderPackages() {
       });
     });
   });
+
+  renderWhatIf();
+}
+
+/* ---------- «что если»: меняем сумму и срок, не уходя со шага ---------- */
+
+/* Ползунок в одну строку: подпись, шкала и значение. Так блок помещается
+   на экране вместе с пакетами, не уезжая за нижнюю границу. */
+function rangeRow(id, title, min, max, step, value, valueLabel) {
+  return '<div class="whatif-row">' +
+    "<label for=\"" + id + "\">" + title + "</label>" +
+    '<input type="range" id="' + id + '" min="' + min + '" max="' + max + '" step="' + step + '" value="' + value + '">' +
+    '<output id="' + id + 'Out">' + valueLabel + "</output>" +
+  "</div>";
+}
+
+function renderWhatIf() {
+  const host = $("whatif");
+  if (!host || !state.object) return;
+  const years = state.term;
+  const limit = maxLoan();
+  const pay = paymentOf(limit, PLEDGE_RATE, years);
+  host.innerHTML =
+    '<div class="whatif">' +
+      "<h3>Подберите условия</h3>" +
+      rangeRow("wiAmount", "Сумма", MIN_AMOUNT, MAX_AMOUNT, 100000, state.amount, F.fmtMoney(state.amount)) +
+      rangeRow("wiTerm", "Срок", MIN_TERM, MAX_TERM, 1, years, F.yearsLabel(years)) +
+      '<div class="whatif-result">' +
+        "<div>Сумма к выдаче<b id=\"wiLimit\">" + F.fmtMoney(limit) + "</b></div>" +
+        "<div>Платёж в месяц<b id=\"wiPay\">" + F.fmtMoney(pay) + "</b></div>" +
+      "</div>" +
+      '<p class="hint">Лимит ограничен оценкой квартиры: больше 60% от ' + F.fmtMoney(state.object.price) + " банк не выдаст.</p>" +
+    "</div>";
+
+  $("wiAmount").addEventListener("input", function () {
+    state.amount = Number(this.value);
+    renderWhatIf();
+    renderPackages();
+  });
+  $("wiTerm").addEventListener("input", function () {
+    state.term = Number(this.value);
+    const sel = $("term");
+    if (sel && !isNaN(state.term)) {
+      const near = Array.prototype.slice.call(sel.options)
+        .map(function (o) { return Number(o.value); })
+        .reduce(function (a, b) { return Math.abs(b - state.term) < Math.abs(a - state.term) ? b : a; });
+      sel.value = String(near);
+    }
+    renderWhatIf();
+    renderPackages();
+  });
 }
 
 function acceptOffer() {
   const titles = { rec: "Турбо 2.0", spec: "Спец. опция 4.0", noins: "Без страхования жизни" };
+  const chosen = packageList().filter(function (p) { return p.id === state.pkg; })[0];
   $("status-sum").innerHTML =
     '<div class="row"><span>Пакет</span><b>' + (titles[state.pkg] || "") + "</b></div>" +
-    '<div class="row"><span>Сумма</span><b>' + fmt(state.amount) + "</b></div>" +
-    '<div class="row"><span>Срок</span><b>' + termLabel(state.term) + "</b></div>" +
+    '<div class="row"><span>Сумма</span><b>' + F.fmtMoney(chosen ? chosen.amount : state.amount) + "</b></div>" +
+    '<div class="row"><span>Срок</span><b>' + F.yearsLabel(state.term) + "</b></div>" +
     '<div class="row"><span>Объект</span><b>' + state.object.address + "</b></div>" +
     '<div class="row"><span>Кадастр</span><b>' + state.object.cadastral + "</b></div>" +
     '<div class="row"><span>Согласия</span><b>ПДн · БКИ</b></div>' +
     '<div class="row"><span>ЕСИА</span><b>Подтверждена ' + state.esiaAt + "</b></div>";
-  show("status");
+  ctrl.go("status");
 }
 
-function goBack() {
-  const vis = document.querySelector(".screen.on");
-  const map = {
+/* ---------- сборка ---------- */
+
+const ctrl = F.create({
+  kind: "pledge",
+  state: state,
+  flow: FLOW,
+  main: MAIN,
+  stepLabels: STEP_LABELS,
+  fieldIds: { amount: "amount", payment: "payment", term: "term", phone: "phone-input" },
+  back: {
     otp: "phone",
     goal: "phone",
     consents: "goal",
@@ -436,110 +408,78 @@ function goBack() {
     status: "packages",
     du: "status",
     offramp: "goal"
-  };
-  const id = vis && vis.id;
-  show(map[id] || "phone");
-}
-
-const CTA = {
-  phone: ["Получить код", sendOtp],
-  otp: ["Войти", verifyOtp],
-  goal: ["Далее", nextGoal],
-  consents: ["Перейти на Госуслуги", goEsia],
-  esia: ["Войти и передать данные", goEsiaNext],
-  preview: ["Перейти к объекту", function () { show("cadastral"); }],
-  cadastral: ["Найти объект", findEgrn],
-  egrn: ["Это моя квартира", confirmObject],
-  packages: ["Продолжить с этими условиями", acceptOffer],
-  status: ["Показать ДУ (демо АНД)", function () { show("du"); }],
-  du: ["Отправить документы", function () { alert("В лабе файлы никуда не уходят."); }],
-  offramp: ["В начало", function () { show("phone"); }]
-};
-
-function syncCta() {
-  const vis = document.querySelector(".screen.on");
-  const btn = $("cta");
-  if (!vis || !btn) return;
-  const spec = CTA[vis.id];
-  if (!spec) return;
-  btn.textContent = spec[0];
-  if (vis.id === "consents") {
-    readConsents();
-    btn.disabled = !consentsOk();
-  } else if (vis.id === "esia") {
-    const ok = !!($("c-esia-confirm") && $("c-esia-confirm").checked);
-    btn.disabled = !ok;
-    const inline = $("esiaGo");
-    if (inline) inline.disabled = !ok;
-  } else if (vis.id === "egrn") {
-    btn.disabled = !state.egrnOk;
-  } else {
-    btn.disabled = false;
-  }
-}
-
-function runCta() {
-  const vis = document.querySelector(".screen.on");
-  const spec = vis && CTA[vis.id];
-  if (spec) spec[1]();
-}
-
-document.addEventListener("DOMContentLoaded", function () {
-  // Обязательные согласия влияют на кнопку, рекламные — только фиксируются.
-  ["c-pd", "c-bki"].forEach(function (id) {
-    const el = $(id);
-    if (el) el.addEventListener("change", function () { readConsents(); syncCta(); });
-  });
-  ["c-ads-bank", "c-ads-partners"].forEach(function (id) {
-    const el = $(id);
-    if (el) el.addEventListener("change", readAds);
-  });
-  const esiaBox = $("c-esia-confirm");
-  if (esiaBox) esiaBox.addEventListener("change", function () {
-    if (esiaBox.checked) $("err-esia").classList.remove("on");
-    syncCta();
-  });
-
-  $("amount").addEventListener("input", function () { fmtInput($("amount")); });
-  $("amount").addEventListener("blur", function () {
-    state.amount = digits($("amount").value) || state.amount;
-    renderGoalPreview();
-  });
-  $("phone-input").addEventListener("input", function () {
-    if (phoneDigits().length === 10) $("err-phone").classList.remove("on");
-  });
-  $("otp-input").addEventListener("keydown", function (e) { if (e.key === "Enter") verifyOtp(); });
-  $("phone-input").addEventListener("keydown", function (e) { if (e.key === "Enter") sendOtp(); });
-
-  renderGoalPreview();
-  syncCta();
-
-  /* ?screen=<id> — открыть форму сразу на нужном шаге. Параметр срабатывает один раз
-     и снимается из адреса, иначе обновление страницы снова прыгало бы на этот шаг. */
-  var jump = null;
-  try { jump = new URLSearchParams(window.location.search || "").get("screen"); } catch (eJump) { jump = null; }
-  var known = ["phone", "otp", "goal", "consents", "esia", "preview", "cadastral", "egrn", "packages", "status", "du", "offramp"];
-  if (jump && known.indexOf(jump) !== -1 && $(jump)) {
-    if (jump === "consents") {
+  },
+  isBlocked: function (screenId) {
+    return screenId === "egrn" && !state.egrnOk;
+  },
+  cta: {
+    phone: ["Получить код", sendOtp],
+    otp: ["Войти", verifyOtp],
+    goal: ["Далее", nextGoal],
+    consents: ["Перейти на Госуслуги", goEsia],
+    esia: ["Войти и передать данные", goEsiaNext],
+    preview: ["Перейти к объекту", function () { ctrl.go("cadastral"); }],
+    cadastral: ["Найти объект", findEgrn],
+    egrn: ["Это моя квартира", confirmObject],
+    packages: ["Продолжить с этими условиями", acceptOffer],
+    status: ["Показать ДУ (демо АНД)", function () { ctrl.go("du"); }],
+    du: ["Отправить документы", function () { alert("В лабе файлы никуда не уходят."); }],
+    offramp: ["В начало", function () { ctrl.go("phone"); }]
+  },
+  onJump: function (target) {
+    if (target === "consents") {
       ["c-pd", "c-bki"].forEach(function (id) { if ($(id)) $(id).checked = true; });
-      readConsents();
-      readAds();
+      F.readConsents(state);
+      F.readAds(state);
     }
-    if (jump === "esia") renderEsiaPurposes();
-    if (jump === "preview" || jump === "packages" || jump === "status" || jump === "du") {
+    if (target === "esia") F.renderPurposes("esia-purposes");
+    if (target === "preview" || target === "packages" || target === "status" || target === "du") {
       if ($("c-esia-confirm")) $("c-esia-confirm").checked = true;
-      goEsiaNext();
+      state.esiaAt = F.esiaStamp();
+      F.renderPersonRows("preview-card", DEMO_PERSON);
+      F.renderScopes("cp-scopes", state.esiaAt);
+      renderCondLinks();
     }
-    if (jump === "egrn" || jump === "packages" || jump === "status" || jump === "du") {
+    if (target === "egrn" || target === "packages" || target === "status" || target === "du") {
       $("cadastral-input").value = "77:07:0001075:1234";
       findEgrn();
     }
-    if (jump === "packages" || jump === "status" || jump === "du") renderPackages();
-    try {
-      var cleanUrl = new URL(window.location.href);
-      cleanUrl.searchParams.delete("screen");
-      history.replaceState({}, "", cleanUrl.toString());
-    } catch (eClean) { /* адрес не критичен для работы формы */ }
-    show(jump);
+    if (target === "packages" || target === "status" || target === "du") renderPackages();
+  },
+  onRestore: function (target) {
+    /* При возобновлении сессии экран нужно наполнить так же, как при обычном переходе. */
+    renderGoalPreview();
+    renderCondLinks();
+    if (target === "preview" || target === "packages" || target === "status" || target === "du") {
+      state.esiaAt = state.esiaAt || F.esiaStamp();
+      F.renderPersonRows("preview-card", DEMO_PERSON);
+      F.renderScopes("cp-scopes", state.esiaAt);
+    }
+    if (target === "esia") F.renderPurposes("esia-purposes");
+    /* Объект залога не сохраняем между сессиями: кадастр вводится заново,
+       поэтому пакеты восстанавливаем только если объект уже выбран. */
+    if ((target === "packages" || target === "status" || target === "du") && state.object) {
+      renderPackages();
+    }
+    if (target === "status" && state.object) acceptOffer();
+  },
+  onInit: function () {
+    $("amount").addEventListener("input", function () { F.formatInput($("amount")); });
+    $("amount").addEventListener("blur", function () {
+      state.amount = F.digits($("amount").value) || state.amount;
+      renderGoalPreview();
+    });
+    const termSel = $("term");
+    if (termSel) termSel.addEventListener("change", function () { pickTerm(this.value); });
+    $("phone-input").addEventListener("input", function () {
+      if (phoneDigits().length === 10) $("err-phone").classList.remove("on");
+    });
+    $("otp-input").addEventListener("keydown", function (e) { if (e.key === "Enter") verifyOtp(); });
+    $("phone-input").addEventListener("keydown", function (e) { if (e.key === "Enter") sendOtp(); });
+    renderGoalPreview();
   }
+});
+
+document.addEventListener("DOMContentLoaded", function () {
+  ctrl.init();
 });
