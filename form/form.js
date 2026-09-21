@@ -414,7 +414,11 @@ function syncCta() {
     readConsents();
     btn.disabled = !consentsOk();
   } else if (vis.id === "esia") {
-    btn.disabled = !($("c-esia-confirm") && $("c-esia-confirm").checked);
+    const ok = !!($("c-esia-confirm") && $("c-esia-confirm").checked);
+    btn.disabled = !ok;
+    /* Кнопка на самом экране: нижняя панель здесь скрыта */
+    const inline = $("esiaGo");
+    if (inline) inline.disabled = !ok;
   } else {
     btn.disabled = false;
   }

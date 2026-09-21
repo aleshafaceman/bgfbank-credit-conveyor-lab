@@ -1638,6 +1638,12 @@ console.log('\n=== 13. Demo hub (start.html) entry point ===');
     'consumer form names the CPG purposes it asks for');
   assert(/id="c-esia-confirm"/.test(consumerHtml) && /function confirmEsia/.test(consumerJs),
     'consumer form simulates Gosuslugi sign-in with an explicit confirmation');
+  // Нижняя панель на экране ЕСИА скрыта, поэтому действие обязано быть на самом экране,
+  // иначе клиентский путь обрывается после подтверждения.
+  assert(/id="esiaGo"/.test(consumerHtml) && /id="esiaBack"/.test(consumerHtml),
+    'Gosuslugi step carries its own continue and back buttons');
+  assert(/esiaGo/.test(consumerJs) && /inline\.disabled/.test(consumerJs),
+    'inline continue button follows the confirmation checkbox');
   assert(/function annuity/.test(consumerJs) && /BASE_RATE/.test(consumerJs),
     'consumer form computes the annuity payment');
   assert(/id="calc-payment"/.test(consumerHtml) && /id="calc-total"/.test(consumerHtml),
