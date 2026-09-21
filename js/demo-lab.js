@@ -126,6 +126,23 @@ function initClientDemoLabHooks() {
     });
 }
 
+// Возврат к карте демо — точке входа презентации (start.html).
+// Ставим ссылку рядом со «Сброс демо», чтобы не раздувать разметку index.html.
+function addHubLink() {
+    var nav = document.querySelector('#appSidebar .nav-group');
+    if (!nav || document.getElementById('bgfHubLink')) return;
+    var a = document.createElement('a');
+    a.id = 'bgfHubLink';
+    a.className = 'nav-link';
+    a.href = 'start.html';
+    a.style.opacity = '0.75';
+    a.innerHTML = '<i class="fas fa-map"></i> Карта демо';
+    var anchor = nav.querySelector('.btn-demo-reset');
+    if (anchor && anchor.parentNode === nav) nav.insertBefore(a, anchor);
+    else nav.appendChild(a);
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     if (document.getElementById('appShell')) initClientDemoLabHooks();
+    addHubLink();
 });

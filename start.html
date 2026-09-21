@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>БЖФ Банк · Кредитный конвейер — карта демо</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,700;1,400&family=Roboto+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --bgf-navy: #0B4697;
+        --bgf-navy-deep: #08356e;
+        --bgf-accent: #EC660A;
+        --bgf-sky: #eef5fb;
+        --bgf-line: #e1e9f1;
+        --bgf-ink: #1e293b;
+        --bgf-muted: #7e9bb6;
+        --bgf-ok: #13A538;
+        --bgf-danger: #dc2626;
+    }
+    * { box-sizing: border-box; }
+    body {
+        margin: 0; background: #f8fbff; color: var(--bgf-ink);
+        font-family: Roboto, system-ui, -apple-system, sans-serif; line-height: 1.55;
+    }
+    a { color: var(--bgf-navy); }
+    .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 72px; }
+
+    /* Шапка */
+    .topbar { background: #fff; border-bottom: 1px solid var(--bgf-line); position: sticky; top: 0; z-index: 10; }
+    .topbar-inner { max-width: 1080px; margin: 0 auto; padding: 12px 20px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+    .topbar img { height: 34px; display: block; }
+    .topbar-title { font-family: 'Roboto Condensed', Roboto, sans-serif; font-weight: 700; color: var(--bgf-navy); font-size: 17px; letter-spacing: .01em; }
+    .topbar-actions { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+    .btn {
+        display: inline-block; text-decoration: none; border-radius: 10px; padding: 9px 14px;
+        font-size: 13px; font-weight: 700; border: 1px solid var(--bgf-line); background: #fff; color: var(--bgf-navy);
+        cursor: pointer;
+    }
+    .btn:hover { background: var(--bgf-sky); }
+    .btn--primary { background: var(--bgf-navy); border-color: var(--bgf-navy); color: #fff; }
+    .btn--primary:hover { background: var(--bgf-navy-deep); }
+    .btn--accent { background: var(--bgf-accent); border-color: var(--bgf-accent); color: #fff; }
+    .btn--accent:hover { filter: brightness(.94); }
+
+    /* Герой */
+    .hero { background: linear-gradient(135deg, var(--bgf-navy) 0%, var(--bgf-navy-deep) 62%, #0a2f5c 100%); color: #fff; padding: 44px 0 38px; }
+    .hero-inner { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
+    .hero h1 { font-family: 'Roboto Condensed', Roboto, sans-serif; font-size: 34px; line-height: 1.15; margin: 0 0 12px; font-weight: 700; }
+    .hero p { margin: 0; font-size: 16px; color: #cfe0f4; max-width: 760px; }
+    .hero .tags { margin-top: 18px; display: flex; gap: 8px; flex-wrap: wrap; }
+    .tag { background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.22); border-radius: 999px; padding: 5px 12px; font-size: 12px; font-weight: 500; }
+    .notice {
+        margin-top: 20px; background: rgba(236,102,10,.14); border: 1px solid rgba(236,102,10,.5);
+        border-left: 3px solid var(--bgf-accent); border-radius: 10px; padding: 12px 16px; font-size: 13px; color: #ffe6d3;
+    }
+    .notice b { color: #fff; }
+
+    h2 { font-family: 'Roboto Condensed', Roboto, sans-serif; color: var(--bgf-navy); font-size: 23px; margin: 40px 0 6px; }
+    h2 .num { color: var(--bgf-ok); }
+    .lead { color: var(--bgf-muted); margin: 0 0 18px; font-size: 14px; }
+
+    /* Было / стало */
+    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .panel { background: #fff; border: 1px solid var(--bgf-line); border-radius: 14px; padding: 18px 20px; }
+    .panel--as { border-top: 3px solid var(--bgf-muted); }
+    .panel--to { border-top: 3px solid var(--bgf-ok); }
+    .panel h3 { margin: 0 0 10px; font-size: 15px; font-family: 'Roboto Condensed', Roboto, sans-serif; }
+    .panel--as h3 { color: #64748b; }
+    .panel--to h3 { color: var(--bgf-ok); }
+    .panel ul { margin: 0; padding-left: 18px; font-size: 14px; }
+    .panel li { margin-bottom: 7px; }
+    .panel li b { color: var(--bgf-navy); }
+
+    /* Схема */
+    .flow { background: #fff; border: 1px solid var(--bgf-line); border-radius: 14px; padding: 18px 20px; overflow-x: auto; }
+    .flow-line { display: flex; align-items: stretch; gap: 8px; min-width: 860px; }
+    .flow-step { flex: 1; border: 1px solid var(--bgf-line); border-radius: 10px; padding: 10px 12px; background: var(--bgf-sky); }
+    .flow-step .k { font-size: 11px; color: var(--bgf-muted); font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+    .flow-step .v { font-size: 13px; font-weight: 700; color: var(--bgf-navy); }
+    .flow-step .d { font-size: 11.5px; color: #64748b; margin-top: 3px; }
+    .flow-step--now { background: #fff7f0; border-color: #f6c9a5; }
+    .flow-step--now .v { color: #b45309; }
+    .flow-arrow { align-self: center; color: var(--bgf-muted); font-weight: 700; }
+    .flow-note { margin-top: 12px; font-size: 12.5px; color: var(--bgf-muted); }
+
+    /* Карточки ролей */
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+    .card { background: #fff; border: 1px solid var(--bgf-line); border-radius: 14px; padding: 18px 20px; display: flex; flex-direction: column; }
+    .card .role { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--bgf-muted); }
+    .card h3 { font-family: 'Roboto Condensed', Roboto, sans-serif; font-size: 19px; color: var(--bgf-navy); margin: 4px 0 8px; }
+    .card p { font-size: 13.5px; margin: 0 0 12px; color: #475569; }
+    .card .meta { font-size: 12.5px; color: #64748b; margin: 0 0 4px; }
+    .card .meta b { color: var(--bgf-ink); }
+    .card .cta { margin-top: auto; padding-top: 14px; display: flex; gap: 8px; flex-wrap: wrap; }
+    .pill { display: inline-block; font-size: 11px; font-weight: 700; border-radius: 999px; padding: 3px 9px; }
+    .pill--ok { background: #e7f7ec; color: #0f7a2b; }
+    .pill--warn { background: #fff2e6; color: #b45309; }
+    .pill--info { background: var(--bgf-sky); color: var(--bgf-navy); }
+
+    /* Таблицы */
+    table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid var(--bgf-line); border-radius: 12px; overflow: hidden; font-size: 13.5px; }
+    th, td { text-align: left; padding: 10px 13px; border-bottom: 1px solid var(--bgf-line); vertical-align: top; }
+    th { background: var(--bgf-sky); color: var(--bgf-navy); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+    tr:last-child td { border-bottom: none; }
+    code { background: var(--bgf-sky); border: 1px solid var(--bgf-line); border-radius: 6px; padding: 1px 6px; font-size: 12.5px; color: var(--bgf-navy-deep); font-family: ui-monospace, Consolas, monospace; }
+    td.danger { color: var(--bgf-danger); font-weight: 700; }
+    td.safe { color: var(--bgf-ok); font-weight: 700; }
+
+    /* Сценарий */
+    .steps { counter-reset: s; }
+    .step { background: #fff; border: 1px solid var(--bgf-line); border-radius: 12px; padding: 14px 16px 14px 58px; position: relative; margin-bottom: 10px; }
+    .step::before {
+        counter-increment: s; content: counter(s);
+        position: absolute; left: 16px; top: 14px; width: 28px; height: 28px; border-radius: 50%;
+        background: var(--bgf-ok); color: #fff; font-weight: 700; font-size: 14px;
+        display: flex; align-items: center; justify-content: center;
+    }
+    .step .who { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--bgf-muted); }
+    .step .what { font-size: 14px; font-weight: 500; margin: 2px 0 4px; }
+    .step .say { font-size: 13px; color: #64748b; }
+    .step .say b { color: var(--bgf-ink); }
+
+    /* Логины */
+    .creds { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .cred { background: #fff; border: 1px solid var(--bgf-line); border-radius: 12px; padding: 14px 16px; font-size: 13.5px; }
+    .cred b { color: var(--bgf-navy); }
+
+    footer { margin-top: 40px; padding-top: 18px; border-top: 1px solid var(--bgf-line); font-size: 12.5px; color: var(--bgf-muted); }
+
+    @media (max-width: 760px) {
+        .split, .creds { grid-template-columns: 1fr; }
+        .hero h1 { font-size: 27px; }
+    }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+    <div class="topbar-inner">
+        <img src="brand/logo-on-light.png" alt="БЖФ Банк">
+        <span class="topbar-title">Кредитный конвейер · карта демо</span>
+        <div class="topbar-actions">
+            <a class="btn" href="https://github.com/aleshafaceman/bgfbank-credit-conveyor-lab/blob/main/DEMO.md" target="_blank" rel="noopener">Сценарий показа</a>
+            <a class="btn btn--accent" href="index.html?demo=1">Начать показ заново</a>
+        </div>
+    </div>
+</div>
+
+<div class="hero">
+    <div class="hero-inner">
+        <h1>Новый кредитный конвейер БЖФ</h1>
+        <p>Заменить ELMA доменным оркестратором в стеке ЛК: конечный автомат заявки, очереди задач по ролям, свой IAM. Не BPMS и не конструктор процессов — кредитный конвейер, где правила маршрута это данные, а интеграции идут только через адаптер и outbox.</p>
+        <div class="tags">
+            <span class="tag">11 этапов процесса</span>
+            <span class="tag">53 статуса ELMA → свои стадии</span>
+            <span class="tag">три АРМ</span>
+            <span class="tag">strangler 0–5, без big-bang</span>
+            <span class="tag">Loginom · ЦФТ · МО · SmartDeal</span>
+        </div>
+        <div class="notice">
+            <b>Это макет, а не прод.</b> Все внешние системы имитированы: живых Loginom, ЦФТ, ФНС, МО и SmartDeal нет. ЕСИА — имитация, OTP — любые 4 цифры, данные хранятся в браузере (<code>bgfbank_lab_*</code>). Ни одно действие здесь не обращается к банковским системам.
+        </div>
+    </div>
+</div>
+
+<div class="wrap">
+
+    <h2><span class="num">1.</span> Что меняем и почему</h2>
+    <p class="lead">Сегодня ELMA одновременно BPM-движок и рабочее место банка. Кастом банка конфликтует с ядром вендора, поэтому править её дальше нецелесообразно. Другую BPMS ставить тоже не будем — это повторит ту же судьбу.</p>
+    <div class="split">
+        <div class="panel panel--as">
+            <h3>AS-IS</h3>
+            <ul>
+                <li><b>ELMA</b> — и процесс, и АРМ АНД, процессинга, СБ, АПЗ, структуратора, КК, ОЗС.</li>
+                <li>Обновления вендора <b>конфликтуют</b> с доработками банка.</li>
+                <li>Вход в ЛК завязан на ELMA как на <b>каталог пользователей</b> (<code>elma_id</code>).</li>
+                <li>В офисе после «КОД сформирован» данные вводят <b>заново</b>: второе окно ОПЕРУ, повторный паспорт, СОПД датой визита. Норматив 45 минут, из них ~30 — очередь.</li>
+                <li>Статусы партнёрского ЛК — <b>схлопывание</b> 53 кодов ELMA, не рабочий инструмент банка.</li>
+            </ul>
+        </div>
+        <div class="panel panel--to">
+            <h3>TO-BE</h3>
+            <ul>
+                <li><b><code>conveyor</code></b> — отдельный сервис: агрегат заявки, автомат стадий, inbox задач, SLA, проекции статусов.</li>
+                <li><b>Три АРМ со своим IAM</b>, а не <code>elma_id</code>: форма подачи, АРМ продаж, АРМ банка.</li>
+                <li>UI <b>не вызывает</b> Loginom, ЦФТ и SmartDeal — только оркестратор, дальше адаптер и outbox.</li>
+                <li>После КОД источник правды — <b>снимок</b>. Клиент остаётся у ОЗС, второго окна нет, СОПД не переподписывают.</li>
+                <li>Правила маршрута, SLA и лимиты циклов — <b>данные</b>, а не патчи ядра.</li>
+            </ul>
+        </div>
+    </div>
+
+    <h2><span class="num">2.</span> Сквозной путь сделки в демо</h2>
+    <p class="lead">Пять поверхностей макета покрывают путь заявки от подачи до подписания КОД. Оранжевым отмечен участок, который в лабе показан наиболее подробно.</p>
+    <div class="flow">
+        <div class="flow-line">
+            <div class="flow-step">
+                <div class="k">Шаг 1</div>
+                <div class="v">Клиент</div>
+                <div class="d">Заявка · ЕСИА · залог · пакет</div>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-step">
+                <div class="k">Шаг 2</div>
+                <div class="v">Менеджер</div>
+                <div class="d">Прескоринг · скоринг · решение</div>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-step">
+                <div class="k">Шаг 3</div>
+                <div class="v">Андеррайтер</div>
+                <div class="d">АНД ∥ АПЗ · барьер паспорта</div>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-step">
+                <div class="k">Шаг 4</div>
+                <div class="v">Стол сделки</div>
+                <div class="d">ОЗС · счёт · КОД · ДБО</div>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-step">
+                <div class="k">Шаг 5</div>
+                <div class="v">Продуктолог</div>
+                <div class="d">Продукты · опции · регионы · шкалы</div>
+            </div>
+        </div>
+        <div class="flow-note">
+            Шаги 1–2 работают на <b>общем хранилище</b>: заявка, собранная у клиента, видна менеджеру в той же вкладке браузера. Шаги 3–5 — <b>изолированные столы</b> со своими данными: переход между ними сцену не портит. Продуктолог — не участник сделки, а конфигуратор условий для калькулятора, поэтому стоит отдельно.
+        </div>
+    </div>
+
+    <h2><span class="num">3.</span> Шесть поверхностей демо</h2>
+    <p class="lead">Открывайте в одной вкладке, чтобы сцена сохранялась. Для показа клиента и менеджера удобнее две вкладки — они видят одну заявку.</p>
+    <div class="grid">
+
+        <div class="card">
+            <div class="role">Шаг 1 · клиент B2C</div>
+            <h3>Личный кабинет заёмщика</h3>
+            <p>Happy-path залога: заявка, цифровой профиль ЕСИА, объект и оценка, прескоринг, сравнение пакетов, принятие условий, документы, уведомление об одобрении.</p>
+            <p class="meta"><b>Заявка:</b> №4421-И · <b>Логин:</b> +7 (999) 123-45-67 / password123</p>
+            <p class="meta"><span class="pill pill--ok">Не стирает сцену</span></p>
+            <div class="cta">
+                <a class="btn btn--primary" href="index.html?autologin=1&checklist=1">Открыть кабинет</a>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="role">Шаг 2 · продажи и КЦ</div>
+            <h3>АРМ менеджера</h3>
+            <p>Карточка заявки клиента, блок цифрового профиля, прескоринг, полный скоринг с протоколом, разбор ставки, запрос ДУ, опись документов, одобрение.</p>
+            <p class="meta"><b>Логин:</b> admin / manager123 · флажок «Зелёный скоринг» переключает исход</p>
+            <p class="meta"><span class="pill pill--ok">Не стирает сцену</span></p>
+            <div class="cta">
+                <a class="btn btn--primary" href="manager/?autologin=1">Открыть АРМ</a>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="role">Шаг 3 · банк</div>
+            <h3>АРМ андеррайтера (АНД / АПЗ)</h3>
+            <p>Две очереди: человек и объект. Комплект, скоринг, ФССП с надбавкой, опция «Зелёный коридор», КК, звонок. Паспорт сделки открывается только когда одобрены оба контура.</p>
+            <p class="meta"><b>Заявки:</b> 25BGFB00990101…104 · стол не зовёт Loginom сам — только оркестратор</p>
+            <p class="meta"><span class="pill pill--ok">Своё хранилище</span></p>
+            <div class="cta">
+                <a class="btn btn--primary" href="underwriter/">Открыть АРМ</a>
+                <a class="btn" href="underwriter/?demo=1">Сбросить сцену</a>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="role">Шаг 4 · банк</div>
+            <h3>Стол сделки (ОЗС / ОПЕРУ)</h3>
+            <p>Снимок после «КОД сформирован», идентификация, СОПД, шесть автопроверок счёта, заявление РКО, подписание КОД, ДБО. Самый проработанный банковский стол в лабе.</p>
+            <p class="meta"><b>Заявки:</b> 25BGFB00990001…004 · четыре разных кейса СОПД и ЕСИА</p>
+            <p class="meta"><span class="pill pill--ok">Своё хранилище</span></p>
+            <div class="cta">
+                <a class="btn btn--primary" href="deal-ops/">Открыть стол</a>
+                <a class="btn" href="deal-ops/?demo=1">Сбросить сцену</a>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="role">Конфигурация условий</div>
+            <h3>АРМ продуктолога и риск-менеджера</h3>
+            <p>Справочник, который читает калькулятор предложений: продукты, опции, регионы, шкалы риска. Рабочий канон условий — OnePage: лист это цель, колонка это пакет, строки КИ1–КИ5. Матрица настраивается только из <code>.xlsx</code>.</p>
+            <p class="meta"><b>Роли:</b> переключатель Продуктолог / Риск-менеджер на одной странице</p>
+            <p class="meta"><span class="pill pill--info">Своё хранилище</span></p>
+            <div class="cta">
+                <a class="btn btn--primary" href="productolog/">Открыть АРМ</a>
+                <a class="btn" href="productolog/?demo=1&arm=risk">Роль риск-менеджера</a>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="role">Клиент B2C · отдельный путь</div>
+            <h3>Форма подачи</h3>
+            <p>Отдельная форма подачи, а не эволюция B2B-кабинета: залог своей квартиры, ЕСИА с целями ЦПГ (финансовые, нефинансовые, БКИ), объект по кадастру и ЕГРН, пакеты Solver, статус и ДУ.</p>
+            <p class="meta"><b>Демо-кадастры</b> на экране объекта · мобильную вёрстку пока не делаем</p>
+            <p class="meta"><span class="pill pill--info">Своё хранилище</span></p>
+            <div class="cta">
+                <a class="btn btn--primary" href="form/">Открыть форму</a>
+            </div>
+        </div>
+
+    </div>
+
+    <h2><span class="num">4.</span> Как не сломать сцену на показе</h2>
+    <p class="lead">Сброс данных у разных поверхностей устроен по-разному. Красные ссылки стирают подготовленную сцену — не нажимайте их в середине показа.</p>
+    <table>
+        <thead>
+            <tr><th>Ссылка</th><th>Что делает</th><th>Когда безопасно</th></tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>index.html?demo=1</code></td>
+                <td>Стирает общее хранилище кабинетов и входит как клиент — заявка и чат возвращаются к исходному состоянию</td>
+                <td class="danger">Только перед началом показа</td>
+            </tr>
+            <tr>
+                <td><code>index.html?autologin=1</code></td>
+                <td>Входит как клиент <b>без</b> сброса</td>
+                <td class="safe">В любой момент</td>
+            </tr>
+            <tr>
+                <td><code>manager/?autologin=1</code></td>
+                <td>Входит менеджером без сброса — видит заявку, которую собрал клиент</td>
+                <td class="safe">В любой момент</td>
+            </tr>
+            <tr>
+                <td><code>manager/?demo=reset</code></td>
+                <td>Стирает общее хранилище кабинетов и входит менеджером</td>
+                <td class="danger">Только перед началом показа</td>
+            </tr>
+            <tr>
+                <td><code>deal-ops/?demo=1</code><br><code>underwriter/?demo=1</code><br><code>productolog/?demo=1</code></td>
+                <td>Сбрасывает <b>только свою</b> сцену стола; данные кабинетов не трогает</td>
+                <td class="danger">Если нужно вернуть стол к началу</td>
+            </tr>
+            <tr>
+                <td>Ссылки без параметров</td>
+                <td>Просто открывают поверхность на текущем состоянии</td>
+                <td class="safe">В любой момент</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h2><span class="num">5.</span> Сценарий показа: одна сделка за 7 минут</h2>
+    <p class="lead">Перед началом нажмите «Начать показ заново» в шапке, затем ведите по шагам. Клавиша <b>P</b> включает режим проектора.</p>
+    <div class="steps">
+        <div class="step">
+            <div class="who">Подготовка</div>
+            <div class="what">Сброс сцены и вход клиента</div>
+            <div class="say">Нажмите <b>«Начать показ заново»</b> в шапке этой страницы. Откроется кабинет клиента с заявкой №4421-И. Скажите: <b>«Сейчас заявка живёт в ELMA, а кабинет — лишь проекция её статусов. Покажем, каким становится путь».</b></div>
+        </div>
+        <div class="step">
+            <div class="who">Шаг 1 · клиент</div>
+            <div class="what">Мои заявки → №4421-И → Продолжить оформление</div>
+            <div class="say">Покажите таймлайн этапов. Затем: объект залога → <b>ЕСИА</b> → прескоринг → сравнение пакетов → <b>«Турбо 2.0»</b> → принять условия. Обратите внимание: <b>каждое значимое действие оставляет документ</b> — откройте раздел «Документы» и покажите оферту и выписку. Это и есть «осязаемость»: после показа остаётся след, а не только слайд.</div>
+        </div>
+        <div class="step">
+            <div class="who">Шаг 2 · менеджер</div>
+            <div class="what">Вторая вкладка: manager/?autologin=1</div>
+            <div class="say">Заявка клиента уже здесь — <b>то же хранилище, тот же агрегат</b>. Запустите быстрый и зелёный скоринг, покажите <b>протокол</b> и разбор ставки, затем одобрение. Вернитесь в первую вкладку: у клиента появился тост и документ о решении. Подчеркните: <b>протокол скоринга сохранён</b>, а не показан одной цифрой.</div>
+        </div>
+        <div class="step">
+            <div class="who">Шаг 3 · андеррайтер</div>
+            <div class="what">underwriter/ — очередь АНД, заявка …101</div>
+            <div class="say">Здесь два независимых контура: <b>человек</b> и <b>объект</b>. Покажите автоодобрение без звонка. Затем заявку <b>…102</b>: ФССП 180 тыс. даёт надбавку +2 п.п. и вариант «Зелёный коридор» — и это <b>опция продукта, а не четвёртая цель кредита</b>. Главное: стол <b>не вызывает Loginom сам</b>, только оркестратор.</div>
+        </div>
+        <div class="step">
+            <div class="who">Шаг 4 · стол сделки</div>
+            <div class="what">deal-ops/ — заявка …001</div>
+            <div class="say">Это ответ на боль офиса. Снимок приходит по событию <b>«КОД сформирован»</b>, а не по визиту клиента. Идентификация и сверка паспорта <b>со снимком</b>, СОПД не переподписывают датой визита. Затем автопроверки: у заявки <b>…004</b> проверка ИНН даёт ошибку и уходит в ОПЕРУ — покажите, что ОПЕРУ это <b>исключение</b>, а не второе окно для каждого. Закончите подписанием КОД и открытием счёта.</div>
+        </div>
+        <div class="step">
+            <div class="who">Шаг 5 · продуктолог</div>
+            <div class="what">productolog/ — вкладки Продукты · Опции · Регионы</div>
+            <div class="say">Покажите, что условия — это <b>данные, которые настраивает банк</b>, а не код вендора. Сетка OnePage: цель, пакет, категория КИ. Переключите роль на <b>Риск-менеджера</b>: шкалы и матрица. Это прямой ответ на «кастом против ядра».</div>
+        </div>
+        <div class="step">
+            <div class="who">Финал</div>
+            <div class="what">Возврат к карте и следующий шаг</div>
+            <div class="say">Вернитесь на эту страницу. Резюме: <b>процесс показан целиком — от подачи до счёта; правила и условия принадлежат банку; интеграции изолированы адаптерами</b>. Дальше — этапы strangler: что забираем первым и что оставляем в ELMA.</div>
+        </div>
+    </div>
+
+    <h2><span class="num">6.</span> Доступы</h2>
+    <div class="creds">
+        <div class="cred"><b>Клиент:</b> +7 (999) 123-45-67 · password123<br><span style="color:#64748b">SMS и OTP — любой код. Госуслуги — имитация.</span></div>
+        <div class="cred"><b>Менеджер:</b> admin · manager123<br><span style="color:#64748b">Вход без сброса: <code>manager/?autologin=1</code></span></div>
+    </div>
+
+    <h2><span class="num">7.</span> Границы макета</h2>
+    <p class="lead">Честные ограничения — чтобы на показе не возникло ложных ожиданий.</p>
+    <table>
+        <thead><tr><th>Что</th><th>Состояние в макете</th></tr></thead>
+        <tbody>
+            <tr><td>Оркестратор <code>conveyor</code></td><td>Спроектирован в документах; <b>кода нет</b> — это следующий шаг после согласования</td></tr>
+            <tr><td>АРМ банка целиком</td><td>Показаны АНД/АПЗ и ОЗС/ОПЕРУ. Процессинг, СБ, структуратор, КК, ЦФО, выдача — <b>ещё не показаны</b></td></tr>
+            <tr><td>Интеграции</td><td>Все имитированы: Loginom, ЦФТ, ФНС, МВД, Федресурс, ФТС, МО, SmartDeal</td></tr>
+            <tr><td>Паспорт сделки и КОД</td><td>Паспорт — на столе ОЗС; в кабинетах только карточка. Открытый вопрос плана — где место паспорта</td></tr>
+            <tr><td>Хранение</td><td>Браузер (<code>bgfbank_lab_*</code>), а не PostgreSQL. Файлы не сохраняются — только метаданные</td></tr>
+            <tr><td>Ветка отказа</td><td>Сознательно вне показа: демонстрируется happy-path</td></tr>
+        </tbody>
+    </table>
+
+    <footer>
+        БЖФ Банк · лабораторный макет кредитного конвейера. Данные вымышленные, персональных данных клиентов банка здесь нет.
+        Полный сценарий и технические детали — в <a href="https://github.com/aleshafaceman/bgfbank-credit-conveyor-lab/blob/main/DEMO.md" target="_blank" rel="noopener">DEMO.md</a>
+        и <a href="https://github.com/aleshafaceman/bgfbank-credit-conveyor-lab/blob/main/docs/_LK_KNOWLEDGE_BASE.md" target="_blank" rel="noopener">базе знаний</a>.
+    </footer>
+
+</div>
+</body>
+</html>

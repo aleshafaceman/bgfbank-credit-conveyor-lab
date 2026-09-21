@@ -1475,6 +1475,55 @@ console.log('\n=== 12. Manager storage does not ping-pong ===');
     'peer tab picks up the history line once');
 }
 
+console.log('\n=== 13. Demo hub (start.html) entry point ===');
+{
+  const hubRel = 'start.html';
+  const hubPath = path.join(root, hubRel);
+  assert(fs.existsSync(hubPath), 'demo hub start.html exists');
+  const hub = fs.readFileSync(hubPath, 'utf8');
+  [
+    ['index.html?autologin=1', 'client cabinet card links without wiping the scene'],
+    ['manager/?autologin=1', 'manager card links without wiping the scene'],
+    ['underwriter/', 'bank underwriter ARM card is linked'],
+    ['deal-ops/', 'deal desk card is linked'],
+    ['productolog/', 'productologist ARM card is linked'],
+    ['form/', 'application form card is linked'],
+    ['index.html?demo=1', 'hub offers an explicit fresh-show reset']
+  ].forEach(function(pair) {
+    assert(hub.indexOf(pair[0]) !== -1, pair[1]);
+  });
+  assert(/AS-IS/.test(hub) && /TO-BE/.test(hub), 'hub narrates AS-IS → TO-BE');
+  assert(/conveyor/.test(hub), 'hub names the conveyor orchestrator');
+  assert(/макет, а не прод/i.test(hub), 'hub states it is a mock, not production');
+  assert(/autologin=1[\s\S]*?не\s*сброс|без\s*сброса/i.test(hub) || /Не стирает сцену/.test(hub),
+    'hub marks the non-destructive entry as safe');
+
+  // Каждая поверхность обязана иметь возврат на карту демо — иначе показ превращается в тупик.
+  [
+    ['index.html', 'start.html', 'client login screen links to the demo hub'],
+    ['manager/index.html', '../start.html', 'manager header links to the demo hub'],
+    ['deal-ops/index.html', '../start.html', 'deal desk links to the demo hub'],
+    ['underwriter/index.html', '../start.html', 'underwriter desk links to the demo hub'],
+    ['productolog/index.html', '../start.html', 'productolog desk links to the demo hub'],
+    ['js/demo-lab.js', 'start.html', 'client sidebar adds the demo hub link']
+  ].forEach(function(spec) {
+    const src = fs.readFileSync(path.join(root, spec[0]), 'utf8');
+    assert(src.indexOf(spec[1]) !== -1, spec[2]);
+  });
+
+  // Ссылки хаба должны разрешаться в существующие файлы, а не 404.
+  const hrefs = [];
+  const hrefRe = /href="([^"#?]+)(?:\?[^"]*)?"/g;
+  let m;
+  while ((m = hrefRe.exec(hub)) !== null) hrefs.push(m[1]);
+  const bad = hrefs.filter(function(h) {
+    if (/^https?:|^mailto:/.test(h)) return false;
+    const target = h.endsWith('/') ? path.join(root, h, 'index.html') : path.join(root, h);
+    return !fs.existsSync(target);
+  });
+  assert(bad.length === 0, 'every hub link resolves to an existing file' + (bad.length ? ' — broken: ' + bad.join(', ') : ''));
+}
+
 console.log('\n=== Summary ===');
 console.log('Passed: ' + passed);
 console.log('Failed: ' + failed);
