@@ -1674,6 +1674,27 @@ console.log('\n=== 13. Demo hub (start.html) entry point ===');
     'consumer form shows payment and total to repay');
   assert(/form-pledge\/index\.html/.test(hub) && /form-pledge\/index\.html/.test(consumerHtml),
     'pledge form stays reachable from the hub and from the consumer form');
+
+  // Залоговый сценарий: только кредит под залог, те же согласия, срок и расчёт платежа.
+  const pledgeHtml = fs.readFileSync(path.join(root, 'form-pledge/index.html'), 'utf8');
+  const pledgeJs = fs.readFileSync(path.join(root, 'form-pledge/form.js'), 'utf8');
+  assert(!/id="c-fin"/.test(pledgeHtml) && !/id="c-nonfin"/.test(pledgeHtml) && !/pickIntent/.test(pledgeJs + pledgeHtml),
+    'pledge form has no separate CPG purpose checkboxes left');
+  assert(!/Покупка жилья/.test(pledgeHtml) && !/Рефинансирование/.test(pledgeHtml),
+    'pledge form offers the pledge loan only');
+  assert(/id="c-pd"/.test(pledgeHtml) && /id="c-bki"/.test(pledgeHtml),
+    'pledge form has the two required consents');
+  assert(/class="consent consent--optional"/.test(pledgeHtml) &&
+    /id="c-ads-bank"/.test(pledgeHtml) && /id="c-ads-partners"/.test(pledgeHtml),
+    'pledge form offers optional advertising consents');
+  assert(/function consentsOk\(\) \{ return state\.consents\.pd && state\.consents\.bki; \}/.test(pledgeJs),
+    'pledge advertising consents are not required to continue');
+  assert(/id="term"/.test(pledgeHtml) && /function pickTerm/.test(pledgeJs),
+    'pledge form lets the client choose the term');
+  assert(/id="goal-preview"/.test(pledgeHtml) && /function renderGoalPreview/.test(pledgeJs),
+    'pledge form previews the monthly payment before consent');
+  assert(/searchParams\.delete\("screen"\)/.test(pledgeJs) && /id="esiaGo"/.test(pledgeHtml),
+    'pledge form clears its deep link and carries inline Gosuslugi actions');
 }
 
 console.log('\n=== Summary ===');

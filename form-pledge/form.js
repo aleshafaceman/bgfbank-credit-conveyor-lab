@@ -1,5 +1,12 @@
+/* Кредит под залог своей квартиры — второй сценарий формы.
+   Телефон → OTP → условия → согласия → ЕСИА → данные → объект ЕГРН → прескоринг → пакеты → заявка → ДУ. */
+
 const MIN_AMOUNT = 450000;
 const MAX_AMOUNT = 20000000;
+
+/* Ставка витрины для залогового кредита — лабораторное значение, не оферта. */
+const PLEDGE_RATE = 18.5;
+
 const DEMO_PERSON = {
   fio: "Кузнецов Александр Игоревич",
   birth: "12.03.1988",
@@ -7,7 +14,25 @@ const DEMO_PERSON = {
   inn: "770123456789",
   snils: "112-233-445 95",
   address: "г. Москва, ул. Крылатская, д. 15, кв. 42",
+  employer: "ООО «ТехноСофт»",
+  position: "Руководитель отдела",
+  income: 185000
 };
+
+/* Разрешения цифрового профиля: финансовые и нефинансовые услуги одной целью
+   и отдельная цель запроса кредитного отчёта CREDIT_REPORT. */
+const CPG_PURPOSES = [
+  {
+    code: "FINANCIAL_NONFIN_SERVICES",
+    title: "Финансовые и нефинансовые предложения",
+    chips: ["Доход из СФР", "Занятость", "Паспорт и ИНН"]
+  },
+  {
+    code: "CREDIT_REPORT",
+    title: "Запрос кредитного отчёта",
+    chips: ["Запрос в БКИ", "Оценка нагрузки", "Без обязательств"]
+  }
+];
 
 const EGRN = {
   "77:07:0001075:1234": {
@@ -21,7 +46,7 @@ const EGRN = {
     ownerMatch: true,
     encumbrance: "Нет",
     encumbranceOk: true,
-    price: 8500000,
+    price: 8500000
   },
   "77:01:0004041:5678": {
     address: "г. Москва, ул. Пресненская наб., д. 8, апарт. 120",
@@ -34,7 +59,7 @@ const EGRN = {
     ownerMatch: true,
     encumbrance: "Нет",
     encumbranceOk: true,
-    price: 7200000,
+    price: 7200000
   },
   "50:20:0010101:999": {
     address: "Московская обл., д. Жуковка, ул. Лесная, д. 5",
@@ -47,7 +72,7 @@ const EGRN = {
     ownerMatch: true,
     encumbrance: "Нет",
     encumbranceOk: true,
-    price: 12000000,
+    price: 12000000
   },
   "77:00:0000001:0001": {
     address: "г. Москва, ул. Арбат, д. 1, кв. 10",
@@ -60,7 +85,7 @@ const EGRN = {
     ownerMatch: false,
     encumbrance: "Нет",
     encumbranceOk: true,
-    price: 9100000,
+    price: 9100000
   },
   "77:00:0000002:0002": {
     address: "г. Москва, Ленинский пр-т, д. 40, кв. 18",
@@ -73,51 +98,94 @@ const EGRN = {
     ownerMatch: true,
     encumbrance: "Ипотека другого банка",
     encumbranceOk: false,
-    price: 11000000,
-  },
+    price: 11000000
+  }
 };
 
 const state = {
   phone: "",
-  intent: "cash_on_pledge",
   amount: 3000000,
+  term: 15,
   object: null,
   pkg: "rec",
   egrnOk: false,
+  consents: { pd: false, bki: false },
+  ads: { bank: false, partners: false },
+  esiaAt: ""
 };
 
-const FLOW = ["phone", "otp", "goal", "consents", "esia", "preview", "cadastral", "egrn", "wait", "packages", "status", "du"];
-const MAIN = ["phone", "goal", "consents", "preview", "cadastral", "packages", "status"];
+const MAIN = ["phone", "goal", "consents", "esia", "preview", "cadastral", "packages", "status"];
 
 function $(id) { return document.getElementById(id); }
 
 function show(id) {
-  document.querySelectorAll(".screen").forEach((el) => el.classList.remove("on"));
+  document.querySelectorAll(".screen").forEach(function (el) { el.classList.remove("on"); });
   const el = $(id);
   if (el) el.classList.add("on");
   const bar = $("bar");
-  const off = ["esia", "wait"].includes(id);
-  if (bar) bar.classList.toggle("hidden", off);
+  if (bar) bar.classList.toggle("hidden", id === "esia" || id === "wait");
   updateDots(id);
   syncCta();
 }
 
 function updateDots(id) {
-  const idx = MAIN.indexOf(id === "otp" ? "phone" : id === "egrn" ? "cadastral" : id === "du" ? "status" : id);
-  document.querySelectorAll(".dot").forEach((d, i) => {
+  const norm = id === "otp" ? "phone" : id === "egrn" ? "cadastral" : id === "du" ? "status" : id;
+  const idx = MAIN.indexOf(norm);
+  document.querySelectorAll(".dot").forEach(function (d, i) {
     d.classList.toggle("on", i === idx);
     d.classList.toggle("done", idx > i);
   });
 }
 
-function fmt(n) {
-  return Number(n).toLocaleString("ru-RU") + " ₽";
+function fmt(n) { return Number(n).toLocaleString("ru-RU") + " ₽"; }
+
+function digits(value) {
+  return parseInt(String(value == null ? "" : value).replace(/\D/g, ""), 10) || 0;
 }
 
-function payment(amount, rate, years) {
-  const r = rate / 100 / 12;
+function fmtInput(el) {
+  const n = digits(el.value);
+  el.value = n ? n.toLocaleString("ru-RU") : "";
+  return n;
+}
+
+function annuity(amount, annualRate, years) {
+  const r = annualRate / 100 / 12;
   const n = years * 12;
+  if (r <= 0) return Math.round(amount / n);
   return Math.round(amount * r / (1 - Math.pow(1 + r, -n)));
+}
+
+function termLabel(years) {
+  return years + (years === 1 ? " год" : years < 5 ? " года" : " лет");
+}
+
+function renderGoalPreview() {
+  const pay = annuity(state.amount, PLEDGE_RATE, state.term);
+  const total = pay * state.term * 12;
+  const box = $("goal-preview");
+  if (!box) return;
+  box.innerHTML =
+    '<div class="row"><span>Сумма</span><b>' + fmt(state.amount) + "</b></div>" +
+    '<div class="row"><span>Срок</span><b>' + termLabel(state.term) + "</b></div>" +
+    '<div class="row"><span>Ставка витрины</span><b>' + PLEDGE_RATE.toFixed(1) + "%</b></div>" +
+    '<div class="row"><span>Платёж в месяц</span><b>' + fmt(pay) + "</b></div>" +
+    '<div class="row"><span>Проценты за весь срок</span><b>' + fmt(total - state.amount) + "</b></div>" +
+    '<p class="hint" style="margin-top:8px;">Предварительно. Лимит ограничен оценкой квартиры — уточним на шаге объекта.</p>';
+}
+
+function pickAmount(n) {
+  state.amount = n;
+  $("amount").value = n.toLocaleString("ru-RU");
+  document.querySelectorAll("[data-amount]").forEach(function (b) {
+    b.classList.toggle("on", Number(b.dataset.amount) === n);
+  });
+  renderGoalPreview();
+}
+
+function pickTerm(years) {
+  state.term = Number(years);
+  renderGoalPreview();
 }
 
 function phoneDigits() {
@@ -149,28 +217,12 @@ function verifyOtp() {
     return;
   }
   err.classList.remove("on");
+  renderGoalPreview();
   show("goal");
 }
 
-function pickIntent(v) {
-  state.intent = v;
-  document.querySelectorAll("[data-intent]").forEach((b) => b.classList.toggle("on", b.dataset.intent === v));
-}
-
-function pickAmount(n) {
-  state.amount = n;
-  $("amount").value = n;
-  document.querySelectorAll("[data-amount]").forEach((b) => b.classList.toggle("on", Number(b.dataset.amount) === n));
-}
-
 function nextGoal() {
-  if (state.intent !== "cash_on_pledge") {
-    $("off-title").textContent = state.intent === "refinancing" ? "Рефинансирование — следующая версия" : "Покупка оформляется иначе";
-    $("off-text").textContent = "Этот happy-path только для кредита под залог своей квартиры. Менеджер свяжется или оформите другой сценарий.";
-    show("offramp");
-    return;
-  }
-  const n = parseInt(($("amount").value || "").replace(/\D/g, ""), 10);
+  const n = digits($("amount").value);
   const err = $("err-amount");
   if (!n || n < MIN_AMOUNT) {
     err.textContent = "Минимум 450 000 ₽";
@@ -187,18 +239,82 @@ function nextGoal() {
   show("consents");
 }
 
-function consentsOk() {
-  return ["c-pd", "c-bki", "c-fin", "c-nonfin"].every((id) => $(id).checked);
+/* Обязательных согласий два: персональные данные и запрос в БКИ.
+   Разрешения цифрового профиля клиент даёт в Госуслугах, реклама необязательна. */
+function readConsents() {
+  state.consents.pd = !!($("c-pd") && $("c-pd").checked);
+  state.consents.bki = !!($("c-bki") && $("c-bki").checked);
 }
 
-function toggleGo() {
-  syncCta();
+function readAds() {
+  state.ads.bank = !!($("c-ads-bank") && $("c-ads-bank").checked);
+  state.ads.partners = !!($("c-ads-partners") && $("c-ads-partners").checked);
+}
+
+function consentsOk() { return state.consents.pd && state.consents.bki; }
+
+/* Разрешения показываем списком внутри одной карточки: это не отдельные согласия,
+   а две цели цифрового профиля, подтверждаются одной галочкой ниже. */
+function renderEsiaPurposes() {
+  $("esia-purposes").innerHTML =
+    '<div class="cp-head"><span class="cp-badge">Госуслуги</span>' +
+    "<b>Запрос разрешений цифрового профиля</b></div>" +
+    '<p class="cp-note">Одно действие — доступ к данным профиля. Что именно передаётся:</p>' +
+    CPG_PURPOSES.map(function (p) {
+      return '<div class="cp-row"><span class="cp-mark">✓</span><div class="cp-body">' +
+        '<div class="cp-title">' + p.title + '<span class="cp-code">' + p.code + "</span></div>" +
+        '<div class="cp-chips">' + p.chips.map(function (c) { return '<span class="pill-fact">' + c + "</span>"; }).join("") + "</div>" +
+        "</div></div>";
+    }).join("");
 }
 
 function goEsia() {
-  if (!consentsOk()) return;
+  readConsents();
+  const err = $("err-consents");
+  if (!consentsOk()) {
+    err.textContent = "Отметьте оба согласия — иначе перейти на Госуслуги нельзя";
+    err.classList.add("on");
+    syncCta();
+    return;
+  }
+  err.classList.remove("on");
+  renderEsiaPurposes();
   show("esia");
-  setTimeout(() => show("preview"), 1400);
+}
+
+/* Имитация авторизации на Госуслугах и передачи разрешений. */
+function goEsiaNext() {
+  const err = $("err-esia");
+  const box = $("c-esia-confirm");
+  if (!box || !box.checked) {
+    err.textContent = "Подтвердите вход, чтобы передать данные банку";
+    err.classList.add("on");
+    return;
+  }
+  err.classList.remove("on");
+  state.esiaAt = new Date().toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+
+  $("preview-card").innerHTML = [
+    ["ФИО", DEMO_PERSON.fio],
+    ["Дата рождения", DEMO_PERSON.birth],
+    ["Паспорт", DEMO_PERSON.passport],
+    ["ИНН / СНИЛС", DEMO_PERSON.inn + " · " + DEMO_PERSON.snils],
+    ["Адрес регистрации", DEMO_PERSON.address],
+    ["Место работы", DEMO_PERSON.employer + ", " + DEMO_PERSON.position],
+    ["Доход в месяц", fmt(DEMO_PERSON.income)]
+  ].map(function (pair) {
+    return '<div class="row"><span>' + pair[0] + "</span><b>" + pair[1] + "</b></div>";
+  }).join("");
+
+  $("cp-scopes").innerHTML =
+    '<div class="scopes-head">Получено из цифрового профиля · ' + state.esiaAt + "</div>" +
+    '<div class="scopes">' +
+      ["Паспорт", "ИНН и СНИЛС", "Доход из СФР", "Занятость", "Адрес регистрации"]
+        .map(function (s) { return '<span class="scope">' + s + "</span>"; }).join("") +
+    "</div>" +
+    '<p class="hint">Кредитный отчёт в этот список не входит: банк запрашивает его в БКИ отдельно, по вашему согласию.</p>';
+
+  show("preview");
 }
 
 function findEgrn() {
@@ -225,16 +341,18 @@ function findEgrn() {
     ["Доля", obj.share],
     ["Правообладатель", obj.owner],
     ["Совпадение с ЕСИА", obj.ownerMatch ? "Да" : "Нет"],
-    ["Обременения", obj.encumbrance],
-  ].map(([k, v]) => '<div class="row"><span>' + k + "</span><b>" + v + "</b></div>").join("");
+    ["Обременения", obj.encumbrance]
+  ].map(function (pair) {
+    return '<div class="row"><span>' + pair[0] + "</span><b>" + pair[1] + "</b></div>";
+  }).join("");
   const gate = obj.okType && obj.ownerMatch && obj.encumbranceOk && obj.share === "100%";
   state.egrnOk = gate;
   $("egrn-gate").innerHTML = gate
-    ? '<p class="ok">Шлюзы v1 пройдены — можно подтвердить объект.</p>'
-    : '<p class="bad">Объект не проходит happy-path: ' +
-      (!obj.okType ? "тип не квартира/апартаменты. " : "") +
+    ? '<p class="ok">Проверки пройдены — можно подтвердить объект.</p>'
+    : '<p class="bad">Объект не проходит сценарий: ' +
+      (!obj.okType ? "тип не квартира и не апартаменты. " : "") +
       (!obj.ownerMatch ? "ФИО не совпало с ЕСИА. " : "") +
-      (!obj.encumbranceOk ? "есть обременение (рефин — v2). " : "") +
+      (!obj.encumbranceOk ? "есть обременение. " : "") +
       "</p>";
   show("egrn");
 }
@@ -243,16 +361,15 @@ function confirmObject() {
   if (!state.object || !state.egrnOk) return;
   show("wait");
   const items = document.querySelectorAll("#wait-log li");
-  items.forEach((li) => { li.className = ""; });
-  const steps = [0, 1, 2, 3];
-  steps.forEach((i, n) => {
-    setTimeout(() => {
-      if (items[i - 1]) { items[i - 1].className = "done"; }
+  items.forEach(function (li) { li.className = ""; });
+  [0, 1, 2, 3].forEach(function (i, n) {
+    setTimeout(function () {
+      if (items[i - 1]) items[i - 1].className = "done";
       if (items[i]) items[i].className = "on";
     }, 500 + n * 550);
   });
-  setTimeout(() => {
-    items.forEach((li) => { li.className = "done"; });
+  setTimeout(function () {
+    items.forEach(function (li) { li.className = "done"; });
     renderPackages();
     show("packages");
   }, 2800);
@@ -266,34 +383,43 @@ function renderPackages() {
     '<div class="row"><span>Оценка МО</span><b>' + fmt(price) + "</b></div>" +
     '<div class="row"><span>Лимит LTV 60%</span><b>' + fmt(maxLoan) + "</b></div>" +
     '<div class="row"><span>Запросили</span><b>' + fmt(state.amount) + "</b></div>";
-  const years = 15;
+  const years = state.term;
   const pkgs = [
-    { id: "rec", title: "Турбо 2.0", rec: true, rate: 18.5, amount: maxLoan, years },
-    { id: "spec", title: "Спец. опция 4.0", rec: false, rate: 16.9, amount: Math.min(maxLoan, Math.round(price * 0.5 / 100000) * 100000), years },
-    { id: "noins", title: "Без страхования жизни", rec: false, rate: 23.5, amount: maxLoan, years },
+    { id: "rec", title: "Турбо 2.0", rec: true, rate: 18.5, amount: maxLoan },
+    { id: "spec", title: "Спец. опция 4.0", rec: false, rate: 16.9, amount: Math.min(maxLoan, Math.round(price * 0.5 / 100000) * 100000) },
+    { id: "noins", title: "Без страхования жизни", rec: false, rate: 23.5, amount: maxLoan }
   ];
-  $("pkg-list").innerHTML = pkgs.map((p) =>
-    '<label class="pkg' + (p.id === state.pkg ? " on" : "") + '">' +
-    '<input type="radio" name="pkg" value="' + p.id + '"' + (p.id === state.pkg ? " checked" : "") + ">" +
-    "<h3>" + p.title + "</h3>" +
-    '<div class="metrics"><div>Сумма<b>' + fmt(p.amount) + "</b></div>" +
-    "<div>Срок<b>" + p.years + " лет</b></div>" +
-    "<div>Ставка<b>" + p.rate.toFixed(1) + "%</b></div>" +
-    "<div>Платёж<b>" + fmt(payment(p.amount, p.rate, p.years)) + "</b></div></div></label>"
-  ).join("");
-  $("pkg-list").querySelectorAll("input").forEach((inp) => {
-    inp.addEventListener("change", () => {
+  $("pkg-list").innerHTML = pkgs.map(function (p) {
+    return '<label class="pkg' + (p.id === state.pkg ? " on" : "") + '">' +
+      '<input type="radio" name="pkg" value="' + p.id + '"' + (p.id === state.pkg ? " checked" : "") + ">" +
+      "<h3>" + p.title + "</h3>" +
+      '<div class="metrics">' +
+        "<div>Сумма<b>" + fmt(p.amount) + "</b></div>" +
+        "<div>Срок<b>" + termLabel(years) + "</b></div>" +
+        "<div>Ставка<b>" + p.rate.toFixed(1) + "%</b></div>" +
+        "<div>Платёж<b>" + fmt(annuity(p.amount, p.rate, years)) + "</b></div>" +
+      "</div></label>";
+  }).join("");
+  $("pkg-list").querySelectorAll("input").forEach(function (inp) {
+    inp.addEventListener("change", function () {
       state.pkg = inp.value;
-      $("pkg-list").querySelectorAll(".pkg").forEach((el) => el.classList.toggle("on", el.querySelector("input").checked));
+      $("pkg-list").querySelectorAll(".pkg").forEach(function (el) {
+        el.classList.toggle("on", el.querySelector("input").checked);
+      });
     });
   });
 }
 
 function acceptOffer() {
+  const titles = { rec: "Турбо 2.0", spec: "Спец. опция 4.0", noins: "Без страхования жизни" };
   $("status-sum").innerHTML =
-    "<div class=\"row\"><span>Пакет</span><b>" + (state.pkg === "rec" ? "Турбо 2.0" : state.pkg === "spec" ? "Спец. опция 4.0" : "Без страхования жизни") + "</b></div>" +
-    "<div class=\"row\"><span>Объект</span><b>" + state.object.address + "</b></div>" +
-    "<div class=\"row\"><span>Кадастр</span><b>" + state.object.cadastral + "</b></div>";
+    '<div class="row"><span>Пакет</span><b>' + (titles[state.pkg] || "") + "</b></div>" +
+    '<div class="row"><span>Сумма</span><b>' + fmt(state.amount) + "</b></div>" +
+    '<div class="row"><span>Срок</span><b>' + termLabel(state.term) + "</b></div>" +
+    '<div class="row"><span>Объект</span><b>' + state.object.address + "</b></div>" +
+    '<div class="row"><span>Кадастр</span><b>' + state.object.cadastral + "</b></div>" +
+    '<div class="row"><span>Согласия</span><b>ПДн · БКИ</b></div>' +
+    '<div class="row"><span>ЕСИА</span><b>Подтверждена ' + state.esiaAt + "</b></div>";
   show("status");
 }
 
@@ -309,8 +435,7 @@ function goBack() {
     packages: "egrn",
     status: "packages",
     du: "status",
-    offramp: "goal",
-    decline: "phone",
+    offramp: "goal"
   };
   const id = vis && vis.id;
   show(map[id] || "phone");
@@ -321,13 +446,14 @@ const CTA = {
   otp: ["Войти", verifyOtp],
   goal: ["Далее", nextGoal],
   consents: ["Перейти на Госуслуги", goEsia],
-  preview: ["Всё верно, далее", function () { show("cadastral"); }],
+  esia: ["Войти и передать данные", goEsiaNext],
+  preview: ["Перейти к объекту", function () { show("cadastral"); }],
   cadastral: ["Найти объект", findEgrn],
   egrn: ["Это моя квартира", confirmObject],
   packages: ["Продолжить с этими условиями", acceptOffer],
   status: ["Показать ДУ (демо АНД)", function () { show("du"); }],
   du: ["Отправить документы", function () { alert("В лабе файлы никуда не уходят."); }],
-  offramp: ["В начало", function () { show("phone"); }],
+  offramp: ["В начало", function () { show("phone"); }]
 };
 
 function syncCta() {
@@ -337,9 +463,19 @@ function syncCta() {
   const spec = CTA[vis.id];
   if (!spec) return;
   btn.textContent = spec[0];
-  if (vis.id === "consents") btn.disabled = !consentsOk();
-  else if (vis.id === "egrn") btn.disabled = !state.egrnOk;
-  else btn.disabled = false;
+  if (vis.id === "consents") {
+    readConsents();
+    btn.disabled = !consentsOk();
+  } else if (vis.id === "esia") {
+    const ok = !!($("c-esia-confirm") && $("c-esia-confirm").checked);
+    btn.disabled = !ok;
+    const inline = $("esiaGo");
+    if (inline) inline.disabled = !ok;
+  } else if (vis.id === "egrn") {
+    btn.disabled = !state.egrnOk;
+  } else {
+    btn.disabled = false;
+  }
 }
 
 function runCta() {
@@ -348,20 +484,62 @@ function runCta() {
   if (spec) spec[1]();
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  ["c-pd", "c-bki", "c-fin", "c-nonfin"].forEach((id) => $(id).addEventListener("change", toggleGo));
-  $("amount").addEventListener("input", () => {
-    const n = parseInt(($("amount").value || "").replace(/\D/g, ""), 10);
-    if (n) state.amount = n;
+document.addEventListener("DOMContentLoaded", function () {
+  // Обязательные согласия влияют на кнопку, рекламные — только фиксируются.
+  ["c-pd", "c-bki"].forEach(function (id) {
+    const el = $(id);
+    if (el) el.addEventListener("change", function () { readConsents(); syncCta(); });
   });
-  $("phone-input").addEventListener("input", () => {
+  ["c-ads-bank", "c-ads-partners"].forEach(function (id) {
+    const el = $(id);
+    if (el) el.addEventListener("change", readAds);
+  });
+  const esiaBox = $("c-esia-confirm");
+  if (esiaBox) esiaBox.addEventListener("change", function () {
+    if (esiaBox.checked) $("err-esia").classList.remove("on");
+    syncCta();
+  });
+
+  $("amount").addEventListener("input", function () { fmtInput($("amount")); });
+  $("amount").addEventListener("blur", function () {
+    state.amount = digits($("amount").value) || state.amount;
+    renderGoalPreview();
+  });
+  $("phone-input").addEventListener("input", function () {
     if (phoneDigits().length === 10) $("err-phone").classList.remove("on");
   });
-  $("otp-input").addEventListener("keydown", (e) => {
-    if (e.key === "Enter") verifyOtp();
-  });
-  $("phone-input").addEventListener("keydown", (e) => {
-    if (e.key === "Enter") sendOtp();
-  });
+  $("otp-input").addEventListener("keydown", function (e) { if (e.key === "Enter") verifyOtp(); });
+  $("phone-input").addEventListener("keydown", function (e) { if (e.key === "Enter") sendOtp(); });
+
+  renderGoalPreview();
   syncCta();
+
+  /* ?screen=<id> — открыть форму сразу на нужном шаге. Параметр срабатывает один раз
+     и снимается из адреса, иначе обновление страницы снова прыгало бы на этот шаг. */
+  var jump = null;
+  try { jump = new URLSearchParams(window.location.search || "").get("screen"); } catch (eJump) { jump = null; }
+  var known = ["phone", "otp", "goal", "consents", "esia", "preview", "cadastral", "egrn", "packages", "status", "du", "offramp"];
+  if (jump && known.indexOf(jump) !== -1 && $(jump)) {
+    if (jump === "consents") {
+      ["c-pd", "c-bki"].forEach(function (id) { if ($(id)) $(id).checked = true; });
+      readConsents();
+      readAds();
+    }
+    if (jump === "esia") renderEsiaPurposes();
+    if (jump === "preview" || jump === "packages" || jump === "status" || jump === "du") {
+      if ($("c-esia-confirm")) $("c-esia-confirm").checked = true;
+      goEsiaNext();
+    }
+    if (jump === "egrn" || jump === "packages" || jump === "status" || jump === "du") {
+      $("cadastral-input").value = "77:07:0001075:1234";
+      findEgrn();
+    }
+    if (jump === "packages" || jump === "status" || jump === "du") renderPackages();
+    try {
+      var cleanUrl = new URL(window.location.href);
+      cleanUrl.searchParams.delete("screen");
+      history.replaceState({}, "", cleanUrl.toString());
+    } catch (eClean) { /* адрес не критичен для работы формы */ }
+    show(jump);
+  }
 });

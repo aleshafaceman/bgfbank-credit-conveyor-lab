@@ -57,7 +57,9 @@ body {
 .dot { height: 6px; flex: 1; border-radius: 6px; background: var(--line); }
 .dot.on { background: var(--accent); }
 .dot.done { background: var(--ok); }
-.screen { display: none; padding: 28px 40px 20px; overflow: auto; flex: 1; }
+/* min-height: 0 обязателен: без него flex-потомок не сжимается ниже содержимого
+   и нижняя часть экрана обрезается вместо прокрутки. */
+.screen { display: none; padding: 28px 40px 20px; overflow: auto; flex: 1; min-height: 0; }
 .screen.on { display: block; }
 h1 { font-size: 26px; margin-bottom: 8px; color: var(--navy); }
 .lead { color: var(--muted); font-size: 15px; line-height: 1.45; margin-bottom: 22px; max-width: 640px; }
@@ -145,3 +147,77 @@ input:focus { outline: 2px solid rgba(11, 70, 151,.2); border-color: var(--navy)
   font-weight: 800; font-size: 24px;
 }
 .hidden { display: none !important; }
+
+/* ===== Условия залогового кредита ===== */
+.cond-grid { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 24px; align-items: start; }
+select {
+  width: 100%; max-width: 360px; height: 46px; padding: 0 12px;
+  border: 1px solid #cbd5e1; border-radius: 12px; font-size: 15px;
+  font-family: inherit; color: var(--ink); background: #fff;
+}
+select:focus { outline: 2px solid rgba(11, 70, 151,.2); border-color: var(--navy); }
+
+/* ===== Согласия ===== */
+.consent { border: 1.5px solid var(--line); border-radius: 14px; padding: 13px 16px; margin-bottom: 9px; background: #fff; }
+.consent--accent { border-color: #f6c9a5; background: #fffaf6; }
+.consent-head { display: flex; gap: 12px; align-items: flex-start; margin: 0; cursor: pointer; }
+.consent-head input { margin-top: 3px; width: 18px; height: 18px; accent-color: var(--navy); flex-shrink: 0; }
+.consent-title { font-size: 15px; font-weight: 700; color: var(--navy); }
+.consent-note { font-size: 13px; color: var(--muted); line-height: 1.5; margin: 10px 0 0 30px; }
+.consent-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 20px; margin: 11px 0 0 30px; }
+.consent-facts div { font-size: 12px; color: var(--muted); }
+.consent-facts b { display: block; font-size: 13px; color: var(--ink); font-weight: 600; }
+.consent-warn {
+  margin: 11px 0 0 30px; padding: 8px 12px; font-size: 12.5px; color: #b45309;
+  background: #fff2e6; border-left: 3px solid var(--accent); border-radius: 8px; line-height: 1.5;
+}
+.consent-legal { margin: 12px 0 0 30px; }
+.consent-legal summary { font-size: 12.5px; color: var(--navy); cursor: pointer; font-weight: 600; }
+.consent-legal p { font-size: 12.5px; color: var(--muted); line-height: 1.6; margin-top: 8px; }
+
+/* Необязательные согласия: тише и компактнее обязательных */
+.consent--optional { background: #fbfcfe; border-style: dashed; border-color: #dbe5ef; padding: 10px 15px; margin-bottom: 7px; }
+.consent--optional .consent-title { color: var(--ink); font-weight: 600; font-size: 14px; }
+.consent--optional .consent-note { margin: 4px 0 0 30px; font-size: 12.5px; }
+.opt-mark {
+  display: inline-block; margin-left: 8px; font-size: 11px; font-weight: 600;
+  text-transform: lowercase; color: var(--muted); background: #eef2f7; border-radius: 6px; padding: 2px 7px;
+}
+.consent-foot { font-size: 12.5px; color: var(--muted); margin: 8px 0 0 2px; }
+
+/* ===== ЕСИА: разрешения и действия ===== */
+.cp-grant { border: 1.5px solid var(--line); border-radius: 14px; padding: 16px 18px; margin: 16px 0 6px; text-align: left; }
+.cp-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.cp-head b { font-size: 15px; color: var(--navy); }
+.cp-badge {
+  font-size: 11px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase;
+  background: #0b4ea2; color: #fff; border-radius: 7px; padding: 3px 9px;
+}
+.cp-note { font-size: 13px; color: var(--muted); margin: 8px 0 14px; }
+.cp-row { display: flex; gap: 10px; padding: 12px 0; border-top: 1px solid var(--line); }
+.cp-row:first-of-type { border-top: 0; }
+.cp-mark { color: var(--ok); font-weight: 700; flex-shrink: 0; }
+.cp-title { font-size: 14px; font-weight: 700; color: var(--navy); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.cp-code {
+  font-family: ui-monospace, Consolas, monospace; font-size: 10.5px; font-weight: 600;
+  background: var(--sky); border: 1px solid #d7e6f5; color: var(--navy); border-radius: 6px; padding: 2px 6px;
+}
+.cp-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.pill-fact {
+  font-size: 11.5px; font-weight: 600; color: var(--navy);
+  background: var(--sky); border: 1px solid #d7e6f5; border-radius: 999px; padding: 3px 10px;
+}
+.scopes-head { font-size: 12px; font-weight: 700; color: var(--navy); margin: 18px 0 8px; }
+.scopes { display: flex; flex-wrap: wrap; gap: 6px; }
+.scope { font-size: 12.5px; font-weight: 600; color: var(--ok); background: #eaf7ee; border-radius: 999px; padding: 4px 11px; }
+.esia-actions {
+  display: flex; justify-content: flex-end; gap: 12px; align-items: center;
+  margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line);
+}
+.esia-actions .btn { min-width: 200px; }
+.esia-actions .btn-ghost { min-width: 130px; }
+
+@media (max-width: 900px) {
+  .cond-grid, .consent-facts { grid-template-columns: 1fr; }
+  .pkg-list { grid-template-columns: 1fr; }
+}

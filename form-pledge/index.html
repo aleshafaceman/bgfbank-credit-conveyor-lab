@@ -14,19 +14,19 @@
       <div class="brand">
         <img class="brand-logo" src="../brand/logo-on-light.png" alt="Банк БЖФ">
         <div class="brand-divider"></div>
-        <small>Кредит под залог своей квартиры · v1</small>
+        <small>Кредит под залог своей квартиры</small>
       </div>
       <div class="steps" aria-hidden="true">
         <i class="dot on"></i><i class="dot"></i><i class="dot"></i><i class="dot"></i>
-        <i class="dot"></i><i class="dot"></i><i class="dot"></i>
+        <i class="dot"></i><i class="dot"></i><i class="dot"></i><i class="dot"></i>
       </div>
-      <a class="hub-link" href="../form/index.html" title="Потребительский кредит — основной сценарий" style="margin-right:8px;">Потребкредит →</a>
+      <a class="hub-link" href="../form/index.html" title="Потребительский кредит — основной сценарий" style="margin-right:8px;">Потребительский →</a>
       <a class="hub-link" href="../start.html" title="Карта демо — точка входа презентации">← Карта демо</a>
     </header>
 
     <section class="screen on" id="phone">
-      <h1>Введите телефон</h1>
-      <p class="lead">Пришлём код. Это заявка банка, не кабинет брокера.</p>
+      <h1>Кредит под залог квартиры</h1>
+      <p class="lead">Залог своей квартиры: сумма больше, ставка ниже. Начнём с телефона.</p>
       <label for="phone-input">Мобильный телефон</label>
       <input id="phone-input" type="tel" inputmode="tel" autocomplete="tel" placeholder="+7 999 123-45-67" value="+7 999 123-45-67">
       <p class="err" id="err-phone"></p>
@@ -35,76 +35,110 @@
 
     <section class="screen" id="otp">
       <h1>Код из SMS</h1>
-      <p class="lead">Отправили на <b id="otp-phone"></b>. Для демо подойдёт любой код.</p>
+      <p class="lead">Отправили на <b id="otp-phone"></b>. Для демо подойдёт любой код из 4 цифр.</p>
       <label for="otp-input">Код</label>
       <input id="otp-input" type="text" inputmode="numeric" maxlength="6" placeholder="0000" autocomplete="one-time-code">
       <p class="err" id="err-otp"></p>
     </section>
 
     <section class="screen" id="goal">
-      <h1>Цель кредита</h1>
-      <p class="lead">В этой версии только залог своей квартиры. Рефинансирование и покупка — сход.</p>
-      <div class="choices">
-      <button type="button" class="choice on" data-intent="cash_on_pledge" onclick="pickIntent('cash_on_pledge')">
-        <b>Под залог своей квартиры</b>
-        <span>Happy-path v1</span>
-      </button>
-      <button type="button" class="choice" data-intent="purchase" onclick="pickIntent('purchase')">
-        <b>Покупка жилья</b>
-        <span>Другой сценарий</span>
-      </button>
-      <button type="button" class="choice" data-intent="refinancing" onclick="pickIntent('refinancing')">
-        <b>Рефинансирование</b>
-        <span>Следующая версия</span>
-      </button>
+      <h1>Желаемые условия</h1>
+      <p class="lead">Залоговый кредит под вашу квартиру. Укажите сумму и срок — лимит уточним после оценки объекта.</p>
+
+      <div class="cond-grid">
+        <div>
+          <label for="amount">Желаемая сумма, ₽</label>
+          <input id="amount" type="text" inputmode="numeric" value="3 000 000">
+          <div class="chips">
+            <button type="button" class="chip" data-amount="1000000" onclick="pickAmount(1000000)">1 млн</button>
+            <button type="button" class="chip on" data-amount="3000000" onclick="pickAmount(3000000)">3 млн</button>
+            <button type="button" class="chip" data-amount="5000000" onclick="pickAmount(5000000)">5 млн</button>
+            <button type="button" class="chip" data-amount="10000000" onclick="pickAmount(10000000)">10 млн</button>
+          </div>
+        </div>
+        <div>
+          <label for="term">Срок кредита</label>
+          <select id="term" onchange="pickTerm(this.value)">
+            <option value="5">5 лет</option>
+            <option value="10">10 лет</option>
+            <option value="15" selected>15 лет</option>
+            <option value="20">20 лет</option>
+          </select>
+          <p class="hint">От 450 000 до 20 млн ₽. Итог покажем после оценки квартиры.</p>
+        </div>
       </div>
-      <label for="amount">Желаемая сумма, ₽</label>
-      <input id="amount" type="number" inputmode="numeric" min="450000" max="20000000" step="50000" value="3000000">
-      <div class="chips">
-        <button type="button" class="chip" data-amount="1000000" onclick="pickAmount(1000000)">1 млн</button>
-        <button type="button" class="chip on" data-amount="3000000" onclick="pickAmount(3000000)">3 млн</button>
-        <button type="button" class="chip" data-amount="5000000" onclick="pickAmount(5000000)">5 млн</button>
-        <button type="button" class="chip" data-amount="10000000" onclick="pickAmount(10000000)">10 млн</button>
-      </div>
-      <p class="hint">От 450 000 до 20 млн. Итог покажем после оценки квартиры.</p>
       <p class="err" id="err-amount"></p>
+      <div class="card" id="goal-preview"></div>
     </section>
 
     <section class="screen" id="consents">
       <h1>Согласия</h1>
-      <p class="lead">Без всех четырёх на Госуслуги не переходим. Кредитный отчёт — один текст на банк и на цель ЕСИА.</p>
-      <label class="check"><input type="checkbox" id="c-pd"><span>Согласие на обработку персональных данных (152-ФЗ)</span></label>
-      <label class="check"><input type="checkbox" id="c-bki"><span>Согласие на запрос кредитного отчёта (БКИ)</span></label>
-      <label class="check"><input type="checkbox" id="c-fin"><span>Финансовые услуги — цель цифрового профиля</span></label>
-      <label class="check"><input type="checkbox" id="c-nonfin"><span>Нефинансовые услуги — цель цифрового профиля</span></label>
+      <p class="lead">Два согласия обязательны. Реклама — по желанию, отказ не влияет на решение и условия. Разрешения цифрового профиля подтвердите в Госуслугах.</p>
+
+      <div class="consent">
+        <label class="consent-head"><input type="checkbox" id="c-pd"><span class="consent-title">Обработка персональных данных</span></label>
+        <p class="consent-note">Банк получает и обрабатывает ваши данные, чтобы рассмотреть заявку. Основание — 152-ФЗ.</p>
+        <details class="consent-legal"><summary>Что именно и на какой срок</summary>
+          <p>Состав данных: ФИО, дата рождения, паспорт, ИНН, СНИЛС, адрес, телефон, сведения о доходах и занятости, данные об объекте залога. Срок действия — 5 лет с даты подписания. Отзыв возможен в любой момент, но рассмотрение заявки после отзыва прекращается.</p></details>
+      </div>
+
+      <div class="consent consent--accent">
+        <label class="consent-head"><input type="checkbox" id="c-bki"><span class="consent-title">Запрос кредитной истории в БКИ</span></label>
+        <p class="consent-note">Банк запросит ваш кредитный отчёт в бюро кредитных историй, чтобы оценить долговую нагрузку и кредитную историю.</p>
+        <div class="consent-facts">
+          <div><span>Куда идёт запрос</span><b>В БКИ, через банк</b></div>
+          <div><span>Что вы увидите</span><b>Факт запроса и дату. Сам отчёт — в банке</b></div>
+          <div><span>Срок согласия</span><b>3 месяца, затем продлевается отдельно</b></div>
+          <div><span>Отзыв</span><b>В любой момент, но заявку рассмотреть не сможем</b></div>
+        </div>
+        <p class="consent-warn">Согласие не создаёт долга и не открывает счёт.</p>
+        <details class="consent-legal"><summary>Правовой текст согласия</summary>
+          <p>Я подтверждаю, что банк вправе запросить мою кредитную историю в любом бюро кредитных историй, в котором сформирована моя кредитная история, а также получать иные сведения, необходимые для оценки моей кредитоспособности, в соответствии с 218-ФЗ «О кредитных историях». Согласие действует 3 месяца с даты подписания и может быть отозвано письменным заявлением.</p></details>
+      </div>
+
+      <div class="consent consent--optional">
+        <label class="consent-head"><input type="checkbox" id="c-ads-bank"><span class="consent-title">Рекламные рассылки банка <span class="opt-mark">необязательно</span></span></label>
+        <p class="consent-note">Предложения банка по почте, SMS и в личном кабинете.</p>
+      </div>
+
+      <div class="consent consent--optional">
+        <label class="consent-head"><input type="checkbox" id="c-ads-partners"><span class="consent-title">Предложения партнёров банка <span class="opt-mark">необязательно</span></span></label>
+        <p class="consent-note">Страхование, оценка недвижимости и другие услуги партнёров.</p>
+      </div>
+
+      <p class="consent-foot">Отказ от рассылок не влияет на решение по заявке и на условия кредита.</p>
+      <p class="err" id="err-consents"></p>
     </section>
 
     <section class="screen" id="esia">
       <div class="esia">
         <div class="gs">ГС</div>
-        <h1>Госуслуги</h1>
-        <p class="lead">Имитация входа. Цели: фин, нонфин, запрос кредитного отчёта. Квартиры ЕСИА не отдаёт.</p>
+        <h1>Вход через Госуслуги</h1>
+        <p class="lead">Имитация авторизации. Вы подтверждаете разрешения цифрового профиля и передачу данных банку.</p>
+      </div>
+      <div class="cp-grant" id="esia-purposes"></div>
+      <label class="check"><input type="checkbox" id="c-esia-confirm"><span>Даю согласие на передачу данных банку по указанным разрешениям</span></label>
+      <p class="err" id="err-esia"></p>
+      <div class="esia-actions">
+        <button type="button" class="btn btn-primary" id="esiaGo" onclick="goEsiaNext()" disabled>Войти и передать данные</button>
+        <button type="button" class="btn btn-ghost" onclick="goBack()">Назад</button>
       </div>
     </section>
 
     <section class="screen" id="preview">
-      <h1>Проверьте данные</h1>
-      <p class="lead">Из цифрового профиля. Редактировать нельзя.</p>
-      <div class="card">
-        <div class="row"><span>ФИО</span><b>Кузнецов Александр Игоревич</b></div>
-        <div class="row"><span>Дата рождения</span><b>12.03.1988</b></div>
-        <div class="row"><span>Паспорт</span><b>4508 123456</b></div>
-        <div class="row"><span>ИНН / СНИЛС</span><b>770123456789 · 112-233-445 95</b></div>
-        <div class="row"><span>Адрес</span><b>г. Москва, ул. Крылатская, д. 15, кв. 42</b></div>
-      </div>
+      <h1>Данные из цифрового профиля</h1>
+      <p class="lead">Получены из ЕСИА. Редактировать нельзя — если что-то не так, измените данные на Госуслугах.</p>
+      <div class="card" id="preview-card"></div>
+      <div class="cp-scopes" id="cp-scopes"></div>
+      <p class="hint">Квартиру ЕСИА не отдаёт: объект залога подтверждается выпиской ЕГРН на следующем шаге.</p>
     </section>
 
     <section class="screen" id="cadastral">
-      <h1>Кадастровый номер</h1>
-      <p class="lead">Объект берём из ЕГРН, не из списка Госуслуг.</p>
+      <h1>Объект залога</h1>
+      <p class="lead">Квартиру берём из ЕГРН по кадастровому номеру, а не из списка Госуслуг.</p>
       <div class="two">
         <div>
-          <label for="cadastral-input">Кадастр</label>
+          <label for="cadastral-input">Кадастровый номер</label>
           <input id="cadastral-input" type="text" placeholder="77:07:0001075:1234" value="77:07:0001075:1234" autocomplete="off">
           <p class="err" id="err-cad"></p>
         </div>
@@ -141,7 +175,7 @@
 
     <section class="screen" id="packages">
       <h1>Предварительные условия</h1>
-      <p class="lead">Это витрина Solver, не решение андеррайтера.</p>
+      <p class="lead">Это витрина Solver, не решение андеррайтера. Лимит считается от оценки квартиры.</p>
       <div class="card" id="pkg-hero"></div>
       <div class="pkg-list" id="pkg-list"></div>
     </section>
@@ -150,7 +184,7 @@
       <h1>Заявка на рассмотрении</h1>
       <p class="lead">Дальше СБ, АНД и АПЗ. Если понадобятся документы — пришлём список ДУ.</p>
       <div class="card" id="status-sum"></div>
-      <p class="hint">В лабе можно сразу открыть экран доп. условий, как после решения банка.</p>
+      <p class="hint">В лабе можно сразу открыть список дополнительных условий, как после решения банка.</p>
     </section>
 
     <section class="screen" id="du">
