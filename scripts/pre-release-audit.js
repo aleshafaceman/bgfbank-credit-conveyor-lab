@@ -1805,6 +1805,22 @@ console.log('\n=== 15. Browser flow check is present ===');
     'flow check runs on the DevTools Protocol without extra dependencies');
 }
 
+console.log('\n=== 16. Order of actions on screen ===');
+{
+  // Кнопка возврата стоит слева, основное действие справа — как в нижней панели.
+  ['form/index.html', 'form-pledge/index.html'].forEach(function(rel) {
+    const html = fs.readFileSync(path.join(root, rel), 'utf8');
+    const actions = (html.match(/<div class="esia-actions">[\s\S]*?<\/div>/) || [''])[0];
+    const back = actions.indexOf('esiaBack');
+    const go = actions.indexOf('esiaGo');
+    assert(back !== -1 && go !== -1 && back < go,
+      rel + ' puts the back button before the primary action');
+  });
+  const sharedCss = fs.readFileSync(path.join(root, 'shared/form-common.css'), 'utf8');
+  assert(/\.esia-actions\s*\{[^}]*justify-content:\s*flex-end/.test(sharedCss),
+    'action row stays right-aligned so the primary action sits at the edge');
+}
+
 console.log('\n=== Summary ===');
 console.log('Passed: ' + passed);
 console.log('Failed: ' + failed);

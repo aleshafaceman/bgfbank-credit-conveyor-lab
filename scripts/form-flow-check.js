@@ -252,6 +252,11 @@ window.__t = {
     return Array.prototype.filter.call(document.querySelectorAll('.err'), function(e) {
       return e.classList.contains('on') && (e.textContent || '').trim();
     }).map(function(e) { return e.id + ': ' + e.textContent.trim(); });
+  },
+  /* Порядок действий на экране: возврат должен идти перед основным действием. */
+  orderOf: function(ids) {
+    var all = Array.prototype.slice.call(document.querySelectorAll('.esia-actions button'));
+    return all.map(function(b) { return (b.textContent || '').trim(); });
   }
 };
 return true;
@@ -324,6 +329,9 @@ async function runConsumer(s, base) {
   ok(await s.eval('return __t.screen() === "esia"'), 'открылась имитация Госуслуг');
   ok(await s.eval('return __t.barHidden()'), 'нижняя панель на этом шаге скрыта');
   ok(await s.eval('return __t.inlineDisabled()'), 'кнопка на экране заблокирована без подтверждения');
+  ok(await s.eval('return __t.orderOf(["esiaBack", "esiaGo"]).join(" → ") === "Назад → Войти и передать данные"'),
+    'порядок кнопок: слева «Назад», справа основное действие (' +
+    (await s.eval('return __t.orderOf(["esiaBack", "esiaGo"]).join(" → ")')) + ')');
   const purposeText = await s.eval('return __t.text("esia-purposes")');
   ok(purposeText.indexOf('CREDIT_REPORT') !== -1 && purposeText.indexOf('FINANCIAL_NONFIN_SERVICES') !== -1,
     'в разрешениях видны обе цели ЦПГ с кодами');
@@ -396,6 +404,9 @@ async function runPledge(s, base) {
   ok(!(await s.eval('return __t.ctaDisabled()')), 'двух обязательных достаточно');
   await s.eval('return __t.click("cta")');
   ok(await s.eval('return __t.screen() === "esia"'), 'открылись Госуслуги');
+  const pledgeOrder = await s.eval('return __t.orderOf(["esiaBack", "esiaGo"]).join(" → ")');
+  ok(pledgeOrder === 'Назад → Войти и передать данные',
+    'порядок кнопок в залоговой форме: ' + pledgeOrder);
   await s.eval('return __t.check("c-esia-confirm", true)');
   await s.eval('return __t.click("esiaGo")');
   ok(await s.eval('return __t.screen() === "preview"'), 'данные профиля получены');
