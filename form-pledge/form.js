@@ -64,6 +64,8 @@ const state = {
   payment: 0,
   insurance: false,
   object: null,
+  /** кадастр сохраняем в сессии, чтобы после возврата восстановить объект залога */
+  cadastral: "",
   pkg: "rec",
   egrnOk: false,
   consents: F.emptyConsents(),
@@ -216,6 +218,21 @@ function renderCondLinks() {
 
 /* ---------- объект залога ---------- */
 
+function egrnCardHtml(obj) {
+  return [
+    ["Адрес", obj.address],
+    ["Тип", obj.type],
+    ["Площадь / этаж", obj.area + ", " + obj.floor],
+    ["Кадастр", obj.cadastral],
+    ["Доля", obj.share],
+    ["Правообладатель", obj.owner],
+    ["Совпадение с ЕСИА", obj.ownerMatch ? "Да" : "Нет"],
+    ["Обременения", obj.encumbrance]
+  ].map(function (pair) {
+    return '<div class="row"><span>' + pair[0] + "</span><b>" + pair[1] + "</b></div>";
+  }).join("");
+}
+
 function findEgrn() {
   const cad = ($("cadastral-input").value || "").trim();
   const err = $("err-cad");
@@ -232,18 +249,8 @@ function findEgrn() {
     return;
   }
   state.object = Object.assign({ cadastral: cad }, obj);
-  $("egrn-card").innerHTML = [
-    ["Адрес", obj.address],
-    ["Тип", obj.type],
-    ["Площадь / этаж", obj.area + ", " + obj.floor],
-    ["Кадастр", cad],
-    ["Доля", obj.share],
-    ["Правообладатель", obj.owner],
-    ["Совпадение с ЕСИА", obj.ownerMatch ? "Да" : "Нет"],
-    ["Обременения", obj.encumbrance]
-  ].map(function (pair) {
-    return '<div class="row"><span>' + pair[0] + "</span><b>" + pair[1] + "</b></div>";
-  }).join("");
+  state.cadastral = cad;
+  $("egrn-card").innerHTML = egrnCardHtml(state.object);
   const gate = obj.okType && obj.ownerMatch && obj.encumbranceOk && obj.share === "100%";
   state.egrnOk = gate;
   $("egrn-gate").innerHTML = gate
@@ -456,12 +463,20 @@ const ctrl = F.create({
       F.renderScopes("cp-scopes", state.esiaAt);
     }
     if (target === "esia") F.renderPurposes("esia-purposes");
-    /* Объект залога не сохраняем между сессиями: кадастр вводится заново,
-       поэтому пакеты восстанавливаем только если объект уже выбран. */
-    if ((target === "packages" || target === "status" || target === "du") && state.object) {
-      renderPackages();
+    /* Кадастр восстанавливаем и повторяем запрос ЕГРН: объект залога не храним
+       между сессиями, а без него не собрать предложения и итог заявки. */
+    if (target === "egrn" || target === "packages" || target === "status" || target === "du") {
+      if (!state.object && state.cadastral) {
+        $("cadastral-input").value = state.cadastral;
+        findEgrn();
+      } else if (state.object) {
+        $("cadastral-input").value = state.object.cadastral;
+        $("egrn-card").innerHTML = egrnCardHtml(state.object);
+        $("egrn-gate").innerHTML = '<p class="ok">Проверки пройдены — можно подтвердить объект.</p>';
+      }
     }
-    if (target === "status" && state.object) acceptOffer();
+    if ((target === "packages" || target === "status" || target === "du") && state.object) renderPackages();
+    if (target === "status") acceptOffer();
   },
   onInit: function () {
     $("amount").addEventListener("input", function () { F.formatInput($("amount")); });

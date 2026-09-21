@@ -225,7 +225,9 @@ window.BGF_FORM = (function () {
 
   /* ---------- сохранение сессии ---------- */
 
-  var SESSION_FIELDS = ["phone", "mode", "amount", "term", "payment", "insurance", "pkg", "consents", "ads"];
+  /* Кадастр — пользовательский ввод залоговой формы; сам объект залога
+     восстанавливается повторным запросом ЕГРН. */
+  var SESSION_FIELDS = ["phone", "mode", "amount", "term", "payment", "insurance", "pkg", "cadastral", "consents", "ads"];
 
   function readSession() {
     try {
@@ -312,6 +314,12 @@ window.BGF_FORM = (function () {
     var main = spec.main;
     var kind = spec.kind;
     var labels = spec.stepLabels || {};
+    /* Пользователь ещё ничего не делал: значит первый показ шага телефона
+       не должен перезаписывать сохранённый прогресс. */
+    var didInteract = false;
+    /* Явный сброс прогресса: шаг после него не записываем, иначе хранилище
+       сразу заполнится заново и «начать сначала» ничего не сбросит. */
+    var skipSave = false;
 
     function currentScreen() {
       var vis = root.querySelector(".screen.on");
@@ -353,7 +361,11 @@ window.BGF_FORM = (function () {
       updateDots(id);
       syncCta();
       if (typeof spec.onShow === "function") spec.onShow(id);
-      writeSession(kind, state, id, main);
+      /* Первый показ шага телефона и явный сброс прогресса не пишут сессию:
+         иначе возврат всегда предлагает «продолжить» с самого начала. */
+      if (!skipSave && !(id === "phone" && !didInteract && readSession())) {
+        writeSession(kind, state, id, main);
+      }
       var screen = $(id);
       if (screen) screen.scrollTop = 0;
       if (typeof spec.onScreenShown === "function") spec.onScreenShown(id);
@@ -363,25 +375,28 @@ window.BGF_FORM = (function () {
 
     function runCta() {
       var spec_ = spec.cta[currentScreen()];
-      if (spec_) spec_[1]();
+      if (spec_) { didInteract = true; spec_[1](); }
     }
 
     function goBack() {
       var id = currentScreen();
       var map = spec.back || {};
+      didInteract = true;
       go(map[id] || "phone");
     }
 
     function resume() {
       var data = readSession();
       if (!data || data.kind !== kind) return false;
+      didInteract = true;
       applySession(data, state);
       restoreFields(state, spec);
       bindSessionControls();
       var target = flow.indexOf(data.screen) !== -1 ? data.screen : "phone";
       if (typeof spec.onRestore === "function") spec.onRestore(target);
       go(target);
-      return true;
+      /* Возвращаем сам шаг: вызывающий код может проверить, куда вернулись. */
+      return target;
     }
 
     /* Кнопки «Продолжить» и «Начать сначала» на первом экране. */
@@ -391,7 +406,12 @@ window.BGF_FORM = (function () {
         clearSession();
         var host = $("sessionBar");
         if (host) { host.innerHTML = ""; host.classList.add("hidden"); }
+        /* Возвращаемся к началу и не записываем этот шаг: иначе хранилище
+           сразу заполнится заново и сброс прогресса не сработает. */
+        didInteract = true;
+        skipSave = true;
         go("phone");
+        skipSave = false;
       };
     }
 
