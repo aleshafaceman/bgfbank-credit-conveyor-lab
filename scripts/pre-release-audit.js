@@ -1589,6 +1589,30 @@ console.log('\n=== 13. Demo hub (start.html) entry point ===');
     .matchAll(/deal_id:\s*"([^"]+)"/g)].map(function(m) { return m[1]; });
   const missingDeal = dealMockIds.filter(function(id) { return hub.indexOf(id) === -1 && hub.indexOf(id.slice(-3)) === -1; });
   assert(missingDeal.length === 0, 'map covers every deal desk scenario' + (missingDeal.length ? ' — missing: ' + missingDeal.join(', ') : ''));
+
+  // Целостность ссылок на самих поверхностях показа: битая ссылка — это тупик,
+  // ради отсутствия которых хаб и делался. docs/ — архив источников, не поверхности.
+  const surfaces = ['index.html', 'start.html', 'reset.html', 'manager/index.html',
+    'deal-ops/index.html', 'underwriter/index.html', 'productolog/index.html', 'form/index.html'];
+  const brokenRefs = [];
+  surfaces.forEach(function(rel) {
+    const abs = path.join(root, rel);
+    if (!fs.existsSync(abs)) return;
+    const src = fs.readFileSync(abs, 'utf8');
+    const dir = path.dirname(abs);
+    [...src.matchAll(/(?:href|src)="([^"]+)"/g)].forEach(function(m) {
+      const raw = m[1];
+      if (/^(https?:|mailto:|data:|javascript:|#)/.test(raw) || raw === '') return;
+      const clean = raw.split('?')[0].split('#')[0];
+      if (clean === '') return;
+      const target = clean.endsWith('/')
+        ? path.join(dir, clean, 'index.html')
+        : path.join(dir, clean);
+      if (!fs.existsSync(target)) brokenRefs.push(rel + ' → ' + raw);
+    });
+  });
+  assert(brokenRefs.length === 0,
+    'no dead links on any show surface' + (brokenRefs.length ? ' — broken: ' + brokenRefs.join(', ') : ''));
 }
 
 console.log('\n=== Summary ===');
