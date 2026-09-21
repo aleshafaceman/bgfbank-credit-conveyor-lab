@@ -1509,10 +1509,19 @@ console.log('\n=== 13. Demo hub (start.html) entry point ===');
     ['deal-ops/index.html', '../start.html', 'deal desk links to the demo hub'],
     ['underwriter/index.html', '../start.html', 'underwriter desk links to the demo hub'],
     ['productolog/index.html', '../start.html', 'productolog desk links to the demo hub'],
+    ['form/index.html', '../start.html', 'application form links to the demo hub'],
     ['js/demo-lab.js', 'start.html', 'client sidebar adds the demo hub link']
   ].forEach(function(spec) {
     const src = fs.readFileSync(path.join(root, spec[0]), 'utf8');
     assert(src.indexOf(spec[1]) !== -1, spec[2]);
+  });
+
+  // Каждая содержательная поверхность обязана иметь возврат: иначе показ упирается
+  // в страницу без выхода. start.html — сам хаб, ему ссылка не нужна.
+  ['manager/index.html', 'deal-ops/index.html', 'underwriter/index.html',
+   'productolog/index.html', 'form/index.html'].forEach(function(rel) {
+    const src = fs.readFileSync(path.join(root, rel), 'utf8');
+    assert(/href="(\.\.\/)?start\.html"/.test(src), rel + ' has a hub return link in markup');
   });
 
   // Ссылки хаба живут в demo-lab.js и deal-ops.css. Без ?v= Pages отдаёт из кэша
