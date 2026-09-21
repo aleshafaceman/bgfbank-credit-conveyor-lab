@@ -50,7 +50,8 @@ const state = {
   rate: BASE_RATE,
   payMonthly: 0,
   totalPaid: 0,
-  consents: { pd: false, bki: false, cpg: false },
+  consents: { pd: false, bki: false },
+  ads: { bank: false, partners: false },
   esiaConfirmed: false,
   esiaAt: ""
 };
@@ -254,13 +255,21 @@ function nextTerms() {
   show("calc");
 }
 
+/* Обязательных согласий два: персональные данные и запрос в БКИ.
+   Разрешения цифрового профиля клиент даёт в Госуслугах, а рекламные рассылки необязательны. */
 function readConsents() {
   state.consents.pd = !!($("c-pd") && $("c-pd").checked);
   state.consents.bki = !!($("c-bki") && $("c-bki").checked);
-  state.consents.cpg = !!($("c-cpg") && $("c-cpg").checked);
 }
 
-function consentsOk() { return state.consents.pd && state.consents.bki && state.consents.cpg; }
+function readAds() {
+  state.ads = {
+    bank: !!($("c-ads-bank") && $("c-ads-bank").checked),
+    partners: !!($("c-ads-partners") && $("c-ads-partners").checked)
+  };
+}
+
+function consentsOk() { return state.consents.pd && state.consents.bki; }
 
 /* Разрешения показываем списком внутри одной карточки: это не отдельные согласия,
    а две цели цифрового профиля, и подтверждаются они одной галочкой ниже. */
@@ -436,9 +445,14 @@ function runCta() {
 }
 
 document.addEventListener("DOMContentLoaded", function () {
-  ["c-pd", "c-bki", "c-cpg"].forEach(function (id) {
+  // Обязательные согласия влияют на кнопку, рекламные — только фиксируются.
+  ["c-pd", "c-bki"].forEach(function (id) {
     const el = $(id);
     if (el) el.addEventListener("change", function () { readConsents(); syncCta(); });
+  });
+  ["c-ads-bank", "c-ads-partners"].forEach(function (id) {
+    const el = $(id);
+    if (el) el.addEventListener("change", readAds);
   });
   const esiaBox = $("c-esia-confirm");
   if (esiaBox) esiaBox.addEventListener("change", function () {
@@ -468,8 +482,10 @@ document.addEventListener("DOMContentLoaded", function () {
       /* условия берём из состояния по умолчанию */
     }
     if (jump === "consents") {
-      ["c-pd", "c-bki", "c-cpg"].forEach(function (id) { if ($(id)) $(id).checked = true; });
+      /* отмечаем только обязательные: рекламные по умолчанию пустые */
+      ["c-pd", "c-bki"].forEach(function (id) { if ($(id)) $(id).checked = true; });
       readConsents();
+      readAds();
     }
     if (jump === "esia") {
       /* без этого контейнер целей остаётся пустым при прямом переходе */

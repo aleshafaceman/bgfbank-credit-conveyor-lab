@@ -211,6 +211,21 @@ input:focus { outline: 2px solid rgba(11, 70, 151,.2); border-color: var(--navy)
 .consent-legal summary { font-size: 12.5px; color: var(--navy); cursor: pointer; font-weight: 600; }
 .consent-legal p { font-size: 12.5px; color: var(--muted); line-height: 1.6; margin-top: 8px; }
 
+/* Необязательные согласия: тише и компактнее обязательных, с явной пометкой */
+.consent--optional { background: #fbfcfe; border-style: dashed; border-color: #dbe5ef; padding: 10px 15px; margin-bottom: 7px; }
+.consent--optional .consent-title { color: var(--ink); font-weight: 600; font-size: 14px; }
+.consent--optional .consent-note { margin: 4px 0 0 30px; font-size: 12.5px; }
+/* Обязательные карты тоже поджимаем: экран согласий должен помещаться целиком */
+.consent { padding: 13px 16px; margin-bottom: 9px; }
+.consent-facts { gap: 6px 20px; margin: 11px 0 0 30px; }
+.consent-warn { margin: 11px 0 0 30px; padding: 8px 12px; }
+.opt-mark {
+  display: inline-block; margin-left: 8px; font-size: 11px; font-weight: 600;
+  text-transform: lowercase; letter-spacing: 0; white-space: nowrap;
+  color: var(--muted); background: #eef2f7; border-radius: 6px; padding: 2px 7px;
+}
+.consent-foot { font-size: 12.5px; color: var(--muted); margin: 8px 0 0 2px; }
+
 /* ===== ЕСИА: цели цифрового профиля ===== */
 .esia-purposes { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 18px 0 6px; }
 

@@ -1632,8 +1632,16 @@ console.log('\n=== 13. Demo hub (start.html) entry point ===');
     'consumer form lets the client set amount, term and desired payment');
   assert(/mode-payment/.test(consumerHtml) && /amountFromPayment/.test(consumerJs),
     'consumer form can derive the amount from a desired monthly payment');
-  assert(/id="c-pd"/.test(consumerHtml) && /id="c-bki"/.test(consumerHtml) && /id="c-cpg"/.test(consumerHtml),
-    'consumer form has all three consents');
+  assert(/id="c-pd"/.test(consumerHtml) && /id="c-bki"/.test(consumerHtml),
+    'consumer form has the two required consents');
+  assert(/class="consent consent--optional"/.test(consumerHtml) &&
+    /id="c-ads-bank"/.test(consumerHtml) && /id="c-ads-partners"/.test(consumerHtml),
+    'consumer form offers optional advertising consents');
+  // Реклама необязательна: она не должна попадать в условие готовности шага.
+  assert(/function consentsOk\(\) \{ return state\.consents\.pd && state\.consents\.bki; \}/.test(consumerJs),
+    'advertising consents are not required to continue');
+  assert(!/id="c-cpg"/.test(consumerHtml) && !/consents\.cpg/.test(consumerJs),
+    'profile-transfer consent is not asked on the bank step');
   // Коды целей живут в данных (CPG_PURPOSES), а не в разметке — ищем в обоих файлах.
   const cpgSource = consumerHtml + consumerJs;
   assert(/CREDIT_REPORT/.test(cpgSource) && /FINANCIAL_NONFIN_SERVICES/.test(cpgSource),

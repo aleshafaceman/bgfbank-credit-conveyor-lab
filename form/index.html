@@ -104,7 +104,7 @@
 
 <section class="screen" id="consents">
 <h1>Согласия</h1>
-<p class="lead">Сначала банковские согласия — они нужны, чтобы рассмотреть заявку. Разрешения цифрового профиля вы подтвердите на следующем шаге, в Госуслугах.</p>
+<p class="lead">Два согласия обязательны. Реклама — по желанию, отказ не влияет на решение и условия. Разрешения цифрового профиля подтвердите в Госуслугах.</p>
 
 <div class="consent">
 <label class="consent-head"><input type="checkbox" id="c-pd"><span class="consent-title">Обработка персональных данных</span></label>
@@ -127,11 +127,17 @@
 <p>Я подтверждаю, что банк вправе запросить мою кредитную историю в любом бюро кредитных историй, в котором сформирована моя кредитная история, а также получать иные сведения, необходимые для оценки моей кредитоспособности, в соответствии с 218-ФЗ «О кредитных историях». Согласие действует 3 месяца с даты подписания и может быть отозвано письменным заявлением.</p></details>
 </div>
 
-<div class="consent">
-<label class="consent-head"><input type="checkbox" id="c-cpg"><span class="consent-title">Передача данных цифрового профиля</span></label>
-<p class="consent-note">Чтобы не запрашивать справки вручную, банк получит сведения о доходах, занятости и документах из вашего цифрового профиля. Какие именно разрешения вы даёте — выберете на следующем шаге, в Госуслугах.</p>
+<div class="consent consent--optional">
+<label class="consent-head"><input type="checkbox" id="c-ads-bank"><span class="consent-title">Рекламные рассылки банка <span class="opt-mark">необязательно</span></span></label>
+<p class="consent-note">Предложения банка по почте, SMS и в личном кабинете.</p>
 </div>
 
+<div class="consent consent--optional">
+<label class="consent-head"><input type="checkbox" id="c-ads-partners"><span class="consent-title">Предложения партнёров банка <span class="opt-mark">необязательно</span></span></label>
+<p class="consent-note">Страхование, оценка недвижимости и другие услуги партнёров.</p>
+</div>
+
+<p class="consent-foot">Отказ от рассылок не влияет на решение по заявке и на условия кредита.</p>
 <p class="err" id="err-consents"></p>
 </section>
 
