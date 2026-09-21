@@ -541,8 +541,12 @@ console.log('\n=== 7. HTML script order / critical refs ===');
 {
   const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
   const mgr = fs.readFileSync(path.join(root, 'manager/index.html'), 'utf8');
-  const clientScripts = [...index.matchAll(/<script src="([^"]+)"/g)].map(m => m[1]);
-  const mgrScripts = [...mgr.matchAll(/<script src="([^"]+)"/g)].map(m => m[1]);
+  // ?v=N — штатный cache-busting для Pages; сравниваем имена без строки запроса,
+  // иначе порядок загрузки перестаёт проверяться, а проверки на includes проходят ложно.
+  const scriptNames = (html) => [...html.matchAll(/<script src="([^"]+)"/g)]
+    .map(m => m[1].split('?')[0]);
+  const clientScripts = scriptNames(index);
+  const mgrScripts = scriptNames(mgr);
 
   assert(clientScripts.indexOf('shared/data.js') < clientScripts.indexOf('js/conveyor.js'), 'client: data before conveyor');
   assert(clientScripts.indexOf('js/conveyor.js') < clientScripts.indexOf('js/applications.js'), 'client: conveyor before applications');
@@ -1509,6 +1513,24 @@ console.log('\n=== 13. Demo hub (start.html) entry point ===');
   ].forEach(function(spec) {
     const src = fs.readFileSync(path.join(root, spec[0]), 'utf8');
     assert(src.indexOf(spec[1]) !== -1, spec[2]);
+  });
+
+  // Ссылки хаба живут в demo-lab.js и deal-ops.css. Без ?v= Pages отдаёт из кэша
+  // старую копию — и «Карта демо» пропадает из сайдбара/шапки прямо на показе.
+  const verRe = /\?v=\d+/;
+  const clientHtml = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  const mgrHtml = fs.readFileSync(path.join(root, 'manager/index.html'), 'utf8');
+  const bustScript = (html, name) => {
+    const tag = (html.match(new RegExp('<script src="' + name.replace(/[.\/]/g, '\\$&') + '[^"]*"')) || [''])[0];
+    return verRe.test(tag);
+  };
+  assert(bustScript(clientHtml, 'js/demo-lab.js'), 'client demo-lab.js is cache-busted');
+  assert(bustScript(mgrHtml, 'js/demo-lab.js'), 'manager demo-lab.js is cache-busted');
+  [['deal-ops/index.html', 'deal-ops.css'], ['underwriter/index.html', '../deal-ops/deal-ops.css'],
+   ['productolog/index.html', '../deal-ops/deal-ops.css']].forEach(function(pair) {
+    const html = fs.readFileSync(path.join(root, pair[0]), 'utf8');
+    const tag = (html.match(new RegExp('<link rel="stylesheet" href="' + pair[1].replace(/[.\/]/g, '\\$&') + '[^"]*"')) || [''])[0];
+    assert(verRe.test(tag), pair[0] + ' loads a cache-busted deal-ops.css');
   });
 
   // Ссылки хаба должны разрешаться в существующие файлы, а не 404.
