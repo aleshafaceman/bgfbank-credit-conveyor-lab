@@ -1207,6 +1207,16 @@ console.log('\n=== 10. L3 P2 passport / КОД / package ===');
   assert(/m-doc-list/.test(mgrStrip) && /art-doc-row/.test(mgrStrip) && /Все документы/.test(mgrStrip),
     'manager artifacts strip is document rows');
   assert(!/class="art-chip"/.test(mgrStrip), 'manager artifacts strip is not a chip run-on');
+  // Полоса «Документы по заявке» не должна исчезать при пустом реестре: иначе одна
+  // заявка выглядит полнее другой без причины. Проверяем на пустом хранилище.
+  const seededStrips = ctx.renderManagerArtifactsStrip('4421-И');
+  ctx.localStorage.removeItem('bgfbank_lab_artifacts');
+  if (typeof ctx.invalidateArtifactStore === 'function') ctx.invalidateArtifactStore();
+  const emptyStrip = ctx.renderManagerArtifactsStrip('4421-И');
+  assert(/Документы по заявке/.test(emptyStrip) && /art-doc-row/.test(emptyStrip) === false,
+    'manager artifacts strip keeps its section when nothing is recorded yet');
+  assert(/art-strip-empty/.test(emptyStrip), 'empty artifacts strip explains itself instead of vanishing');
+  assert(/art-doc-row/.test(seededStrips), 'populated artifacts strip keeps its document rows');
   const rateHtml = ctx.renderManagerRateBreakdownHTML(app4421);
   assert(rateHtml && !/eligible/.test(rateHtml) && !/ЕСИА/.test(rateHtml) && !/LTV/.test(rateHtml),
     'rate HTML has no eligible / ЕСИА / LTV as shown to user');

@@ -1322,28 +1322,35 @@ function renderAppArtifactsStrip(appId) {
     } else {
         list = clientVisibleArtifacts(list);
     }
-    if (!list.length) return '';
-    return '<div class="art-strip"><div class="art-strip-head">Документы по заявке</div>' +
-        '<div class="art-strip-list">' +
-        list.map(function(a) {
+    /* Блок не прячем при пустом реестре: в карточке так же ведут себя
+       «Документы клиента» и «История заявки». Иначе одна заявка выглядит
+       полнее другой без всякой причины. */
+    var body = list.length
+        ? list.map(function(a) {
             return '<button type="button" class="art-chip" data-action="open-artifact" data-art-id="' + artEscape(a.id) + '">' +
                 artEscape(artifactKindLabel(a.kind, 'client')) + '</button>';
-        }).join('') +
+        }).join('')
+        : '<span class="art-strip-empty">Документы ещё не сформированы</span>';
+    return '<div class="art-strip"><div class="art-strip-head">Документы по заявке</div>' +
+        '<div class="art-strip-list">' +
+        body +
         '<button type="button" class="art-chip art-chip-all" data-action="goto-documents">Все документы</button></div></div>';
 }
 
 function renderManagerArtifactsStrip(appId) {
     var list = listArtifacts(appId);
-    if (!list.length) return '';
-    return '<div class="m-section art-strip"><h4><i class="fas fa-folder-open"></i> Документы по заявке</h4>' +
-        '<div class="m-doc-list">' +
-        list.map(function(a) {
+    var rows = list.length
+        ? list.map(function(a) {
             return '<button type="button" class="m-doc-item art-doc-row" data-m-action="open-artifact" data-art-id="' +
                 artEscape(a.id) + '">' +
                 '<i class="fas fa-file-alt"></i>' +
                 '<span class="doc-name">' + artEscape(ARTIFACT_KIND_LABEL[a.kind] || a.kind) + '</span>' +
                 '<span class="doc-status doc-uploaded">Открыть</span></button>';
-        }).join('') +
+        }).join('')
+        : '<div class="art-strip-empty">Документы по заявке ещё не сформированы</div>';
+    return '<div class="m-section art-strip"><h4><i class="fas fa-folder-open"></i> Документы по заявке</h4>' +
+        '<div class="m-doc-list">' +
+        rows +
         '</div>' +
         '<button type="button" class="m-btn m-btn-outline art-strip-all" data-m-action="goto-documents">Все документы</button></div>';
 }
