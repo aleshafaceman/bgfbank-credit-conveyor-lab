@@ -276,11 +276,17 @@ async function attach(wsUrl) {
 
 /* ---------- сценарии ---------- */
 
+/* Уникальный параметр в адресе: у Pages кэш расходится по узлам, и один заход
+   может получить ещё старую страницу, пока другой уже отдаёт новую. */
+function bust(url) {
+  return url + (url.indexOf('?') === -1 ? '?' : '&') + 'nc=' + Date.now();
+}
+
 async function resetAndOpen(s, url) {
   /* Сначала чистим хранилище на текущей странице, потом идём по адресу:
      иначе первый заход по ?screen= снимет параметр из адреса до перезагрузки. */
   try { await s.eval('try { localStorage.clear(); } catch (e) {} return true;'); } catch (e) {}
-  await s.navigate(url);
+  await s.navigate(bust(url));
   await s.eval(HELPERS);
 }
 
@@ -512,6 +518,10 @@ async function runDeepLink(s, base) {
   } catch (err) {
     failed++;
     console.log('\nПрогон прерван: ' + err.message);
+    if (EXTERNAL_BASE) {
+      console.log('Если проверяется свежая выкладка, кэш Pages мог ещё не разойтись: ' +
+        'подождите минуту и повторите прогон.');
+    }
     if (KEEP) console.log('Chrome оставлен для разбора: ' + profile);
   } finally {
     try { if (session) session.ws.close(); } catch (e) {}
