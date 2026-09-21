@@ -23,19 +23,18 @@ const DEMO_PERSON = {
   experience: "4 года 7 месяцев"
 };
 
-/* Цели цифрового профиля: финансовые и нефинансовые услуги одной целью
-   и отдельная цель запроса кредитного отчёта CREDIT_REPORT. */
+/* Разрешения цифрового профиля: финансовые и нефинансовые услуги одной целью
+   и отдельная цель запроса кредитного отчёта CREDIT_REPORT.
+   Пояснения здесь нет намеренно — смысл называется один раз, в банковском согласии. */
 const CPG_PURPOSES = [
   {
     code: "FINANCIAL_NONFIN_SERVICES",
     title: "Финансовые и нефинансовые предложения",
-    note: "Сведения о доходах и занятости, паспорт, ИНН, СНИЛС. Позволяет не запрашивать справки вручную.",
     chips: ["Доход из СФР", "Занятость", "Паспорт и ИНН"]
   },
   {
     code: "CREDIT_REPORT",
     title: "Запрос кредитного отчёта",
-    note: "Разрешение банку запросить вашу кредитную историю в БКИ. Нужно для оценки долговой нагрузки.",
     chips: ["Запрос в БКИ", "Оценка нагрузки", "Без обязательств"]
   }
 ];
@@ -263,22 +262,28 @@ function readConsents() {
 
 function consentsOk() { return state.consents.pd && state.consents.bki && state.consents.cpg; }
 
+/* Разрешения показываем списком внутри одной карточки: это не отдельные согласия,
+   а две цели цифрового профиля, и подтверждаются они одной галочкой ниже. */
 function renderEsiaPurposes() {
-  $("esia-purposes").innerHTML = CPG_PURPOSES.map(function (p) {
-    return '<div class="purpose">' +
-      '<div class="purpose-head"><span class="purpose-code">' + p.code + "</span><b>" + p.title + "</b></div>" +
-      '<p class="purpose-note">' + p.note + "</p>" +
-      '<div class="purpose-chips">' + p.chips.map(function (c) { return '<span class="pill-fact">' + c + "</span>"; }).join("") + "</div>" +
-      '<div class="purpose-granted">Разрешение будет передано банку</div>' +
-      "</div>";
-  }).join("");
+  $("esia-purposes").innerHTML =
+    '<div class="cp-head"><span class="cp-badge">Госуслуги</span>' +
+    "<b>Запрос разрешений цифрового профиля</b></div>" +
+    '<p class="cp-note">Одно действие — доступ к данным профиля. Что именно передаётся:</p>' +
+    CPG_PURPOSES.map(function (p) {
+      return '<div class="cp-row">' +
+        '<span class="cp-mark">✓</span>' +
+        '<div class="cp-body">' +
+          '<div class="cp-title">' + p.title + '<span class="cp-code">' + p.code + "</span></div>" +
+          '<div class="cp-chips">' + p.chips.map(function (c) { return '<span class="pill-fact">' + c + "</span>"; }).join("") + "</div>" +
+        "</div></div>";
+    }).join("");
 }
 
 function goEsia() {
   readConsents();
   const err = $("err-consents");
   if (!consentsOk()) {
-    err.textContent = "Отметьте все три согласия — иначе перейти на Госуслуги нельзя";
+    err.textContent = "Отметьте оба согласия — иначе перейти на Госуслуги нельзя";
     err.classList.add("on");
     syncCta();
     return;

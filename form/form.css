@@ -213,6 +213,29 @@ input:focus { outline: 2px solid rgba(11, 70, 151,.2); border-color: var(--navy)
 
 /* ===== ЕСИА: цели цифрового профиля ===== */
 .esia-purposes { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 18px 0 6px; }
+
+/* ===== ЕСИА: объединённый запрос разрешений ===== */
+.cp-grant {
+  border: 1.5px solid var(--line); border-radius: 14px; padding: 16px 18px;
+  margin: 16px 0 6px; text-align: left;
+}
+.cp-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.cp-head b { font-size: 15px; color: var(--navy); }
+.cp-badge {
+  font-size: 11px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase;
+  background: #0b4ea2; color: #fff; border-radius: 7px; padding: 3px 9px;
+}
+.cp-note { font-size: 13px; color: var(--muted); margin: 8px 0 14px; }
+.cp-row { display: flex; gap: 10px; padding: 12px 0; border-top: 1px solid var(--line); }
+.cp-row:first-of-type { border-top: 0; }
+.cp-mark { color: var(--ok); font-weight: 700; flex-shrink: 0; }
+.cp-title { font-size: 14px; font-weight: 700; color: var(--navy); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.cp-code {
+  font-family: ui-monospace, Consolas, monospace; font-size: 10.5px;
+  background: var(--sky); border: 1px solid #d7e6f5; color: var(--navy); border-radius: 6px; padding: 2px 6px;
+  font-weight: 600;
+}
+.cp-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .purpose { border: 1.5px solid var(--line); border-radius: 14px; padding: 14px 16px; }
 .purpose-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
 .purpose-head b { font-size: 14px; color: var(--navy); }

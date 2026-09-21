@@ -104,7 +104,7 @@
 
 <section class="screen" id="consents">
 <h1>Согласия</h1>
-<p class="lead">Три согласия, все обязательные. Без них не переходим на Госуслуги и не запрашиваем кредитную историю.</p>
+<p class="lead">Сначала банковские согласия — они нужны, чтобы рассмотреть заявку. Разрешения цифрового профиля вы подтвердите на следующем шаге, в Госуслугах.</p>
 
 <div class="consent">
 <label class="consent-head"><input type="checkbox" id="c-pd"><span class="consent-title">Обработка персональных данных</span></label>
@@ -115,28 +115,21 @@
 
 <div class="consent consent--accent">
 <label class="consent-head"><input type="checkbox" id="c-bki"><span class="consent-title">Запрос кредитной истории в БКИ</span></label>
-<p class="consent-note">Банк запросит ваш кредитный отчёт в бюро кредитных историй. В цифровом профиле Госуслуг эта цель называется <code>CREDIT_REPORT</code> — «Запрос кредитного отчёта».</p>
+<p class="consent-note">Банк запросит ваш кредитный отчёт в бюро кредитных историй, чтобы оценить долговую нагрузку и кредитную историю.</p>
 <div class="consent-facts">
 <div><span>Куда идёт запрос</span><b>В БКИ, через банк</b></div>
-<div><span>Зачем</span><b>Оценить долговую нагрузку и кредитную историю</b></div>
 <div><span>Что вы увидите</span><b>Факт запроса и дату. Сам отчёт — в банке</b></div>
 <div><span>Срок согласия</span><b>3 месяца, затем продлевается отдельно</b></div>
+<div><span>Отзыв</span><b>В любой момент, но заявку рассмотреть не сможем</b></div>
 </div>
-<p class="consent-warn">Согласие не создаёт долга и не открывает счёт. Отозвать можно в любой момент — но без него банк не сможет рассмотреть заявку.</p>
+<p class="consent-warn">Согласие не создаёт долга и не открывает счёт.</p>
 <details class="consent-legal"><summary>Правовой текст согласия</summary>
 <p>Я подтверждаю, что банк вправе запросить мою кредитную историю в любом бюро кредитных историй, в котором сформирована моя кредитная история, а также получать иные сведения, необходимые для оценки моей кредитоспособности, в соответствии с 218-ФЗ «О кредитных историях». Согласие действует 3 месяца с даты подписания и может быть отозвано письменным заявлением.</p></details>
 </div>
 
 <div class="consent">
-<label class="consent-head"><input type="checkbox" id="c-cpg"><span class="consent-title">Цели цифрового профиля: финансовые и нефинансовые предложения</span></label>
-<p class="consent-note">В Госуслугах это одна цель — <code>FINANCIAL_NONFIN_SERVICES</code>. Она позволяет передать банку сведения о доходах, занятости и документах, чтобы не запрашивать справки вручную.</p>
-<div class="consent-pills">
-<span class="pill-fact">Справка о доходах без 2-НДФЛ</span>
-<span class="pill-fact">Занятость из СФР</span>
-<span class="pill-fact">Паспорт и ИНН из профиля</span>
-</div>
-<details class="consent-legal"><summary>Какие сведения передаются</summary>
-<p>ФИО, дата рождения, паспортные данные, ИНН, СНИЛС, адрес регистрации, сведения о занятости и доходах. Квартиру ЕСИА не отдаёт — если понадобится залог, он оформляется отдельным сценарием.</p></details>
+<label class="consent-head"><input type="checkbox" id="c-cpg"><span class="consent-title">Передача данных цифрового профиля</span></label>
+<p class="consent-note">Чтобы не запрашивать справки вручную, банк получит сведения о доходах, занятости и документах из вашего цифрового профиля. Какие именно разрешения вы даёте — выберете на следующем шаге, в Госуслугах.</p>
 </div>
 
 <p class="err" id="err-consents"></p>
@@ -148,8 +141,8 @@
 <h1>Вход через Госуслуги</h1>
 <p class="lead">Имитация авторизации. Вы подтверждаете цели цифрового профиля и передачу данных банку.</p>
 </div>
-<div class="esia-purposes" id="esia-purposes"></div>
-<label class="check"><input type="checkbox" id="c-esia-confirm"><span>Подтверждаю вход и передачу данных в АО «Банк БЖФ» по отмеченным целям</span></label>
+<div class="cp-grant" id="esia-purposes"></div>
+<label class="check"><input type="checkbox" id="c-esia-confirm"><span>Даю согласие на передачу данных банку по указанным разрешениям</span></label>
 <p class="err" id="err-esia"></p>
 <div class="esia-actions">
 <button type="button" class="btn btn-primary" id="esiaGo" onclick="confirmEsia()" disabled>Войти и передать данные</button>

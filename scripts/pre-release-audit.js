@@ -1634,8 +1634,20 @@ console.log('\n=== 13. Demo hub (start.html) entry point ===');
     'consumer form can derive the amount from a desired monthly payment');
   assert(/id="c-pd"/.test(consumerHtml) && /id="c-bki"/.test(consumerHtml) && /id="c-cpg"/.test(consumerHtml),
     'consumer form has all three consents');
-  assert(/CREDIT_REPORT/.test(consumerHtml) && /FINANCIAL_NONFIN_SERVICES/.test(consumerHtml),
+  // Коды целей живут в данных (CPG_PURPOSES), а не в разметке — ищем в обоих файлах.
+  const cpgSource = consumerHtml + consumerJs;
+  assert(/CREDIT_REPORT/.test(cpgSource) && /FINANCIAL_NONFIN_SERVICES/.test(cpgSource),
     'consumer form names the CPG purposes it asks for');
+  /* Согласие на БКИ подписывается отдельно и не объясняет цели Госуслуг,
+     иначе смысл одной цели дублируется на двух экранах. */
+  const bkiCard = (consumerHtml.match(/id="c-bki"[\s\S]{0,900}?<\/div>\s*<div class="consent"/) || [''])[0];
+  assert(!/CREDIT_REPORT/.test(bkiCard), 'bank credit-history consent does not explain the Gosuslugi purpose');
+  /* Один объединённый блок разрешений вместо карточек на каждую цель. */
+  assert(/class="cp-grant"/.test(consumerHtml) && /cp-row/.test(consumerJs),
+    'Gosuslugi step grants permissions in a single merged block');
+  // Смысл цели не повторяем пояснением в списке разрешений.
+  assert(!/note:\s*"[^"]*БКИ/.test(consumerJs),
+    'permission list carries no repeated credit-history explanation');
   assert(/id="c-esia-confirm"/.test(consumerHtml) && /function confirmEsia/.test(consumerJs),
     'consumer form simulates Gosuslugi sign-in with an explicit confirmation');
   // Нижняя панель на экране ЕСИА скрыта, поэтому действие обязано быть на самом экране,
