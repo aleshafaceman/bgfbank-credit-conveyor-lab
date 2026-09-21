@@ -1603,7 +1603,8 @@ console.log('\n=== 13. Demo hub (start.html) entry point ===');
   // Целостность ссылок на самих поверхностях показа: битая ссылка — это тупик,
   // ради отсутствия которых хаб и делался. docs/ — архив источников, не поверхности.
   const surfaces = ['index.html', 'start.html', 'reset.html', 'manager/index.html',
-    'deal-ops/index.html', 'underwriter/index.html', 'productolog/index.html', 'form/index.html'];
+    'deal-ops/index.html', 'underwriter/index.html', 'productolog/index.html',
+    'form/index.html', 'form-pledge/index.html'];
   const brokenRefs = [];
   surfaces.forEach(function(rel) {
     const abs = path.join(root, rel);
@@ -1623,6 +1624,26 @@ console.log('\n=== 13. Demo hub (start.html) entry point ===');
   });
   assert(brokenRefs.length === 0,
     'no dead links on any show surface' + (brokenRefs.length ? ' — broken: ' + brokenRefs.join(', ') : ''));
+
+  // Основной сценарий формы — потребительский кредит: условия → расчёт → согласия → ЕСИА.
+  const consumerHtml = fs.readFileSync(path.join(root, 'form/index.html'), 'utf8');
+  const consumerJs = fs.readFileSync(path.join(root, 'form/form.js'), 'utf8');
+  assert(/id="amount"/.test(consumerHtml) && /id="term-chips"/.test(consumerHtml) && /id="payment"/.test(consumerHtml),
+    'consumer form lets the client set amount, term and desired payment');
+  assert(/mode-payment/.test(consumerHtml) && /amountFromPayment/.test(consumerJs),
+    'consumer form can derive the amount from a desired monthly payment');
+  assert(/id="c-pd"/.test(consumerHtml) && /id="c-bki"/.test(consumerHtml) && /id="c-cpg"/.test(consumerHtml),
+    'consumer form has all three consents');
+  assert(/CREDIT_REPORT/.test(consumerHtml) && /FINANCIAL_NONFIN_SERVICES/.test(consumerHtml),
+    'consumer form names the CPG purposes it asks for');
+  assert(/id="c-esia-confirm"/.test(consumerHtml) && /function confirmEsia/.test(consumerJs),
+    'consumer form simulates Gosuslugi sign-in with an explicit confirmation');
+  assert(/function annuity/.test(consumerJs) && /BASE_RATE/.test(consumerJs),
+    'consumer form computes the annuity payment');
+  assert(/id="calc-payment"/.test(consumerHtml) && /id="calc-total"/.test(consumerHtml),
+    'consumer form shows payment and total to repay');
+  assert(/form-pledge\/index\.html/.test(hub) && /form-pledge\/index\.html/.test(consumerHtml),
+    'pledge form stays reachable from the hub and from the consumer form');
 }
 
 console.log('\n=== Summary ===');
