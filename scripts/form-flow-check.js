@@ -277,8 +277,10 @@ async function attach(wsUrl) {
 /* ---------- сценарии ---------- */
 
 /* Уникальный параметр в адресе: у Pages кэш расходится по узлам, и один заход
-   может получить ещё старую страницу, пока другой уже отдаёт новую. */
+   может получить ещё старую страницу, пока другой уже отдаёт новую.
+   Локальному серверу это не нужно, а проверке адреса мешает. */
 function bust(url) {
+  if (!EXTERNAL_BASE) return url;
   return url + (url.indexOf('?') === -1 ? '?' : '&') + 'nc=' + Date.now();
 }
 
@@ -461,7 +463,8 @@ async function runDeepLink(s, base) {
   const linkSearch = await s.eval('return location.search');
   ok(linkScreen === 'consents',
     'ссылка открыла нужный шаг (сейчас: ' + linkScreen + ', адрес: «' + linkSearch + '»)');
-  ok(linkSearch === '', 'после перехода параметр снят из адреса');
+  ok(linkSearch.indexOf('screen') === -1,
+    'после перехода параметр screen снят из адреса (адрес: «' + linkSearch + '»)');
   await s.reload();
   await s.eval(HELPERS);
   ok(await s.eval('return __t.screen() === "phone"'), 'после перезагрузки форма вернулась к началу пути');
