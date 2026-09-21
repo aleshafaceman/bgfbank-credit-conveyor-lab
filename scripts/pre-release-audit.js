@@ -1544,6 +1544,42 @@ console.log('\n=== 13. Demo hub (start.html) entry point ===');
     return !fs.existsSync(target);
   });
   assert(bad.length === 0, 'every hub link resolves to an existing file' + (bad.length ? ' — broken: ' + bad.join(', ') : ''));
+
+  // Полный сброс: одна кнопка вместо обхода пяти поверхностей вручную.
+  const resetPath = path.join(root, 'reset.html');
+  assert(fs.existsSync(resetPath), 'reset.html prepares the whole scene');
+  const resetSrc = fs.existsSync(resetPath) ? fs.readFileSync(resetPath, 'utf8') : '';
+  [
+    ['index.html?demo=1', 'reset covers the client cabinet'],
+    ['manager/?demo=reset', 'reset covers the manager cabinet'],
+    ['deal-ops/?demo=1', 'reset covers the deal desk'],
+    ['underwriter/?demo=1', 'reset covers the underwriter desk'],
+    ['productolog/?demo=1', 'reset covers the productolog desk'],
+    ['start.html', 'reset returns the presenter to the hub']
+  ].forEach(function(pair) {
+    assert(resetSrc.indexOf(pair[0]) !== -1, pair[1]);
+  });
+  assert(hub.indexOf('reset.html') !== -1, 'hub offers the one-button scene reset');
+  // Скрытые фреймы не должны попасть в проверку ссылок хаба: они относительные к reset.html.
+  const resetBad = [...resetSrc.matchAll(/src="([^"#?]+)(?:\?[^"]*)?"/g)].map(function(m) { return m[1]; })
+    .filter(function(h) { return !/^https?:/.test(h); })
+    .filter(function(h) {
+      const target = h.endsWith('/') ? path.join(root, h, 'index.html') : path.join(root, h);
+      return !fs.existsSync(target);
+    });
+  assert(resetBad.length === 0, 'every reset target resolves' + (resetBad.length ? ' — broken: ' + resetBad.join(', ') : ''));
+
+  // Карта «что выбирать на каждом столе» должна совпадать с данными моков,
+  // иначе ведущий ищет в очереди номер, которого там нет.
+  ['25BGFB00990001', '25BGFB00990004', '25BGFB00990101', '25BGFB00990104', '4421-И'].forEach(function(id) {
+    assert(hub.indexOf(id) !== -1, 'presenter map names ' + id);
+  });
+  assert(/та же самая сделка/i.test(hub), 'map marks deal 001 as the same deal as the cabinet');
+  assert(/не продолжение/i.test(hub), 'map says the other desks are branches, not a continuation');
+  const dealMockIds = [...fs.readFileSync(path.join(root, 'deal-ops/mock.js'), 'utf8')
+    .matchAll(/deal_id:\s*"([^"]+)"/g)].map(function(m) { return m[1]; });
+  const missingDeal = dealMockIds.filter(function(id) { return hub.indexOf(id) === -1 && hub.indexOf(id.slice(-3)) === -1; });
+  assert(missingDeal.length === 0, 'map covers every deal desk scenario' + (missingDeal.length ? ' — missing: ' + missingDeal.join(', ') : ''));
 }
 
 console.log('\n=== Summary ===');
