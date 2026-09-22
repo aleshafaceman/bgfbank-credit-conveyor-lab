@@ -1794,9 +1794,16 @@ console.log('\n=== 15. Browser flow check is present ===');
 {
   // Прогон кликами живёт отдельным скриптом: статические проверки ловят разметку,
   // а поведение — только настоящий браузер.
+  // Сами сценарии форм переехали в scripts/checks/forms.js (задача 7): обёртка
+  // form-flow-check.js осталась командой запуска, а проверки стали такой же
+  // поверхностью, как кабинеты и столы. Поэтому признаки ищем в обоих файлах,
+  // иначе аудит зеленел бы на обёртке, где сценариев уже нет.
   const flowPath = path.join(root, 'scripts/form-flow-check.js');
   assert(fs.existsSync(flowPath), 'browser flow check script exists');
-  const flowSrc = fs.readFileSync(flowPath, 'utf8');
+  const flowSrc = [flowPath, path.join(root, 'scripts/checks/forms.js')]
+    .filter(function (p) { return fs.existsSync(p); })
+    .map(function (p) { return fs.readFileSync(p, 'utf8'); })
+    .join('\n');
   ['Потребительский кредит', 'Залоговый кредит', 'resumeSession', 'discardSession',
    'wiAmount', 'c-ads-bank', 'esiaGo', 'waitFor'].forEach(function(token) {
     assert(flowSrc.indexOf(token) !== -1, 'flow check covers ' + token);

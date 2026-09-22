@@ -9,7 +9,8 @@
  * Внешних зависимостей нет: сервер, Chrome, CDP-клиент, помощники страницы и
  * счётчик проверок живут в scripts/lib/browser-check.js.
  *
- * Запуск:  node scripts/surface-check.js                  все поверхности
+ * Запуск:  node scripts/surface-check.js                  пять поверхностей
+ *          node scripts/surface-check.js --only=forms     формы клиента
  *          node scripts/surface-check.js --only=cabinet   одна поверхность
  * Опции:   --only=<ключ[,ключ]>   --base=<url>   --chrome=<путь>
  *          --port=<порт>   --keep
@@ -22,14 +23,25 @@ const fs = require('fs');
 const { createChecker, launch, findChrome } = require('./lib/browser-check');
 
 /* Карта поверхностей. Ключи заводятся заранее, чтобы задачи по остальным
-   поверхностям только добавляли файлы и не трогали раннер. */
+   поверхностям только добавляли файлы и не трогали раннер.
+
+   forms — проверки двух клиентских форм: файл переехал сюда из
+   scripts/form-flow-check.js, поэтому формы запускаются и общим раннером
+   (--only=forms), и привычной командой (тонкая обёртка над тем же файлом). */
 const SURFACES = {
   cabinet: './checks/cabinet',
   manager: './checks/manager',
   'deal-ops': './checks/deal-ops',
   underwriter: './checks/underwriter',
   productolog: './checks/productolog',
+  forms: './checks/forms',
 };
+
+/* Прогон без --only идёт по поверхностям лаборатории и не захватывает формы:
+   у форм своя команда и свой шаг в scripts/run-all-checks.js, а в общем прогоне
+   они считались бы дважды. Формы при этом остаются в карте, поэтому
+   --only=forms (и --only=forms,cabinet) работают как у любой другой поверхности. */
+const DEFAULT_SURFACES = ['cabinet', 'manager', 'deal-ops', 'underwriter', 'productolog'];
 
 function argValue(name) {
   return ((process.argv.find(function (a) { return a.startsWith('--' + name + '='); }) || '')
@@ -44,7 +56,7 @@ const KEEP = process.argv.includes('--keep');
 
 (function main() {
   const check = createChecker();
-  const names = ONLY.length ? ONLY : Object.keys(SURFACES);
+  const names = ONLY.length ? ONLY : DEFAULT_SURFACES;
   const root = path.resolve(__dirname, '..');
 
   if (ONLY.length) {
