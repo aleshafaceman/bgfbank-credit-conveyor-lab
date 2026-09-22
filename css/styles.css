@@ -92,9 +92,13 @@ body { background: linear-gradient(160deg, #e8f0f8 0%, #f0f4f8 45%, #f8fbff 100%
 .package-cards { display: flex; flex-direction: column; gap: 14px; margin-bottom: 16px; }
 .pkg-card { display: block; position: relative; border: 2px solid #e1e9f1; border-radius: 16px; padding: 18px 18px 18px 44px; cursor: pointer; background: #fff; transition: border-color 0.2s, box-shadow 0.2s; }
 .pkg-card:hover { border-color: #94b8d4; }
-.pkg-card.selected { border-color: #0B4697; box-shadow: 0 8px 24px rgba(11, 70, 151, 0.12); }
-.pkg-card.featured { background: linear-gradient(135deg, #f8fbff 0%, #fff 100%); }
-.pkg-card input[type="radio"] { position: absolute; left: 16px; top: 22px; width: 18px; height: 18px; accent-color: #0B4697; }
+/* Выбранный пакет отличается от рекомендуемого двумя признаками сразу — толстой
+   рамкой и заливкой, как .application-card.active-card и .card-deal.on. Раньше
+   они различались только тенью, поэтому при выборе третьего пакета синяя рамка
+   оставалась и на первом (рекомендуемом), и выглядело как два выбранных.
+   Отступ уменьшен на 1px: рамка толще, внешний размер карточки не меняется. */
+.pkg-card.selected { border-width: 3px; border-color: #0B4697; padding: 17px 17px 17px 43px; background: #f4f9ff; box-shadow: 0 8px 24px rgba(11, 70, 151, 0.12); }
+.pkg-card.featured { background: linear-gradient(135deg, #f8fbff 0%, #fff 100%); }.pkg-card input[type="radio"] { position: absolute; left: 16px; top: 22px; width: 18px; height: 18px; accent-color: #0B4697; }
 .pkg-card-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
 .pkg-title { font-size: 17px; font-weight: 700; color: #0B4697; }
 .pkg-rec { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; background: #0B4697; color: #fff; padding: 3px 8px; border-radius: 6px; }
