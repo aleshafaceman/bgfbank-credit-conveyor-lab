@@ -36,6 +36,8 @@ const state = {
   consents: F.emptyConsents(),
   ads: F.emptyAds(),
   esiaAt: "",
+  /** номер заявки присваивается при отправке и не меняется при возврате */
+  appId: "",
   /** сохранённые пакеты шага предложений, чтобы «что если» считалось от того же набора */
   pkgs: [],
   /** блок «что если» строится один раз: перестройка обрывала перетаскивание ползунка */
@@ -367,8 +369,29 @@ function acceptOffer() {
   const rates = { base: BASE_RATE, insured: BASE_RATE - INSURANCE_DISCOUNT, partner: BASE_RATE - 1.5 };
   const chosen = rates[state.pkg];
   const pay = F.annuity(state.amount, chosen, state.term);
+  /* Номер присваиваем один раз: при возврате на шаг он не должен меняться. */
+  if (!state.appId) state.appId = "ПК-" + String(Date.now()).slice(-6);
+
+  F.renderSuccess("status-success", {
+    appId: state.appId,
+    title: "Заявка отправлена в банк",
+    lead: "Мы получили заявку и приняли её в работу. Заполнять больше ничего не нужно.",
+    sent: [
+      "Данные из цифрового профиля (ЕСИА)",
+      "Согласие на обработку персональных данных",
+      "Согласие на запрос кредитной истории в БКИ",
+      "Ваши условия: " + F.fmtMoney(state.amount) + " на " + F.monthsLabel(state.term)
+    ],
+    steps: [
+      "Банк запросит кредитную историю и проверит данные",
+      "Решение придёт в SMS и в личный кабинет",
+      "Если понадобятся документы, пришлём точный список"
+    ],
+    eta: "Обычно проверка занимает до 15 минут в рабочее время."
+  });
+
   $("status-sum").innerHTML =
-    '<div class="row"><span>Номер заявки</span><b>ПК-' + String(Date.now()).slice(-6) + "</b></div>" +
+    '<div class="row"><span>Номер заявки</span><b>' + state.appId + "</b></div>" +
     '<div class="row"><span>Продукт</span><b>' + (titles[state.pkg] || "") + "</b></div>" +
     '<div class="row"><span>Сумма</span><b>' + F.fmtMoney(state.amount) + "</b></div>" +
     '<div class="row"><span>Срок</span><b>' + F.monthsLabel(state.term) + "</b></div>" +
@@ -407,7 +430,7 @@ const ctrl = F.create({
     esia: ["Войти и передать данные", confirmEsia],
     preview: ["Показать предложения", function () { renderPackages(); ctrl.go("packages"); }],
     packages: ["Отправить заявку", acceptOffer],
-    status: ["В начало", function () { ctrl.go("phone"); }],
+    status: ["На главную", function () { ctrl.go("phone"); }],
     offramp: ["В начало", function () { ctrl.go("phone"); }]
   },
   onJump: function (target) {
@@ -425,6 +448,9 @@ const ctrl = F.create({
       renderCondLinks();
     }
     if (target === "packages" || target === "status") renderPackages();
+    /* Прямой заход на итог должен нарисовать его так же, как обычный путь:
+       иначе блоки остаются пустыми. */
+    if (target === "status") acceptOffer();
   },
   onRestore: function (target) {
     /* При возобновлении сессии экран нужно наполнить так же, как при обычном переходе:

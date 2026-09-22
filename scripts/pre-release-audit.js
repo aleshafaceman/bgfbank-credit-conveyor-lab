@@ -1821,6 +1821,43 @@ console.log('\n=== 16. Order of actions on screen ===');
     'action row stays right-aligned so the primary action sits at the edge');
 }
 
+console.log('\n=== 17. Completion reads as a success ===');
+{
+  // Итоговый экран должен показывать успех, а не только протокол заявки.
+  const sharedJs2 = fs.readFileSync(path.join(root, 'shared/form-common.js'), 'utf8');
+  const successCss = fs.readFileSync(path.join(root, 'shared/form-common.css'), 'utf8');
+  assert(/function renderSuccess\(mountId, opts\)/.test(sharedJs2) &&
+    /renderSuccess: renderSuccess/.test(sharedJs2),
+    'shared layer renders a success block');
+  ['success', 'success-icon', 'after-list', 'next-steps'].forEach(function(cls) {
+    assert(successCss.indexOf('.' + cls) !== -1, 'success styling covers .' + cls);
+  });
+
+  const cases = [
+    { rel: 'form/index.html', js: 'form/form.js', id: 'ПК-', mount: 'status-success' },
+    { rel: 'form-pledge/index.html', js: 'form-pledge/form.js', id: 'ЗК-', mount: 'status-success' }
+  ];
+  cases.forEach(function(c) {
+    const html = fs.readFileSync(path.join(root, c.rel), 'utf8');
+    const js = fs.readFileSync(path.join(root, c.js), 'utf8');
+    assert(html.indexOf('id="' + c.mount + '"') !== -1,
+      c.rel + ' has a mount point for the success block');
+    assert(/F\.renderSuccess\("status-success"/.test(js),
+      c.js + ' renders the success block');
+    assert(/title: /.test(js) && /Что дальше|steps:/.test(js),
+      c.js + ' tells the client what happens next');
+    assert(/eta:/.test(js), c.js + ' gives an expectation of timing');
+    assert(/if \(!state\.appId\) state\.appId = "/.test(js),
+      c.js + ' assigns the application number once, not on every visit');
+  });
+  // Заявка уже отправлена: на шаге ДУ нельзя предлагать «отправить документы» снова.
+  const pledgeJs2 = fs.readFileSync(path.join(root, 'form-pledge/form.js'), 'utf8');
+  assert(!/Отправить документы/.test(pledgeJs2),
+    'the conditions step no longer offers to submit the application again');
+  assert(/Вернуться к заявке/.test(pledgeJs2),
+    'the conditions step returns to the application summary instead');
+}
+
 console.log('\n=== Summary ===');
 console.log('Passed: ' + passed);
 console.log('Failed: ' + failed);

@@ -68,6 +68,8 @@ const state = {
   cadastral: "",
   pkg: "rec",
   egrnOk: false,
+  /** номер заявки присваивается при отправке и не меняется при возврате */
+  appId: "",
   /** блок «что если» строится один раз: перестройка обрывала перетаскивание ползунка */
   whatIfBuilt: false,
   consents: F.emptyConsents(),
@@ -422,7 +424,29 @@ function onWhatIfChange() {
 function acceptOffer() {
   const titles = { rec: "Турбо 2.0", spec: "Спец. опция 4.0", noins: "Без страхования жизни" };
   const chosen = packageList().filter(function (p) { return p.id === state.pkg; })[0];
+  /* Номер присваиваем один раз: при возврате на шаг он не должен меняться. */
+  if (!state.appId) state.appId = "ЗК-" + String(Date.now()).slice(-6);
+
+  F.renderSuccess("status-success", {
+    appId: state.appId,
+    title: "Заявка ушла на рассмотрение",
+    lead: "Мы приняли заявку и объект залога. Дальше её ведёт банк — от вас пока ничего не требуется.",
+    sent: [
+      "Данные из цифрового профиля (ЕСИА)",
+      "Согласие на обработку персональных данных",
+      "Согласие на запрос кредитной истории в БКИ",
+      "Объект залога: " + state.object.address
+    ],
+    steps: [
+      "Проверка кредитной истории и служба безопасности",
+      "Андеррайтинг заёмщика и оценка объекта",
+      "Решение банка придёт в SMS и в личный кабинет"
+    ],
+    eta: "Обычно рассмотрение залоговой заявки занимает 1–2 рабочих дня."
+  });
+
   $("status-sum").innerHTML =
+    '<div class="row"><span>Номер заявки</span><b>' + state.appId + "</b></div>" +
     '<div class="row"><span>Пакет</span><b>' + (titles[state.pkg] || "") + "</b></div>" +
     '<div class="row"><span>Сумма</span><b>' + F.fmtMoney(chosen ? chosen.amount : state.amount) + "</b></div>" +
     '<div class="row"><span>Срок</span><b>' + F.yearsLabel(state.term) + "</b></div>" +
@@ -468,7 +492,9 @@ const ctrl = F.create({
     egrn: ["Это моя квартира", confirmObject],
     packages: ["Продолжить с этими условиями", acceptOffer],
     status: ["Показать ДУ (демо АНД)", function () { ctrl.go("du"); }],
-    du: ["Отправить документы", function () { alert("В лабе файлы никуда не уходят."); }],
+    /* Заявка уже отправлена, поэтому на шаге ДУ не «отправляем документы» заново,
+       а возвращаемся к сводке заявки. */
+    du: ["Вернуться к заявке", function () { ctrl.go("status"); }],
     offramp: ["В начало", function () { ctrl.go("phone"); }]
   },
   onJump: function (target) {
@@ -490,6 +516,8 @@ const ctrl = F.create({
       findEgrn();
     }
     if (target === "packages" || target === "status" || target === "du") renderPackages();
+    /* Прямой заход на итог должен нарисовать его так же, как обычный путь. */
+    if (target === "status") acceptOffer();
   },
   onRestore: function (target) {
     /* При возобновлении сессии экран нужно наполнить так же, как при обычном переходе. */

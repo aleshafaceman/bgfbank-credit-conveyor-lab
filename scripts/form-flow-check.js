@@ -413,9 +413,27 @@ async function runConsumer(s, base) {
   section('Потребительский кредит — отправка заявки');
   await s.eval('return __t.click("cta")');
   ok(await s.eval('return __t.screen() === "status"'), 'заявка отправлена');
+  /* Итог должен читаться как успешное завершение, а не как протокол. */
+  ok(await s.eval('return __t.text("status-success").indexOf("Заявка отправлена") !== -1'),
+    'на итоге есть подтверждение успеха');
+  ok(await s.eval('return document.querySelector("#status-success .success-icon") !== null'),
+    'успех помечен видимым признаком (галка)');
+  const consumerId = await s.eval('return __t.text("status-success")');
+  ok(/ПК-\d{6}/.test(consumerId), 'номер заявки виден в блоке успеха');
+  ok(await s.eval('return __t.text("status-success").indexOf("Что дальше") !== -1'),
+    'сказано, что будет дальше');
+  ok(await s.eval('return __t.text("status-success").indexOf("Что отправлено") !== -1'),
+    'перечислено, что именно отправлено');
   const status = await s.eval('return __t.text("status-sum")');
   ok(status.indexOf('ПК-') !== -1 && status.indexOf('Согласия') !== -1, 'в итоге есть номер заявки и согласия');
   ok((await s.eval('return __t.errorsVisible()')).length === 0, 'ошибок на экране нет');
+
+  /* Номер заявки не должен меняться, если вернуться на шаг и прийти снова. */
+  const idBefore = (consumerId.match(/ПК-\d{6}/) || [''])[0];
+  await s.eval('return __t.click("cta")');
+  await s.eval('return __t.click("cta")');
+  const idAfter = ((await s.eval('return __t.text("status-success")')).match(/ПК-\d{6}/) || [''])[0];
+  ok(idBefore && idBefore === idAfter, 'номер заявки не меняется при повторном заходе: ' + idAfter);
 }
 
 async function runPledge(s, base) {
@@ -503,6 +521,15 @@ async function runDeepLink(s, base) {
     'ссылка открыла нужный шаг (сейчас: ' + linkScreen + ', адрес: «' + linkSearch + '»)');
   ok(linkSearch.indexOf('screen') === -1,
     'после перехода параметр screen снят из адреса (адрес: «' + linkSearch + '»)');
+
+  /* Прямой заход на итоговый шаг должен показывать заполненный экран. */
+  await resetAndOpen(s, base + '/form/index.html?screen=status');
+  ok(await s.eval('return __t.screen() === "status"'), 'ссылка открыла итоговый шаг');
+  ok(await s.eval('return __t.text("status-success").indexOf("Заявка отправлена") !== -1'),
+    'прямой заход на итог показывает блок успеха, а не пустоту');
+  ok(await s.eval('return __t.text("status-sum").length > 20'),
+    'прямой заход на итог показывает детали заявки');
+
   await s.reload();
   await s.eval(HELPERS);
   ok(await s.eval('return __t.screen() === "phone"'), 'после перезагрузки форма вернулась к началу пути');

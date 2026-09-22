@@ -207,6 +207,42 @@ window.BGF_FORM = (function () {
       '<p class="hint">Кредитный отчёт в этот список не входит: банк запрашивает его в БКИ отдельно, по вашему согласию.</p>';
   }
 
+  /* ---------- успешное завершение ---------- */
+
+  /* Блок «заявка отправлена»: без него итоговый экран читается как протокол,
+     и у клиента не складывается ощущение, что действие завершилось успешно. */
+  function renderSuccess(mountId, opts) {
+    var host = $(mountId);
+    if (!host) return;
+    opts = opts || {};
+    var appId = opts.appId || "";
+    var title = opts.title || "Заявка отправлена в банк";
+    var lead = opts.lead || "Мы получили вашу заявку. Ничего больше заполнять не нужно.";
+    var sent = opts.sent || [];
+    var steps = opts.steps || [];
+    var eta = opts.eta || "";
+
+    host.innerHTML =
+      '<div class="success">' +
+        '<div class="success-icon">✓</div>' +
+        '<div class="success-body">' +
+          "<h2>" + title + "</h2>" +
+          "<p>" + lead + "</p>" +
+          (appId ? '<span class="success-id">Номер заявки: ' + appId + "</span>" : "") +
+        "</div>" +
+      "</div>" +
+      (sent.length
+        ? "<h3 class=\"after-title\">Что отправлено</h3><ul class=\"after-list\">" +
+          sent.map(function (s) { return "<li>" + s + "</li>"; }).join("") + "</ul>"
+        : "") +
+      (steps.length
+        ? '<div class="next-steps"><b>Что дальше</b><ol>' +
+          steps.map(function (s) { return "<li>" + s + "</li>"; }).join("") + "</ol>" +
+          (eta ? '<p class="eta">' + eta + "</p>" : "") +
+        "</div>"
+        : "");
+  }
+
   function renderPersonRows(mountId, person) {
     var host = $(mountId);
     if (!host) return;
@@ -492,6 +528,7 @@ window.BGF_FORM = (function () {
     renderPurposes: renderPurposes,
     esiaStamp: esiaStamp,
     renderScopes: renderScopes,
+    renderSuccess: renderSuccess,
     renderPersonRows: renderPersonRows,
     readSession: readSession,
     writeSession: writeSession,
