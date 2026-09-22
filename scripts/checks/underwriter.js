@@ -33,9 +33,10 @@
  *
  * Про сбои страницы: в разметке стола НЕТ элементов .err (замер: 0 вхождений),
  * поэтому дежурное «видимых ошибок нет» через __t.visibleErrors() здесь не может
- * упасть никогда. Вместо него проверяется список сбоев, который наполняет сам
- * браузер: __t.failures() из scripts/lib/browser-check.js (непойманные
- * исключения, необработанные отказы промисов, вызовы alert()).
+ * упасть никогда. Проверяется список сбоев, который наполняет сам браузер:
+ * __t.failures() (помощник живёт в scripts/checks/common.js). Перед каждым
+ * разделом список чистится __t.resetFailures(), иначе одиночный сбой покрасил бы
+ * все последующие утверждения.
  *
  * Помощники __t внедряются харнессом после navigate/reload; waitFor возвращает
  * { ok, error, message }, а его выражение — ТЕЛО функции, поэтому везде
@@ -45,6 +46,9 @@
  */
 
 'use strict';
+
+/* Общие помощники поверхностей: why() и строгая проверка сбоев страницы. */
+const common = require('./common');
 
 /* Заявки мока underwriter/mock.js:28-268 и их треки. Порядок — порядок массива
    MOCK.applications: renderInbox() идёт по нему, queue() фильтрует по треку. */
@@ -88,62 +92,75 @@ const QUEUE_BY_ROLE = {
   }
 };
 
-/* Каталог «Хода обмена» (underwriter.js:5-15): девять шагов, каждый со своей
-   внешней системой. Подписи взяты из каталога, не пересказаны. */
-const BUS_ROWS = 9;
-const BUS_TITLES = ['СБ пройдена', 'Решение по заёмщику', 'ПДН', 'Оценка залога', 'Express МО',
-  'ЕГРН', 'Звонок верификации', 'СМС брокеру', 'Статус в кабинет'];
-const BUS_SYSTEMS = ['ELMA', 'оркестратор → Loginom getDecision', 'оркестратор → Loginom getPdn',
-  'оркестратор → Loginom getEval', 'оркестратор → express.ocenka.mobi',
-  'файл + OCR Basis, не СМЭВ', 'Skorozvon', 'SMSTraffic /v2/send', 'B2B webhook'];
+/* Каталог «Хода обмена» (underwriter.js:5-15): подпись шага и его внешняя
+   система. Один список на все проверки шины — три копии этих строк разъехались
+   бы при первой же правке каталога. */
+const BUS_CATALOG = [
+  { title: 'СБ пройдена', system: 'ELMA' },
+  { title: 'Решение по заёмщику', system: 'оркестратор → Loginom getDecision' },
+  { title: 'ПДН', system: 'оркестратор → Loginom getPdn' },
+  { title: 'Оценка залога', system: 'оркестратор → Loginom getEval' },
+  { title: 'Express МО', system: 'оркестратор → express.ocenka.mobi' },
+  { title: 'ЕГРН', system: 'файл + OCR Basis, не СМЭВ' },
+  { title: 'Звонок верификации', system: 'Skorozvon' },
+  { title: 'СМС брокеру', system: 'SMSTraffic /v2/send' },
+  { title: 'Статус в кабинет', system: 'B2B webhook' }
+];
+const BUS_TITLES = BUS_CATALOG.map(function (x) { return x.title; });
+const BUS_SYSTEMS = BUS_CATALOG.map(function (x) { return x.system; });
+const BUS_STEPS = BUS_CATALOG.length;
 
-/* Статусы девяти шагов шины для заявки 101 (трек АНД) сразу после ?demo=1.
-   Значения собраны из busRow()/defaultAppState()/skipPhone() и подтверждены
-   замером: у АНД контур АПЗ помечен «контур АПЗ», звонок исключён
-   автоодобрением, СМС и B2B ещё не отправлены. */
-const BUS_AND_101 = {
-  'СБ пройдена': 'ELMA · успех',
-  'Решение по заёмщику': 'оркестратор → Loginom getDecision · ожидание',
-  'ПДН': 'оркестратор → Loginom getPdn · ожидание',
-  'Оценка залога': 'оркестратор → Loginom getEval · контур АПЗ',
-  'Express МО': 'оркестратор → express.ocenka.mobi · контур АПЗ',
-  'ЕГРН': 'файл + OCR Basis, не СМЭВ · контур АПЗ',
-  'Звонок верификации': 'Skorozvon · исключён',
-  'СМС брокеру': 'SMSTraffic /v2/send · ожидание',
-  'Статус в кабинет': 'B2B webhook · ожидание'
+/* Состояние каждого шага шины для заявки 101 (трек АНД) сразу после ?demo=1.
+   Собрано из busRow()/defaultAppState()/skipPhone() и подтверждено замером: у
+   АНД контур АПЗ помечен «контур АПЗ», звонок исключён автоодобрением, СМС и
+   B2B ещё не отправлены. */
+const BUS_AND_101_LABELS = {
+  'СБ пройдена': 'успех',
+  'Решение по заёмщику': 'ожидание',
+  'ПДН': 'ожидание',
+  'Оценка залога': 'контур АПЗ',
+  'Express МО': 'контур АПЗ',
+  'ЕГРН': 'контур АПЗ',
+  'Звонок верификации': 'исключён',
+  'СМС брокеру': 'ожидание',
+  'Статус в кабинет': 'ожидание'
 };
 
-/* Статусы шагов шины для заявки 103 (трек АПЗ): контур заёмщика уже в снимке
+/* То же для заявки 103 (трек АПЗ): контур заёмщика уже в снимке
    (defaultAppState() для apz ставит getDecision/getPdn в "ok"), контур объекта
    ещё не начат, звонок исключён (skip_phone_verify: true). */
-const BUS_APZ_103 = {
-  'СБ пройдена': 'ELMA · успех',
-  'Решение по заёмщику': 'оркестратор → Loginom getDecision · успех',
-  'ПДН': 'оркестратор → Loginom getPdn · успех',
-  'Оценка залога': 'оркестратор → Loginom getEval · ожидание',
-  'Express МО': 'оркестратор → express.ocenka.mobi · ожидание',
-  'ЕГРН': 'файл + OCR Basis, не СМЭВ · ожидание',
-  'Звонок верификации': 'Skorozvon · исключён',
-  'СМС брокеру': 'SMSTraffic /v2/send · ожидание',
-  'Статус в кабинет': 'B2B webhook · ожидание'
+const BUS_APZ_103_LABELS = {
+  'СБ пройдена': 'успех',
+  'Решение по заёмщику': 'успех',
+  'ПДН': 'успех',
+  'Оценка залога': 'ожидание',
+  'Express МО': 'ожидание',
+  'ЕГРН': 'ожидание',
+  'Звонок верификации': 'исключён',
+  'СМС брокеру': 'ожидание',
+  'Статус в кабинет': 'ожидание'
 };
 
 /* Кнопка решения зависит от трека (renderWork(), underwriter.js:821). */
 const APPROVE_AND = 'Клиент одобрен';
 const APPROVE_APZ = 'Залог одобрен';
 
-/* Шаги барьера паспорта сделки (STAGE_TITLE) и баннеры исходов. */
+/* Шаги стола (STAGE_TITLE) и баннер барьера паспорта сделки. */
 const STAGE_INTAKE = 'Комплектность документов';
 const STAGE_KK = 'Кредитный комитет';
 const BANNER_BARRIER = 'Барьер снят: клиент одобрен и залог одобрен';
 
-/* Ключ сцены стола. Общий набор кабинета (bgfbank_lab_applications) этот стол не
-   трогает вовсе — это отдельное проверяемое свойство (labKeys ниже). */
+/* Свой ключ стола и чужой ключ, который стол обязан не создавать. */
 const STORE = 'bgfbank_lab_underwriter';
+const FOREIGN_STORE = 'bgfbank_lab_applications';
 
-/* Ссылка возврата: <a class="hub-link" href="../start.html"> без идентификатора. */
+/* Ссылка возврата и её href: <a class="hub-link" href="../start.html"> без id. */
 const HUB_FIND = 'Array.prototype.slice.call(document.querySelectorAll("a")).filter(function(x) {' +
   ' return /start\\.html/.test(x.getAttribute("href") || ""); })[0]';
+
+/* Нейтральная страница того же origin для слепка хранилища ДО захода на стол:
+   start.html не подключает скриптов и в localStorage не пишет. */
+const NEUTRAL_PAGE = '/start.html';
 
 /* Номера карточек очереди в порядке отрисовки. Функции страницы не зовём:
    карточки рисует renderInbox(), и обход DOM видит ровно то, что видит человек. */
@@ -164,22 +181,24 @@ const BADGES = 'return Array.prototype.map.call(document.querySelectorAll("#inbo
   ' var b = c.querySelector(".badge");' +
   ' return { id: id, badge: b ? (b.textContent || "").trim() : "" }; })';
 
-/* Номер заявки, открытой в #work-deal: в h1 рядом со значком КИ стоит номер. */
+/* Номер заявки, открытой в #work-deal. Номер достаём поиском по списку известных
+   заявок, а не равенством всего текста h1: рядом с номером стол рисует значок
+   категории КИ (.ki-pill), и после скоринга textContent h1 перестаёт быть чистым
+   номером. */
 const WORK_HEAD = 'return (function() { var h = document.querySelector("#work-deal h1");' +
-  ' return h ? (h.textContent || "").replace(/\\s+/g, " ").trim() : null; })()';
+  ' if (!h) return null; var t = h.textContent || "";' +
+  ' return ' + JSON.stringify(ALL_IDS) + '.filter(function(id) { return t.indexOf(id) !== -1; })[0] || "?"; })()';
 
 /* Содержимое рабочей области: по нему видно, перерисовалась ли карточка. */
 const WORK_TEXT = 'return __t.text("work-deal")';
 
-/* Заголовок блока этапов внутри карточки. */
+/* Заголовок этапа внутри карточки. */
 const WORK_STAGE = 'return (function() { var e = document.querySelector("#work-deal .stage-now");' +
   ' return e ? (e.textContent || "").trim() : null; })()';
 
-/* Подписи кнопок и галочек карточки. */
+/* Подписи кнопок карточки. */
 const WORK_BUTTONS = 'return Array.prototype.map.call(document.querySelectorAll("#work-deal button"),' +
   ' function(b) { return (b.textContent || "").replace(/\\s+/g, " ").trim(); })';
-const WORK_CHECKS = 'return Array.prototype.map.call(document.querySelectorAll("#work-deal label.check"),' +
-  ' function(l) { return (l.textContent || "").replace(/\\s+/g, " ").trim(); })';
 
 /* Шаги «Хода обмена»: подпись шага, его система и состояние — по отдельности,
    чтобы подписи не склеивались в одну строку. */
@@ -195,18 +214,16 @@ const storeApp = function (id) {
     ' var p = JSON.parse(localStorage.getItem(' + JSON.stringify(STORE) + ') || "{}");' +
     ' var a = (p.apps || {})[' + JSON.stringify(id) + '] || null;' +
     ' if (!a) return null;' +
-    ' return { role: p.role || null, filter: p.filter || null, step: a.step || null,' +
+    ' return { role: p.role || null, step: a.step || null,' +
     '   decision: a.decision === undefined ? null : a.decision, smsId: a.smsId || "",' +
-    '   docsOk: a.docsOk === true, titleOk: a.titleOk === true, bus: a.bus || {} };' +
+    '   bus: a.bus || {} };' +
     ' } catch (e) { return { error: e.message }; } })()';
 };
 
 module.exports = {
   run: async function (s, base, check) {
     const ok = check.ok;
-    /* Сообщение проверки: при провале waitFor дописываем ошибку страницы, иначе
-       FAIL «очередь отрисована» не отличить от «элемента нет». */
-    const why = function (r) { return r && r.message ? ' — ' + r.message : ''; };
+    const why = common.why;
 
     /* --- помощники --- */
 
@@ -222,13 +239,30 @@ module.exports = {
     const clickFilter = function (label) { return clickExact('#inbox-list .filter', label); };
     const clickButton = function (label) { return clickExact('#work-deal button', label); };
 
-    /* Клик по галочке карточки по фрагменту подписи. */
-    const clickCheck = function (fragment) {
+    /* Клик по галочке карточки и подтверждение по СЦЕНЕ.
+
+       Проверять `checked` у самого input нельзя: toggleTitle()/toggleDocs()
+       вызывает render(), innerHTML #work-deal перерисовывается, и узел, по
+       которому кликнули, открепляется — его `checked` остаётся прежним и ничего
+       не доказывает (без onchange в разметке проверка всё равно зеленела бы).
+       Подтверждаем записью в localStorage — ровно тем, что увидит следующий шаг
+       стола. Возвращает объект в форме waitFor: { ok, error, message }. */
+    const clickCheck = function (fragment, id, field) {
       return s.eval('return (function() { var l = Array.prototype.filter.call(' +
         'document.querySelectorAll("#work-deal label.check"), function(x) {' +
         ' return (x.textContent || "").indexOf(' + JSON.stringify(fragment) + ') !== -1; })[0];' +
         ' if (!l) return false; var i = l.querySelector("input"); if (!i) return false;' +
-        ' i.click(); return i.checked === true; })()');
+        ' i.click(); return true; })()')
+        .then(function (clicked) {
+          if (clicked !== true) {
+            return { ok: false, error: null, message: 'галочка «' + fragment + '» не найдена' };
+          }
+          return s.waitFor('return (function() { try {' +
+            ' var p = JSON.parse(localStorage.getItem(' + JSON.stringify(STORE) + ') || "{}");' +
+            ' return (((p.apps || {})[' + JSON.stringify(id) + '] || {})[' +
+            JSON.stringify(field) + ']) === true;' +
+            ' } catch (e) { return false; } })()', 5000);
+        });
     };
 
     /* Состояние кнопки карточки по точной подписи. */
@@ -281,7 +315,7 @@ module.exports = {
     };
     const readApp = function (id) { return s.eval(storeApp(id)); };
 
-    /* выбор заявки кликом по её карточке с ожиданием перерисовки #work-deal. */
+    /* Выбор заявки кликом по её карточке с ожиданием перерисовки #work-deal. */
     const selectCard = function (id) {
       return s.eval('return (function() { var c = Array.prototype.slice.call(' +
         'document.querySelectorAll("#inbox-list .card-deal")).filter(function(x) {' +
@@ -313,10 +347,18 @@ module.exports = {
       return s.eval('return Array.prototype.map.call(document.querySelectorAll("#work-deal .done-banner"),' +
         ' function(e) { return (e.textContent || "").replace(/\\s+/g, " ").trim(); })');
     };
+    const hasBanner = function (list, fragment) {
+      return list.some(function (t) { return t.indexOf(fragment) !== -1; });
+    };
 
-    /* Сравнение фактических шагов шины с ожидаемой картой «шаг → система ·
-       состояние». Проверяются и подписи, и состояния, поэтому «шаг перестал
-       отражать снимок» видно, а не только «список непуст». */
+    /* Ожидаемая карта «шаг → система · состояние» из каталога и подписей
+       состояний: одно место, где строка «система · состояние» собирается так же,
+       как в busRow(). */
+    const busExpected = function (labels) {
+      const out = {};
+      BUS_CATALOG.forEach(function (x) { out[x.title] = x.system + ' · ' + labels[x.title]; });
+      return out;
+    };
     const busDiff = function (rows, expected) {
       const got = {};
       rows.forEach(function (r) { got[r.title] = r.status; });
@@ -327,37 +369,28 @@ module.exports = {
       return { missing: missing, wrong: wrong, got: got };
     };
 
-    /* Строгая проверка «страница отработала без сбоев». В отличие от
-       __t.visibleErrors() (в разметке стола нет .err, поэтому то утверждение не
-       могло упасть никогда), список наполняет сам браузер: непойманное
-       исключение, отказ промиса или alert() делают проверку красной.
-       Наличие монитора — часть утверждения: если он не поставился, пустой список
-       означал бы не «сбоев нет», а «сбои никто не считал».
-
-       ГРАНИЦЫ МОНИТОРА (не считать его сильнее, чем он есть):
-       1. Он стоит только на подключённом target'е: ошибки в дочерних окнах и
-          iframe в список не попадают.
-       2. Внешний ресурс даст ЛОЖНЫЙ сбой: index.html:8-10 подключает шрифты с
-          fonts.googleapis.com, и на машине без доступа к сети это честное
-          «uncaught error» в списке. Если проверка упала именно на
-          fonts.googleapis.com — причина в сети, а не в столе. */
-    const noFailures = async function (msg) {
-      const state = await s.eval('return (function() { try {' +
-        ' return { list: __t.failures(), monitor: window.__bgfMonitor || null };' +
-        ' } catch (e) { return { error: e.message }; } })()');
-      if (state.error) return ok(false, msg + ' (монитор сбоев недоступен: ' + state.error + ')');
-      const list = Array.isArray(state.list) ? state.list : [];
-      const installed = !!(state.monitor && state.monitor.error === true &&
-        state.monitor.rejection === true && state.monitor.alert === true);
-      return ok(installed && list.length === 0,
-        msg + ' (' + (installed ? '' : 'монитор сбоев установлен не полностью: ' +
-          JSON.stringify(state.monitor) + '; ') +
-        (list.length ? list.join(' | ') : 'сбоев нет') + ')');
-    };
+    /* Строгая проверка «страница отработала без сбоев» — общий помощник
+       (scripts/checks/common.js). Он требует И пустого списка сбоев, И полностью
+       установленного монитора: иначе пустой список означал бы «сбои никто не
+       считал». Границы монитора описаны в common.js. */
+    const noFailures = function (msg) { return common.noFailures(s, ok, msg); };
+    /* Чистка списка перед разделом: проверка «сбоев нет» относится к своему
+       действию, а не к накопленному с начала прогона. */
+    const resetFailures = function () { return s.eval('return __t.resetFailures()'); };
 
     /* --- вход --- */
 
     check.section('АРМ андеррайтера — очередь АНД после ?demo=1');
+
+    /* Слепок лабораторного хранилища снимаем ДО захода на стол, на нейтральной
+       странице того же origin. Проверять абсолютный список ключей нельзя:
+       браузер один на все поверхности (прогон `node scripts/surface-check.js`),
+       и соседние столы оставляют в нём свои ключи — при абсолютном сравнении
+       проверка падала бы на исправном столе (ложное падение воспроизводилось на
+       `--only=manager,underwriter`). Свойство «стол пишет только в свой ключ»
+       проверяется РАЗНИЦЕЙ слепков. */
+    await s.navigate(base + NEUTRAL_PAGE);
+    const storeBefore = await s.eval('return __t.labStore()');
 
     /* ?demo=1 сам сбрасывает bgfbank_lab_underwriter и кладёт свежую сцену из
        мока (underwriter.js:846-850). */
@@ -367,11 +400,23 @@ module.exports = {
     ok(r.ok, '?demo=1 открывает АРМ андеррайтера и наполняет очередь АНД' + why(r));
     await noFailures('страница АРМ андеррайтера загрузилась без сбоев');
 
-    /* Стол не трогает общее хранилище кабинетов: у него ровно один свой ключ.
-       Если стол начнёт писать в bgfbank_lab_applications, проверка упадёт. */
-    const labKeys = await s.eval('return __t.labKeys()');
-    ok(labKeys === JSON.stringify([STORE]),
-      'стол ведёт только своё хранилище ' + STORE + ' (ключи лаборатории: ' + labKeys + ')');
+    const storeAfter = await s.eval('return __t.labStore()');
+    const beforeKeys = Object.keys(storeBefore).sort();
+    const afterKeys = Object.keys(storeAfter).sort();
+    const foreignAdded = afterKeys.filter(function (k) {
+      return k !== STORE && beforeKeys.indexOf(k) === -1;
+    });
+    const foreignChanged = beforeKeys.filter(function (k) {
+      return k !== STORE && storeBefore[k] !== storeAfter[k];
+    });
+    ok(afterKeys.indexOf(STORE) !== -1 && (storeAfter[STORE] || 0) > 0 &&
+      foreignAdded.length === 0 && foreignChanged.length === 0,
+      'стол ведёт только своё хранилище ' + STORE + ': добавился ровно он, а чужой ключ ' +
+      FOREIGN_STORE + ' не создан и не переписан (было: ' + JSON.stringify(beforeKeys) +
+      ', стало: ' + JSON.stringify(afterKeys) + ', длина ' + FOREIGN_STORE + ': ' +
+      JSON.stringify(storeBefore[FOREIGN_STORE]) + ' → ' + JSON.stringify(storeAfter[FOREIGN_STORE]) +
+      ', лишние ключи: ' + JSON.stringify(foreignAdded) +
+      ', изменённые: ' + JSON.stringify(foreignChanged) + ')');
 
     const titleAnd = await s.eval('return __t.text("inbox-title")');
     ok(titleAnd.indexOf('Очередь АНД') === 0,
@@ -381,40 +426,39 @@ module.exports = {
       'в шапке подписан дежурный АНД из мока «' + OFFICER_AND + '» (сейчас: «' + officerAnd + '»)');
     const rolesOn = await s.eval('return Array.prototype.map.call(document.querySelectorAll(".role.on"),' +
       ' function(b) { return b.id; })');
-    ok(rolesOn.length === 1 && rolesOn[0] === 'role-and',
-      'включена ровно одна роль — АНД (включено: ' + JSON.stringify(rolesOn) + ')');
-    ok(await s.eval('return __t.count(".role") === 2 && __t.has("role-apz") === true'),
-      'на месте обе роли стола — #role-and и #role-apz');
+    ok(rolesOn.length === 1 && rolesOn[0] === 'role-and' &&
+      (await s.eval('return __t.count(".role") === 2 && __t.has("role-apz") === true')),
+      'на месте обе роли стола, но включена ровно одна — АНД (включено: ' +
+      JSON.stringify(rolesOn) + ')');
 
-    let ids = await cardIds();
-    let missing = AND_IDS.filter(function (id) { return ids.indexOf(id) === -1; });
-    ok(ids.length === AND_IDS.length && ids.indexOf('?') === -1,
-      'номер заявки читается в каждой карточке очереди (сейчас: ' + JSON.stringify(ids) +
-      ', нет: ' + JSON.stringify(missing) + ')');
-    ok(JSON.stringify(ids) === JSON.stringify(AND_IDS),
-      'карточки идут в порядке заявок мока ' + JSON.stringify(AND_IDS) +
-      ' (сейчас: ' + JSON.stringify(ids) + ')');
+    const ids = await cardIds();
+    const missing = AND_IDS.filter(function (id) { return ids.indexOf(id) === -1; });
+    ok(ids.length === AND_IDS.length && ids.indexOf('?') === -1 &&
+      JSON.stringify(ids) === JSON.stringify(AND_IDS),
+      'очередь АНД — это заявки мока в порядке массива ' + JSON.stringify(AND_IDS) +
+      ' (сейчас: ' + JSON.stringify(ids) + ', нет: ' + JSON.stringify(missing) + ')');
     const inboxText = await s.eval('return __t.text("inbox-list")');
     const whoMissing = AND_IDS.filter(function (id) { return inboxText.indexOf(CARD_WHO[id]) === -1; });
-    ok(whoMissing.length === 0,
-      'в карточках очереди АНД показаны заёмщики заявок (нет: ' + JSON.stringify(whoMissing) + ')');
-    ok(inboxText.indexOf(APZ_IDS[0]) === -1 && inboxText.indexOf(APZ_IDS[1]) === -1,
-      'в очереди АНД нет заявок контура залога — очереди двух ролей разделены');
+    ok(whoMissing.length === 0 && inboxText.indexOf(APZ_IDS[0]) === -1 &&
+      inboxText.indexOf(APZ_IDS[1]) === -1,
+      'в карточках очереди АНД показаны заёмщики заявок, а заявок контура залога нет — ' +
+      'очереди двух ролей разделены (нет заёмщиков: ' + JSON.stringify(whoMissing) + ')');
 
     /* Стол сам выбирает первую заявку (defaultState → selectedId), поэтому
        #work-deal видим и заполнен уже после загрузки. Утверждение фиксирует
        именно это поведение: если выбор перестанут делать, проверка упадёт. */
     ok(await s.eval('return __t.visible("work-deal") === true && __t.visible("work-empty") === false'),
       'стол сам открыл первую заявку: #work-deal видим, подсказка #work-empty скрыта');
-    ok(await s.eval(WORK_HEAD) === AND_IDS[0],
+    ok((await workHead()) === AND_IDS[0],
       'открыта первая заявка очереди ' + AND_IDS[0] + ' (сейчас: «' + (await workHead()) + '»)');
     const firstWork = await workText();
-    ok(firstWork.indexOf(CARD_WHO[AND_IDS[0]]) !== -1 && (await s.eval(WORK_STAGE)) === STAGE_INTAKE,
-      'карточка заполнена заёмщиком ' + CARD_WHO[AND_IDS[0]] + ' и этапом «' + STAGE_INTAKE +
-      '» (длина текста: ' + firstWork.length + ')');
-    ok(await s.eval(WORK_BUTTONS).then(function (b) { return b.indexOf(APPROVE_AND) !== -1; }) &&
-      firstWork.indexOf('Скоринг СПР') !== -1 && firstWork.indexOf('Комплект') !== -1,
-      'в карточке АНД есть блоки комплекта, скоринга и кнопка решения «' + APPROVE_AND + '»');
+    const firstButtons = await s.eval(WORK_BUTTONS);
+    ok(firstWork.indexOf(CARD_WHO[AND_IDS[0]]) !== -1 && (await s.eval(WORK_STAGE)) === STAGE_INTAKE &&
+      firstWork.indexOf('Скоринг СПР') !== -1 && firstWork.indexOf('Комплект') !== -1 &&
+      firstButtons.indexOf(APPROVE_AND) !== -1,
+      'карточка АНД заполнена заёмщиком ' + CARD_WHO[AND_IDS[0]] + ', этапом «' + STAGE_INTAKE +
+      '», блоками комплекта и скоринга и кнопкой решения «' + APPROVE_AND + '» (длина текста: ' +
+      firstWork.length + ')');
     const activeOnStart = await activeIds();
     ok(activeOnStart.length === 1 && activeOnStart[0] === AND_IDS[0],
       'подсвечена ровно одна карточка — открытая заявка ' + AND_IDS[0] +
@@ -425,26 +469,22 @@ module.exports = {
     check.section('АРМ андеррайтера — панель «Ход обмена»');
 
     const bus = await busRows();
-    ok(bus.length === BUS_ROWS,
-      'в «Ходе обмена» ровно ' + BUS_ROWS + ' шага каталога (сейчас: ' + bus.length + ')');
     const busTitles = bus.map(function (x) { return x.title; });
-    const busTitlesMissing = BUS_TITLES.filter(function (t) { return busTitles.indexOf(t) === -1; });
-    ok(busTitlesMissing.length === 0,
-      'шаги обмена подписаны как в каталоге (нет: ' + JSON.stringify(busTitlesMissing) +
-      ', сейчас: ' + JSON.stringify(busTitles) + ')');
+    ok(bus.length === BUS_STEPS && BUS_TITLES.every(function (t) { return busTitles.indexOf(t) !== -1; }),
+      'в «Ходе обмена» ровно ' + BUS_STEPS + ' шага каталога и ни одного лишнего (сейчас: ' +
+      bus.length + ', подписи: ' + JSON.stringify(busTitles) + ')');
     const busText = await s.eval('return __t.text("bus-list")');
     const busSystemsMissing = BUS_SYSTEMS.filter(function (t) { return busText.indexOf(t) === -1; });
-    ok(busSystemsMissing.length === 0,
-      'у шагов обмена указаны внешние системы (нет: ' + JSON.stringify(busSystemsMissing) + ')');
     const busStruct = bus.filter(function (x) { return !x.title || x.status.indexOf(' · ') === -1; });
-    ok(busStruct.length === 0,
-      'у каждого шага есть название и статус вида «система · состояние» (без них: ' +
+    ok(busSystemsMissing.length === 0 && busStruct.length === 0,
+      'у каждого шага есть название, внешняя система и статус вида «система · состояние» ' +
+      '(нет систем: ' + JSON.stringify(busSystemsMissing) + '; без структуры: ' +
       JSON.stringify(busStruct.map(function (x) { return x.title; })) + ')');
 
     /* Статусы девяти шагов для заявки 101 сверяются с ожидаемой картой: видно и
        «шаг не отражает снимок» (у АНД контур АПЗ), и «звонок не исключён
        автоодобрением», и «СМС ушла до решения». */
-    let diff = busDiff(bus, BUS_AND_101);
+    let diff = busDiff(bus, busExpected(BUS_AND_101_LABELS));
     ok(diff.missing.length === 0 && diff.wrong.length === 0,
       '«Ход обмена» у заявки ' + AND_IDS[0] + ' показывает снимок мока: шаги заёмщика ждут, ' +
       'контур залога помечен, звонок исключён (нет шагов: ' + JSON.stringify(diff.missing) +
@@ -452,77 +492,89 @@ module.exports = {
 
     check.section('АРМ андеррайтера — фильтры очереди четырёх треков');
 
+    await resetFailures();
     const filterLabels = await s.eval('return Array.prototype.map.call(' +
       'document.querySelectorAll("#inbox-list .filter"), function(b) { return (b.textContent || "").trim(); })');
-    ok(JSON.stringify(filterLabels) === JSON.stringify(FILTERS),
-      'в очереди ровно четыре фильтра ' + JSON.stringify(FILTERS) +
-      ' (сейчас: ' + JSON.stringify(filterLabels) + ')');
     const activeFilter = function () {
       return s.eval('return Array.prototype.map.call(document.querySelectorAll("#inbox-list .filter.on"),' +
         ' function(b) { return (b.textContent || "").trim(); })');
     };
     let on = await activeFilter();
-    ok(on.length === 1 && on[0] === 'Все',
-      'сразу после открытия включён фильтр «Все» и только он (включено: ' + JSON.stringify(on) + ')');
+    ok(JSON.stringify(filterLabels) === JSON.stringify(FILTERS) &&
+      on.length === 1 && on[0] === 'Все',
+      'в очереди ровно четыре фильтра ' + JSON.stringify(FILTERS) +
+      ', включён «Все» и только он (сейчас: ' + JSON.stringify(filterLabels) +
+      ', включено: ' + JSON.stringify(on) + ')');
 
     /* Каждый фильтр проверяется ожидаемой выборкой из мока: «Авто» — только
        автоодобрение, «Ручные» — его дополнение, «КК» — заявки с признаком КК.
        Значения посчитаны заранее, а не сняты со страницы. */
     for (const label of ['Авто', 'Ручные']) {
-      ok(!!(await clickFilter(label)), 'фильтр «' + label + '» найден и нажат');
+      const clicked = await clickFilter(label);
       r = await waitQueue(QUEUE_BY_ROLE.and[label]);
       const got = await cardIds();
-      ok(r.ok, 'фильтр «' + label + '» оставляет ровно ' +
-        JSON.stringify(QUEUE_BY_ROLE.and[label]) + ' (сейчас: ' + JSON.stringify(got) + ')' + why(r));
       on = await activeFilter();
+      ok(clicked === true && r.ok,
+        'фильтр «' + label + '» оставляет ровно ' + JSON.stringify(QUEUE_BY_ROLE.and[label]) +
+        ' (сейчас: ' + JSON.stringify(got) + ')' + why(r));
       ok(on.length === 1 && on[0] === label,
         'включённым показан именно фильтр «' + label + '» (включено: ' + JSON.stringify(on) + ')');
     }
 
-    /* «КК» в очереди АНД пуст: у заявок 101 и 102 нет признака need_kk и шаг не
-       kk. Это и проверка фильтра, и единственный честный способ увидеть скрытое
-       состояние #work-deal: renderWork() при пустой выборке прячет карточку и
-       показывает #work-empty (underwriter.js:657-665). */
-    ok(!!(await clickFilter('КК')), 'фильтр «КК» найден и нажат');
+    /* Предпосылка пустой очереди «КК» берётся из мока, а не из вида страницы:
+       если в демо-набор добавят заявку АНД с признаком need_kk, ожидание
+       «карточек 0» станет неверным, и упасть это должно внятно, а не загадочно. */
+    const kkPrecondition = await s.eval('return (function() { var apps = ' +
+      '((window.UNDERWRITER_MOCK || {}).applications) || [];' +
+      ' var and = apps.filter(function(a) { return a.track === "and"; });' +
+      ' return { total: and.length, withKk: and.filter(function(a) { return !!a.need_kk; }).length }; })()');
+    ok(kkPrecondition.total === AND_IDS.length && kkPrecondition.withKk === 0,
+      'предпосылка пустой очереди «КК»: ни у одной заявки АНД в моке нет признака need_kk (' +
+      JSON.stringify(kkPrecondition) + ')');
+
+    /* «КК» в очереди АНД пуст. Это и проверка фильтра, и единственный честный
+       способ увидеть скрытое состояние #work-deal: renderWork() при пустой
+       выборке прячет карточку и показывает #work-empty (underwriter.js:657-665). */
+    const kkClicked = await clickFilter('КК');
     r = await waitQueue([]);
-    const kkState = await s.eval('return { cards: __t.count("#inbox-list .card-deal"),' +
-      ' work: __t.visible("work-deal"), empty: __t.visible("work-empty"),' +
-      ' emptyText: __t.text("work-empty"), list: __t.text("inbox-list") }');
-    ok(r.ok && kkState.cards === 0,
-      'фильтр «КК» в очереди АНД не оставляет ни одной заявки (карточек: ' + kkState.cards + ')' + why(r));
+    const kkState = await s.eval('return { work: __t.visible("work-deal"),' +
+      ' empty: __t.visible("work-empty"), emptyText: __t.text("work-empty") }');
+    ok(kkClicked === true && r.ok,
+      'фильтр «КК» в очереди АНД не оставляет ни одной заявки' + why(r));
     ok(kkState.work === false && kkState.empty === true,
       'на пустой выборке #work-deal действительно скрыт, а подсказка #work-empty видна (' +
       JSON.stringify({ work: kkState.work, empty: kkState.empty }) + ')');
     ok(kkState.emptyText.indexOf('Очередь АНД пуста') !== -1 &&
       kkState.emptyText.indexOf('Человек рассматривается отдельно от объекта') !== -1,
       'пустое состояние объясняет себя текстом очереди АНД (сейчас: «' + kkState.emptyText + '»)');
-    const filtersStay = await s.eval('return Array.prototype.map.call(' +
-      'document.querySelectorAll("#inbox-list .filter"), function(b) { return (b.textContent || "").trim(); })');
-    ok(JSON.stringify(filtersStay) === JSON.stringify(FILTERS),
-      'фильтры остаются на месте и на пустой выборке — из пустого состояния можно выйти');
 
-    /* Возврат к «Все» обязан вернуть полную очередь и рабочую область. */
-    ok(!!(await clickFilter('Все')), 'фильтр «Все» найден и нажат');
+    /* Возврат к «Все» обязан вернуть полную очередь и рабочую область. Заодно
+       это и проверка выхода из пустого состояния: если бы фильтры пропадали
+       вместе с очередью, кликнуть было бы не по чему и проверка упала бы. */
+    const allClicked = await clickFilter('Все');
     r = await waitQueue(AND_IDS);
-    ids = await cardIds();
-    ok(r.ok && JSON.stringify(ids) === JSON.stringify(AND_IDS),
+    const idsBack = await cardIds();
+    ok(allClicked === true && r.ok,
       'возврат к «Все» восстанавливает всю очередь АНД в прежнем порядке (сейчас: ' +
-      JSON.stringify(ids) + ')' + why(r));
+      JSON.stringify(idsBack) + ')' + why(r));
     r = await s.waitFor('return __t.visible("work-deal") === true && __t.visible("work-empty") === false', 5000);
     ok(r.ok, 'после возврата к непустой выборке #work-deal снова показан, #work-empty скрыт' + why(r));
     await noFailures('переключение фильтров очереди прошло без сбоев страницы');
 
     check.section('АРМ андеррайтера — выбор заявки');
 
+    /* После фильтров открытой осталась вторая заявка (её выбрал фильтр
+       «Ручные»), поэтому клик по первой — это настоящая реакция на выбор, а не
+       подтверждение того, что и так истинно. */
+    await resetFailures();
     r = await selectCard(AND_IDS[0]);
-    ok(r.ok, 'карточка заявки ' + AND_IDS[0] + ' найдена и открыта' + why(r));
+    ok(r.ok, 'клик по карточке ' + AND_IDS[0] + ' открывает её' + why(r));
     const work0 = await workText();
     const head0 = await workHead();
 
-    /* Реакция на выбор: клик по ДРУГОЙ карточке обязан перерисовать #work-deal.
-       У заявок разный и номер, и заёмщик, и набор ДУ, поэтому проверяются все
-       три признака — «текст вообще изменился» прошло бы и на случайном
-       перерисовывании того же содержимого. */
+    /* Клик по ДРУГОЙ карточке обязан перерисовать #work-deal. У заявок разный и
+       номер, и заёмщик, и набор ДУ, поэтому проверяются все три признака —
+       «текст вообще изменился» прошло бы и на случайном перерисовывании. */
     r = await selectCard(AND_IDS[1]);
     const work1 = await workText();
     const head1 = await workHead();
@@ -543,14 +595,14 @@ module.exports = {
 
     /* Полный круг: возврат на первую заявку. Так видно, что выбор не «залипает». */
     r = await selectCard(AND_IDS[0]);
-    ok(r.ok && (await workHead()) === AND_IDS[0],
-      'возврат на первую заявку снова открывает ' + AND_IDS[0] + why(r));
-    ok((await workText()).indexOf(CARD_WHO[AND_IDS[0]]) !== -1,
-      'после возврата в карточке снова заёмщик ' + CARD_WHO[AND_IDS[0]]);
+    ok(r.ok && (await workHead()) === AND_IDS[0] &&
+      (await workText()).indexOf(CARD_WHO[AND_IDS[0]]) !== -1,
+      'возврат на первую заявку снова открывает ' + AND_IDS[0] + ' с её заёмщиком' + why(r));
     await noFailures('выбор заявок прошёл без сбоев страницы');
 
     check.section('АРМ андеррайтера — решение АНД');
 
+    await resetFailures();
     /* До комплектности кнопка решения заперта — это не «кнопка на месте», а
        «кнопка не пускает»: canDecide() требует docsOk. */
     const approveAndBefore = await buttonState(APPROVE_AND);
@@ -560,11 +612,12 @@ module.exports = {
     ok(await s.eval('return __t.count("#work-deal .done-banner") === 0'),
       'баннера решения в свежей карточке АНД нет');
 
-    ok(!!(await clickCheck('Минимальный перечень заёмщика')),
-      'галочка комплектности «Минимальный перечень заёмщика» найдена и отмечена');
+    r = await clickCheck('Минимальный перечень заёмщика', AND_IDS[0], 'docsOk');
+    ok(r.ok, 'галочка комплектности АНД отмечена и записана в сцену (docsOk = true)' + why(r));
     r = await waitEnabled('Запустить скоринг');
-    ok(r.ok, 'после отметки комплекта кнопка «Запустить скоринг» разблокирована' + why(r));
-    ok(!!(await clickButton('Запустить скоринг')), 'кнопка «Запустить скоринг» найдена и нажата');
+    const scoringClicked = r.ok ? await clickButton('Запустить скоринг') : false;
+    ok(r.ok && scoringClicked === true,
+      'после отметки комплекта «Запустить скоринг» доступна и нажата' + why(r));
     r = await waitReady(APPROVE_AND);
     const afterScoring = await readApp(AND_IDS[0]);
     ok(r.ok, 'после скоринга модальное окно закрыто, а кнопка «' + APPROVE_AND +
@@ -573,10 +626,10 @@ module.exports = {
       afterScoring.bus.getPdn === 'ok',
       'скоринг записал снимок в сцену: шаг decision, getDecision и getPdn — успех (сейчас: ' +
       JSON.stringify(afterScoring && { step: afterScoring.step, bus: afterScoring.bus }) + ')');
-    diff = busDiff(await busRows(), Object.assign({}, BUS_AND_101, {
-      'Решение по заёмщику': 'оркестратор → Loginom getDecision · успех',
-      'ПДН': 'оркестратор → Loginom getPdn · успех'
-    }));
+    diff = busDiff(await busRows(), busExpected(Object.assign({}, BUS_AND_101_LABELS, {
+      'Решение по заёмщику': 'успех',
+      'ПДН': 'успех'
+    })));
     ok(diff.wrong.length === 0 && diff.missing.length === 0,
       '«Ход обмена» после скоринга показывает успех шагов заёмщика (расхождения: ' +
       JSON.stringify(diff.wrong) + ')');
@@ -584,39 +637,36 @@ module.exports = {
     /* Действие решения: approve() обязан довести заявку до approved, отправить
        СМС брокеру и статус в B2B. Если решение не сработает, упадут и сцена, и
        баннер, и значок карточки. */
-    ok(!!(await clickButton(APPROVE_AND)), 'кнопка «' + APPROVE_AND + '» найдена и нажата');
+    const approveAndClicked = await clickButton(APPROVE_AND);
     r = await waitStep(AND_IDS[0], 'approved');
     const approved = await readApp(AND_IDS[0]);
-    ok(r.ok, 'approve() довёл заявку ' + AND_IDS[0] + ' до шага approved' + why(r));
+    ok(approveAndClicked === true && r.ok,
+      'approve() довёл заявку ' + AND_IDS[0] + ' до шага approved' + why(r));
     ok(!!approved && approved.decision === 'client_approved' && approved.smsId === 'sms_0101',
       'решение АНД записано как client_approved, СМС брокеру отправлена (сейчас: ' +
       JSON.stringify(approved && { decision: approved.decision, smsId: approved.smsId }) + ')');
     r = await s.waitFor('return __t.count("#work-deal .done-banner") >= 1', 5000);
     const bannersAnd = await banners();
-    const outcomeAnd = bannersAnd[0] || '';
-    ok(r.ok && outcomeAnd.indexOf('Клиент одобрен (ELMA 5)') !== -1 &&
-      outcomeAnd.indexOf('sms_0101') !== -1,
-      'карточка сообщает об одобрении клиента и об отправленной СМС (сейчас: «' + outcomeAnd + '»)');
-    ok(bannersAnd.some(function (t) { return t.indexOf(BANNER_BARRIER) !== -1; }),
+    ok(r.ok && hasBanner(bannersAnd, 'Клиент одобрен (ELMA 5)') && hasBanner(bannersAnd, 'sms_0101'),
+      'карточка сообщает об одобрении клиента и об отправленной СМС (баннеры: ' +
+      JSON.stringify(bannersAnd) + ')');
+    ok(hasBanner(bannersAnd, BANNER_BARRIER),
       'барьер паспорта сделки снят: одобрены оба контура (баннеры: ' + JSON.stringify(bannersAnd) + ')');
-    const busAfterApprove = busDiff(await busRows(), Object.assign({}, BUS_AND_101, {
-      'Решение по заёмщику': 'оркестратор → Loginom getDecision · успех',
-      'ПДН': 'оркестратор → Loginom getPdn · успех',
-      'СМС брокеру': 'SMSTraffic /v2/send · sms_0101',
-      'Статус в кабинет': 'B2B webhook · успех'
-    }));
+    const busAfterApprove = busDiff(await busRows(), busExpected(Object.assign({}, BUS_AND_101_LABELS, {
+      'Решение по заёмщику': 'успех',
+      'ПДН': 'успех',
+      'СМС брокеру': 'sms_0101',
+      'Статус в кабинет': 'успех'
+    })));
     ok(busAfterApprove.missing.length === 0 && busAfterApprove.wrong.length === 0,
       '«Ход обмена» после решения показывает СМС и статус в B2B (расхождения: ' +
       JSON.stringify(busAfterApprove.wrong) + ')');
     const badgesAfterApprove = await badges();
     const badge101 = badgesAfterApprove.filter(function (b) { return b.id === AND_IDS[0]; })[0];
-    ok(!!badge101 && badge101.badge === 'одобрено',
-      'значок карточки ' + AND_IDS[0] + ' сменился на «одобрено» (сейчас: ' +
-      JSON.stringify(badgesAfterApprove) + ')');
     const badge102 = badgesAfterApprove.filter(function (b) { return b.id === AND_IDS[1]; })[0];
-    ok(!!badge102 && badge102.badge === 'в очереди',
-      'решение по первой заявке не тронуло вторую — она по-прежнему «в очереди» (сейчас: ' +
-      JSON.stringify(badge102) + ')');
+    ok(!!badge101 && badge101.badge === 'одобрено' && !!badge102 && badge102.badge === 'в очереди',
+      'значок одобренной заявки сменился на «одобрено», а вторая осталась «в очереди» — ' +
+      'решение не тронуло чужую карточку (сейчас: ' + JSON.stringify(badgesAfterApprove) + ')');
     const approveAndAfter = await buttonState(APPROVE_AND);
     ok(!!approveAndAfter && approveAndAfter.disabled === true,
       'повторное одобрение заперто: кнопка «' + APPROVE_AND + '» снова недоступна');
@@ -625,22 +675,19 @@ module.exports = {
        Проверяется вторая половина фильтра «КК» — step === "kk", а не только
        признак need_kk из мока. */
     r = await selectCard(AND_IDS[1]);
-    ok(r.ok, 'открыта вторая заявка АНД для вынесения на КК' + why(r));
-    ok(!!(await clickButton('На кредитный комитет')), 'кнопка «На кредитный комитет» найдена и нажата');
+    const kkButtonClicked = r.ok ? await clickButton('На кредитный комитет') : false;
     r = await waitStep(AND_IDS[1], 'kk');
-    ok(r.ok, 'заявка ' + AND_IDS[1] + ' переведена на шаг kk' + why(r));
+    ok(kkButtonClicked === true && r.ok,
+      'заявка ' + AND_IDS[1] + ' переведена на шаг kk' + why(r));
     ok((await s.eval(WORK_STAGE)) === STAGE_KK,
       'карточка показывает этап «' + STAGE_KK + '» (сейчас: «' + (await s.eval(WORK_STAGE)) + '»)');
-    ok(!!(await clickFilter('КК')), 'фильтр «КК» найден и нажат после вынесения на КК');
+    const kkFilterClicked = await clickFilter('КК');
     r = await waitQueue([AND_IDS[1]]);
     const kkAfter = await cardIds();
-    ok(r.ok && JSON.stringify(kkAfter) === JSON.stringify([AND_IDS[1]]),
+    ok(kkFilterClicked === true && r.ok,
       'фильтр «КК» теперь показывает заявку, стоящую на шаге kk (сейчас: ' +
       JSON.stringify(kkAfter) + ')' + why(r));
     const kkPanel = await workText();
-    ok(kkPanel.indexOf('Кредитный комитет') !== -1 && kkPanel.indexOf('КК одобрил') !== -1 &&
-      kkPanel.indexOf('КК отказал') !== -1,
-      'в карточке появилась панель кредитного комитета с решениями');
     const kkButtons = await s.eval('return {' +
       ' approve: (function() { var b = Array.prototype.filter.call(document.querySelectorAll("#work-deal button"),' +
       '   function(x) { return (x.textContent || "").trim() === "КК одобрил"; })[0];' +
@@ -648,12 +695,16 @@ module.exports = {
       ' reject: (function() { var b = Array.prototype.filter.call(document.querySelectorAll("#work-deal button"),' +
       '   function(x) { return (x.textContent || "").trim() === "КК отказал"; })[0];' +
       '   return b ? { disabled: b.disabled === true } : null; })() }');
-    ok(!!kkButtons.approve && kkButtons.approve.disabled === false &&
+    ok(kkPanel.indexOf('Кредитный комитет') !== -1 && kkPanel.indexOf('КК одобрил') !== -1 &&
+      kkPanel.indexOf('КК отказал') !== -1 &&
+      !!kkButtons.approve && kkButtons.approve.disabled === false &&
       !!kkButtons.reject && kkButtons.reject.disabled === false,
-      'решения КК разблокированы на шаге kk (сейчас: ' + JSON.stringify(kkButtons) + ')');
-    ok(!!(await clickFilter('Все')), 'фильтр «Все» найден и нажат для возврата к полной очереди');
+      'в карточке появилась панель кредитного комитета, и оба её решения разблокированы (сейчас: ' +
+      JSON.stringify(kkButtons) + ')');
+    const backAllClicked = await clickFilter('Все');
     r = await waitQueue(AND_IDS);
-    ok(r.ok, 'возврат к «Все» снова показывает обе заявки АНД' + why(r));
+    ok(backAllClicked === true && r.ok,
+      'возврат к «Все» снова показывает обе заявки АНД' + why(r));
     await noFailures('работа с решением АНД прошла без сбоев страницы');
 
     check.section('АРМ андеррайтера — роль АПЗ: очередь и переключатель');
@@ -661,42 +712,62 @@ module.exports = {
     /* Переключение роли кликом, а не вызовом setRole(): проверяется то, что
        делает человек. Роль обязана сменить и заголовок, и состав очереди,
        и подпись дежурного. */
-    ok(await s.eval('return __t.click("role-apz") === true'), 'переключатель роли #role-apz найден и нажат');
+    await resetFailures();
+    const roleClicked = await s.eval('return __t.click("role-apz") === true');
     r = await s.waitFor('return __t.text("inbox-title").indexOf("Очередь АПЗ") === 0', 5000);
     const apzTitle = await s.eval('return __t.text("inbox-title")');
-    ok(r.ok, 'заголовок очереди сменился на «Очередь АПЗ» (сейчас: «' + apzTitle.slice(0, 30) + '…»)' + why(r));
+    ok(roleClicked === true && r.ok,
+      'клик по #role-apz меняет заголовок очереди на «Очередь АПЗ» (сейчас: «' +
+      apzTitle.slice(0, 30) + '…»)' + why(r));
     const officerApz = await s.eval('return __t.text("officer-label")');
-    ok(officerApz === OFFICER_APZ && officerApz !== officerAnd,
-      'подпись дежурного сменилась на АПЗ: «' + officerAnd + '» → «' + officerApz + '»');
     const rolesApz = await s.eval('return Array.prototype.map.call(document.querySelectorAll(".role.on"),' +
       ' function(b) { return b.id; })');
-    ok(JSON.stringify(rolesApz) === JSON.stringify(['role-apz']),
-      'включена ровно одна роль — АПЗ (включено: ' + JSON.stringify(rolesApz) + ')');
+    ok(officerApz === OFFICER_APZ && officerApz !== officerAnd &&
+      JSON.stringify(rolesApz) === JSON.stringify(['role-apz']),
+      'подпись дежурного сменилась на АПЗ «' + officerAnd + '» → «' + officerApz +
+      '», и включена ровно одна роль (включено: ' + JSON.stringify(rolesApz) + ')');
     r = await waitQueue(APZ_IDS);
-    ids = await cardIds();
-    ok(r.ok && JSON.stringify(ids) === JSON.stringify(APZ_IDS),
-      'очередь АПЗ содержит заявки контура залога ' + JSON.stringify(APZ_IDS) +
-      ' (сейчас: ' + JSON.stringify(ids) + ')' + why(r));
+    const idsApz = await cardIds();
+    ok(r.ok, 'очередь АПЗ содержит заявки контура залога ' + JSON.stringify(APZ_IDS) +
+      ' (сейчас: ' + JSON.stringify(idsApz) + ')' + why(r));
     const apzInbox = await s.eval('return __t.text("inbox-list")');
-    ok(apzInbox.indexOf(AND_IDS[0]) === -1 && apzInbox.indexOf(AND_IDS[1]) === -1,
-      'в очереди АПЗ нет заявок контура заёмщика');
     const apzWhoMissing = APZ_IDS.filter(function (id) { return apzInbox.indexOf(CARD_WHO[id]) === -1; });
-    ok(apzWhoMissing.length === 0,
-      'в карточках АПЗ показаны адреса объектов залога (нет: ' + JSON.stringify(apzWhoMissing) + ')');
-    r = await s.waitFor(WORK_HEAD + ' === ' + JSON.stringify(APZ_IDS[0]), 5000);
+    ok(apzWhoMissing.length === 0 && apzInbox.indexOf(AND_IDS[0]) === -1 &&
+      apzInbox.indexOf(AND_IDS[1]) === -1,
+      'в карточках АПЗ показаны адреса объектов залога, а заявок контура заёмщика нет ' +
+      '(нет адресов: ' + JSON.stringify(apzWhoMissing) + ')');
+    /* #work-deal обязан не просто содержать номер, а быть видимым: __t.text()
+       читает textContent и у скрытого блока, поэтому одного текста мало. */
+    r = await s.waitFor(WORK_HEAD + ' === ' + JSON.stringify(APZ_IDS[0]) +
+      ' && __t.visible("work-deal") === true && __t.visible("work-empty") === false', 5000);
     const apzWork = await workText();
-    ok(r.ok, 'после смены роли открылась заявка ' + APZ_IDS[0] + ' (сейчас: «' + (await workHead()) + '»)' + why(r));
-    ok(apzWork.indexOf('Объект залога') !== -1 && apzWork.indexOf('77:06:0004002:551') !== -1 &&
-      apzWork.indexOf('Морозов Игорь Викторович') !== -1,
-      'карточка АПЗ показывает объект залога с кадастровым номером и заёмщика из мока');
-    ok(apzWork.indexOf('ЕГРН в AS-IS') !== -1 && apzWork.indexOf('не кадастровый СМЭВ') !== -1,
-      'карточка АПЗ оговаривает, что ЕГРН берётся файлом и OCR, а не СМЭВ');
+    ok(r.ok, 'после смены роли открылась и показана заявка ' + APZ_IDS[0] +
+      ' (сейчас: «' + (await workHead()) + '»)' + why(r));
+    ok(apzWork.indexOf('Морозов Игорь Викторович') !== -1,
+      'в карточке АПЗ заёмщик заявки из мока — Морозов Игорь Викторович');
+
+    /* Панель объекта проверяется по видимому блоку и его плиткам, а не по всему
+       тексту #work-deal: текст включает и скрытые подсказки-хелпы (.help-pop),
+       поэтому «текст где-то есть» ничего не доказывает. */
+    const objectPanel = await s.eval('return (function() { var ps = Array.prototype.slice.call(' +
+      'document.querySelectorAll("#work-deal .panel"));' +
+      ' var p = ps.filter(function(x) { var h = x.querySelector("h2");' +
+      '   return h && (h.textContent || "").trim() === "Объект залога"; })[0];' +
+      ' if (!p) return null; var r = p.getBoundingClientRect();' +
+      ' return { visible: r.width > 0 && r.height > 0,' +
+      '   params: Array.prototype.map.call(p.querySelectorAll(".param"), function(x) {' +
+      '     return (x.textContent || "").replace(/\\s+/g, " ").trim(); }) }; })()');
+    ok(!!objectPanel && objectPanel.visible === true &&
+      objectPanel.params.join(' | ').indexOf('77:06:0004002:551') !== -1 &&
+      objectPanel.params.join(' | ').indexOf('FLAT') !== -1,
+      'видимая панель «Объект залога» показывает тип и кадастровый номер заявки из мока (' +
+      JSON.stringify(objectPanel && objectPanel.params) + ')');
     const apzButtons = await s.eval(WORK_BUTTONS);
     ok(apzButtons.indexOf(APPROVE_APZ) !== -1 && apzButtons.indexOf(APPROVE_AND) === -1,
       'кнопка решения подписана по треку залога: «' + APPROVE_APZ + '» (кнопки: ' +
       JSON.stringify(apzButtons.filter(function (x) { return x !== 'i'; })) + ')');
 
-    diff = busDiff(await busRows(), BUS_APZ_103);
+    diff = busDiff(await busRows(), busExpected(BUS_APZ_103_LABELS));
     ok(diff.missing.length === 0 && diff.wrong.length === 0,
       '«Ход обмена» для заявки ' + APZ_IDS[0] + ' показывает контур заёмщика из снимка и ' +
       'неначатый контур объекта (нет шагов: ' + JSON.stringify(diff.missing) +
@@ -706,63 +777,84 @@ module.exports = {
        заявка с признаком need_kk. Если фильтр перестанет зависеть от роли,
        проверка упадёт. */
     for (const label of ['Авто', 'КК', 'Ручные']) {
-      ok(!!(await clickFilter(label)), 'фильтр «' + label + '» найден и нажат в роли АПЗ');
+      const clicked = await clickFilter(label);
       r = await waitQueue(QUEUE_BY_ROLE.apz[label]);
       const got = await cardIds();
-      ok(r.ok, 'в роли АПЗ фильтр «' + label + '» оставляет ' +
-        JSON.stringify(QUEUE_BY_ROLE.apz[label]) + ' (сейчас: ' + JSON.stringify(got) + ')' + why(r));
+      ok(clicked === true && r.ok,
+        'в роли АПЗ фильтр «' + label + '» оставляет ' + JSON.stringify(QUEUE_BY_ROLE.apz[label]) +
+        ' (сейчас: ' + JSON.stringify(got) + ')' + why(r));
     }
-    ok(!!(await clickFilter('Все')), 'фильтр «Все» найден и нажат в роли АПЗ');
+    const apzAllClicked = await clickFilter('Все');
     r = await waitQueue(APZ_IDS);
-    ok(r.ok, 'возврат к «Все» в роли АПЗ показывает обе заявки залога' + why(r));
+    ok(apzAllClicked === true && r.ok,
+      'возврат к «Все» в роли АПЗ показывает обе заявки залога' + why(r));
 
-    /* Заявка 104 — ветка КК: проверяем, что стол предъявляет её признаки и,
-       в отличие от 103, не даёт одобрить залог без внутреннего оценщика. */
+    /* Заявка 104 — ветка КК. Прошлый цикл фильтров оставил открытой именно её,
+       поэтому сначала явно открываем 103, а потом кликаем 104: так утверждение
+       «открылась 104» — это реакция на клик, а не подтверждение того, что и так
+       истинно. */
+    r = await selectCard(APZ_IDS[0]);
+    const headBefore104 = await workHead();
+    ok(r.ok && headBefore104 === APZ_IDS[0],
+      'перед разбором коммерции открыта заявка ' + APZ_IDS[0] + why(r));
     r = await selectCard(APZ_IDS[1]);
     const work104 = await workText();
-    ok(r.ok, 'открыта заявка коммерции ' + APZ_IDS[1] + why(r));
-    ok(work104.indexOf('Кредитный комитет') !== -1 &&
-      work104.indexOf('Критерий КК: тип недвижимости — коммерция') !== -1,
-      'у заявки коммерции показана причина вынесения на КК из мока');
-    ok(work104.indexOf('Внутренний оценщик банка подтвердил коммерцию') !== -1,
-      'у коммерции требуется внутренний оценщик банка — поле есть в карточке');
-    ok(work104.indexOf('COMMERCE') !== -1 && work104.indexOf('77:05:0002011:88') !== -1,
-      'в карточке коммерции показаны тип объекта и его кадастровый номер');
-    ok(work104.indexOf('Предоставить документ по объекту залога') !== -1,
-      'у заявки коммерции показано её дополнительное условие из мока');
+    ok(r.ok && (await workHead()) === APZ_IDS[1] && headBefore104 !== APZ_IDS[1],
+      'клик по карточке коммерции перерисовывает карточку с ' + headBefore104 + ' на ' + APZ_IDS[1] +
+      why(r));
+    ok(work104.indexOf('Критерий КК: тип недвижимости — коммерция') !== -1 &&
+      work104.indexOf('Внутренний оценщик банка подтвердил коммерцию') !== -1,
+      'у заявки коммерции показана причина вынесения на КК из мока и требование ' +
+      'внутреннего оценщика');
+    ok(work104.indexOf('77:05:0002011:88') !== -1 && work104.indexOf('Предоставить документ ' +
+      'по объекту залога') !== -1,
+      'в карточке коммерции кадастровый номер её объекта и её собственное ДУ из мока');
     r = await selectCard(APZ_IDS[0]);
-    ok(r.ok, 'возврат на заявку ' + APZ_IDS[0] + ' перед одобрением залога' + why(r));
+    ok(r.ok && (await workHead()) === APZ_IDS[0],
+      'возврат на заявку ' + APZ_IDS[0] + ' перед одобрением залога' + why(r));
 
     check.section('АРМ андеррайтера — решение АПЗ');
 
     /* Шаг за шагом доводим заявку залога до решения. Каждая кнопка ждёт
-       окончания предыдущего асинхронного шага (waitEnabled) — иначе клик
+       окончания предыдущего асинхронного шага (waitReady/waitIdle) — иначе клик
        пришёлся бы на время busy и молча ничего не сделал. */
-    ok(!!(await clickCheck('Минимальный перечень АПЗ')),
-      'галочка комплектности «Минимальный перечень АПЗ» найдена и отмечена');
+    r = await clickCheck('Минимальный перечень АПЗ', APZ_IDS[0], 'docsOk');
+    ok(r.ok, 'галочка комплектности АПЗ отмечена и записана в сцену (docsOk = true)' + why(r));
     r = await waitEnabled('Запросить ЕГРН');
-    ok(r.ok, 'после отметки комплекта доступен запрос ЕГРН' + why(r));
     const approveApzBefore = await buttonState(APPROVE_APZ);
-    ok(!!approveApzBefore && approveApzBefore.disabled === true,
-      '«' + APPROVE_APZ + '» заперта, пока не пройдены ЕГРН, оценка и право');
-    ok(!!(await clickButton('Запросить ЕГРН')), 'кнопка «Запросить ЕГРН» найдена и нажата');
+    ok(r.ok && !!approveApzBefore && approveApzBefore.disabled === true,
+      'после отметки комплекта доступен запрос ЕГРН, а «' + APPROVE_APZ +
+      '» ещё заперта — ЕГРН, оценка и право не пройдены' + why(r));
+    const egrnClicked = await clickButton('Запросить ЕГРН');
+    /* Утверждение опирается на ВИДИМОЕ модальное окно, а не на текст скрытой
+       подсказки-хелпа: __t.text() читает textContent и у невидимого блока. */
+    const egrnModal = await s.eval('return (function() { var o = document.getElementById("overlay");' +
+      ' if (!o || o.classList.contains("hidden")) return null; var r = o.getBoundingClientRect();' +
+      ' return { visible: r.width > 0 && r.height > 0, title: __t.text("modal-title"),' +
+      '   lead: __t.text("modal-lead") }; })()');
+    ok(egrnClicked === true && !!egrnModal && egrnModal.visible === true &&
+      egrnModal.title === 'Выписка ЕГРН' && egrnModal.lead.indexOf('файл + OCR Basis') !== -1 &&
+      egrnModal.lead.indexOf('не вызываем') !== -1,
+      'шаг ЕГРН объясняет себя видимым модальным окном: файл + OCR Basis, кадастровый СМЭВ ' +
+      'не вызываем (сейчас: ' + JSON.stringify(egrnModal) + ')');
     r = await waitReady('getEval / Express');
     const afterEgrn = await readApp(APZ_IDS[0]);
     ok(r.ok, 'ЕГРН отработал, окно закрылось и разблокировало оценку' + why(r));
     ok(!!afterEgrn && afterEgrn.step === 'eval' && afterEgrn.bus.egrn === 'ok',
       'ЕГРН записан в сцену: шаг eval, шаг шины egrn — успех (сейчас: ' +
       JSON.stringify(afterEgrn && { step: afterEgrn.step, egrn: afterEgrn.bus.egrn }) + ')');
-    ok(!!(await clickButton('getEval / Express')), 'кнопка «getEval / Express» найдена и нажата');
+    const evalClicked = await clickButton('getEval / Express');
     r = await waitIdle();
-    ok(r.ok, 'оценка залога завершилась: модальное окно закрыто, стол свободен' + why(r));
+    ok(evalClicked === true && r.ok,
+      'клик по «getEval / Express» запускает оценку, и она завершается: окно закрыто, стол свободен' +
+      why(r));
     r = await waitStep(APZ_IDS[0], 'title');
     const afterEval = await readApp(APZ_IDS[0]);
-    ok(r.ok, 'оценка залога перевела заявку на шаг title' + why(r));
-    ok(!!afterEval && afterEval.bus.getEval === 'ok' && afterEval.bus.express === 'ok',
-      'оценка записана в сцену: getEval и Express — успех (сейчас: ' +
-      JSON.stringify(afterEval && afterEval.bus) + ')');
-    ok(!!(await clickCheck('Правоустанавливающие документы согласованы')),
-      'галочка «Правоустанавливающие документы согласованы» найдена и отмечена');
+    ok(r.ok && !!afterEval && afterEval.bus.getEval === 'ok' && afterEval.bus.express === 'ok',
+      'оценка залога перевела заявку на шаг title и записала getEval и Express в сцену (сейчас: ' +
+      JSON.stringify(afterEval && { step: afterEval.step, bus: afterEval.bus }) + ')' + why(r));
+    r = await clickCheck('Правоустанавливающие документы согласованы', APZ_IDS[0], 'titleOk');
+    ok(r.ok, 'галочка права отмечена и записана в сцену (titleOk = true)' + why(r));
     r = await waitReady(APPROVE_APZ);
     ok(r.ok, 'после права кнопка «' + APPROVE_APZ + '» разблокирована, а стол свободен' + why(r));
     const rightBefore = await workText();
@@ -770,26 +862,27 @@ module.exports = {
       'до решения карточка сообщает, что контур АПЗ ещё не одобрен (сейчас: «' +
       rightBefore.slice(-90) + '»)');
 
-    ok(!!(await clickButton(APPROVE_APZ)), 'кнопка «' + APPROVE_APZ + '» найдена и нажата');
+    const approveApzClicked = await clickButton(APPROVE_APZ);
     r = await waitStep(APZ_IDS[0], 'approved');
     const approvedApz = await readApp(APZ_IDS[0]);
-    ok(r.ok, 'approve() довёл залог ' + APZ_IDS[0] + ' до шага approved' + why(r));
+    ok(approveApzClicked === true && r.ok,
+      'approve() довёл залог ' + APZ_IDS[0] + ' до шага approved' + why(r));
     ok(!!approvedApz && approvedApz.decision === 'pledge_approved' && approvedApz.smsId === '',
       'решение АПЗ записано как pledge_approved и не отправляет СМС брокеру (сейчас: ' +
       JSON.stringify(approvedApz && { decision: approvedApz.decision, smsId: approvedApz.smsId }) + ')');
     r = await s.waitFor('return __t.count("#work-deal .done-banner") >= 1', 5000);
     const bannersApz = await banners();
-    const outcomeApz = bannersApz[0] || '';
-    ok(r.ok && outcomeApz.indexOf('Залог одобрен (ELMA 23)') !== -1 && outcomeApz.indexOf('СМС') === -1,
-      'карточка сообщает об одобрении залога и не поминает СМС брокеру (сейчас: «' + outcomeApz + '»)');
-    ok(bannersApz.some(function (t) { return t.indexOf(BANNER_BARRIER) !== -1; }),
+    ok(r.ok && hasBanner(bannersApz, 'Залог одобрен (ELMA 23)') && !hasBanner(bannersApz, 'СМС'),
+      'карточка сообщает об одобрении залога и не поминает СМС брокеру (баннеры: ' +
+      JSON.stringify(bannersApz) + ')');
+    ok(hasBanner(bannersApz, BANNER_BARRIER),
       'барьер паспорта сделки снят и в контуре залога (баннеры: ' + JSON.stringify(bannersApz) + ')');
-    const busAfterApz = busDiff(await busRows(), Object.assign({}, BUS_APZ_103, {
-      'Оценка залога': 'оркестратор → Loginom getEval · успех',
-      'Express МО': 'оркестратор → express.ocenka.mobi · успех',
-      'ЕГРН': 'файл + OCR Basis, не СМЭВ · успех',
-      'Статус в кабинет': 'B2B webhook · успех'
-    }));
+    const busAfterApz = busDiff(await busRows(), busExpected(Object.assign({}, BUS_APZ_103_LABELS, {
+      'Оценка залога': 'успех',
+      'Express МО': 'успех',
+      'ЕГРН': 'успех',
+      'Статус в кабинет': 'успех'
+    })));
     ok(busAfterApz.missing.length === 0 && busAfterApz.wrong.length === 0,
       '«Ход обмена» после решения АПЗ показывает успех шагов объекта и статус в B2B (расхождения: ' +
       JSON.stringify(busAfterApz.wrong) + ')');
@@ -805,7 +898,8 @@ module.exports = {
 
     /* Порядок принципиален. Сначала вход БЕЗ ?demo=1: стол читает сцену из
        localStorage, и одобренные решения обязаны быть на месте. Только потом
-       ?demo=1, который сцену честно стирает. */
+       ?demo=1, который сцену честно стирает. Каждый переход — свой документ и
+       свой список сбоев, поэтому проверок сбоев здесь две. */
     await s.navigate(base + '/underwriter/');
     r = await s.waitFor('return typeof __t === "object" && ' +
       '__t.count("#inbox-list .card-deal") === ' + APZ_IDS.length, 10000);
@@ -818,6 +912,7 @@ module.exports = {
     ok(!!badgeStored103 && badgeStored103.badge === 'одобрено',
       'одобренная ранее заявка залога снова показана одобренной (сейчас: ' +
       JSON.stringify(badgesStored) + ')');
+    await noFailures('вход без ?demo=1 на сохранённой сцене прошёл без сбоев страницы');
 
     await s.navigate(base + '/underwriter/?demo=1');
     r = await s.waitFor('return typeof __t === "object" && ' +
@@ -832,10 +927,10 @@ module.exports = {
     const officerBack = await s.eval('return __t.text("officer-label")');
     const badgesReset = await badges();
     ok(officerBack === OFFICER_AND &&
-      badgesReset.filter(function (b) { return b.badge !== 'в очереди'; }).length === 0,
+      badgesReset.every(function (b) { return b.badge === 'в очереди'; }),
       'после сброса дежурный снова АНД, а все заявки снова «в очереди» (сейчас: «' +
       officerBack + '», значки: ' + JSON.stringify(badgesReset) + ')');
-    await noFailures('перезагрузки сцены прошли без сбоев страницы');
+    await noFailures('сброс сцены по ?demo=1 прошёл без сбоев страницы');
 
     check.section('АРМ андеррайтера — возврат на карту демо');
 
@@ -850,11 +945,11 @@ module.exports = {
       '   visible: r.width > 0 && r.height > 0 }; })()');
     ok(!!hubInfo && hubInfo.text.indexOf('Карта демо') !== -1 && hubInfo.visible === true,
       'ссылка возврата подписана «Карта демо» и видна (сейчас: ' + JSON.stringify(hubInfo) + ')');
-    ok(await s.eval('return (function() { var a = ' + HUB_FIND + ';' +
-      ' if (!a) return false; a.click(); return true; })()'),
-      'клик по найденной ссылке возврата выполнен');
+    const hubClicked = await s.eval('return (function() { var a = ' + HUB_FIND + ';' +
+      ' if (!a) return false; a.click(); return true; })()');
     r = await s.waitFor('return /start\\.html$/.test(window.location.pathname)', 8000);
-    ok(r.ok, 'ссылку с <a href="../start.html"> можно нажать и попасть на карту демо (адрес: «' +
+    ok(hubClicked === true && r.ok,
+      'ссылку с <a href="../start.html"> можно нажать и попасть на карту демо (адрес: «' +
       (await s.eval('return window.location.pathname')) + '»)' + why(r));
     /* Карта демо открылась в том же окне: рабочей области стола на ней больше
        нет, а на месте заголовок самой карты. Помощники __t сюда не внедрены —
