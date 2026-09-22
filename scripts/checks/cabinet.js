@@ -75,6 +75,10 @@ module.exports = {
       'сразу после входа одновременно виден ровно один раздел (видно: ' +
       JSON.stringify(visibleAfterLogin) + ')');
 
+    /* Пустые списки поверхностей: у кабинета это не пустые блоки (см. ниже), а
+       сами списки. Сначала входим в раздел заявок: до перехода #applicationsList
+       скрыт вместе со своим разделом, а скрытый список считается пустым по
+       построению — проверка «заявки показаны» до входа ничего не доказывала бы. */
     check.section('Кабинет клиента — мои заявки');
 
     await s.eval('return __t.resetFailures()');
@@ -92,6 +96,18 @@ module.exports = {
     const missing = SEEDED_APPS.filter(function (id) { return listText.indexOf(id) === -1; });
     ok(missing.length === 0,
       'демо-заявки из shared/data.js видны в списке (нет: ' + JSON.stringify(missing) + ')');
+    /* Пустой список заявок — это не «ноль карточек в разметке», а именно пустой
+       список: карточки рисует renderApplicationList (js/applications.js:219),
+       и при сбое отрисовки в контейнере остаётся либо ничего, либо заглушка
+       «Нет заявок» (js/applications.js:212). Здесь проверяем то, чего нет у
+       проверки выше: список отрисован в СВОЁМ (уже раскрытом) разделе и
+       заглушки «Нет заявок» в нём нет — карточки на экране, а не в скрытом
+       контейнере. */
+    ok(cards >= 1 && listText.indexOf('Нет заявок') === -1 &&
+      !!(await s.eval('return document.getElementById("view-applications")' +
+        '.contains(document.getElementById("applicationsList"))')),
+      'список заявок не пуст и отрисован в раскрытом разделе: карточки есть, ' +
+      'заглушки «Нет заявок» нет (карточек: ' + cards + ', текста: ' + listText.length + ')');
     await noFailures('раздел «Мои заявки» отрисован без сбоев страницы');
 
     const visibleOnApps = await s.eval(VISIBLE_VIEWS);
@@ -100,6 +116,10 @@ module.exports = {
 
     check.section('Кабинет клиента — документы');
 
+    /* Список документов проверяем на пустоту теми же двумя сторонами, что и
+       заявки. Ветку выбирает renderDocumentsSection (shared/lk-artifacts.js:1126-1149):
+       либо карточки .art-card, либо заглушка .art-empty. Пустой #documentsList
+       (ни карточек, ни заглушки) — это как раз недорисованный раздел. */
     await s.eval('return navigateTo("documents")');
     r = await s.waitFor('return ' + APPS_HIDDEN + ' && !(' + DOCS_HIDDEN + ')', 5000);
     ok(r.ok, 'после перехода раздел заявок скрыт, раздел документов раскрыт' + why(r));
@@ -108,9 +128,16 @@ module.exports = {
     ok(!!(await s.eval('return __t.visible("documentsList")')), 'список документов показан');
     const docsText = await s.eval('return __t.text("documentsList")');
     ok(docsText.length > 0, 'список документов отрисован (длина текста: ' + docsText.length + ')');
+    const docs = await s.eval('return {' +
+      ' cards: __t.count("#documentsList .art-card"),' +
+      ' empty: __t.count("#documentsList .art-empty") }');
+    ok(docs.cards + docs.empty > 0 && docs.empty <= 1,
+      'список документов не пуст: либо карточки .art-card, либо одна заглушка .art-empty ' +
+      '(карточек: ' + docs.cards + ', заглушек: ' + docs.empty + ')');
     const visibleOnDocs = await s.eval(VISIBLE_VIEWS);
     ok(visibleOnDocs.length === 1 && visibleOnDocs[0] === 'view-documents',
       'одновременно виден ровно один раздел — документы (видно: ' + JSON.stringify(visibleOnDocs) + ')');
+    await noFailures('раздел «Документы» отрисован без сбоев страницы');
 
     /* Проводка самого пункта меню: прямые вызовы navigateTo проверяют разделы,
        но не то, что ссылка меню действительно переключает раздел. */
@@ -128,6 +155,7 @@ module.exports = {
     /* Ссылку возврата добавляет js/demo-lab.js:131-143 в боковое меню. Статическая
        ссылка на start.html есть ещё в оверлее входа (index.html:31), поэтому
        проверяем именно #bgfHubLink, а не первую попавшуюся ссылку. */
+    await s.eval('return __t.resetFailures()');
     r = await s.waitFor('return __t.has("bgfHubLink") === true', 5000);
     ok(r.ok, 'ссылка возврата #bgfHubLink добавлена в боковое меню' + why(r));
     ok(!!(await s.eval('return __t.visible("bgfHubLink")')), 'ссылка возврата видна в меню');
@@ -135,15 +163,40 @@ module.exports = {
       'ссылка возврата ведёт на start.html (сейчас: «' +
       (await s.eval('return (document.getElementById("bgfHubLink") || {}).getAttribute("href")')) + '»)');
 
-    /* Дымовая проверка проводки: клик по ссылке должен увести на карту демо. */
+    /* Дымовая проверка проводки: клик по ссылке должен увести на карту демо.
+       Клик открывает НОВЫЙ документ, а помощники __t обвязка внедряет только в
+       navigate()/reload() — после обычного клика по ссылке их на странице нет,
+       поэтому noFailures() здесь не позвать (он читает список через __t).
+       Монитор сбоев при этом работает: он ставится на каждую новую страницу
+       (Page.addScriptToEvaluateOnNewDocument), а список на новой странице
+       создаётся заново — то есть читается ровно то, что случилось на карте
+       демо. Читаем те же два признака, что и common.noFailures: пустой список
+       И установленный монитор. */
     await s.eval('return __t.click("bgfHubLink")');
-    r = await s.waitFor('return /start\\.html$/.test(window.location.pathname)', 8000);
+    r = await s.waitFor('return /start\\.html$/.test(window.location.pathname) && document.readyState === "complete"', 8000);
+    await s.delay(300);
     ok(r.ok, 'клик по ссылке возврата открыл карту демо (адрес: «' +
       (await s.eval('return window.location.pathname')) + '»)' + why(r));
+    /* ГРАНИЦА ПРОВЕРКИ: карта демо (start.html:7-9) подключает шрифты с
+       fonts.googleapis.com, и на машине без сети сбой загрузки ресурса попадёт
+       в список — тогда FAIL говорит о сети, а не о кабинете. Это та же граница,
+       что описана у общего помощника (scripts/checks/common.js:36-43). */
+    const hubState = await s.eval('return (function() { try {' +
+      ' var m = window.__bgfMonitor;' +
+      ' return { list: (window.__bgfFailures || []).slice(), monitor: m ?' +
+      '   (m.error === true && m.rejection === true && m.alert === true) : false };' +
+      ' } catch (e) { return { error: e.message }; } })()');
+    ok(!hubState.error && hubState.monitor && hubState.list.length === 0,
+      'возврат на карту демо прошёл без сбоев страницы (' +
+      (hubState.error ? 'монитор сбоев недоступен: ' + hubState.error
+        : (hubState.monitor ? '' : 'монитор сбоев установлен не полностью; ') +
+          (hubState.list.length ? hubState.list.join(' | ') : 'сбоев нет')) + ')');
 
     check.section('Кабинет клиента — сцена после перезагрузки');
 
-    /* Возвращаемся в кабинет для оставшихся проверок. */
+    /* Возвращаемся в кабинет: проверки этого раздела начинаются со входа на
+       чистую страницу, поэтому список сбоев чистим здесь, а не смотрим
+       накопленное на карте демо. */
     await s.navigate(base + '/index.html?autologin=1');
     r = await s.waitFor('return typeof __t === "object" && __t.loggedIn() === true', 10000);
     ok(r.ok, 'повторный вход по ?autologin=1 выполнен' + why(r));
@@ -171,5 +224,10 @@ module.exports = {
     const missingAfter = SEEDED_APPS.filter(function (id) { return listTextAfter.indexOf(id) === -1; });
     ok(missingAfter.length === 0,
       'после перезагрузки видны те же демо-заявки (нет: ' + JSON.stringify(missingAfter) + ')');
+    /* Проверка относится ко всему разделу: вход после перезагрузки, повторный
+       вход по ?autologin=1 и повторная отрисовка списка заявок. Список сбоев
+       очищен перед первым входом этого раздела, поэтому накопленное на карте
+       демо сюда не попадает. */
+    await noFailures('повторный вход и отрисовка сцены после перезагрузки прошли без сбоев страницы');
   },
 };

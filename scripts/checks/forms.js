@@ -16,7 +16,7 @@
 
 'use strict';
 
-const { HELPERS } = require('../lib/browser-check');
+const common = require('./common');
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
@@ -24,27 +24,41 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 async function resetAndOpen(s, url) {
   /* Сначала чистим хранилище на текущей странице, потом идём по адресу:
-     иначе первый заход по ?screen= снимет параметр из адреса до перезагрузки. */
+     иначе первый заход по ?screen= снимет параметр из адреса до перезагрузки.
+     Помощники __t внедряет сама обвязка в navigate()/reload() — руками их
+     звать не нужно (см. scripts/lib/browser-check.js:19-21, 739-751). */
   try { await s.eval('try { localStorage.clear(); } catch (e) {} return true;'); } catch (e) {}
   await s.navigate(url);
-  await s.eval(HELPERS);
 }
 
 async function runConsumer(s, base, check) {
   const ok = check.ok;
   const section = check.section;
+  /* Монитор сбоев страницы: список ведёт обвязка, помощник общий. Перед
+     действием, с которым связана проверка, список чистится, чтобы накопленное
+     раньше не выдавалось за сбой этого действия.
+     Здесь же живут проверки .err: формы — единственная поверхность, где .err
+     реально рисуется в разметке (form/form.js, form-pledge/form.js), поэтому
+     errorsVisible() осмыслен, а список сбоев его ДОПОЛНЯЕТ, а не заменяет:
+     .err ловит отрисованную валидацию, монитор — непойманное исключение. */
+  const noFailures = function (msg) { return common.noFailures(s, ok, msg); };
   section('Потребительский кредит — полный путь');
   await resetAndOpen(s, base + '/form/index.html');
 
   ok(await s.eval('return __t.screen() === "phone"'), 'форма открывается на шаге телефона');
   ok(await s.eval('return __t.ctaLabel() === "Получить код"'), 'кнопка шага: «Получить код»');
+  await noFailures('первый экран формы открыт без сбоев страницы');
 
+  await s.eval('return __t.resetFailures()');
   ok(await s.eval('return __t.click("cta")') && await s.eval('return __t.screen() === "otp"'),
     'с валидным телефоном переходим на ввод кода');
+  await noFailures('переход на ввод кода прошёл без сбоев страницы');
 
+  await s.eval('return __t.resetFailures()');
   await s.eval('return __t.setVal("otp-input", "1234")');
   await s.eval('return __t.click("cta")');
   ok(await s.eval('return __t.screen() === "terms"'), 'код принят, открылись желаемые условия');
+  await noFailures('проверка кода прошла без сбоев страницы');
 
   section('Потребительский кредит — условия и расчёт');
   ok(await s.eval('return __t.dotTitles().length === 7 && __t.dotTitles().every(function(t){return t;})'),
@@ -59,8 +73,10 @@ async function runConsumer(s, base, check) {
   const pay = await s.eval('return __t.text("calc-payment")');
   ok(pay.indexOf('79') === 0, 'платёж посчитан аннуитетом: ' + pay);
   ok((await s.eval('return __t.text("calc-total")')).length > 5, 'итог к возврату показан');
+  await noFailures('ввод условий и расчёт платежа прошли без сбоев страницы');
 
   section('Потребительский кредит — согласия');
+  await s.eval('return __t.resetFailures()');
   await s.eval('return __t.click("cta")');
   ok(await s.eval('return __t.screen() === "consents"'), 'открылись согласия');
   ok(await s.eval('return __t.ctaDisabled()'), 'без согласий перейти нельзя');
@@ -87,6 +103,9 @@ async function runConsumer(s, base, check) {
   ok(!(await s.eval('return __t.inlineDisabled()')), 'после подтверждения кнопка активна');
   await s.eval('return __t.click("esiaGo")');
   ok(await s.eval('return __t.screen() === "preview"'), 'данные профиля получены');
+  /* Список сбоев очищен перед входом в согласия — эта проверка накрывает и
+     согласия, и Госуслуги, и получение профиля. */
+  await noFailures('согласия и Госуслуги пройдены без сбоев страницы');
 
   section('Потребительский кредит — предложения и «что если»');
   ok(await s.eval('return document.getElementById("editAmount") !== null'),
@@ -115,7 +134,6 @@ async function runConsumer(s, base, check) {
   const saved = await s.eval('return __t.store()');
   ok(saved && saved.indexOf('consumer') !== -1, 'прогресс записан в хранилище');
   await s.reload();
-  await s.eval(HELPERS);
   const barText = await s.eval('return __t.text("sessionBar")');
   ok(barText.indexOf('Вы уже начинали') !== -1, 'на возврате предложено продолжить: «' + barText.slice(0, 60) + '…»');
   const resumed = await s.eval('if (typeof resumeSession !== "function") return "нет функции"; resumeSession(); return __t.screen();');
@@ -124,8 +142,10 @@ async function runConsumer(s, base, check) {
     '«Продолжить» вернуло на сохранённый шаг (сейчас: ' + resumed + ')');
   const restoredPay = await s.eval('return __t.text("wiPay")');
   ok(restoredPay.length > 3, 'восстановленный шаг наполнен данными: ' + restoredPay);
+  await noFailures('перезагрузка и возврат к сохранённому шагу прошли без сбоев страницы');
 
   section('Потребительский кредит — отправка заявки');
+  await s.eval('return __t.resetFailures()');
   await s.eval('return __t.click("cta")');
   ok(await s.eval('return __t.screen() === "status"'), 'заявка отправлена');
   /* Итог должен читаться как успешное завершение, а не как протокол. */
@@ -142,6 +162,9 @@ async function runConsumer(s, base, check) {
   const status = await s.eval('return __t.text("status-sum")');
   ok(status.indexOf('ПК-') !== -1 && status.indexOf('Согласия') !== -1, 'в итоге есть номер заявки и согласия');
   ok((await s.eval('return __t.errorsVisible()')).length === 0, 'ошибок на экране нет');
+  /* Отправка заявки: рисование итогового экрана — самое дорогое место формы,
+     и именно тут сбой отрисовки раньше не был виден ничем. */
+  await noFailures('отправка заявки и итоговый экран прошли без сбоев страницы');
 
   /* Номер заявки не должен меняться, если вернуться на шаг и прийти снова. */
   const idBefore = (consumerId.match(/ПК-\d{6}/) || [''])[0];
@@ -154,14 +177,18 @@ async function runConsumer(s, base, check) {
 async function runPledge(s, base, check) {
   const ok = check.ok;
   const section = check.section;
+  const noFailures = function (msg) { return common.noFailures(s, ok, msg); };
   section('Залоговый кредит — полный путь');
   await resetAndOpen(s, base + '/form-pledge/index.html');
   ok(await s.eval('return __t.screen() === "phone"'), 'форма открывается на шаге телефона');
+  await noFailures('первый экран залоговой формы открыт без сбоев страницы');
 
+  await s.eval('return __t.resetFailures()');
   await s.eval('return __t.click("cta")');
   await s.eval('return __t.setVal("otp-input", "1234")');
   await s.eval('return __t.click("cta")');
   ok(await s.eval('return __t.screen() === "goal"'), 'открылись условия залогового кредита');
+  await noFailures('ввод телефона и кода в залоговой форме прошёл без сбоев страницы');
 
   section('Залоговый кредит — условия');
   const goalText = await s.eval('return __t.text("goal-preview")');
@@ -172,8 +199,12 @@ async function runPledge(s, base, check) {
   await s.eval('return __t.setVal("term", "20")');
   ok((await s.eval('return __t.text("goal-preview")')).indexOf('20 лет') !== -1, 'срок меняется и пересчитывает платёж');
   await s.eval('return __t.setVal("amount", "3000000")');
+  /* Список очищен перед вводом кода: проверка накрывает и открытие шага
+     условий, и пересчёт предпросмотра по сроку и сумме. */
+  await noFailures('шаг условий залоговой формы отработал без сбоев страницы');
 
   section('Залоговый кредит — согласия и Госуслуги');
+  await s.eval('return __t.resetFailures()');
   await s.eval('return __t.click("cta")');
   ok(await s.eval('return __t.screen() === "consents"'), 'открылись согласия');
   ok(await s.eval('return __t.ctaDisabled()'), 'без обязательных согласий перейти нельзя');
@@ -187,8 +218,10 @@ async function runPledge(s, base, check) {
   await s.eval('return __t.check("c-esia-confirm", true)');
   await s.eval('return __t.click("esiaGo")');
   ok(await s.eval('return __t.screen() === "preview"'), 'данные профиля получены');
+  await noFailures('согласия и Госуслуги в залоговой форме пройдены без сбоев страницы');
 
   section('Залоговый кредит — объект залога');
+  await s.eval('return __t.resetFailures()');
   await s.eval('return __t.click("cta")');
   ok(await s.eval('return __t.screen() === "cadastral"'), 'открылся шаг объекта');
   await s.eval('return __t.setVal("cadastral-input", "77:07:0001075:1234")');
@@ -199,8 +232,12 @@ async function runPledge(s, base, check) {
   const afterPledgePre = await s.waitForScreen('packages', 9000);
   ok(afterPledgePre === 'packages',
     'после прескоринга открылись предложения (сейчас: ' + afterPledgePre + ')');
+  /* Прескоринг идёт через таймер: если его отрисовка сломается, waitForScreen
+     промолчит (ошибку eval внутри он глушит), а вот монитор сбоев — нет. */
+  await noFailures('шаг объекта, ЕГРН и прескоринг прошли без сбоев страницы');
 
   section('Залоговый кредит — предложения и «что если»');
+  await s.eval('return __t.resetFailures()');
   const limitBefore = await s.eval('return __t.text("wiLimit")');
   await s.eval('return __t.setVal("wiTerm", "10")');
   const limitAfter = await s.eval('return __t.text("wiLimit")');
@@ -213,16 +250,18 @@ async function runPledge(s, base, check) {
   ok(dragPledge.finalValue === '20', 'значение срока доехало: ' + dragPledge.finalValue);
 
   section('Залоговый кредит — сохранение и возврат');
+  await s.eval('return __t.resetFailures()');
   await s.reload();
-  await s.eval(HELPERS);
   ok((await s.eval('return __t.text("sessionBar")')).indexOf('Вы уже начинали') !== -1,
     'на возврате предложено продолжить');
   const resumedPledge = await s.eval('if (typeof resumeSession !== "function") return "нет функции"; resumeSession(); return __t.screen();');
   await sleep(300);
   ok(await s.eval('return __t.screen() === "packages"'),
     '«Продолжить» вернуло на сохранённый шаг (сейчас: ' + resumedPledge + ')');
+  await noFailures('перезагрузка и возврат к сохранённому шагу залоговой формы прошли без сбоев страницы');
 
   section('Залоговый кредит — отправка заявки');
+  await s.eval('return __t.resetFailures()');
   await s.eval('return __t.click("cta")');
   ok(await s.eval('return __t.screen() === "status"'), 'заявка отправлена');
   ok((await s.eval('return __t.text("status-sum")')).indexOf('Турбо') !== -1, 'в итоге указан выбранный пакет');
@@ -235,11 +274,13 @@ async function runPledge(s, base, check) {
   ok(await s.eval('return document.getElementById("du") === null'),
     'экрана дополнительных условий в залоговой форме нет');
   ok((await s.eval('return __t.errorsVisible()')).length === 0, 'ошибок на экране нет');
+  await noFailures('отправка залоговой заявки и итоговый экран прошли без сбоев страницы');
 }
 
 async function runDeepLink(s, base, check) {
   const ok = check.ok;
   const section = check.section;
+  const noFailures = function (msg) { return common.noFailures(s, ok, msg); };
   section('Глубокая ссылка и сброс сессии');
   await resetAndOpen(s, base + '/form/index.html?screen=consents');
   const linkScreen = await s.eval('return __t.screen()');
@@ -256,9 +297,10 @@ async function runDeepLink(s, base, check) {
     'прямой заход на итог показывает блок успеха, а не пустоту');
   ok(await s.eval('return __t.text("status-sum").length > 20'),
     'прямой заход на итог показывает детали заявки');
+  await noFailures('прямые заходы по глубоким ссылкам прошли без сбоев страницы');
 
+  await s.eval('return __t.resetFailures()');
   await s.reload();
-  await s.eval(HELPERS);
   ok(await s.eval('return __t.screen() === "phone"'), 'после перезагрузки форма вернулась к началу пути');
   const barText = await s.eval('return __t.text("sessionBar")');
   ok(barText.indexOf('Вы уже начинали') !== -1,
@@ -268,6 +310,7 @@ async function runDeepLink(s, base, check) {
   ok(discarded === null,
     '«Начать сначала» очищает сохранённый прогресс (в хранилище: ' + JSON.stringify(discarded) + ')');
   ok(await s.eval('return __t.screen() === "phone"'), 'после сброса остаёмся на первом шаге');
+  await noFailures('перезагрузка и сброс сессии прошли без сбоев страницы');
 }
 
 module.exports = {
