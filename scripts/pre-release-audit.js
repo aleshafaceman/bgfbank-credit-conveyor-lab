@@ -1850,12 +1850,16 @@ console.log('\n=== 17. Completion reads as a success ===');
     assert(/if \(!state\.appId\) state\.appId = "/.test(js),
       c.js + ' assigns the application number once, not on every visit');
   });
-  // Заявка уже отправлена: на шаге ДУ нельзя предлагать «отправить документы» снова.
+  /* Дополнительные условия — работа банка, а не шаг клиентской заявки:
+     ни экрана ДУ, ни кнопки «демо АНД» в залоговой форме быть не должно. */
+  const pledgeHtml2 = fs.readFileSync(path.join(root, 'form-pledge/index.html'), 'utf8');
   const pledgeJs2 = fs.readFileSync(path.join(root, 'form-pledge/form.js'), 'utf8');
+  assert(!/id="du"/.test(pledgeHtml2), 'pledge form has no additional-conditions screen');
+  assert(!/"du"/.test(pledgeJs2), 'pledge form has no additional-conditions step in its flow');
+  assert(!/демо АНД/.test(pledgeHtml2 + pledgeJs2),
+    'pledge form does not offer a bank-underwriting demo');
   assert(!/Отправить документы/.test(pledgeJs2),
     'the conditions step no longer offers to submit the application again');
-  assert(/Вернуться к заявке/.test(pledgeJs2),
-    'the conditions step returns to the application summary instead');
 }
 
 console.log('\n=== 18. Only the permissions card header is centred ===');

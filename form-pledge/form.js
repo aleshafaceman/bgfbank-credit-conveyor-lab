@@ -78,7 +78,9 @@ const state = {
 };
 
 const MAIN = ["phone", "goal", "consents", "esia", "preview", "cadastral", "packages", "status"];
-const FLOW = MAIN.concat(["otp", "egrn", "wait", "du", "offramp"]);
+/* Дополнительные условия — работа банка (АНД и АПЗ), а не шаг клиентской заявки,
+   поэтому отдельного экрана ДУ здесь нет. */
+const FLOW = MAIN.concat(["otp", "egrn", "wait", "offramp"]);
 
 const STEP_LABELS = {
   goal: "Сумма и срок",
@@ -475,7 +477,6 @@ const ctrl = F.create({
     egrn: "cadastral",
     packages: "egrn",
     status: "packages",
-    du: "status",
     offramp: "goal"
   },
   isBlocked: function (screenId) {
@@ -491,10 +492,7 @@ const ctrl = F.create({
     cadastral: ["Найти объект", findEgrn],
     egrn: ["Это моя квартира", confirmObject],
     packages: ["Продолжить с этими условиями", acceptOffer],
-    status: ["Показать ДУ (демо АНД)", function () { ctrl.go("du"); }],
-    /* Заявка уже отправлена, поэтому на шаге ДУ не «отправляем документы» заново,
-       а возвращаемся к сводке заявки. */
-    du: ["Вернуться к заявке", function () { ctrl.go("status"); }],
+    status: ["На главную", function () { ctrl.go("phone"); }],
     offramp: ["В начало", function () { ctrl.go("phone"); }]
   },
   onJump: function (target) {
@@ -504,18 +502,18 @@ const ctrl = F.create({
       F.readAds(state);
     }
     if (target === "esia") F.renderPurposes("esia-purposes");
-    if (target === "preview" || target === "packages" || target === "status" || target === "du") {
+    if (target === "preview" || target === "packages" || target === "status") {
       if ($("c-esia-confirm")) $("c-esia-confirm").checked = true;
       state.esiaAt = F.esiaStamp();
       F.renderPersonRows("preview-card", DEMO_PERSON);
       F.renderScopes("cp-scopes", state.esiaAt);
       renderCondLinks();
     }
-    if (target === "egrn" || target === "packages" || target === "status" || target === "du") {
+    if (target === "egrn" || target === "packages" || target === "status") {
       $("cadastral-input").value = "77:07:0001075:1234";
       findEgrn();
     }
-    if (target === "packages" || target === "status" || target === "du") renderPackages();
+    if (target === "packages" || target === "status") renderPackages();
     /* Прямой заход на итог должен нарисовать его так же, как обычный путь. */
     if (target === "status") acceptOffer();
   },
@@ -523,7 +521,7 @@ const ctrl = F.create({
     /* При возобновлении сессии экран нужно наполнить так же, как при обычном переходе. */
     renderGoalPreview();
     renderCondLinks();
-    if (target === "preview" || target === "packages" || target === "status" || target === "du") {
+    if (target === "preview" || target === "packages" || target === "status") {
       state.esiaAt = state.esiaAt || F.esiaStamp();
       F.renderPersonRows("preview-card", DEMO_PERSON);
       F.renderScopes("cp-scopes", state.esiaAt);
@@ -531,7 +529,7 @@ const ctrl = F.create({
     if (target === "esia") F.renderPurposes("esia-purposes");
     /* Кадастр восстанавливаем и повторяем запрос ЕГРН: объект залога не храним
        между сессиями, а без него не собрать предложения и итог заявки. */
-    if (target === "egrn" || target === "packages" || target === "status" || target === "du") {
+    if (target === "egrn" || target === "packages" || target === "status") {
       if (!state.object && state.cadastral) {
         $("cadastral-input").value = state.cadastral;
         findEgrn();
@@ -541,7 +539,7 @@ const ctrl = F.create({
         $("egrn-gate").innerHTML = '<p class="ok">Проверки пройдены — можно подтвердить объект.</p>';
       }
     }
-    if ((target === "packages" || target === "status" || target === "du") && state.object) renderPackages();
+    if ((target === "packages" || target === "status") && state.object) renderPackages();
     if (target === "status") acceptOffer();
   },
   onInit: function () {

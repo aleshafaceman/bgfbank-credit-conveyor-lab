@@ -509,6 +509,14 @@ async function runPledge(s, base) {
   await s.eval('return __t.click("cta")');
   ok(await s.eval('return __t.screen() === "status"'), 'заявка отправлена');
   ok((await s.eval('return __t.text("status-sum")')).indexOf('Турбо') !== -1, 'в итоге указан выбранный пакет');
+  ok((await s.eval('return __t.text("status-success")')).indexOf('Заявка ушла') !== -1,
+    'итог залоговой заявки показывает блок успеха');
+  /* Дополнительные условия — работа банка: ни кнопки «демо АНД», ни экрана ДУ. */
+  const pledgeCta = await s.eval('return __t.ctaLabel()');
+  ok(pledgeCta === 'На главную',
+    'итог залога ведёт на главную, а не в демо АНД (кнопка: «' + pledgeCta + '»)');
+  ok(await s.eval('return document.getElementById("du") === null'),
+    'экрана дополнительных условий в залоговой форме нет');
   ok((await s.eval('return __t.errorsVisible()')).length === 0, 'ошибок на экране нет');
 }
 
