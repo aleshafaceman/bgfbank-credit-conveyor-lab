@@ -519,5 +519,74 @@ module.exports = {
        сбоев стартует с пустым списком. Проверка покрывает и перезагрузку, и
        повторный вход кликом по #loginBtn. */
     await noFailures('после перезагрузки и повторного входа сбоев страницы нет');
+
+    check.section('АРМ менеджера — тост после действия менеджера');
+
+    /* Тост менеджера — та же плашка #bgfToast, но со своим классом
+       bgf-toast--manager: у АРМ своя копия showToast() (manager/js/lab-utils.js:12-25,
+       duration 4000 мс), а действия зовут её через managerNotify()
+       (manager/js/applications.js:362-367). Проверка идёт по всей цепочке
+       «действие → #bgfToast → класс bgf-toast--manager → текст → самостоятельное
+       исчезновение»: на «элемент существует» она не остановится, поэтому пропажа
+       вызова, чужой класс или подменённый текст видны как FAIL, а не как тишина.
+
+       Действие — «Обновить оценку» в открытой карточке заявки
+       (data-m-action="requestValuation", manager/js/applications.js:474-475 —
+       кнопка этапа «в обработке», то есть у сеяной 4421-И): обработчик
+       managerAction() пишет «Оценка обновлена: N ₽» (manager/js/actions.js:76-98).
+
+       ГРАНИЦА ПРОВЕРКИ: действие меняет оценку объекта в сцене и отправляет
+       сообщение в чат от менеджера, поэтому раздел стоит последним. Ожидаемый
+       текст берётся из данных ПОСЛЕ действия, а не пересчитывается по формуле:
+       второй копии расчёта оценки в проверке нет, но текст сверяется целиком. */
+    const VALUATION_BTN = '#mAppDetail [data-m-action="requestValuation"]';
+
+    await s.eval('return __t.resetFailures()');
+    const mgrButton = await s.eval('return (function() { var b = document.querySelector(' +
+      JSON.stringify(VALUATION_BTN) + '); if (!b) return null;' +
+      ' return { id: b.getAttribute("data-app-id"),' +
+      '   label: (b.textContent || "").replace(/\\s+/g, " ").trim() }; })()');
+    ok(!!mgrButton && !!mgrButton.id,
+      'тост: в открытой карточке заявки есть кнопка «Обновить оценку» (найдено: ' +
+      JSON.stringify(mgrButton) + ')');
+    ok(!!(await s.eval('return (function() { var b = document.querySelector(' +
+      JSON.stringify(VALUATION_BTN) + '); if (!b) return false; b.click(); return true; })()')),
+      'тост: кнопка «Обновить оценку» нажата');
+
+    const mgrExpected = await s.eval('return (function() { var apps = (typeof getAllApplications === "function")' +
+      ' ? getAllApplications() : [];' +
+      ' var a = apps.filter(function(x) { return x && String(x.id) === ' +
+      JSON.stringify(mgrButton ? mgrButton.id : null) + '; })[0];' +
+      ' if (!a) return null;' +
+      ' return ("Оценка обновлена: " + Number(a.collateralValue).toLocaleString("ru-RU") + " ₽")' +
+      '.replace(/\\s+/g, " "); })()');
+
+    r = await s.waitFor('return __t.has("bgfToast") === true', 3000);
+    ok(r.ok, 'тост: #bgfToast появился после действия менеджера' + why(r));
+
+    const mgrToast = await s.eval('return (function() { var t = document.getElementById("bgfToast");' +
+      ' if (!t) return null;' +
+      ' return { cls: String(t.className || ""),' +
+      '   text: (t.textContent || "").replace(/\\s+/g, " ").trim(),' +
+      '   inner: !!t.querySelector(".bgf-toast-inner") }; })()');
+    ok(!!mgrToast && mgrToast.cls.split(/\s+/).indexOf('bgf-toast') !== -1 &&
+      mgrToast.cls.split(/\s+/).indexOf('bgf-toast--manager') !== -1 && mgrToast.inner === true,
+      'тост: у #bgfToast классы bgf-toast и bgf-toast--manager с вложенным ' +
+      '.bgf-toast-inner (классы: «' + (mgrToast ? mgrToast.cls : 'элемента нет') + '»)');
+    ok(!!mgrToast && !!mgrExpected && mgrToast.text === mgrExpected,
+      'тост: текст плашки совпадает с ожидаемым (ожидалось: «' + mgrExpected + '», на плашке: «' +
+      (mgrToast ? mgrToast.text : 'элемента нет') + '»)');
+
+    /* Исчезновение: менеджерская плашка уходит сама через 4000 + 350 мс
+       (manager/js/lab-utils.js:21-24). Нижняя граница отличает «показался и погас
+       по таймеру» от «элемент убрали сразу же». */
+    const mgrShownAt = Date.now();
+    const mgrGone = await s.waitFor('return __t.has("bgfToast") === false', 12000);
+    const mgrGoneMs = Date.now() - mgrShownAt;
+    ok(mgrGone.ok && mgrGoneMs >= 1500 && mgrGoneMs <= 11000,
+      'тост: #bgfToast исчез сам, без действий пользователя (через ' + mgrGoneMs +
+      ' мс, ожидалось 1500–11000 мс)' + why(mgrGone));
+
+    await noFailures('действие менеджера, показывающее тост, прошло без сбоев страницы');
   },
 };

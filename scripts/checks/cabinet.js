@@ -308,5 +308,75 @@ module.exports = {
        вход и повторная отрисовка списка заявок. Список сбоев очищен перед первым
        входом этого раздела, поэтому накопленное на карте демо сюда не попадает. */
     await noFailures('повторный вход и отрисовка сцены после перезагрузки прошли без сбоев страницы');
+
+    check.section('Кабинет клиента — тост после действия');
+
+    /* Тост — всплывающая плашка после действия: showToast() из js/lab-utils.js:18-35
+       кладёт в body элемент #bgfToast с классом bgf-toast и убирает его сам через
+       opts.duration + 350 мс. До этой проверки тост не проверял никто: временная
+       замена имени вызова (showToast → прежнее showDemoToast) в js/profile.js
+       оставляла зелёными и статический аудит, и прогон поверхностей. Поэтому
+       утверждение держится не на «элемент существует», а на связке «действие →
+       появление #bgfToast → класс bgf-toast → текст → самостоятельное исчезновение»:
+       без вызова showToast падает первое же утверждение, при чужом имени класса —
+       второе, при подменённом сообщении — третье.
+
+       Действие — то, что называет сам кабинет: профиль → подраздел «Моя
+       недвижимость» → «Запросить оценку» (js/profile.js:28-43). Кнопка не на первом
+       экране, поэтому проверка идёт путём человека: пункт меню «Профиль», вкладка
+       подраздела, затем кнопка в карточке объекта.
+
+       ГРАНИЦА ПРОВЕРКИ: requestValuation() пишет объекту случайную оценку
+       (js/profile.js:31) и записывает артефакт экспресс-оценки, поэтому после этого
+       раздела сцена кабинета уже не та, что была: раздел стоит последним, и на
+       содержимое тоста случайность не влияет — сверяется весь текст сообщения,
+       а не число в нём. */
+    const TOAST_TEXT = 'Экспресс-оценка в разделе «Документы»';
+    const VALUATION_BUTTON = '#propertyGrid .property-card .btn-xs.primary';
+
+    await s.eval('return __t.resetFailures()');
+    ok(!!(await s.eval('return __t.clickText(".nav-link[data-page=\\"profile\\"]", "Профиль")')),
+      'тост: пункт меню «Профиль» найден и нажат');
+    r = await s.waitFor('return __t.visible("view-profile") === true', 5000);
+    ok(r.ok, 'тост: раздел «Профиль» раскрыт' + why(r));
+    ok(!!(await s.eval('return __t.clickText("#view-profile .profile-tab", "Моя недвижимость")')),
+      'тост: вкладка подраздела «Моя недвижимость» найдена и нажата');
+    r = await s.waitFor('return __t.count(' + JSON.stringify(VALUATION_BUTTON) + ') >= 1', 5000);
+    ok(r.ok, 'тост: подраздел «Моя недвижимость» раскрыт — в #propertyGrid есть карточка ' +
+      'с кнопкой «Запросить оценку»' + why(r));
+    ok(!!(await s.eval('return __t.clickText(' + JSON.stringify(VALUATION_BUTTON) + ', "Запросить оценку")')),
+      'тост: кнопка «Запросить оценку» в карточке объекта найдена и нажата');
+
+    /* Появление: ждём именно #bgfToast — этот id showToast() вешает на создаваемый
+       элемент (js/lab-utils.js:24), а не «на странице что-то появилось». */
+    r = await s.waitFor('return __t.has("bgfToast") === true', 3000);
+    ok(r.ok, 'тост: #bgfToast появился после действия' + why(r));
+
+    const toast = await s.eval('return (function() { var t = document.getElementById("bgfToast");' +
+      ' if (!t) return null;' +
+      ' return { cls: String(t.className || ""),' +
+      '   text: (t.textContent || "").replace(/\\s+/g, " ").trim(),' +
+      '   inner: !!t.querySelector(".bgf-toast-inner"),' +
+      '   manager: t.classList.contains("bgf-toast--manager") }; })()');
+    ok(!!toast && toast.cls.split(/\s+/).indexOf('bgf-toast') !== -1 &&
+      toast.inner === true && toast.manager === false,
+      'тост: у #bgfToast класс bgf-toast и вложенный .bgf-toast-inner, менеджерского ' +
+      'bgf-toast--manager нет (классы: «' + (toast ? toast.cls : 'элемента нет') + '»)');
+    ok(!!toast && toast.text === TOAST_TEXT,
+      'тост: текст плашки совпадает с ожидаемым (ожидалось: «' + TOAST_TEXT + '», на плашке: «' +
+      (toast ? toast.text : 'элемента нет') + '»)');
+
+    /* Исчезновение: плашка уходит сама, без действий пользователя, через
+       duration + 350 мс (js/lab-utils.js:31-34; здесь duration 2500 мс). Ждём
+       отсутствия элемента и заодно держим нижнюю границу: она отличает «тост
+       показался и погас по таймеру» от «элемент убрали сразу же». */
+    const toastShownAt = Date.now();
+    const toastGone = await s.waitFor('return __t.has("bgfToast") === false', 10000);
+    const toastGoneMs = Date.now() - toastShownAt;
+    ok(toastGone.ok && toastGoneMs >= 1500 && toastGoneMs <= 9000,
+      'тост: #bgfToast исчез сам, без действий пользователя (через ' + toastGoneMs +
+      ' мс, ожидалось 1500–9000 мс)' + why(toastGone));
+
+    await noFailures('действие, показывающее тост, прошло без сбоев страницы');
   },
 };
