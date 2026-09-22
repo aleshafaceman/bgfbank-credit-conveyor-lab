@@ -380,8 +380,8 @@ module.exports = {
        выражением. Замер: на этой странице сравнение
        `return JSON.stringify(...) === "<ожидание>"` внутри waitFor не сходится
        даже тогда, когда тот же обход в одиночном eval отдаёт побайтово равную
-       строку. Причина лежит в обвязке (scripts/lib/browser-check.js), которую по
-       условиям задачи править нельзя, поэтому сравнение делает сам чек. */
+       строку. Причина лежит в обвязке (scripts/lib/browser-check.js), поэтому
+       сравнение делает сам чек. */
     const waitSliceCards = async function (names) {
       const want = JSON.stringify(names);
       const deadline = Date.now() + 6000;

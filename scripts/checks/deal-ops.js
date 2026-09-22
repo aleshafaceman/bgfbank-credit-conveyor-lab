@@ -128,6 +128,71 @@ const SOPD_EXTRA = ['Отправить полную форму СМС', 'Шаб
 const OPERU_APPROVE = 'Согласовать открытие → ОЗС';
 const OPERU_REJECT = 'Отказать · стоп-фактор';
 
+/* Каталог «Хода обмена» (deal-ops/deal-ops.js:7-29): подпись шага и его внешняя
+   система. Ожидаемая карта статусов строится здесь, а не читается со страницы:
+   иначе проверка считала бы по тому же коду, что и поверхность. */
+const BUS_CATALOG = [
+  { title: 'Комплект КОД получен', system: 'ELMA' },
+  { title: 'Поиск счёта', system: 'ЦФТ' },
+  { title: 'ИНН', system: 'ФНС' },
+  { title: 'Приостановления ИФНС', system: 'ФНС' },
+  { title: 'Паспорт', system: 'МВД' },
+  { title: 'Банкротство', system: 'Федресурс' },
+  { title: 'РКЛ', system: 'ЦФТ' },
+  { title: 'Таможня', system: 'ФТС' },
+  { title: 'Ссылка на согласие', system: 'СМС' },
+  { title: 'Согласие подписано', system: 'форма клиента' },
+  { title: 'Ссылка на заявление', system: 'СМС' },
+  { title: 'Заявление подписано', system: 'форма клиента' },
+  { title: 'Уведомление в ELMA', system: 'стол ОЗС' },
+  { title: 'Выпуск электронной подписи', system: 'электронное подписание' },
+  { title: 'Пакет документов', system: 'электронное подписание' },
+  { title: 'Клиент подписывает', system: 'электронное подписание' },
+  { title: 'Банк подписал', system: 'электронное подписание' },
+  { title: 'Подписание завершено', system: 'электронное подписание' },
+  { title: 'КОД подписан', system: 'ЦФТ' },
+  { title: 'Счёт открыт', system: 'ЦФТ' },
+  { title: 'СМС на интернет-банк', system: 'ЦФТ' }
+];
+
+/* Состояние каждого из 21 шага обмена у свежей первой сделки (сразу после
+   ?demo=1). Собрано из мока (deal-ops/mock.js:25-103) и правил busRow()
+   (deal-ops/deal-ops.js:1055-1106), а не снято со страницы: defaultDealState()
+   (:155) кладёт в снимок только bus.elma_snapshot = "ok", у первой сделки
+   согласие действующее и полное (sopdState() → needTemplate false), заявление
+   на счёт ещё не подписано, значит всё остальное обязано стоять в ожидании.
+   Значения подтверждены замером на живой поверхности. */
+const BUS_FRESH_LABELS = {
+  'Комплект КОД получен': 'успех',
+  'Поиск счёта': 'ожидание',
+  'ИНН': 'ожидание',
+  'Приостановления ИФНС': 'ожидание',
+  'Паспорт': 'ожидание',
+  'Банкротство': 'ожидание',
+  'РКЛ': 'ожидание',
+  'Таможня': 'ожидание',
+  'Ссылка на согласие': 'не нужна',
+  'Согласие подписано': 'уже в снимке',
+  'Ссылка на заявление': 'ожидание',
+  'Заявление подписано': 'ожидание',
+  'Уведомление в ELMA': 'ожидание',
+  'Выпуск электронной подписи': 'ожидание',
+  'Пакет документов': 'ожидание',
+  'Клиент подписывает': 'ожидание',
+  'Банк подписал': 'ожидание',
+  'Подписание завершено': 'ожидание',
+  'КОД подписан': 'ожидание',
+  'Счёт открыт': 'ожидание',
+  'СМС на интернет-банк': 'ожидание'
+};
+
+/* Строки «Хода обмена»: подпись шага и статус вида «система · состояние» —
+   по отдельности, чтобы подписи не склеивались в одну строку. */
+const BUS_ROWS_EXPR = 'return Array.prototype.map.call(document.querySelectorAll("#bus-list .int"),' +
+  ' function(r) { var b = r.querySelector("b"), sp = r.querySelector("span");' +
+  ' return { title: b ? (b.textContent || "").trim() : "",' +
+  '   status: sp ? (sp.textContent || "").trim() : "" }; })';
+
 /* Ключ сцены стола: состояние всех сделок (deal-ops.js:1). */
 const STORE = 'bgfbank_lab_dealops';
 
@@ -183,7 +248,7 @@ const OPEN_DEAL = 'return (function() { var h = document.querySelector("#work-de
 
 /* Снимок сцены стола для сравнения до и после перезагрузки: разобранное
    состояние из localStorage, приведённое к стабильному виду.
-   Сравнивать имена ключей из __t.labKeys() бессмысленно — ключ не исчезает
+   Сравнивать имена ключей хранилища бессмысленно — ключ не исчезает
    никогда, а selectedId в состояние подставляет сам defaultState(); поэтому
    сравниваются ЗНАЧЕНИЯ, а штатно меняющиеся журнал ELMA и статусы шины обмена
    (их обновляет каждый ответ систем) из слепка исключены. */
@@ -240,8 +305,28 @@ module.exports = {
           упала именно на fonts.googleapis.com — причина в сети, а не в столе.
 
        Само тело помощника вынесено в scripts/checks/common.js: он одинаков у
-       трёх поверхностей (здесь, в АРМ менеджера и в АРМ андеррайтера). */
+       пяти поверхностей (кабинет, АРМ менеджера, стол сделки, АРМ андеррайтера,
+       стол продуктолога). */
     const noFailures = function (msg) { return common.noFailures(s, ok, msg); };
+
+    /* Ожидаемая карта «шаг → система · состояние» из каталога и подписей
+       состояний: одно место, где строка собирается так же, как в busRow(). */
+    const busExpected = function (labels) {
+      const out = {};
+      BUS_CATALOG.forEach(function (x) { out[x.title] = x.system + ' · ' + labels[x.title]; });
+      return out;
+    };
+    /* Сверка по КАЖДОЙ строке, а не агрегатом: «в ожидании хотя бы одна строка»
+       прошло бы и на перепутанных статусах. */
+    const busDiff = function (rows, expected) {
+      const got = {};
+      rows.forEach(function (r) { got[r.title] = r.status; });
+      const missing = Object.keys(expected).filter(function (t) { return got[t] === undefined; });
+      const wrong = Object.keys(expected).filter(function (t) {
+        return got[t] !== undefined && got[t] !== expected[t];
+      }).map(function (t) { return t + ': «' + got[t] + '» вместо «' + expected[t] + '»'; });
+      return { missing: missing, wrong: wrong, got: got };
+    };
 
     /* --- навигация и сцена --- */
 
@@ -690,33 +775,33 @@ module.exports = {
     ok(busStruct.length === 0,
       'у каждого шага обмена есть индикатор, название и система (без них: ' + JSON.stringify(busStruct) + ')');
     const busText = await s.eval('return __t.text("bus-list")');
-    const busTitles = ['Комплект КОД получен', 'Поиск счёта', 'ИНН', 'Приостановления ИФНС', 'Паспорт',
-      'Банкротство', 'РКЛ', 'Таможня', 'Ссылка на согласие', 'Согласие подписано',
-      'Ссылка на заявление', 'Заявление подписано', 'Уведомление в ELMA',
-      'Выпуск электронной подписи', 'Пакет документов', 'Клиент подписывает', 'Банк подписал',
-      'Подписание завершено', 'КОД подписан', 'Счёт открыт', 'СМС на интернет-банк'];
+    const busTitles = BUS_CATALOG.map(function (x) { return x.title; });
     const busMissing = busTitles.filter(function (t) { return busText.indexOf(t) === -1; });
     ok(busMissing.length === 0,
       'в «Ходе обмена» подписаны все шаги каталога (нет: ' + JSON.stringify(busMissing) + ')');
-    const busSystems = ['ELMA', 'ЦФТ', 'ФНС', 'МВД', 'Федресурс', 'ФТС', 'СМС', 'форма клиента'];
+    const busSystems = BUS_CATALOG.map(function (x) { return x.system; });
     const systemsMissing = busSystems.filter(function (t) { return busText.indexOf(t) === -1; });
     ok(systemsMissing.length === 0,
       'у шагов обмена указаны внешние системы (нет: ' + JSON.stringify(systemsMissing) + ')');
-    const busStatuses = await s.eval('return Array.prototype.map.call(' +
-      'document.querySelectorAll("#bus-list .int span"), function(s) { return (s.textContent || "").trim(); })');
-    /* Статус шага собирается как «<система> · <состояние>»; система бывает
-       русской («ФНС», «форма клиента»), поэтому проверяем разделитель и слово, а
-       не «слово + цифры». */
-    const waiting = busStatuses.filter(function (s) { return / · ожидание$/.test(s); });
-    const unsaid = busStatuses.filter(function (s) { return s.indexOf(' · ') === -1; });
-    ok(waiting.length >= 1 && unsaid.length === 0,
-      'свежая сделка держит шаги обмена в ожидании, а не завершёнными (в ожидании: ' +
-      waiting.length + ' из ' + busStatuses.length + ', без статуса: ' + JSON.stringify(unsaid) + ')');
-    /* Первый шаг приходит готовым вместе со снимком КОД (defaultDealState(),
-       deal-ops.js:156: bus.elma_snapshot = "ok"), поэтому «успех» тоже есть. */
-    ok(busStatuses.filter(function (s) { return / · успех$/.test(s); }).length === 1,
-      'шаг «Комплект КОД получен» отмечен успехом, остальные ждут (статусы: ' +
-      JSON.stringify(busStatuses.slice(0, 3)) + '…)');
+    /* Статус каждого шага сверяется с ожидаемой картой по КАЖДОЙ строке: видно и
+       «шаг не отражает снимок», и «выдуманный успех», и «статус потерял
+       систему». Прежний агрегат «в ожидании хотя бы одна строка, без статуса
+       нет» проходил бы и на перепутанных состояниях: среди 21 строки достаточно
+       одной в ожидании. */
+    const bus = await s.eval(BUS_ROWS_EXPR);
+    const diffFresh = busDiff(bus, busExpected(BUS_FRESH_LABELS));
+    ok(diffFresh.missing.length === 0 && diffFresh.wrong.length === 0,
+      'свежая сделка держит статусы шагов обмена по карте ожиданий: комплект КОД получен, ' +
+      'СОПД уже в снимке, остальные ждут (нет шагов: ' + JSON.stringify(diffFresh.missing) +
+      '; расхождения: ' + JSON.stringify(diffFresh.wrong) + ')');
+    /* «Успех» ровно один — и это именно первый шаг (defaultDealState(),
+       deal-ops.js:155: bus.elma_snapshot = "ok"). Проверка идёт по факту
+       страницы: какой шаг отмечен успехом, а не «где-то есть успех». */
+    const successTitles = bus.filter(function (x) { return / · успех$/.test(x.status); })
+      .map(function (x) { return x.title; });
+    ok(successTitles.length === 1 && successTitles[0] === 'Комплект КОД получен',
+      'успехом отмечен ровно один шаг — «Комплект КОД получен» (сейчас: ' +
+      JSON.stringify(successTitles) + ')');
     await noFailures('панель «Ход обмена» отрисована без сбоев страницы');
 
     check.section('Стол сделки — ОПЕРУ: пустая очередь');
@@ -918,8 +1003,8 @@ module.exports = {
     ok(r.ok, 'после перезагрузки стол снова показывает очередь' + why(r));
 
     /* Слепок «состояние целиком» сравнивает ЗНАЧЕНИЯ, а не имена ключей: имена не
-       исчезают никогда (в этом и была слабость прежней проверки через
-       __t.labKeys()), а selectedId в состояние подставляет сам defaultState(),
+       исчезают никогда (в этом и была слабость прежней проверки по именам
+       ключей), а selectedId в состояние подставляет сам defaultState(),
        поэтому «открыта первая сделка» ничего не доказывает. Штатно меняющиеся
        журнал ELMA и статусы шины обмена из слепка исключены. */
     const snapshotAfter = await s.eval(STORE_SNAPSHOT);

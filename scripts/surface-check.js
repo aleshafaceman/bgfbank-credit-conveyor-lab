@@ -14,6 +14,10 @@
  *          node scripts/surface-check.js --only=cabinet   одна поверхность
  * Опции:   --only=<ключ[,ключ]>   --base=<url>   --chrome=<путь>
  *          --port=<порт>   --keep
+ *
+ * Полнота прогона: без --only список поверхностей обязателен целиком, и
+ * отсутствие файла поверхности — провал приёмки (код 1), а не пропуск.
+ * С --only выбор делает человек, поэтому отсутствие файла — ошибка вызова (2).
  */
 
 'use strict';
@@ -77,19 +81,35 @@ const KEEP = process.argv.includes('--keep');
   (async function () {
     let s = null;
     let interrupted = false;
-    let skipped = 0;
+    let callError = false;
+    const uncovered = [];
     try {
       s = await launch({ root: root, base: BASE, chrome: chrome, port: PORT, keep: KEEP });
       for (const name of names) {
-        /* Поверхность без файла — не провал этого прогона: задачи добавляют их
-           по одной. Пропуск определяем по отсутствию файла, а не по
-           MODULE_NOT_FOUND: иначе упавший внутри файл (нет нужного модуля)
-           выглядел бы как «поверхность не покрыта» и давал ложную зелень. */
+        /* Отсутствие файла поверхности. Пропуск определяем по отсутствию файла,
+           а не по MODULE_NOT_FOUND: иначе упавший внутри файл (нет нужного
+           модуля) выглядел бы как «поверхность не покрыта» и давал ложную
+           зелень. Но и молчаливого пропуска быть не должно.
+
+           ПРАВИЛО. --only — явный выбор: отсутствие файла у выбранной
+           поверхности это ошибка вызова (код 2), а не пропуск. Прогон БЕЗ
+           --only идёт по обязательному полному комплекту поверхностей:
+           отсутствие файла — провал приёмки (код 1). Иначе переименование или
+           удаление файла проверки давало бы зелёный прогон без покрытия — ровно
+           тот класс слепых проверок, ради которого этот раннер и заведён. */
         const file = path.resolve(__dirname, SURFACES[name] + '.js');
         if (!fs.existsSync(file)) {
-          skipped++;
+          if (ONLY.length) {
+            callError = true;
+            console.error('Ошибка вызова: поверхность ' + name + ' выбрана явно (--only), ' +
+              'но файла ' + SURFACES[name] + '.js нет — проверять нечего.');
+            continue;
+          }
+          uncovered.push(name);
           console.log('\n=== ' + name + ' ===');
-          console.log('  ПРОПУСК ' + name + ': нет файла ' + SURFACES[name] + '.js — поверхность ещё не покрыта');
+          console.log('  ПРОВАЛ ' + name + ': нет файла ' + SURFACES[name] + '.js — поверхность не покрыта.');
+          console.log('  Прогон без --only обязан покрывать все поверхности лаборатории:');
+          console.log('  отсутствие файла проверки — провал приёмки, а не пропуск.');
           continue;
         }
         const mod = require(file);
@@ -100,14 +120,20 @@ const KEEP = process.argv.includes('--keep');
         if (mod) await mod.run(s, s.base, check);
       }
       check.summary();
-      if (skipped) console.log('Пропущено поверхностей: ' + skipped);
+      if (uncovered.length) {
+        console.log('Не покрыты поверхности: ' + uncovered.join(', ') +
+          '. Это провал приёмки: прогон без --only обязан проверять весь комплект.');
+      }
     } catch (err) {
       /* Прогон прервался: проверок могло не досчитаться, поэтому код возврата 1.
          Итог печатаем и здесь — иначе о падении не остаётся ни счёта, ни списка. */
       interrupted = true;
       console.log('\nПрогон прерван: ' + err.message);
       check.summary();
-      if (skipped) console.log('Пропущено поверхностей: ' + skipped);
+      if (uncovered.length) {
+        console.log('Не покрыты поверхности: ' + uncovered.join(', ') +
+          '. Это провал приёмки: прогон без --only обязан проверять весь комплект.');
+      }
       if (BASE) {
         console.log('Если проверяется свежая выкладка, кэш Pages мог ещё не разойтись: ' +
           'подождите минуту и повторите прогон.');
@@ -119,6 +145,7 @@ const KEEP = process.argv.includes('--keep');
     } finally {
       if (s) s.close();
     }
-    process.exit(interrupted || check.failures().length ? 1 : 0);
+    if (callError) process.exit(2);
+    process.exit(interrupted || check.failures().length || uncovered.length ? 1 : 0);
   })();
 })();

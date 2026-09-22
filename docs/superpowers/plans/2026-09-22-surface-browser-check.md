@@ -146,7 +146,6 @@ function createChecker() {
 
 const HELPERS = String.raw`
 window.__t = {
-  active: function() { return document.querySelectorAll('.screen.on').length; },
   screen: function() { var e = document.querySelector('.screen.on'); return e ? e.id : null; },
   text: function(id) { var e = document.getElementById(id); return e ? (e.textContent || '').replace(/\s+/g, ' ').trim() : ''; },
   has: function(id) { return !!document.getElementById(id); },
@@ -192,7 +191,9 @@ window.__t = {
     })[0];
     return a ? a.getAttribute('href') : null;
   },
-  store: function() {
+  /* Хранилище лаборатории: карта «ключ → длина значения» по всем ключам
+     bgfbank_lab_* — по ней чек сравнивает слепки сцены. */
+  labStore: function() {
     var out = {};
     try {
       for (var i = 0; i < localStorage.length; i++) {
@@ -202,7 +203,10 @@ window.__t = {
     } catch (e) {}
     return out;
   },
-  sorted: function(o) { return JSON.stringify(Object.keys(o).sort()); }
+  /* Прогресс клиентской формы живёт в своём ключе — его читает прогон форм. */
+  store: function() {
+    try { return localStorage.getItem('bgfbank_form_session'); } catch (e) { return null; }
+  }
 };
 true;
 `;
@@ -475,8 +479,15 @@ module.exports = {
     await s.navigate(base + '/index.html?demo=1');
     ok((await s.waitFor('return __t.loggedIn() === true')).ok,
       'вход по ?demo=1 выполнен');
-    ok(await s.eval('return __t.active() <= 1'),
-      'одновременно виден не больше одного экрана (сейчас: ' + await s.eval('return __t.active()') + ')');
+    /* Экраны кабинета скрываются классом hidden, поэтому «сколько экранов
+       активно» проверяется по видимости разделов .view: видимый раздел занимает
+       ненулевой прямоугольник (__t.visible). Класса .screen.on в кабинете нет
+       вовсе, поэтому __t.screen() здесь не работает. */
+    const shownViews = await s.eval('return Array.prototype.filter.call(' +
+      'document.querySelectorAll(".view"), function(v) { return __t.visible(v.id); })' +
+      '.map(function(v) { return v.id; })');
+    ok(shownViews.length <= 1,
+      'одновременно виден не больше одного раздела (сейчас: ' + JSON.stringify(shownViews) + ')');
     ok(await s.eval('return __t.has("appSidebar") === true'), 'боковое меню на месте');
 
     check.section('Кабинет клиента — мои заявки');
@@ -487,8 +498,14 @@ module.exports = {
       'список заявок заполнен (длина текста: ' + listText.length + ')');
     ok(await s.eval('return __t.count("#view-applications .card, #view-applications li, #view-applications .row") > 0'),
       'в списке есть хотя бы одна заявка');
-    ok((await s.eval('return __t.visibleErrors()')).length === 0,
-      'ошибок на экране нет');
+    /* «Ошибок на экране нет» через .err здесь ничего не проверяет: класса .err
+       в разметке кабинета нет. Читаем список сбоев монитора обвязки
+       (FAILURE_MONITOR_PARTS): непойманное исключение, отказ промиса или alert()
+       делают утверждение красным. Наличие монитора — часть утверждения. */
+    ok((await s.eval('return __t.failures()')).length === 0 &&
+      await s.eval('return !!(window.__bgfMonitor && window.__bgfMonitor.error === true && ' +
+        'window.__bgfMonitor.rejection === true && window.__bgfMonitor.alert === true)'),
+      'страница отработала без сбоев (список сбоев пуст, монитор установлен)');
 
     check.section('Кабинет клиента — документы');
     await s.eval('return __t.clickText("a, button", "Документы")');
@@ -500,12 +517,21 @@ module.exports = {
     /* Ссылку возврата в кабинет добавляет скрипт js/demo-lab.js, поэтому ждём её появления. */
     ok((await s.waitFor('return __t.hubLink() !== null', 5000)).ok,
       'есть ссылка возврата на карту демо');
-    const before = await s.eval('return __t.labKeys()');
+    /* Сцена сравнивается слепком ЗНАЧЕНИЙ («ключ → длина значения»), а не
+       набором имён ключей: при полном сбросе имена совпадают с исходными
+       (сид детерминированный), и потеря содержимого по одним именам не видна.
+       Шумный ключ sync_ping меняется по таймеру, поэтому из слепка исключён —
+       так же сделано в scripts/checks/manager.js. */
+    const scene = function () {
+      return s.eval('var st = __t.labStore(); delete st["bgfbank_lab_sync_ping"];' +
+        'return JSON.stringify(Object.keys(st).sort().map(function(k) { return k + ":" + st[k]; }))');
+    };
+    const before = await scene();
     await s.reload();
     ok(await s.eval('return __t.loggedIn() === true'),
       'после перезагрузки клиент остаётся в кабинете');
-    const after = await s.eval('return __t.labKeys()');
-    ok(before === after, 'перезагрузка не теряет данные сцены');
+    const after = await scene();
+    ok(before === after, 'перезагрузка не теряет данные сцены (слепок «ключ → длина значения»)');
   },
 };
 ```
@@ -569,8 +595,12 @@ module.exports = {
     ok(applications.length > 0, 'вкладка заявок подписана: «' + applications + '»');
     await s.eval('return __t.clickText(".tab, button", "Чат")');
     await s.delay(400);
-    ok((await s.eval('return __t.visibleErrors()')).length === 0,
-      'переход на чат без ошибок');
+    /* .err в разметке АРМ менеджера нет, поэтому «нет видимых ошибок» здесь
+       упасть не могло. Читаем список сбоев монитора обвязки. */
+    ok((await s.eval('return __t.failures()')).length === 0 &&
+      await s.eval('return !!(window.__bgfMonitor && window.__bgfMonitor.error === true && ' +
+        'window.__bgfMonitor.rejection === true && window.__bgfMonitor.alert === true)'),
+      'переход на чат без сбоев страницы (список сбоев пуст, монитор установлен)');
     await s.eval('return __t.clickText(".tab, button", "Заявк")');
     await s.delay(400);
 
@@ -584,12 +614,18 @@ module.exports = {
     check.section('АРМ менеджера — возврат и сцена');
     ok(await s.eval('return __t.hubLink() !== null'),
       'есть ссылка возврата на карту демо');
-    const before = await s.eval('return __t.labKeys()');
+    /* Слепок ЗНАЧЕНИЙ сцены, а не набор имён ключей: по именам потеря
+       содержимого не видна. Шумный sync_ping меняется по таймеру и исключён. */
+    const scene = function () {
+      return s.eval('var st = __t.labStore(); delete st["bgfbank_lab_sync_ping"];' +
+        'return JSON.stringify(Object.keys(st).sort().map(function(k) { return k + ":" + st[k]; }))');
+    };
+    const before = await scene();
     await s.reload();
     ok(await s.eval('return __t.visible("mainScreen")'),
       'после перезагрузки менеджер остаётся в рабочем месте');
-    const after = await s.eval('return __t.labKeys()');
-    ok(before === after, 'перезагрузка не стирает заявку клиента');
+    const after = await scene();
+    ok(before === after, 'перезагрузка не стирает заявку клиента (слепок «ключ → длина значения»)');
   },
 };
 ```
@@ -666,17 +702,40 @@ module.exports = {
     ok(work.length > 100, 'карточка сделки заполнена (длина текста: ' + work.length + ')');
     ok(await s.eval('return __t.count("#work-deal button") > 0'),
       'в карточке есть действия');
-    ok((await s.eval('return __t.visibleErrors()')).length === 0, 'ошибок нет');
+    /* Разметка стола НЕ содержит .err (класс .err есть только в дочерних формах
+       deal-ops/account-app.js и sopd-app.js), поэтому «видимых ошибок нет» здесь
+       упасть не могло никогда. Читаем список сбоев монитора обвязки. */
+    ok((await s.eval('return __t.failures()')).length === 0 &&
+      await s.eval('return !!(window.__bgfMonitor && window.__bgfMonitor.error === true && ' +
+        'window.__bgfMonitor.rejection === true && window.__bgfMonitor.alert === true)'),
+      'стол сделки отработал без сбоев страницы (список сбоев пуст, монитор установлен)');
 
     check.section('Стол сделки — возврат и сцена');
     ok(await s.eval('return __t.hubLink() !== null'), 'есть ссылка возврата на карту демо');
-    const before = await s.eval('return __t.labKeys()');
+    /* Слепок ЗНАЧЕНИЙ состояния стола (как STORE_SNAPSHOT в
+       scripts/checks/deal-ops.js), а не сравнение имён ключей: ключ не исчезает
+       никогда, поэтому потеря содержимого по именам не видна. Штатно меняющиеся
+       журнал ELMA и статусы шины обмена из слепка исключены. */
+    const snapshot = function () {
+      return s.eval('return (function() { try {' +
+        ' var p = JSON.parse(localStorage.getItem("bgfbank_lab_dealops") || "null");' +
+        ' if (!p) return "нет ключа";' +
+        ' var out = { ver: p.ver, role: p.role, filter: p.filter, selectedId: p.selectedId, deals: {} };' +
+        ' Object.keys(p.deals || {}).forEach(function(id) {' +
+        '   var d = p.deals[id], copy = {};' +
+        '   Object.keys(d).forEach(function(k) { if (k !== "bus" && k !== "elmaLog") copy[k] = d[k]; });' +
+        '   out.deals[id] = copy; });' +
+        ' return JSON.stringify(out); } catch (e) { return "ошибка разбора: " + e.message; } })()');
+    };
+    const before = await snapshot();
     await s.reload();
     await s.delay(600);
     ok(await s.eval('return __t.count("#inbox-list .card-deal") > 0'),
       'после перезагрузки очередь на месте');
-    const after = await s.eval('return __t.labKeys()');
-    ok(before === after, 'перезагрузка не теряет состояние стола');
+    const after = await snapshot();
+    ok(before === after,
+      'перезагрузка сохранила состояние целиком, а не только имена ключей (до: ' +
+      before.length + ' символов, после: ' + after.length + ' символов)');
   },
 };
 ```
@@ -751,17 +810,39 @@ module.exports = {
     const work = await s.eval('return __t.text("work-deal")');
     ok(work.length > 100, 'карточка заполнена (длина текста: ' + work.length + ')');
     ok(/одобр/i.test(work), 'в карточке есть действие решения');
-    ok((await s.eval('return __t.visibleErrors()')).length === 0, 'ошибок нет');
+    /* В разметке стола .err нет (замер: 0 вхождений), поэтому дежурное «нет
+       видимых .err» не могло упасть никогда. Читаем список сбоев монитора
+       обвязки. */
+    ok((await s.eval('return __t.failures()')).length === 0 &&
+      await s.eval('return !!(window.__bgfMonitor && window.__bgfMonitor.error === true && ' +
+        'window.__bgfMonitor.rejection === true && window.__bgfMonitor.alert === true)'),
+      'АРМ андеррайтера отработал без сбоев страницы (список сбоев пуст, монитор установлен)');
 
     check.section('АРМ андеррайтера — возврат и сцена');
     ok(await s.eval('return __t.hubLink() !== null'), 'есть ссылка возврата на карту демо');
-    const before = await s.eval('return __t.labKeys()');
+    /* Сравниваются ЗНАЧЕНИЯ состояния стола, а не имена ключей хранилища:
+       ключ не исчезает никогда, и потеря содержимого по именам не видна.
+       Штатно меняющиеся статусы шины обмена из слепка исключены. */
+    const snapshot = function () {
+      return s.eval('return (function() { try {' +
+        ' var p = JSON.parse(localStorage.getItem("bgfbank_lab_underwriter") || "null");' +
+        ' if (!p) return "нет ключа";' +
+        ' var out = { role: p.role, selectedId: p.selectedId, apps: {} };' +
+        ' Object.keys(p.apps || {}).forEach(function(id) {' +
+        '   var a = p.apps[id], copy = {};' +
+        '   Object.keys(a).forEach(function(k) { if (k !== "bus") copy[k] = a[k]; });' +
+        '   out.apps[id] = copy; });' +
+        ' return JSON.stringify(out); } catch (e) { return "ошибка разбора: " + e.message; } })()');
+    };
+    const before = await snapshot();
     await s.reload();
     await s.delay(600);
     ok(await s.eval('return __t.count("#inbox-list .card-deal") > 0'),
       'после перезагрузки очередь на месте');
-    ok(before === (await s.eval('return __t.labKeys()')),
-      'перезагрузка не теряет состояние стола');
+    const after = await snapshot();
+    ok(before === after,
+      'перезагрузка сохранила состояние целиком, а не только имена ключей (до: ' +
+      before.length + ' символов, после: ' + after.length + ' символов)');
   },
 };
 ```
@@ -835,17 +916,37 @@ module.exports = {
     await s.navigate(base + '/productolog/?demo=1&arm=risk');
     ok((await s.waitFor('return __t.count("#inbox-list .card-deal") > 0')).ok,
       'стол риска открывается и заполнен');
-    ok((await s.eval('return __t.visibleErrors()')).length === 0, 'ошибок нет');
+    /* .err в разметке стола продуктолога нет, поэтому дежурное «нет видимых
+       .err» не могло упасть никогда. Читаем список сбоев монитора обвязки. */
+    ok((await s.eval('return __t.failures()')).length === 0 &&
+      await s.eval('return !!(window.__bgfMonitor && window.__bgfMonitor.error === true && ' +
+        'window.__bgfMonitor.rejection === true && window.__bgfMonitor.alert === true)'),
+      'стол риска отработал без сбоев страницы (список сбоев пуст, монитор установлен)');
 
     check.section('Стол продуктолога — возврат и сцена');
     ok(await s.eval('return __t.hubLink() !== null'), 'есть ссылка возврата на карту демо');
-    const before = await s.eval('return __t.labKeys()');
+    /* Слепок ЗНАЧЕНИЙ сцены стола (как DEMO_STATE в scripts/checks/productolog.js),
+       а не набор имён ключей: по именам потеря содержимого не видна. */
+    const snapshot = function () {
+      return s.eval('return (function() { try {' +
+        ' var p = JSON.parse(localStorage.getItem("bgfbank_lab_productolog") || "null");' +
+        ' if (!p) return "нет ключа";' +
+        ' return JSON.stringify({ role: p.role, selectedId: p.selectedId, productTab: p.productTab,' +
+        '   sliceStatus: p.sliceStatus, slicePage: p.slicePage, slices: (p.slices || []).length,' +
+        '   products: (p.products || []).length, regions: (p.regions || []).length,' +
+        '   availability: (p.availability || []).length, bus: p.bus || {},' +
+        '   logLen: (p.log || []).length });' +
+        ' } catch (e) { return "ошибка разбора: " + e.message; } })()');
+    };
+    const before = await snapshot();
     await s.reload();
     await s.delay(600);
     ok(await s.eval('return __t.count("#inbox-list .card-deal") > 0'),
       'после перезагрузки стол на месте');
-    ok(before === (await s.eval('return __t.labKeys()')),
-      'перезагрузка не теряет настройки продукта');
+    const after = await snapshot();
+    ok(before === after,
+      'перезагрузка не теряет настройки продукта (слепок значений: до ' +
+      before.length + ' символов, после ' + after.length + ' символов)');
   },
 };
 ```
@@ -1060,10 +1161,10 @@ git commit -m "Document the single pre-show check command."
 
 ## Self-Review
 
-**1. Покрытие постановки.** Требовалось распространить прогон на непокрытые поверхности и ловить дефекты «пустой блок», «обрыв пути», «сцена стирается». Пустой блок — `emptyBlocks()` в задачах 4–6; обрыв пути — проверки видимости работы и действий; стирание сцены — сравнение ключей хранилищ до и после перезагрузки в задачах 2–6. Кабинет клиента и менеджер покрыты задачами 2–3, три стола — 4–6. Единый вход — задача 7. Документация — задача 8.
+**1. Покрытие постановки.** Требовалось распространить прогон на непокрытые поверхности и ловить дефекты «пустой блок», «обрыв пути», «сцена стирается». Пустой блок — `emptyBlocks()` в задачах 4–6; обрыв пути — проверки видимости работы и действий; стирание сцены — сравнение слепков ЗНАЧЕНИЙ хранилищ до и после перезагрузки в задачах 2–6 (сравнение имён ключей ничего не доказывает: ключ не исчезает никогда). Кабинет клиента и менеджер покрыты задачами 2–3, три стола — 4–6. Единый вход — задача 7. Документация — задача 8.
 
 **2. Проверка на заглушки.** Заглушек нет: каждый шаг содержит либо код целиком, либо точную команду с ожидаемым результатом. Места, где возможна неопределённость (точная подпись кнопки, наличие продукта «залог» в списке), помечены инструкцией «сначала посмотреть разметку, исправить проверку, а не поверхность».
 
-**3. Согласованность имён.** Сигнатура `run(s, base, check)` едина во всех задачах 2–7. Имена `createChecker`, `launch`, `HELPERS`, `s.navigate`, `s.waitFor`, `s.eval`, `s.delay`, `s.reload`, `s.base`, `s.close` определены в задаче 1 и используются без изменений дальше. Помощники страницы (`__t.loggedIn`, `__t.hubLink`, `__t.emptyBlocks`, `__t.visibleErrors`, `__t.store`, `__t.sorted`, `__t.clickText`, `__t.visible`, `__t.has`, `__t.count`) определены один раз в задаче 1.
+**3. Согласованность имён.** Сигнатура `run(s, base, check)` едина во всех задачах 2–7. Имена `createChecker`, `launch`, `HELPERS`, `s.navigate`, `s.waitFor`, `s.eval`, `s.delay`, `s.reload`, `s.base`, `s.close` определены в задаче 1 и используются без изменений дальше. Помощники страницы (`__t.loggedIn`, `__t.hubLink`, `__t.emptyBlocks`, `__t.labStore`, `__t.store`, `__t.clickText`, `__t.visible`, `__t.has`, `__t.count`) определены один раз в задаче 1; мёртвых помощников (`__t.active`, `__t.sorted`) в обвязке нет. Сбои страницы поверхностей читаются не дежурным поиском видимых `.err` (класса `.err` в их разметке нет, и такое утверждение не могло упасть), а по списку `__t.failures()`/`__t.resetFailures()`, который наполняет монитор обвязки (`window.__bgfMonitor`); поиск `.err` остаётся только у форм, которые действительно рисуют `.err`.
 
 **4. Известные риски, заложенные в план.** Первые прогоны задач 2–6, скорее всего, найдут реальные дефекты поверхностей — на это и рассчитан шаг «разобрать падения»: сначала отличать дефект от неверного ожидания, потом править. Это не заглушка, а осознанная последовательность: TDD-цикл здесь — «написать утверждение, увидеть падение, понять причину, довести до зелёного».

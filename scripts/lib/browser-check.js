@@ -10,12 +10,14 @@
  * Внешних зависимостей нет: WebSocket встроен в Node 22+, CDP — обычный JSON-RPC.
  *
  * Использование:
- *   const { createChecker, launch, HELPERS } = require('./lib/browser-check');
+ *   const { createChecker, launch } = require('./lib/browser-check');
  *   const check = createChecker();
  *   const s = await launch({ root, base, chrome, port, keep });
- *   await s.navigate(url);
- *   await s.eval(HELPERS);
+ *   await s.navigate(url);   // помощники __t харнесс внедряет сам
  *   s.close();
+ *
+ * Харнесс внедряет помощники __t сам — в navigate() и reload(). Отдельно звать
+ * s.eval(HELPERS) не нужно; HELPERS остаётся экспортом для совместимости.
  */
 
 'use strict';
@@ -292,11 +294,24 @@ async function attach(wsUrl) {
          window 'error' (браузер относит его к ошибке вычисления CDP), поэтому
          монитор сбоев его не видел — и проверка «без сбоев» оставалась зелёной
          там, где выражение упало. Дописываем сбой в тот же список, чтобы
-         `__t.failures()` не расходился с тем, что реально произошло. */
+         `__t.failures()` не расходился с тем, что реально произошло.
+
+         Запись идемпотентна по тексту: waitFor опрашивает выражение каждые
+         150 мс до 8–10 секунд, и без дедупликации один и тот же сбой попадал бы
+         в список десятки раз (до ~60 одинаковых строк в одном FAIL).
+
+         Утечки между документами нет: список живёт на window и пересоздаётся
+         монитором на каждой новой странице
+         (Page.addScriptToEvaluateOnNewDocument), поэтому запись, сделанная при
+         уходящем документе, следующую страницу не запятнает — она исчезнет
+         вместе со старым window. Остаточный риск назван честно: если документ
+         успел уйти до самой записи, сбой теряется молча (записать его уже
+         некуда) — но и в списке новой страницы он тогда не появится. */
       try {
         await send('Runtime.evaluate', {
-          expression: 'window.__bgfFailures && window.__bgfFailures.push(' +
-            JSON.stringify('eval error: ' + text.trim()) + ')',
+          expression: 'var __m = ' + JSON.stringify('eval error: ' + text.trim()) + ';' +
+            ' if (window.__bgfFailures && window.__bgfFailures.indexOf(__m) === -1) {' +
+            ' window.__bgfFailures.push(__m); }',
           returnByValue: true
         });
       } catch (e) { /* страница могла уйти — сбой уже не записать */ }
@@ -336,7 +351,6 @@ window.__t = {
     var el = document.querySelector('.screen.on');
     return el ? el.id : null;
   },
-  active: function() { return document.querySelectorAll('.screen.on').length; },
   has: function(id) { return !!document.getElementById(id); },
   count: function(sel) { return document.querySelectorAll(sel).length; },
   text: function(id) {
@@ -393,8 +407,8 @@ window.__t = {
     try { return localStorage.getItem('bgfbank_form_session'); } catch (e) { return null; }
   },
   /* Хранилище лаборатории: карта «ключ → длина значения» по всем ключам
-     bgfbank_lab_* и отсортированный JSON-список этих ключей. Прогон форм
-     пользуется своим store() (ключ bgfbank_form_session), его не трогаем. */
+     bgfbank_lab_* — по ней чек сравнивает слепки сцены. Прогон форм пользуется
+     своим store() (ключ bgfbank_form_session), его не трогаем. */
   labStore: function() {
     var out = {};
     try {
@@ -405,7 +419,6 @@ window.__t = {
     } catch (e) {}
     return out;
   },
-  labKeys: function() { return JSON.stringify(Object.keys(window.__t.labStore()).sort()); },
   stepCaption: function() {
     var el = document.querySelector('.steps-caption');
     return el ? (el.textContent || '').trim() : '';
@@ -420,12 +433,14 @@ window.__t = {
     }).map(function(e) { return e.id + ': ' + e.textContent.trim(); });
   },
   /* Сбои страницы, накопленные монитором FAILURE_MONITOR_PARTS: непойманные
-     исключения, необработанные отказы промисов и вызовы alert(). Помощник
-     отдаёт копию списка, чтобы вызывающий код не мог его случайно очистить.
-     Пустой список — это и есть проверяемое свойство «страница отработала без
-     сбоев». В отличие от visibleErrors() (ищет .err.on, которых на большинстве
-     поверхностей просто нет в разметке и потому проверка не может упасть),
-     этот список наполняет сам браузер, и он умеет становиться непустым. */
+     исключения, необработанные отказы промисов, вызовы alert() и не
+     загрузившиеся внешние ресурсы (пишутся с адресом — см. ветку ev.target).
+     Помощник отдаёт копию списка, чтобы вызывающий код не мог его случайно
+     очистить. Пустой список — это и есть проверяемое свойство «страница
+     отработала без сбоев». В отличие от visibleErrors() (ищет .err.on, которых
+     на большинстве поверхностей просто нет в разметке и потому проверка не может
+     упасть), этот список наполняет сам браузер, и он умеет становиться
+     непустым. */
   failures: function() {
     return (window.__bgfFailures || []).slice();
   },
@@ -435,8 +450,10 @@ window.__t = {
     window.__bgfFailures = [];
     return true;
   },
-  /* Старое имя того же помощника: прогон форм пока зовёт errorsVisible,
-     задача 7 переведёт вызовы на visibleErrors. Реализация одна. */
+  /* Старое имя того же помощника: прогон форм зовёт errorsVisible, и это
+     осмысленно — формы рисуют .err в разметке, поэтому проверка по .err.on там
+     может упасть. Поверхности вместо этого читают список сбоев монитора
+     (__t.failures()). Реализация одна. */
   errorsVisible: function() {
     return window.__t.visibleErrors();
   },
@@ -459,10 +476,16 @@ window.__t = {
       return (e.textContent || '').trim().length === 0 && e.children.length === 0;
     }).map(function(e) { return e.id; });
   },
-  sorted: function(o) { return JSON.stringify(Object.keys(o).sort()); },
-  /* Порядок действий на экране: возврат должен идти перед основным действием. */
+  /* Порядок действий на экране: возврат должен идти перед основным действием.
+     ids задаёт, какие кнопки сравнивать: без него в список попали бы любые
+     кнопки блока, и утверждение «слева Назад, справа основное действие»
+     размывалось бы лишними подписями. */
   orderOf: function(ids) {
+    var only = Array.isArray(ids) && ids.length ? ids : null;
     var all = Array.prototype.slice.call(document.querySelectorAll('.esia-actions button'));
+    if (only) {
+      all = all.filter(function(b) { return only.indexOf(b.id) !== -1; });
+    }
     return all.map(function(b) { return (b.textContent || '').trim(); });
   },
   /* Имитация перетаскивания ползунка: несколько шагов подряд.
@@ -505,8 +528,10 @@ return true;
  * Зачем это нужно: проверить «страница отработала без сбоев» иначе нечем.
  * Дежурное «в разметке нет видимых .err» ничего не доказывает — на поверхностях,
  * где .err вообще не встречается, такое утверждение не может упасть. Здесь же
- * список наполняет сам браузер, поэтому непойманное исключение, отказ промиса
- * или alert() делают проверку красной.
+ * список наполняет сам браузер, поэтому непойманное исключение, отказ промиса,
+ * alert() или не загрузившийся внешний ресурс (шрифт, скрипт, картинка) делают
+ * проверку красной. Сбой загрузки ресурса пишется с адресом — иначе офлайн-показ
+ * читался бы как «uncaught error: без сообщения».
  *
  * Код намеренно защищён от самого себя: каждый обработчик ставится в своём
  * try/catch, а window.alert подменяется только если браузер разрешает
@@ -529,10 +554,22 @@ const FAILURE_MONITOR_PARTS = [
   '  window.__bgfFailures = [];\n' +
   '  window.__bgfMonitor = { error: false, rejection: false, alert: false };\n' +
   '})();\n',
-  /* 2. Непойманные исключения. */
+  /* 2. Непойманные исключения и сбои загрузки внешних ресурсов.
+        Ошибка ресурса приходит простым Event без message/filename, поэтому без
+        ветки про ev.target FAIL читался бы как «uncaught error: без сообщения».
+        Между тем шрифты с fonts.googleapis.com подключены всеми пятью
+        поверхностями, а cdnjs — ещё index.html и manager/index.html: офлайн-показ
+        дал бы красные без объяснения. Теперь в списке виден сам адрес. */
   '(function () {\n' +
   '  try {\n' +
   "    window.addEventListener('error', function (ev) {\n" +
+  '      var t = ev && ev.target;\n' +
+  '      if (t && t !== window &&\n' +
+  '          (t.tagName === "LINK" || t.tagName === "SCRIPT" || t.tagName === "IMG")) {\n' +
+  '        window.__bgfFailures.push("не загрузился ресурс: " +\n' +
+  '          (t.getAttribute("href") || t.getAttribute("src") || "без адреса"));\n' +
+  '        return;\n' +
+  '      }\n' +
   '      var where = ev && ev.filename ? " (" + ev.filename + ":" + (ev.lineno || 0) + ")" : "";\n' +
   "      window.__bgfFailures.push('uncaught error: ' + ((ev && ev.message) || 'без сообщения') + where);\n" +
   '    }, true);\n' +
