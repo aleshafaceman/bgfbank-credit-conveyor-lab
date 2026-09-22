@@ -219,15 +219,26 @@ module.exports = {
     /* Строгая проверка «страница отработала без сбоев». В отличие от
        __t.visibleErrors() (в разметке стола нет .err, поэтому то утверждение не
        могло упасть никогда), список наполняет сам браузер: непойманное
-       исключение, отказ промиса или alert() делают проверку красной. */
+       исключение, отказ промиса или alert() делают проверку красной.
+       Наличие монитора — часть утверждения: если он не поставился, пустой список
+       означал бы не «сбоев нет», а «сбои никто не считал».
+
+       ГРАНИЦЫ МОНИТОРА (не считать его сильнее, чем он есть):
+       1. Он стоит только на подключённом target'е. Ошибки в ДОЧЕРНИХ ОКНАХ и
+          iframe в список не попадают: window.open("sopd-app.html…",
+          "account-app.html…", "print-app.html…") создаёт отдельные контексты,
+          которые обвязка не слушает. Проводка таких окон проверяется отдельно —
+          шпионом за window.open (см. «Открыть форму клиента» в разделе карточки).
+       2. Внешний ресурс даст ЛОЖНЫЙ сбой: deal-ops/index.html:10 подключает
+          шрифты с fonts.googleapis.com, и на машине без доступа к сети это
+          честное «uncaught error» в списке. Если на другом стенде проверка
+          упала именно на fonts.googleapis.com — причина в сети, а не в столе. */
     const noFailures = async function (msg) {
       const state = await s.eval('return (function() { try {' +
         ' return { list: __t.failures(), monitor: window.__bgfMonitor || null };' +
         ' } catch (e) { return { error: e.message }; } })()');
       if (state.error) return ok(false, msg + ' (монитор сбоев недоступен: ' + state.error + ')');
       const list = Array.isArray(state.list) ? state.list : [];
-      /* Наличие монитора — часть утверждения: если он не поставился, пустой
-         список означал бы не «сбоев нет», а «сбои никто не считал». */
       const installed = !!(state.monitor && state.monitor.error === true &&
         state.monitor.rejection === true && state.monitor.alert === true);
       return ok(installed && list.length === 0,
@@ -347,9 +358,15 @@ module.exports = {
 
     let ids = await cardIds();
     const missingCards = DEAL_IDS.filter(function (id) { return ids.indexOf(id) === -1; });
-    ok(ids.length === DEAL_IDS.length && ids.indexOf('?') === -1 && missingCards.length === 0,
-      'в очереди видны все сделки мока в порядке мока (сейчас: ' + JSON.stringify(ids) +
+    ok(ids.length === DEAL_IDS.length && ids.indexOf('?') === -1,
+      'номер сделки читается в каждой карточке очереди (сейчас: ' + JSON.stringify(ids) +
       ', нет: ' + JSON.stringify(missingCards) + ')');
+    /* Порядок карточек — это порядок массива сделок мока (renderInbox() идёт по
+       MOCK.deals). Проверяем его отдельно: состав и порядок — разные свойства, и
+       слитая проверка потеряла бы одно из них. */
+    ok(JSON.stringify(ids) === JSON.stringify(DEAL_IDS),
+      'карточки идут в порядке сделок мока ' + JSON.stringify(DEAL_IDS) +
+      ' (сейчас: ' + JSON.stringify(ids) + ')');
 
     const inboxText = await s.eval('return __t.text("inbox-list")');
     const clientsMissing = DEAL_CLIENTS.filter(function (f) { return inboxText.indexOf(f) === -1; });
@@ -358,6 +375,15 @@ module.exports = {
     const title = await s.eval('return __t.text("inbox-title")');
     ok(title.indexOf('Очередь ОЗС') === 0,
       'заголовок очереди подписан «Очередь ОЗС» (сейчас: «' + title + '»)');
+    /* Шапка стола: дежурный ОЗС — из мока (mock.js:2, "Оганесян М. А."). */
+    const officer = await s.eval('return __t.text("officer-label")');
+    ok(officer.indexOf('Оганесян М. А.') !== -1 && officer.indexOf('ОЗС') !== -1,
+      'в шапке подписан дежурный ОЗС из мока (сейчас: «' + officer + '»)');
+    const roleOn = await s.eval('return Array.prototype.filter.call(' +
+      'document.querySelectorAll(".role"), function(b) { return b.classList.contains("on"); })' +
+      '.map(function(b) { return b.id; })');
+    ok(roleOn.length === 1 && roleOn[0] === 'role-ozs',
+      'включена ровно одна роль — ОЗС (включено: ' + JSON.stringify(roleOn) + ')');
 
     /* Значки ЕСИА: у сделок 1 и 3 согласие есть, у 2 и 4 — нет (esiaBadge(),
        deal-ops.js:367-371). Считаем и сами значки, и карточки: если отрисовка
@@ -491,6 +517,26 @@ module.exports = {
     ok(sopdExtra.length === 0,
       'стол не предлагает доформировать действующее согласие (нашлись лишние действия: ' +
       JSON.stringify(sopdExtra) + ')');
+
+    /* Проводка дочерней формы: «Открыть форму клиента» (deal-ops.js:1278) зовёт
+       openClientForm() → window.open("account-app.html?t=<сделка>"). Сам переход
+       не проверяем — монитор сбоев и помощники стоят только на этом target'е (см.
+       границы монитора у noFailures), поэтому window.open на время проверки
+       подменяется шпионом, который пишет адрес и НЕ открывает окно. */
+    const child = await s.eval('return (function() { var real = window.open;' +
+      ' var seen = [];' +
+      ' window.open = function (url) { seen.push(String(url)); return null; };' +
+      ' try { var b = Array.prototype.filter.call(document.querySelectorAll("#work-deal button"),' +
+      '   function(x) { return (x.textContent || "").trim() === "Открыть форму клиента"; })[0];' +
+      '   if (!b) return { hit: false, seen: seen }; b.click(); return { hit: true, seen: seen }; }' +
+      ' finally { window.open = real; } })()');
+    /* Форма заявления на счёт — отдельный документ (deal-ops.js:795-798),
+       поэтому ожидаем account-app.html и сделку в адресе; sopd-app.html на этом
+       шаге не открывается, у первой сделки согласие уже действует. */
+    ok(child.hit === true && child.seen.length === 1 &&
+      /^account-app\.html\?t=25BGFB00990001$/.test(child.seen[0]),
+      '«Открыть форму клиента» открывает дочернюю форму заявления со сделкой в адресе (сейчас: ' +
+      JSON.stringify(child) + ')');
 
     /* Действия, недоступные на этапе идентификации, обязаны быть заперты: это не
        «кнопки на месте», а «кнопки не пускают». Если снять disabled, упадёт. */
@@ -631,6 +677,94 @@ module.exports = {
     ok(r.ok, 'переключение на «' + WHEN_BEFORE + '» включает только его (включено: ' +
       JSON.stringify(whenOnAfter) + ')' + why(r));
     await noFailures('переключатели карточки отработали без сбоев страницы');
+
+    check.section('Стол сделки — ход обмена с системами');
+
+    /* Панель «Ход обмена» (#bus-list) — вторая половина стола: 21 шаг общения с
+       внешними системами (BUS_CATALOG, deal-ops.js:7-29), который рисует
+       renderBus(). Проверяем и число шагов, и подписи всех шагов, и то, что до
+       начала работы они стоят в ожидании, а не выдуманы завершёнными. */
+    const busRows = await s.eval('return __t.count("#bus-list .int")');
+    ok(busRows === 21, 'в «Ходе обмена» ровно 21 шаг из каталога (сейчас: ' + busRows + ')');
+    const busStruct = await s.eval('return (function() { var missing = [];' +
+      ' Array.prototype.forEach.call(document.querySelectorAll("#bus-list .int"), function(row) {' +
+      '   if (!row.querySelector(".dot-i") || !row.querySelector("b") || !row.querySelector("span"))' +
+      '     missing.push((row.textContent || "").slice(0, 24)); });' +
+      ' return missing; })()');
+    ok(busStruct.length === 0,
+      'у каждого шага обмена есть индикатор, название и система (без них: ' + JSON.stringify(busStruct) + ')');
+    const busText = await s.eval('return __t.text("bus-list")');
+    const busTitles = ['Комплект КОД получен', 'Поиск счёта', 'ИНН', 'Приостановления ИФНС', 'Паспорт',
+      'Банкротство', 'РКЛ', 'Таможня', 'Ссылка на согласие', 'Согласие подписано',
+      'Ссылка на заявление', 'Заявление подписано', 'Уведомление в ELMA',
+      'Выпуск электронной подписи', 'Пакет документов', 'Клиент подписывает', 'Банк подписал',
+      'Подписание завершено', 'КОД подписан', 'Счёт открыт', 'СМС на интернет-банк'];
+    const busMissing = busTitles.filter(function (t) { return busText.indexOf(t) === -1; });
+    ok(busMissing.length === 0,
+      'в «Ходе обмена» подписаны все шаги каталога (нет: ' + JSON.stringify(busMissing) + ')');
+    const busSystems = ['ELMA', 'ЦФТ', 'ФНС', 'МВД', 'Федресурс', 'ФТС', 'СМС', 'форма клиента'];
+    const systemsMissing = busSystems.filter(function (t) { return busText.indexOf(t) === -1; });
+    ok(systemsMissing.length === 0,
+      'у шагов обмена указаны внешние системы (нет: ' + JSON.stringify(systemsMissing) + ')');
+    const busStatuses = await s.eval('return Array.prototype.map.call(' +
+      'document.querySelectorAll("#bus-list .int span"), function(s) { return (s.textContent || "").trim(); })');
+    /* Статус шага собирается как «<система> · <состояние>»; система бывает
+       русской («ФНС», «форма клиента»), поэтому проверяем разделитель и слово, а
+       не «слово + цифры». */
+    const waiting = busStatuses.filter(function (s) { return / · ожидание$/.test(s); });
+    const unsaid = busStatuses.filter(function (s) { return s.indexOf(' · ') === -1; });
+    ok(waiting.length >= 1 && unsaid.length === 0,
+      'свежая сделка держит шаги обмена в ожидании, а не завершёнными (в ожидании: ' +
+      waiting.length + ' из ' + busStatuses.length + ', без статуса: ' + JSON.stringify(unsaid) + ')');
+    /* Первый шаг приходит готовым вместе со снимком КОД (defaultDealState(),
+       deal-ops.js:156: bus.elma_snapshot = "ok"), поэтому «успех» тоже есть. */
+    ok(busStatuses.filter(function (s) { return / · успех$/.test(s); }).length === 1,
+      'шаг «Комплект КОД получен» отмечен успехом, остальные ждут (статусы: ' +
+      JSON.stringify(busStatuses.slice(0, 3)) + '…)');
+    await noFailures('панель «Ход обмена» отрисована без сбоев страницы');
+
+    check.section('Стол сделки — ОПЕРУ: пустая очередь');
+
+    /* Роль ОПЕРУ — второй стол той же поверхности: своя очередь, своя шапка и
+       своя рабочая область. Проверяем переключение роли кликом (а не вызовом
+       setRole) и ПУСТОЕ состояние: на свежей сцене ни одна сделка не стоит на
+       шаге operu, поэтому очередь ошибок пуста и объясняет себя текстом. */
+    ok(await s.eval('return __t.click("role-operu") === true'), 'переключатель роли ОПЕРУ найден и нажат');
+    r = await s.waitFor('return __t.count("#inbox-list .card-deal") === 0', 5000);
+    const operuEmpty = await s.eval('return {' +
+      ' cards: __t.count("#inbox-list .card-deal"),' +
+      ' title: __t.text("inbox-title"),' +
+      ' list: __t.text("inbox-list"),' +
+      ' work: __t.text("work-deal"),' +
+      ' officer: __t.text("officer-label"),' +
+      ' roles: Array.prototype.map.call(document.querySelectorAll(".role.on"),' +
+      '   function(b) { return b.id; }) }');
+    ok(r.ok && operuEmpty.cards === 0,
+      'у ОПЕРУ нет сделок без ошибок проверок — очередь пуста (карточек: ' + operuEmpty.cards + ')' + why(r));
+    ok(operuEmpty.title.indexOf('Очередь ОПЕРУ') === 0,
+      'заголовок очереди сменился на «Очередь ОПЕРУ» (сейчас: «' + operuEmpty.title + '»)');
+    ok(JSON.stringify(operuEmpty.roles) === JSON.stringify(['role-operu']),
+      'включена ровно одна роль — ОПЕРУ (включено: ' + JSON.stringify(operuEmpty.roles) + ')');
+    ok(operuEmpty.list.indexOf('Очередь пуста') !== -1,
+      'пустая очередь ОПЕРУ объясняет себя текстом (сейчас: «' + operuEmpty.list.slice(0, 70) + '…»)');
+    ok(operuEmpty.list.indexOf('только ошибки проверок') !== -1,
+      'текст пустой очереди говорит, что сюда попадают только ошибки проверок');
+    ok(operuEmpty.work.indexOf('Стол ошибок проверок') !== -1 &&
+      operuEmpty.work.indexOf('Клиента сюда не пересаживаем') !== -1,
+      'рабочая область ОПЕРУ показывает свой стол ошибок (сейчас: «' + operuEmpty.work.slice(0, 70) + '…»)');
+    ok(operuEmpty.officer.indexOf('ОПЕРУ') !== -1 && operuEmpty.officer !== officer,
+      'подпись дежурного сменилась на ОПЕРУ (было: «' + officer + '», стало: «' + operuEmpty.officer + '»)');
+    await noFailures('переключение на ОПЕРУ прошло без сбоев страницы');
+
+    /* Возврат роли кликом обязан вернуть очередь ОЗС без потерь. */
+    ok(await s.eval('return __t.click("role-ozs") === true'), 'возврат роли ОЗС найден и нажат');
+    r = await s.waitFor('return __t.count("#inbox-list .card-deal") === ' + DEAL_IDS.length, 5000);
+    ids = await cardIds();
+    ok(r.ok && JSON.stringify(ids) === JSON.stringify(DEAL_IDS),
+      'возврат роли ОЗС восстанавливает очередь в прежнем порядке (сейчас: ' + JSON.stringify(ids) + ')' + why(r));
+    const officerBack = await s.eval('return __t.text("officer-label")');
+    ok(officerBack === officer,
+      'подпись дежурного вернулась к ОЗС (сейчас: «' + officerBack + '»)');
 
     check.section('Стол сделки — ОПЕРУ с непустой очередью');
 
