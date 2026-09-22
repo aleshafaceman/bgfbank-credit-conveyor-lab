@@ -45,19 +45,15 @@
 .consent-foot { font-size: 12.5px; color: var(--muted, #64748b); margin: 8px 0 0 2px; }
 
 /* ===== Разрешения цифрового профиля ===== */
-/* Блок — сосед .esia, а не его потомок, поэтому центрирование задаём явно:
-   иначе он наследует выравнивание экрана и выглядит прижатым влево. */
-.cp-grant { border: 1.5px solid var(--line, #e1e9f1); border-radius: 14px; padding: 16px 18px; margin: 16px 0 6px; text-align: center; }
-/* Строки и шапка — flex-контейнеры: text-align на них не действует,
-   центрировать нужно через justify-content. */
-.cp-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.cp-grant { border: 1.5px solid var(--line, #e1e9f1); border-radius: 14px; padding: 16px 18px; margin: 16px 0 6px; text-align: left; }
+.cp-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .cp-head b { font-size: 15px; color: var(--navy, #0B4697); }
 .cp-badge {
   font-size: 11px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase;
   background: #0b4ea2; color: #fff; border-radius: 7px; padding: 3px 9px;
 }
 .cp-note { font-size: 13px; color: var(--muted, #64748b); margin: 8px 0 14px; }
-.cp-row { display: flex; gap: 10px; padding: 12px 0; border-top: 1px solid var(--line, #e1e9f1); justify-content: center; }
+.cp-row { display: flex; gap: 10px; padding: 12px 0; border-top: 1px solid var(--line, #e1e9f1); }
 .cp-row:first-of-type { border-top: 0; }
 .cp-mark { color: var(--ok, #13A538); font-weight: 700; flex-shrink: 0; }
 .cp-title { font-size: 14px; font-weight: 700; color: var(--navy, #0B4697); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -66,9 +62,7 @@
   background: var(--sky, #eef5fb); border: 1px solid #d7e6f5; color: var(--navy, #0B4697);
   border-radius: 6px; padding: 2px 6px;
 }
-.cp-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; justify-content: center; }
-/* Галочка подтверждения на экране ЕСИА тоже по центру, как остальной блок. */
-.cp-grant + .check { justify-content: center; }
+.cp-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .pill-fact {
   font-size: 11.5px; font-weight: 600; color: var(--navy, #0B4697);
   background: var(--sky, #eef5fb); border: 1px solid #d7e6f5; border-radius: 999px; padding: 3px 10px;

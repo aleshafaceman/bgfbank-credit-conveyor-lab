@@ -1858,30 +1858,6 @@ console.log('\n=== 17. Completion reads as a success ===');
     'the conditions step returns to the application summary instead');
 }
 
-console.log('\n=== 18. Gosuslugi block is centred like the rest of the screen ===');
-{
-  /* Блок разрешений — сосед .esia, а не потомок, поэтому центрирование задано явно.
-     Его строки и шапка — flex-контейнеры: text-align на них не действует. */
-  const css = fs.readFileSync(path.join(root, 'shared/form-common.css'), 'utf8');
-  assert(/\.cp-grant\s*\{[^}]*text-align:\s*center/.test(css),
-    'permissions block centres its text');
-  assert(/\.cp-head\s*\{[^}]*justify-content:\s*center/.test(css),
-    'permissions header is centred as a flex row');
-  assert(/\.cp-row\s*\{[^}]*justify-content:\s*center/.test(css),
-    'permission rows are centred as flex rows');
-  assert(/\.cp-chips\s*\{[^}]*justify-content:\s*center/.test(css),
-    'permission chips are centred');
-  assert(/\.cp-grant\s*\+\s*\.check\s*\{[^}]*justify-content:\s*center/.test(css),
-    'the confirmation checkbox is centred too');
-  // Локальные копии правил не должны перебивать общий слой.
-  ['form/form.css', 'form-pledge/form.css'].forEach(function(rel) {
-    const local = fs.readFileSync(path.join(root, rel), 'utf8');
-    const rule = (local.match(/\.cp-grant\s*\{[^}]*\}/) || [''])[0];
-    assert(rule && !/text-align:\s*left/.test(rule),
-      rel + ' does not force the permissions block to the left');
-  });
-}
-
 console.log('\n=== Summary ===');
 console.log('Passed: ' + passed);
 console.log('Failed: ' + failed);

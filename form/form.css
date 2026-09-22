@@ -230,10 +230,9 @@ input:focus { outline: 2px solid rgba(11, 70, 151,.2); border-color: var(--navy)
 .esia-purposes { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 18px 0 6px; }
 
 /* ===== ЕСИА: объединённый запрос разрешений ===== */
-/* Без text-align: блок наследует центрирование экрана ЕСИА. */
 .cp-grant {
   border: 1.5px solid var(--line); border-radius: 14px; padding: 16px 18px;
-  margin: 16px 0 6px;
+  margin: 16px 0 6px; text-align: left;
 }
 .cp-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .cp-head b { font-size: 15px; color: var(--navy); }
