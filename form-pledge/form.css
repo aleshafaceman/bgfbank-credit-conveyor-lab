@@ -140,11 +140,16 @@ input:focus { outline: 2px solid rgba(11, 70, 151,.2); border-color: var(--navy)
 }
 .demo { font-size: 13px; color: var(--muted); margin-top: 16px; line-height: 1.5; }
 .demo code { font-size: 12px; background: var(--sky); padding: 1px 5px; border-radius: 4px; }
-.esia { text-align: center; padding: 80px 16px; }
+/* Экран ЕСИА: блок занимает всю высоту экрана, поэтому фиксированный
+   padding не годится — 80px сверху и снизу вытесняли карточку разрешений,
+   галочку и кнопки ниже видимой области, и появлялась прокрутка. */
+.esia { text-align: center; padding: 6px 16px 4px; }
+.esia h1 { font-size: 23px; margin-bottom: 4px; }
+.esia .lead { margin: 0 auto 4px; font-size: 14px; }
 .esia .gs {
-  width: 72px; height: 72px; border-radius: 18px; margin: 0 auto 16px;
+  width: 56px; height: 56px; border-radius: 14px; margin: 0 auto 10px;
   background: #0b4ea2; color: #fff; display: flex; align-items: center; justify-content: center;
-  font-weight: 800; font-size: 24px;
+  font-weight: 800; font-size: 20px;
 }
 .hidden { display: none !important; }
 

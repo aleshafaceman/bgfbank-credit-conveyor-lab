@@ -142,20 +142,21 @@ input:focus { outline: 2px solid rgba(11, 70, 151,.2); border-color: var(--navy)
 .demo code { font-size: 12px; background: var(--sky); padding: 1px 5px; border-radius: 4px; }
 /* Экран ЕСИА: блок занимает всю высоту экрана, поэтому фиксированный
    padding не годится — на невысоком окне он вытесняет цели ЦПГ и галочку за край. */
-.esia { text-align: center; padding: clamp(10px, 4vh, 24px) 16px clamp(8px, 3vh, 20px); }
+.esia { text-align: center; padding: 6px 16px 4px; }
+.esia h1 { font-size: 23px; margin-bottom: 4px; }
 /* Нижняя панель на этом экране скрыта, поэтому действия живут прямо здесь —
    иначе клиентский путь обрывается после подтверждения. */
 .esia-actions {
   display: flex; justify-content: flex-end; gap: 12px; align-items: center;
-  margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line);
+  margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line);
 }
 .esia-actions .btn { min-width: 200px; }
 .esia-actions .btn-ghost { min-width: 130px; }
-.esia .lead { margin: 0 auto; }
+.esia .lead { margin: 0 auto 4px; font-size: 14px; }
 .esia .gs {
-  width: 64px; height: 64px; border-radius: 16px; margin: 0 auto 12px;
+  width: 56px; height: 56px; border-radius: 14px; margin: 0 auto 10px;
   background: #0b4ea2; color: #fff; display: flex; align-items: center; justify-content: center;
-  font-weight: 800; font-size: 22px;
+  font-weight: 800; font-size: 20px;
 }
 .hidden { display: none !important; }
 
