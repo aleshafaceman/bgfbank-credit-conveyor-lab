@@ -185,14 +185,20 @@ async function attach(wsUrl) {
 /* Помощники, которые выполняются внутри страницы. */
 const HELPERS = `
 window.__t = {
+  /* Видимость по геометрии: элемент есть и занимает ненулевой прямоугольник. */
   visible: function(id) {
-    var el = document.getElementById(id);
-    return !!(el && el.classList.contains('on'));
+    var e = document.getElementById(id);
+    if (!e) return false;
+    var r = e.getBoundingClientRect();
+    return r.width > 0 && r.height > 0;
   },
   screen: function() {
     var el = document.querySelector('.screen.on');
     return el ? el.id : null;
   },
+  active: function() { return document.querySelectorAll('.screen.on').length; },
+  has: function(id) { return !!document.getElementById(id); },
+  count: function(sel) { return document.querySelectorAll(sel).length; },
   text: function(id) {
     var el = document.getElementById(id);
     return el ? (el.textContent || '').replace(/\\s+/g, ' ').trim() : '';
@@ -201,6 +207,13 @@ window.__t = {
     var el = document.getElementById(id);
     if (!el) return false;
     el.click();
+    return true;
+  },
+  clickText: function(sel, needle) {
+    var all = Array.prototype.slice.call(document.querySelectorAll(sel));
+    var hit = all.filter(function(e) { return (e.textContent || '').indexOf(needle) !== -1; })[0];
+    if (!hit) return false;
+    hit.click();
     return true;
   },
   setVal: function(id, value) {
@@ -239,6 +252,20 @@ window.__t = {
   store: function() {
     try { return localStorage.getItem('bgfbank_form_session'); } catch (e) { return null; }
   },
+  /* Хранилище лаборатории: карта «ключ → длина значения» по всем ключам
+     bgfbank_lab_* и отсортированный JSON-список этих ключей. Прогон форм
+     пользуется своим store() (ключ bgfbank_form_session), его не трогаем. */
+  labStore: function() {
+    var out = {};
+    try {
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i);
+        if (k.indexOf('bgfbank_lab_') === 0) out[k] = (localStorage.getItem(k) || '').length;
+      }
+    } catch (e) {}
+    return out;
+  },
+  labKeys: function() { return JSON.stringify(Object.keys(window.__t.labStore()).sort()); },
   stepCaption: function() {
     var el = document.querySelector('.steps-caption');
     return el ? (el.textContent || '').trim() : '';
@@ -255,8 +282,28 @@ window.__t = {
   /* Старое имя того же помощника: прогон форм пока зовёт errorsVisible,
      задача 7 переведёт вызовы на visibleErrors. Реализация одна. */
   errorsVisible: function() {
-    return this.visibleErrors();
+    return window.__t.visibleErrors();
   },
+  loggedIn: function() {
+    var e = document.getElementById('appShell');
+    return !!(e && e.classList.contains('app-logged-in'));
+  },
+  hubLink: function() {
+    var a = Array.prototype.slice.call(document.querySelectorAll('a')).filter(function(x) {
+      return /start\.html/.test(x.getAttribute('href') || '');
+    })[0];
+    return a ? a.getAttribute('href') : null;
+  },
+  /* Пустые видимые блоки: id начинается с рабочего префикса, но внутри нет
+     ни текста, ни дочерних элементов — признак недорисованного экрана. */
+  emptyBlocks: function() {
+    return Array.prototype.filter.call(document.querySelectorAll('[id]'), function(e) {
+      if (!/^(work|inbox|pkg|status|card|deal|tab)/.test(e.id)) return false;
+      if (e.offsetParent === null) return false;
+      return (e.textContent || '').trim().length === 0 && e.children.length === 0;
+    }).map(function(e) { return e.id; });
+  },
+  sorted: function(o) { return JSON.stringify(Object.keys(o).sort()); },
   /* Порядок действий на экране: возврат должен идти перед основным действием. */
   orderOf: function(ids) {
     var all = Array.prototype.slice.call(document.querySelectorAll('.esia-actions button'));
@@ -303,10 +350,11 @@ return true;
  *            добавляется параметр обхода кэша;
  *   chrome — путь к браузеру; если не задан, ищется в findChrome();
  *   port   — порт локального сервера, порт CDP = port + 1;
- *   keep   — не убивать Chrome и не удалять профиль после прогона.
+ *   keep   — не убивать Chrome и не удалять профиль после прогона;
+ *   timeoutMs — сколько ждать в waitFor/waitForScreen по умолчанию (8000 мс).
  *
  * Возвращает: { base, profile, keep, eval, send, navigate, waitReady, reload,
- *               waitFor, delay, close }.
+ *               waitFor, waitForScreen, delay, close }.
  */
 async function launch(options) {
   const opt = options || {};
@@ -316,6 +364,7 @@ async function launch(options) {
   const external = !!opt.base;
   const base = (opt.base || ('http://127.0.0.1:' + port)).replace(/\/+$/, '');
   const debugPort = port + 1;
+  const defaultWait = opt.timeoutMs || 8000;
 
   const chrome = opt.chrome || findChrome();
   if (!chrome) {
@@ -327,9 +376,6 @@ async function launch(options) {
   if (external) console.log('Проверяем опубликованный сайт: ' + base);
 
   const profile = path.join(os.tmpdir(), 'bgf-flow-profile-' + Date.now());
-  /* Кладём путь в options: если launch упадёт, вызывающий код всё равно сможет
-     сказать, какой профиль остался при --keep. */
-  opt.profile = profile;
   fs.mkdirSync(profile, { recursive: true });
 
   const child = spawn(chrome, [
@@ -373,34 +419,45 @@ async function launch(options) {
     throw new Error('страница не догрузилась');
   }
 
+  /* Ждём, пока выражение на странице станет истинным. Возвращает true/false. */
+  async function waitFor(expr, limit) {
+    const deadline = Date.now() + (limit || defaultWait);
+    while (Date.now() < deadline) {
+      try { if (await cdp.eval(expr)) return true; } catch (e) { /* страница ещё не готова */ }
+      await sleep(150);
+    }
+    return false;
+  }
+
+  /* Ждём нужный экран: часть переходов идёт через setTimeout (прескоринг, оценка).
+     Возвращает имя экрана, на котором оказались, — вызывающий код показывает его
+     в сообщении проверки. */
+  async function waitForScreen(screenId, limit) {
+    await waitFor('return __t.screen() === ' + JSON.stringify(screenId), limit || defaultWait);
+    return cdp.eval('return __t.screen()');
+  }
+
   return {
     base: base,
     profile: profile,
     keep: keep,
     eval: function (expression) { return cdp.eval(expression); },
     send: function (method, params) { return cdp.send(method, params); },
+    /* Помощники внедряются и здесь, и в reload: вызывающие прогоны не обязаны
+       делать это сами. Повторное внедрение безвредно. */
     navigate: async function (url) {
       await cdp.send('Page.navigate', { url: bust(url) });
       await waitReady();
+      await cdp.eval(HELPERS);
     },
     waitReady: waitReady,
     reload: async function () {
       await cdp.send('Page.reload', { ignoreCache: true });
       await waitReady();
+      await cdp.eval(HELPERS);
     },
-    /* Ждём нужный экран: часть переходов идёт через setTimeout (прескоринг, оценка).
-       Возвращает имя достигнутого экрана, чтобы вызывающий код показал его в отчёте. */
-    waitFor: async function (screenId, timeoutMs) {
-      const limit = timeoutMs || 8000;
-      const started = Date.now();
-      let last = null;
-      while (Date.now() - started < limit) {
-        last = await cdp.eval('return __t.screen()');
-        if (last === screenId) return last;
-        await sleep(150);
-      }
-      return last;
-    },
+    waitFor: waitFor,
+    waitForScreen: waitForScreen,
     delay: sleep,
     close: function () {
       try { cdp.close(); } catch (e) {}

@@ -206,7 +206,7 @@ async function runPledge(s, base) {
   ok(await s.eval('return __t.screen() === "egrn"'), 'ЕГРН ответил карточкой объекта');
   ok(!(await s.eval('return __t.ctaDisabled()')), 'объект проходит проверки, кнопка активна');
   await s.eval('return __t.click("cta")');
-  const afterPledgePre = await s.waitFor('packages', 9000);
+  const afterPledgePre = await s.waitForScreen('packages', 9000);
   ok(afterPledgePre === 'packages',
     'после прескоринга открылись предложения (сейчас: ' + afterPledgePre + ')');
 
@@ -306,7 +306,10 @@ async function runDeepLink(s, base) {
       console.log('Если проверяется свежая выкладка, кэш Pages мог ещё не разойтись: ' +
         'подождите минуту и повторите прогон.');
     }
-    if (KEEP) console.log('Chrome оставлен для разбора: ' + ((s && s.profile) || options.profile || ''));
+    if (KEEP) {
+      console.log('Chrome оставлен для разбора: ' + (s ? s.profile
+        : 'профиль создаётся только после успешного запуска браузера'));
+    }
   } finally {
     if (s) s.close();
   }
