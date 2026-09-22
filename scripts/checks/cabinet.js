@@ -35,7 +35,12 @@ const APPS_HIDDEN = 'document.getElementById("view-applications").classList.cont
 const DOCS_HIDDEN = 'document.getElementById("view-documents").classList.contains("hidden")';
 
 /* Слепок сцены «ключ → длина значения» без шумного ключа: по одним именам ключей
-   потеря содержимого не видна, а sync_ping меняется по таймеру. */
+   потеря содержимого не видна, а sync_ping меняется по таймеру.
+
+   ГРАНИЦА ПРОВЕРКИ: сравниваются имена ключей и длины значений, поэтому подмену
+   содержимого на такую же длину слепок не заметит — проверка слабее, чем
+   «сцена не изменилась». Хешировать значения нельзя: остальные ключи штатно
+   обновляются во время работы демо, и точное сравнение давало бы ложные падения. */
 const SCENE = 'var st = __t.labStore(); delete st[' + JSON.stringify(NOISY_KEY) + '];' +
   'return JSON.stringify(Object.keys(st).sort().map(function(k) { return k + ":" + st[k]; }))';
 
@@ -56,7 +61,7 @@ module.exports = {
     ok(search.indexOf('demo=') === -1 && search.indexOf('autologin=') === -1,
       'адрес после входа очищен от служебных параметров (сейчас: «' + search + '»)');
     ok(await s.eval('return __t.has("appSidebar") === true'), 'боковое меню на месте');
-    ok(await s.eval('return __t.visible("appSidebar")'),
+    ok(!!(await s.eval('return __t.visible("appSidebar")')),
       'после входа боковое меню показано (класс app-logged-in включает его в css/styles.css:527)');
     ok(await s.eval('return __t.has("applicationsList") === true'), 'контейнер списка заявок на месте');
     ok(await s.eval('return __t.has("documentsList") === true'), 'контейнер документов на месте');
@@ -95,7 +100,7 @@ module.exports = {
     ok(r.ok, 'после перехода раздел заявок скрыт, раздел документов раскрыт' + why(r));
     const docsTitle = await s.eval('return __t.text("pageTitle")');
     ok(docsTitle === 'Документы', 'заголовок страницы переключился (сейчас: «' + docsTitle + '»)');
-    ok(await s.eval('return __t.visible("documentsList")'), 'список документов показан');
+    ok(!!(await s.eval('return __t.visible("documentsList")')), 'список документов показан');
     const docsText = await s.eval('return __t.text("documentsList")');
     ok(docsText.length > 0, 'список документов отрисован (длина текста: ' + docsText.length + ')');
     const visibleOnDocs = await s.eval(VISIBLE_VIEWS);
@@ -104,11 +109,11 @@ module.exports = {
 
     /* Проводка самого пункта меню: прямые вызовы navigateTo проверяют разделы,
        но не то, что ссылка меню действительно переключает раздел. */
-    ok(await s.eval('return __t.clickText(".nav-link[data-page=\\"applications\\"]", "Мои заявки")'),
+    ok(!!(await s.eval('return __t.clickText(".nav-link[data-page=\\"applications\\"]", "Мои заявки")')),
       'пункт меню «Мои заявки» найден');
     r = await s.waitFor('return ' + APPS_HIDDEN + ' === false && ' + DOCS_HIDDEN + ' === true', 5000);
     ok(r.ok, 'клик по пункту меню вернул раздел заявок и скрыл документы' + why(r));
-    ok(await s.eval('return __t.clickText(".nav-link[data-page=\\"documents\\"]", "Документы")'),
+    ok(!!(await s.eval('return __t.clickText(".nav-link[data-page=\\"documents\\"]", "Документы")')),
       'пункт меню «Документы» найден');
     r = await s.waitFor('return ' + DOCS_HIDDEN + ' === false && ' + APPS_HIDDEN + ' === true', 5000);
     ok(r.ok, 'клик по пункту меню открыл документы' + why(r));
@@ -120,8 +125,8 @@ module.exports = {
        проверяем именно #bgfHubLink, а не первую попавшуюся ссылку. */
     r = await s.waitFor('return __t.has("bgfHubLink") === true', 5000);
     ok(r.ok, 'ссылка возврата #bgfHubLink добавлена в боковое меню' + why(r));
-    ok(await s.eval('return __t.visible("bgfHubLink")'), 'ссылка возврата видна в меню');
-    ok(await s.eval('return /start\\.html/.test((document.getElementById("bgfHubLink") || {}).getAttribute("href") || "")'),
+    ok(!!(await s.eval('return __t.visible("bgfHubLink")')), 'ссылка возврата видна в меню');
+    ok(!!(await s.eval('return /start\\.html/.test((document.getElementById("bgfHubLink") || {}).getAttribute("href") || "")')),
       'ссылка возврата ведёт на start.html (сейчас: «' +
       (await s.eval('return (document.getElementById("bgfHubLink") || {}).getAttribute("href")')) + '»)');
 
