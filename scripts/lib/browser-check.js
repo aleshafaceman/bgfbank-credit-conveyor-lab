@@ -24,7 +24,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const { spawn } = require('child_process');
+const { spawn, spawnSync } = require('child_process');
 
 /* ---------- счётчик проверок ---------- */
 
@@ -80,6 +80,9 @@ const MIME = {
 };
 
 function startServer(root, port) {
+  /* Установленные keep-alive соединения держат серверный хэндл даже после
+     server.close(), поэтому запоминаем сокеты и рвём их при остановке. */
+  const sockets = new Set();
   const server = http.createServer((req, res) => {
     let rel = decodeURIComponent(req.url.split('?')[0]);
     if (rel.endsWith('/')) rel += 'index.html';
@@ -91,7 +94,19 @@ function startServer(root, port) {
       res.end(data);
     });
   });
-  return new Promise(resolve => server.listen(port, '127.0.0.1', () => resolve(server)));
+  server.on('connection', (socket) => {
+    sockets.add(socket);
+    socket.on('close', () => { sockets.delete(socket); });
+  });
+  return new Promise(resolve => server.listen(port, '127.0.0.1', () => resolve({
+    server: server,
+    /* stop() рвёт уже установленные соединения и только потом закрывает сервер. */
+    stop: function () {
+      sockets.forEach((socket) => { try { socket.destroy(); } catch (e) {} });
+      sockets.clear();
+      try { server.close(); } catch (e) {}
+    }
+  })));
 }
 
 /* ---------- Chrome + DevTools Protocol ---------- */
@@ -110,6 +125,94 @@ function findChrome(chromePath) {
     '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
   ].filter(Boolean);
   return candidates.find(p => { try { return fs.existsSync(p); } catch (e) { return false; } });
+}
+
+/* Завершает всё дерево процессов Chrome. child.kill() убивает только главный
+   процесс, да и тот на Windows сразу завершается (лаунчер передаёт работу
+   другому процессу), поэтому дерево снимаем по настоящему PID браузера:
+   на Windows — taskkill /T /F, иначе — обычный kill. */
+function killTree(child, browserPid) {
+  const pid = browserPid || (child && child.pid);
+  if (!pid) return;
+  if (process.platform === 'win32') {
+    const res = spawnSync('taskkill', ['/PID', String(pid), '/T', '/F'], { stdio: 'ignore' });
+    if (!res.error && res.status === 0) return;
+  }
+  try { if (child) child.kill(); } catch (e) {}
+}
+
+/* Удаление профиля. Windows отпускает файловые хэндлы чуть позже, чем
+   возвращается taskkill, поэтому одной попытки rmSync не хватает: делаем
+   несколько с короткой синхронной паузой и выходим, как только каталог исчез. */
+function removeProfile(profile) {
+  for (let i = 0; i < 5; i++) {
+    try { fs.rmSync(profile, { recursive: true, force: true }); } catch (e) {}
+    if (!fs.existsSync(profile)) return true;
+    try { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 120); } catch (e) {}
+  }
+  return !fs.existsSync(profile);
+}
+
+/* Одна попытка узнать PID браузера. */
+async function browserPidOnce(debugPort) {
+  let ws = null;
+  let timer = null;
+  try {
+    const version = await fetchJson('http://127.0.0.1:' + debugPort + '/json/version', 3);
+    ws = new WebSocket(version.webSocketDebuggerUrl);
+    await new Promise(function (resolve, reject) {
+      ws.addEventListener('open', resolve, { once: true });
+      ws.addEventListener('error', function () { reject(new Error('нет соединения с browser-таргетом')); }, { once: true });
+    });
+    const reply = await new Promise(function (resolve, reject) {
+      timer = setTimeout(function () { reject(new Error('таймаут SystemInfo')); }, 5000);
+      ws.addEventListener('message', function (ev) {
+        let msg;
+        try { msg = JSON.parse(ev.data); } catch (e) { return; }
+        if (msg.id === 1) { clearTimeout(timer); resolve(msg); }
+      });
+      ws.send(JSON.stringify({ id: 1, method: 'SystemInfo.getProcessInfo', params: {} }));
+    });
+    const list = (reply.result && reply.result.processInfo) || [];
+    const browser = list.filter(function (p) { return p.type === 'browser'; })[0];
+    if (!browser || !browser.id) return null;
+    try { process.kill(browser.id, 0); } catch (e) { return null; }   /* PID должен быть живым */
+    return browser.id;
+  } catch (e) {
+    return null;
+  } finally {
+    if (timer) clearTimeout(timer);
+    if (ws) {
+      try { ws.close(); } catch (e) {}
+      try { if (typeof ws.terminate === 'function') ws.terminate(); } catch (e) {}
+    }
+  }
+}
+
+/* PID браузера с несколькими попытками: /json/version и SystemInfo отвечают не
+   всегда с первого раза, а без PID дерево Chrome не снять. */
+async function findBrowserPid(debugPort) {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const pid = await browserPidOnce(debugPort);
+    if (pid) return pid;
+    await sleep(200);
+  }
+  return null;
+}
+
+/* Запасной путь, если PID браузера узнать не удалось: снимаем процессы по
+   уникальному пути профиля. taskkill не умеет фильтр по командной строке,
+   поэтому зовём PowerShell; команда передаётся в base64, чтобы не возиться
+   с экранированием кавычек. */
+function killByProfile(profile) {
+  if (process.platform !== 'win32' || !profile) return;
+  const script = 'Get-CimInstance Win32_Process -Filter "Name=\'chrome.exe\'" | ' +
+    'Where-Object { $_.CommandLine -like \'*' + profile + '*\' } | ' +
+    'ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }';
+  const encoded = Buffer.from(script, 'utf16le').toString('base64');
+  try {
+    spawnSync('powershell', ['-NoProfile', '-NonInteractive', '-EncodedCommand', encoded], { stdio: 'ignore' });
+  } catch (e) {}
 }
 
 async function fetchJson(url, attempts = 40) {
@@ -138,24 +241,28 @@ async function attach(wsUrl) {
     let msg;
     try { msg = JSON.parse(ev.data); } catch (e) { return; }
     if (msg.id && pending.has(msg.id)) {
-      const { resolve, reject } = pending.get(msg.id);
+      const entry = pending.get(msg.id);
       pending.delete(msg.id);
-      if (msg.error) reject(new Error(msg.error.message));
-      else resolve(msg.result);
+      clearTimeout(entry.timer);
+      if (msg.error) entry.reject(new Error(msg.error.message));
+      else entry.resolve(msg.result);
     }
   });
 
   function send(method, params) {
     const i = ++id;
     return new Promise((resolve, reject) => {
-      pending.set(i, { resolve, reject });
-      ws.send(JSON.stringify({ id: i, method: method, params: params || {} }));
-      setTimeout(() => {
+      const entry = { resolve: resolve, reject: reject, timer: null };
+      /* Таймер снимаем по ответу: иначе каждый вызов оставляет живой хэндл на
+         20 секунд, и процесс не завершается после close(). */
+      entry.timer = setTimeout(() => {
         if (pending.has(i)) {
           pending.delete(i);
           reject(new Error('таймаут CDP: ' + method));
         }
       }, 20000);
+      pending.set(i, entry);
+      ws.send(JSON.stringify({ id: i, method: method, params: params || {} }));
     });
   }
 
@@ -173,8 +280,16 @@ async function attach(wsUrl) {
     return res && res.result ? res.result.value : undefined;
   }
 
+  /* Закрытие канала: снимаем оставшиеся таймеры, закрываем сокет и, если
+     соединение ещё живо, добиваем его terminate() — иначе оно держит цикл. */
   function close() {
+    pending.forEach((entry) => {
+      clearTimeout(entry.timer);
+      try { entry.reject(new Error('соединение CDP закрыто')); } catch (e) {}
+    });
+    pending.clear();
     try { ws.close(); } catch (e) {}
+    try { if (typeof ws.terminate === 'function') ws.terminate(); } catch (e) {}
   }
 
   await send('Runtime.enable');
@@ -372,7 +487,7 @@ async function launch(options) {
   }
   console.log('Браузер: ' + chrome);
 
-  const server = external ? null : await startServer(root, port);
+  const local = external ? null : await startServer(root, port);
   if (external) console.log('Проверяем опубликованный сайт: ' + base);
 
   const profile = path.join(os.tmpdir(), 'bgf-flow-profile-' + Date.now());
@@ -387,16 +502,19 @@ async function launch(options) {
   ], { stdio: 'ignore' });
 
   let cdp = null;
+  let browserPid = null;
   try {
     const list = await fetchJson('http://127.0.0.1:' + debugPort + '/json/list');
     const page = list.find(t => t.type === 'page') || list[0];
     cdp = await attach(page.webSocketDebuggerUrl);
+    browserPid = await findBrowserPid(debugPort);
   } catch (err) {
     if (!keep) {
-      try { child.kill(); } catch (e) {}
-      try { fs.rmSync(profile, { recursive: true, force: true }); } catch (e) {}
+      killTree(child, await findBrowserPid(debugPort));
+      killByProfile(profile);
+      removeProfile(profile);
     }
-    if (server) server.close();
+    if (local) local.stop();
     throw err;
   }
 
@@ -462,10 +580,12 @@ async function launch(options) {
     close: function () {
       try { cdp.close(); } catch (e) {}
       if (!keep) {
-        try { child.kill(); } catch (e) {}
-        try { fs.rmSync(profile, { recursive: true, force: true }); } catch (e) {}
+        killTree(child, browserPid);
+        /* PID мог не отыскаться на старте — тогда добиваем по пути профиля. */
+        if (!browserPid) killByProfile(profile);
+        removeProfile(profile);
       }
-      if (server) server.close();
+      if (local) local.stop();
     }
   };
 }
