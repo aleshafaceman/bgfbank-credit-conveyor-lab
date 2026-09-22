@@ -99,7 +99,7 @@ module.exports = {
 **Files:**
 - Create: `scripts/lib/browser-check.js`
 - Modify: `scripts/form-flow-check.js:1-320` (заменить обвязку импортом)
-- Test: `scripts/form-flow-check.js` (существующие 77 проверок)
+- Test: `scripts/form-flow-check.js` (существующие 80 проверок)
 
 **Interfaces:**
 - Consumes: ничего.
@@ -383,12 +383,12 @@ const s = await launch({ root: path.resolve(__dirname, '..'), base: EXTERNAL_BAS
 - [ ] **Step 4: Запустить прогон и убедиться, что он зелёный**
 
 Run: `node scripts/form-flow-check.js`
-Expected: `Пройдено: 77`, `Провалено: 0`, код возврата 0. Число проверок обязано совпасть с прежним — перенос не меняет поведение.
+Expected: `Пройдено: 80`, `Провалено: 0`, код возврата 0. Число проверок обязано совпасть с прежним — перенос не меняет поведение. Baseline на коммите `91f7495` — 80 проверок (проверено запуском).
 
 - [ ] **Step 5: Проверить прогон по внешнему адресу**
 
 Run: `node scripts/form-flow-check.js --base=https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab`
-Expected: `Пройдено: 77`, `Провалено: 0`. Это доказывает, что обход кэша продолжает работать после переноса.
+Expected: `Пройдено: 80`, `Провалено: 0`. Это доказывает, что обход кэша продолжает работать после переноса.
 
 - [ ] **Step 6: Проверить негативным контролем**
 
@@ -404,7 +404,7 @@ git commit -m "Extract the browser check harness into a shared module.
 
 Five more surfaces need the same server, Chrome, CDP client and page
 helpers, so keep one copy instead of five. The form check keeps its
-command and its 77 assertions and only consumes the module now."
+command and its 80 assertions and only consumes the module now."
 ```
 
 ---
@@ -907,7 +907,7 @@ module.exports = {
 - [ ] **Step 2: Запустить формы и убедиться, что счёт не изменился**
 
 Run: `node scripts/surface-check.js --only=forms`
-Expected: `Пройдено: 77`, `Провалено: 0`. Счёт обязан совпасть.
+Expected: `Пройдено: 80`, `Провалено: 0`. Счёт обязан совпасть с baseline 80.
 
 - [ ] **Step 3: Заменить `scripts/form-flow-check.js` тонкой обёрткой**
 
@@ -944,7 +944,7 @@ const KEEP = process.argv.includes('--keep');
 - [ ] **Step 4: Проверить, что привычная команда работает**
 
 Run: `node scripts/form-flow-check.js`
-Expected: `Пройдено: 77`, `Провалено: 0`, код возврата 0.
+Expected: `Пройдено: 80`, `Провалено: 0`, код возврата 0.
 
 - [ ] **Step 5: Создать `scripts/run-all-checks.js`**
 
@@ -973,7 +973,7 @@ process.exit(failed === 0 ? 0 : 1);
 - [ ] **Step 6: Запустить всё вместе**
 
 Run: `node scripts/run-all-checks.js`
-Expected: `Все проверки пройдены`, код возврата 0. Суммарный счёт: аудит 555 + формы 77 + поверхности (число из задач 2–6).
+Expected: `Все проверки пройдены`, код возврата 0. Суммарный счёт: аудит 555 + формы 80 + поверхности (число из задач 2–6).
 
 - [ ] **Step 7: Негативный контроль на сборку**
 
