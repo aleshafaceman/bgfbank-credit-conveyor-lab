@@ -35,7 +35,9 @@ function runClientDemoBoot() {
         history.replaceState({}, '', url2.toString());
         setTimeout(function() {
             if (typeof loginWithPassword === 'function') {
-                try { loginWithPassword(); } catch (e) {}
+                try { loginWithPassword(); } catch (e) {
+                    console.error('Автологин клиента: вход по паролю не сработал', e);
+                }
             }
             /* loginWithPassword() останавливается на экране «Вход выполнен успешно»
                и ждёт нажатия кнопки. При автологине кнопку нажимать некому, а
@@ -43,7 +45,9 @@ function runClientDemoBoot() {
                входят как клиент. Поэтому входим сразу, если пароль принят. */
             var success = document.getElementById('view-auth-success');
             if (success && !success.classList.contains('hidden') && typeof enterApp === 'function') {
-                try { enterApp(); } catch (e) {}
+                try { enterApp(); } catch (e) {
+                    console.error('Автологин клиента: вход в кабинет не сработал — презентер останется на экране успеха', e);
+                }
             }
             setTimeout(function() {
                 if (typeof navigateTo === 'function') navigateTo('applications');

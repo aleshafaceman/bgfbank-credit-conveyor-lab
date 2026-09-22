@@ -18,6 +18,7 @@
 'use strict';
 
 const path = require('path');
+const fs = require('fs');
 const { createChecker, launch, findChrome } = require('./lib/browser-check');
 
 /* Карта поверхностей. Ключи заводятся заранее, чтобы задачи по остальным
@@ -64,29 +65,37 @@ const KEEP = process.argv.includes('--keep');
   (async function () {
     let s = null;
     let interrupted = false;
+    let skipped = 0;
     try {
       s = await launch({ root: root, base: BASE, chrome: chrome, port: PORT, keep: KEEP });
       for (const name of names) {
         /* Поверхность без файла — не провал этого прогона: задачи добавляют их
-           по одной. Такой ключ пропускаем вслух, чтобы пропуск был заметен. */
-        let mod = null;
-        try {
-          mod = require(SURFACES[name]);
-        } catch (err) {
-          if (err && err.code === 'MODULE_NOT_FOUND') {
-            console.log('\n=== ' + name + ' ===');
-            console.log('  ПРОПУСК ' + name + ': нет файла ' + SURFACES[name] + '.js — поверхность ещё не покрыта');
-          } else {
-            throw err;
-          }
+           по одной. Пропуск определяем по отсутствию файла, а не по
+           MODULE_NOT_FOUND: иначе упавший внутри файл (нет нужного модуля)
+           выглядел бы как «поверхность не покрыта» и давал ложную зелень. */
+        const file = path.resolve(__dirname, SURFACES[name] + '.js');
+        if (!fs.existsSync(file)) {
+          skipped++;
+          console.log('\n=== ' + name + ' ===');
+          console.log('  ПРОПУСК ' + name + ': нет файла ' + SURFACES[name] + '.js — поверхность ещё не покрыта');
+          continue;
+        }
+        const mod = require(file);
+        if (!mod || typeof mod.run !== 'function') {
+          throw new Error('поверхность ' + name + ': файл ' + SURFACES[name] +
+            '.js не экспортирует run(s, base, check)');
         }
         if (mod) await mod.run(s, s.base, check);
       }
       check.summary();
+      if (skipped) console.log('Пропущено поверхностей: ' + skipped);
     } catch (err) {
-      /* Прогон прервался: проверок могло не досчитаться, поэтому код возврата 1. */
+      /* Прогон прервался: проверок могло не досчитаться, поэтому код возврата 1.
+         Итог печатаем и здесь — иначе о падении не остаётся ни счёта, ни списка. */
       interrupted = true;
       console.log('\nПрогон прерван: ' + err.message);
+      check.summary();
+      if (skipped) console.log('Пропущено поверхностей: ' + skipped);
       if (BASE) {
         console.log('Если проверяется свежая выкладка, кэш Pages мог ещё не разойтись: ' +
           'подождите минуту и повторите прогон.');
