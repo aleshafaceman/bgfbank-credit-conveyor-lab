@@ -82,6 +82,36 @@ module.exports = {
        FAIL «очередь отрисована» не отличить от «элемента нет». */
     const why = function (r) { return r && r.message ? ' — ' + r.message : ''; };
 
+    /* Строгая проверка «страница отработала без сбоев».
+
+       Раньше здесь стояло __t.visibleErrors() — «нет видимых .err». На этой
+       поверхности такого класса в разметке нет вообще (замер: 0 вхождений), и
+       утверждение не могло упасть никогда: оно зеленело и на полностью
+       сломанной отрисовке. Список сбоев наполняет сам браузер — непойманное
+       исключение, необработанный отказ промиса или alert() (монитор
+       FAILURE_MONITOR_PARTS в scripts/lib/browser-check.js). Наличие монитора —
+       часть утверждения: если он не поставился, пустой список означал бы не
+       «сбоев нет», а «сбои никто не считал».
+
+       Перед действием, с которым связана проверка, сцена чистится
+       __t.resetFailures(), чтобы накопленное раньше не выдавалось за сбой этого
+       действия. Границы монитора: дочерние окна и iframe он не видит, а
+       недоступный внешний ресурс (шрифты fonts.googleapis.com в manager/index.html)
+       даёт ложный сбой — это сеть, а не АРМ. */
+    const noFailures = async function (msg) {
+      const state = await s.eval('return (function() { try {' +
+        ' return { list: __t.failures(), monitor: window.__bgfMonitor || null };' +
+        ' } catch (e) { return { error: e.message }; } })()');
+      if (state.error) return ok(false, msg + ' (монитор сбоев недоступен: ' + state.error + ')');
+      const list = Array.isArray(state.list) ? state.list : [];
+      const installed = !!(state.monitor && state.monitor.error === true &&
+        state.monitor.rejection === true && state.monitor.alert === true);
+      return ok(installed && list.length === 0,
+        msg + ' (' + (installed ? '' : 'монитор сбоев установлен не полностью: ' +
+          JSON.stringify(state.monitor) + '; ') +
+        (list.length ? list.join(' | ') : 'сбоев нет') + ')');
+    };
+
     check.section('АРМ менеджера — вход по ?autologin=1');
 
     await s.navigate(base + '/manager/?autologin=1');
@@ -176,10 +206,14 @@ module.exports = {
       JSON.stringify(activeCards) + ')');
     const empty = await s.eval('return __t.emptyBlocks()');
     ok(empty.length === 0, 'пустых видимых блоков на экране нет (найдено: ' + JSON.stringify(empty) + ')');
-    ok((await s.eval('return __t.visibleErrors()')).length === 0, 'ошибок на экране нет');
+    await noFailures('страница АРМ менеджера загрузилась без сбоев');
 
     check.section('АРМ менеджера — переключение вкладок');
 
+    /* Чистим список сбоев перед действием: проверка ниже относится именно к
+       переходу на вкладку чата, а не к тому, что накопилось при загрузке
+       (за это отвечает проверка выше). */
+    await s.eval('return __t.resetFailures()');
     await s.eval('return __t.click("tabChat")');
     r = await s.waitFor(CHAT_OPEN, 5000);
     ok(r.ok, 'клик по #tabChat раскрывает вкладку чата' + why(r));
@@ -195,8 +229,9 @@ module.exports = {
        возврат на заявки обязан показать тот же список (см. бриф). */
     ok((await s.eval('return ' + CARD_COUNT)) === cards,
       'уход на чат не теряет карточки очереди в #mAppCards');
-    ok((await s.eval('return __t.visibleErrors()')).length === 0, 'на вкладке чата ошибок нет');
+    await noFailures('переход на вкладку чата прошёл без сбоев страницы');
 
+    await s.eval('return __t.resetFailures()');
     await s.eval('return __t.click("tabApplications")');
     r = await s.waitFor(APPS_OPEN, 5000);
     ok(r.ok, 'клик по #tabApplications возвращает вкладку заявок' + why(r));
@@ -207,9 +242,10 @@ module.exports = {
     const restoredCards = await s.eval('return ' + CARD_COUNT);
     ok(restored.indexOf('4421-И') !== -1 && restoredCards === cards,
       'после возврата очередь восстановлена (карточек: ' + restoredCards + ')');
-    ok((await s.eval('return __t.visibleErrors()')).length === 0, 'после возврата ошибок нет');
+    await noFailures('возврат на вкладку заявок прошёл без сбоев страницы');
 
     /* Остальные вкладки: проверяем, что каждая раскрывается и чем-то заполнена. */
+    await s.eval('return __t.resetFailures()');
     await s.eval('return __t.click("tabClients")');
     r = await s.waitFor('return __t.visible("m-tab-clients") === true && ' +
       '__t.count("#clientListContainer .client-list-item") >= 2', 5000);
@@ -261,7 +297,7 @@ module.exports = {
       reports.text.indexOf('Доля одобрений') !== -1 && reports.text.indexOf('Артефактов в реестре') !== -1,
       'сводные плитки отчёта на месте (плиток: ' + reports.tiles + ')');
 
-    ok((await s.eval('return __t.visibleErrors()')).length === 0, 'на служебных вкладках ошибок нет');
+    await noFailures('обход служебных вкладок прошёл без сбоев страницы');
     /* Тексты-заглушки о сбое рендера (manager/js/navigation.js:49-56) не должны
        оставаться нигде на видимой странице. */
     const stubs = await s.eval('return (function() { var t = document.body.innerText || "";' +
@@ -302,6 +338,7 @@ module.exports = {
 
     /* Открываем карточку клиента так, как это делает человек: кликом по имени
        клиента в карточке заявки (.m-detail-client → openClientCard). */
+    await s.eval('return __t.resetFailures()');
     await s.eval('return (function() { var e = document.querySelector("#mAppDetail .m-detail-client");' +
       ' if (!e) return false; e.click(); return true; })()');
     r = await s.waitFor('return __t.visible("mClientDetail") === true', 5000);
@@ -321,7 +358,7 @@ module.exports = {
     ok(await s.eval('return (function() { var e = document.querySelector("#mClientDetail .m-back-link");' +
       ' return !!e && e.textContent.trim() === "Вернуться к заявке"; })()'),
       'в карточке клиента есть ссылка возврата «Вернуться к заявке»');
-    ok((await s.eval('return __t.visibleErrors()')).length === 0, 'в карточке клиента ошибок нет');
+    await noFailures('карточка клиента открылась без сбоев страницы');
 
     await s.eval('return (function() { var e = document.querySelector("#mClientDetail .m-back-link");' +
       ' if (!e) return false; e.click(); return true; })()');
@@ -332,6 +369,7 @@ module.exports = {
 
     check.section('АРМ менеджера — чат');
 
+    await s.eval('return __t.resetFailures()');
     await s.eval('return __t.click("tabChat")');
     r = await s.waitFor('return __t.visible("m-tab-chat") === true && __t.has("mChatWindow") === true', 5000);
     ok(r.ok, 'окно чата #mChatWindow построено' + why(r));
@@ -346,7 +384,7 @@ module.exports = {
       'поле ввода сообщения #mChatInput на месте');
     const quickReplies = await s.eval('return __t.count("#m-tab-chat .quick-reply")');
     ok(quickReplies >= 1, 'быстрые ответы менеджера доступны (кнопок: ' + quickReplies + ')');
-    ok((await s.eval('return __t.visibleErrors()')).length === 0, 'в чате ошибок нет');
+    await noFailures('работа в чате прошла без сбоев страницы');
 
     await s.eval('return __t.click("tabApplications")');
     r = await s.waitFor(APPS_OPEN, 5000);
@@ -462,6 +500,9 @@ module.exports = {
     ok(queueAgain.indexOf('4421-И') !== -1 && cardsAgain === cardsBeforeReload,
       'после перезагрузки и входа очередь та же (карточек: ' + cardsAgain +
       ', было: ' + cardsBeforeReload + ')');
-    ok((await s.eval('return __t.visibleErrors()')).length === 0, 'после перезагрузки ошибок нет');
+    /* Сброс здесь не нужен: перезагрузка открывает новый документ, и монитор
+       сбоев стартует с пустым списком. Проверка покрывает и перезагрузку, и
+       повторный вход кликом по #loginBtn. */
+    await noFailures('после перезагрузки и повторного входа сбоев страницы нет');
   },
 };
