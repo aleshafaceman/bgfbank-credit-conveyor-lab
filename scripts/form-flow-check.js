@@ -5,6 +5,9 @@
  * DevTools Protocol и проходит обе формы как клиент: клики, ввод, галочки,
  * перетаскивание ползунков, перезагрузка страницы, возврат и отправка заявки.
  *
+ * Сервер, Chrome, CDP-клиент, помощники страницы и счётчик проверок вынесены в
+ * общую обвязку scripts/lib/browser-check.js: её же используют прогоны поверхностей.
+ *
  * Внешних зависимостей нет: WebSocket встроен в Node 22+, CDP — обычный JSON-RPC.
  *
  * Запуск:  node scripts/form-flow-check.js
@@ -13,307 +16,31 @@
  *                            например --base=https://user.github.io/repo
  */
 
-const http = require('http');
-const fs = require('fs');
+'use strict';
+
 const path = require('path');
-const os = require('os');
-const { spawn } = require('child_process');
+const { createChecker, launch, HELPERS, findChrome } = require('./lib/browser-check');
 
 const ROOT = path.resolve(__dirname, '..');
 const PORT = Number((process.argv.find(a => a.startsWith('--port=')) || '').split('=')[1]) || 8123;
-const CDP_PORT = PORT + 1;
 const KEEP = process.argv.includes('--keep');
 /* С --base прогон идёт по опубликованному сайту: так проверяется и выкладка. */
 const EXTERNAL_BASE = ((process.argv.find(a => a.startsWith('--base=')) || '').split('=')[1] || '').replace(/\/+$/, '');
+const CHROME = (process.argv.find(a => a.startsWith('--chrome=')) || '').split('=')[1];
 
-const CHROME_CANDIDATES = [
-  (process.argv.find(a => a.startsWith('--chrome=')) || '').split('=')[1],
-  process.env.CHROME_PATH,
-  'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-  'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-  process.env.LOCALAPPDATA && path.join(process.env.LOCALAPPDATA, 'Google\\Chrome\\Application\\chrome.exe'),
-  'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
-  'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
-  '/usr/bin/google-chrome',
-  '/usr/bin/chromium',
-  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
-].filter(Boolean);
-
-let passed = 0;
-let failed = 0;
-const failures = [];
-
-function ok(cond, msg) {
-  if (cond) {
-    passed++;
-    console.log('  OK   ' + msg);
-  } else {
-    failed++;
-    failures.push(msg);
-    console.log('  FAIL ' + msg);
-  }
-}
-
-function section(title) {
-  console.log('\n=== ' + title + ' ===');
-}
+const check = createChecker();
+const ok = check.ok;
+const section = check.section;
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-/* ---------- локальный сервер ---------- */
-
-const MIME = {
-  '.html': 'text/html; charset=utf-8',
-  '.js': 'text/javascript; charset=utf-8',
-  '.css': 'text/css; charset=utf-8',
-  '.png': 'image/png',
-  '.json': 'application/json; charset=utf-8'
-};
-
-function startServer() {
-  const server = http.createServer((req, res) => {
-    let rel = decodeURIComponent(req.url.split('?')[0]);
-    if (rel.endsWith('/')) rel += 'index.html';
-    const file = path.join(ROOT, rel);
-    if (!file.startsWith(ROOT)) { res.writeHead(403); res.end(); return; }
-    fs.readFile(file, (err, data) => {
-      if (err) { res.writeHead(404); res.end('404'); return; }
-      res.writeHead(200, { 'Content-Type': MIME[path.extname(file)] || 'application/octet-stream' });
-      res.end(data);
-    });
-  });
-  return new Promise(resolve => server.listen(PORT, '127.0.0.1', () => resolve(server)));
-}
-
-/* ---------- Chrome + DevTools Protocol ---------- */
-
-function findChrome() {
-  return CHROME_CANDIDATES.find(p => { try { return fs.existsSync(p); } catch (e) { return false; } });
-}
-
-async function fetchJson(url, attempts = 40) {
-  for (let i = 0; i < attempts; i++) {
-    try {
-      const res = await fetch(url);
-      if (res.ok) return await res.json();
-    } catch (e) { /* Chrome ещё поднимается */ }
-    await sleep(250);
-  }
-  throw new Error('не дождались ответа от ' + url);
-}
-
-class Session {
-  constructor(ws) {
-    this.ws = ws;
-    this.id = 0;
-    this.pending = new Map();
-    ws.addEventListener('message', (ev) => {
-      let msg;
-      try { msg = JSON.parse(ev.data); } catch (e) { return; }
-      if (msg.id && this.pending.has(msg.id)) {
-        const { resolve, reject } = this.pending.get(msg.id);
-        this.pending.delete(msg.id);
-        if (msg.error) reject(new Error(msg.error.message));
-        else resolve(msg.result);
-      }
-    });
-  }
-
-  send(method, params) {
-    const id = ++this.id;
-    return new Promise((resolve, reject) => {
-      this.pending.set(id, { resolve, reject });
-      this.ws.send(JSON.stringify({ id, method, params: params || {} }));
-      setTimeout(() => {
-        if (this.pending.has(id)) {
-          this.pending.delete(id);
-          reject(new Error('таймаут CDP: ' + method));
-        }
-      }, 20000);
-    });
-  }
-
-  /* Выполняет выражение на странице и возвращает значение. */
-  async eval(expression) {
-    const res = await this.send('Runtime.evaluate', {
-      expression: '(function(){' + expression + '})()',
-      returnByValue: true,
-      awaitPromise: true
-    });
-    if (res && res.exceptionDetails) {
-      throw new Error('ошибка на странице: ' + (res.exceptionDetails.text || '') + ' ' +
-        JSON.stringify(res.exceptionDetails.exception && res.exceptionDetails.exception.description || ''));
-    }
-    return res && res.result ? res.result.value : undefined;
-  }
-
-  async navigate(url) {
-    await this.send('Page.navigate', { url });
-    await this.waitReady();
-  }
-
-  async waitReady() {
-    for (let i = 0; i < 60; i++) {
-      try {
-        const state = await this.eval('return document.readyState');
-        if (state === 'complete') { await sleep(250); return; }
-      } catch (e) { /* страница ещё грузится */ }
-      await sleep(120);
-    }
-    throw new Error('страница не догрузилась');
-  }
-
-  async reload() {
-    await this.send('Page.reload', { ignoreCache: true });
-    await this.waitReady();
-  }
-
-  /* Ждём нужный экран: часть переходов идёт через setTimeout (прескоринг, оценка).
-     Возвращает имя достигнутого экрана, чтобы вызывающий код показал его в отчёте. */
-  async waitFor(screenId, timeoutMs) {
-    const limit = timeoutMs || 8000;
-    const started = Date.now();
-    let last = null;
-    while (Date.now() - started < limit) {
-      last = await this.eval('return __t.screen()');
-      if (last === screenId) return last;
-      await sleep(150);
-    }
-    return last;
-  }
-}
-
-/* Помощники, которые выполняются внутри страницы. */
-const HELPERS = `
-window.__t = {
-  visible: function(id) {
-    var el = document.getElementById(id);
-    return !!(el && el.classList.contains('on'));
-  },
-  screen: function() {
-    var el = document.querySelector('.screen.on');
-    return el ? el.id : null;
-  },
-  text: function(id) {
-    var el = document.getElementById(id);
-    return el ? (el.textContent || '').replace(/\\s+/g, ' ').trim() : '';
-  },
-  click: function(id) {
-    var el = document.getElementById(id);
-    if (!el) return false;
-    el.click();
-    return true;
-  },
-  setVal: function(id, value) {
-    var el = document.getElementById(id);
-    if (!el) return false;
-    var proto = el.tagName === 'SELECT' ? window.HTMLSelectElement.prototype : window.HTMLInputElement.prototype;
-    var setter = Object.getOwnPropertyDescriptor(proto, 'value').set;
-    setter.call(el, String(value));
-    el.dispatchEvent(new Event('input', { bubbles: true }));
-    el.dispatchEvent(new Event('change', { bubbles: true }));
-    el.dispatchEvent(new Event('blur', { bubbles: true }));
-    return true;
-  },
-  check: function(id, on) {
-    var el = document.getElementById(id);
-    if (!el) return false;
-    if (el.checked !== !!on) el.click();
-    return el.checked === !!on;
-  },
-  ctaLabel: function() {
-    var b = document.getElementById('cta');
-    return b ? (b.textContent || '').trim() : '';
-  },
-  ctaDisabled: function() {
-    var b = document.getElementById('cta');
-    return !!(b && b.disabled);
-  },
-  inlineDisabled: function() {
-    var b = document.getElementById('esiaGo');
-    return !!(b && b.disabled);
-  },
-  barHidden: function() {
-    var b = document.getElementById('bar');
-    return !!(b && b.classList.contains('hidden'));
-  },
-  store: function() {
-    try { return localStorage.getItem('bgfbank_form_session'); } catch (e) { return null; }
-  },
-  stepCaption: function() {
-    var el = document.querySelector('.steps-caption');
-    return el ? (el.textContent || '').trim() : '';
-  },
-  dotTitles: function() {
-    return Array.prototype.slice.call(document.querySelectorAll('.steps .dot'))
-      .map(function(d) { return d.getAttribute('title') || ''; });
-  },
-  errorsVisible: function() {
-    return Array.prototype.filter.call(document.querySelectorAll('.err'), function(e) {
-      return e.classList.contains('on') && (e.textContent || '').trim();
-    }).map(function(e) { return e.id + ': ' + e.textContent.trim(); });
-  },
-  /* Порядок действий на экране: возврат должен идти перед основным действием. */
-  orderOf: function(ids) {
-    var all = Array.prototype.slice.call(document.querySelectorAll('.esia-actions button'));
-    return all.map(function(b) { return (b.textContent || '').trim(); });
-  },
-  /* Имитация перетаскивания ползунка: несколько шагов подряд.
-     Важно, что элемент остаётся тем же — если блок перерисовывается,
-     браузер теряет захват и ползунок «не едет». */
-  drag: function(id, steps) {
-    var el = document.getElementById(id);
-    if (!el) return { ok: false, reason: 'нет элемента ' + id };
-    var first = el;
-    var same = true;
-    var values = [];
-    for (var i = 0; i < steps.length; i++) {
-      var alive = document.getElementById(id);
-      if (alive !== first) same = false;
-      first = alive || first;
-      if (!alive) break;
-      alive.value = String(steps[i]);
-      alive.dispatchEvent(new Event('input', { bubbles: true }));
-      values.push(alive.value);
-    }
-    return {
-      ok: true,
-      sameElement: same,
-      values: values,
-      finalValue: document.getElementById(id) ? document.getElementById(id).value : null
-    };
-  }
-};
-return true;
-`;
-
-async function attach(wsUrl) {
-  const ws = new WebSocket(wsUrl);
-  await new Promise((resolve, reject) => {
-    ws.addEventListener('open', resolve, { once: true });
-    ws.addEventListener('error', () => reject(new Error('не удалось подключиться к CDP')), { once: true });
-  });
-  const s = new Session(ws);
-  await s.send('Runtime.enable');
-  await s.send('Page.enable');
-  return s;
-}
-
 /* ---------- сценарии ---------- */
-
-/* Уникальный параметр в адресе: у Pages кэш расходится по узлам, и один заход
-   может получить ещё старую страницу, пока другой уже отдаёт новую.
-   Локальному серверу это не нужно, а проверке адреса мешает. */
-function bust(url) {
-  if (!EXTERNAL_BASE) return url;
-  return url + (url.indexOf('?') === -1 ? '?' : '&') + 'nc=' + Date.now();
-}
 
 async function resetAndOpen(s, url) {
   /* Сначала чистим хранилище на текущей странице, потом идём по адресу:
      иначе первый заход по ?screen= снимет параметр из адреса до перезагрузки. */
   try { await s.eval('try { localStorage.clear(); } catch (e) {} return true;'); } catch (e) {}
-  await s.navigate(bust(url));
+  await s.navigate(url);
   await s.eval(HELPERS);
 }
 
@@ -554,58 +281,34 @@ async function runDeepLink(s, base) {
 /* ---------- запуск ---------- */
 
 (async function main() {
-  const chrome = findChrome();
+  const chrome = findChrome(CHROME);
   if (!chrome) {
     console.error('Chrome или Edge не найден. Укажите путь: --chrome=<путь>');
     process.exit(2);
   }
-  console.log('Браузер: ' + chrome);
-  const server = EXTERNAL_BASE ? null : await startServer();
-  if (EXTERNAL_BASE) console.log('Проверяем опубликованный сайт: ' + EXTERNAL_BASE);
-  const profile = path.join(os.tmpdir(), 'bgf-flow-profile-' + Date.now());
-  fs.mkdirSync(profile, { recursive: true });
+  const options = { root: ROOT, base: EXTERNAL_BASE, chrome: chrome, port: PORT, keep: KEEP };
 
-  const child = spawn(chrome, [
-    '--headless=new', '--disable-gpu', '--no-sandbox', '--no-first-run',
-    '--disable-extensions', '--hide-scrollbars',
-    '--user-data-dir=' + profile,
-    '--remote-debugging-port=' + CDP_PORT,
-    'about:blank'
-  ], { stdio: 'ignore' });
-
-  let session = null;
+  let s = null;
+  let interrupted = false;
   try {
-    const list = await fetchJson('http://127.0.0.1:' + CDP_PORT + '/json/list');
-    const page = list.find(t => t.type === 'page') || list[0];
-    session = await attach(page.webSocketDebuggerUrl);
-    const base = EXTERNAL_BASE || 'http://127.0.0.1:' + PORT;
+    s = await launch(options);
 
-    await runConsumer(session, base);
-    await runPledge(session, base);
-    await runDeepLink(session, base);
+    await runConsumer(s, s.base);
+    await runPledge(s, s.base);
+    await runDeepLink(s, s.base);
 
-    console.log('\n=== Итог ===');
-    console.log('Пройдено: ' + passed);
-    console.log('Провалено: ' + failed);
-    if (failed) {
-      console.log('\nЧто не прошло:');
-      failures.forEach(f => console.log('  - ' + f));
-    }
+    check.summary();
   } catch (err) {
-    failed++;
+    /* Прогон прервался: проверок могло не досчитаться, поэтому код возврата 1. */
+    interrupted = true;
     console.log('\nПрогон прерван: ' + err.message);
     if (EXTERNAL_BASE) {
       console.log('Если проверяется свежая выкладка, кэш Pages мог ещё не разойтись: ' +
         'подождите минуту и повторите прогон.');
     }
-    if (KEEP) console.log('Chrome оставлен для разбора: ' + profile);
+    if (KEEP) console.log('Chrome оставлен для разбора: ' + ((s && s.profile) || options.profile || ''));
   } finally {
-    try { if (session) session.ws.close(); } catch (e) {}
-    if (!KEEP) {
-      try { child.kill(); } catch (e) {}
-      try { fs.rmSync(profile, { recursive: true, force: true }); } catch (e) {}
-    }
-    if (server) server.close();
+    if (s) s.close();
   }
-  process.exit(failed ? 1 : 0);
+  process.exit(interrupted || check.failures().length ? 1 : 0);
 })();
