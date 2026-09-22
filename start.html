@@ -31,6 +31,10 @@
     .topbar { background: #fff; border-bottom: 1px solid var(--bgf-line); position: sticky; top: 0; z-index: 10; }
     .topbar-inner { max-width: 1080px; margin: 0 auto; padding: 12px 20px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
     .topbar img { height: 34px; display: block; }
+    /* Название банка — текстом, а не частью картинки: в логотипе оно набрано ниже
+       знака, поэтому в строке выглядело сдвинутым вниз. Так оба текста стоят
+       на одной линии, и выравнивание не зависит от полей внутри PNG. */
+    .topbar-brand { font-family: 'Roboto Condensed', Roboto, sans-serif; font-weight: 700; color: var(--bgf-navy); font-size: 17px; letter-spacing: .01em; }
     .topbar-title { font-family: 'Roboto Condensed', Roboto, sans-serif; font-weight: 700; color: var(--bgf-navy); font-size: 17px; letter-spacing: .01em; }
     .topbar-actions { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
     .btn {
@@ -140,7 +144,8 @@
 
 <div class="topbar">
     <div class="topbar-inner">
-        <img src="brand/logo-on-light.png" alt="БЖФ Банк">
+        <img src="brand/mark-on-light.png" alt="">
+        <span class="topbar-brand">БЖФ Банк</span>
         <span class="topbar-title">Кредитный конвейер · карта демо</span>
         <div class="topbar-actions">
             <a class="btn" href="https://github.com/aleshafaceman/bgfbank-credit-conveyor-lab/blob/main/DEMO.md" target="_blank" rel="noopener">Сценарий показа</a>
