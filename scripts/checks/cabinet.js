@@ -67,9 +67,14 @@ module.exports = {
        исполнятся заново, и на экране останется прежняя сессия. Уникальный адрес
        гарантирует новый документ; кабинет незнакомый параметр игнорирует. */
     let loginVisit = 0;
+    /* Путь до входа — чтобы сравнить с ним после: на GitHub Pages кабинет живёт
+       в подкаталоге, поэтому жёсткое «/index.html» здесь не годится. */
+    let pathBeforeLogin = '';
     const login = async function () {
       loginVisit += 1;
-      await s.navigate(base + '/index.html?fresh=' + loginVisit);
+      const urlBeforeLogin = new URL(base + '/index.html?fresh=' + loginVisit);
+      pathBeforeLogin = urlBeforeLogin.pathname;
+      await s.navigate(urlBeforeLogin.toString());
       let res = await s.waitFor('return typeof __t === "object" && __t.visible("authPhone") === true', 10000);
       if (!res.ok) return res;
       await s.eval('return __t.setVal("authPhone", "+7 (999) 123-45-67")');
@@ -88,9 +93,12 @@ module.exports = {
     ok(search.indexOf('demo=') === -1 && search.indexOf('autologin=') === -1 &&
       search.indexOf('checklist=') === -1,
       'адрес не обрастает служебными параметрами (сейчас: «' + search + '»)');
+    /* Сравниваем с путём ДО входа, а не с жёстким «/index.html»: на GitHub Pages
+       кабинет живёт в подкаталоге (/<репозиторий>/index.html), и жёсткая строка
+       делала проверку верной только на локальном сервере. */
     const pathAfterLogin = await s.eval('return window.location.pathname');
-    ok(pathAfterLogin === '/index.html',
-      'вход не меняет адрес — остаётся /index.html (сейчас: «' + pathAfterLogin + '»)');
+    ok(pathAfterLogin === pathBeforeLogin,
+      'вход не меняет адрес — путь остаётся «' + pathBeforeLogin + '» (сейчас: «' + pathAfterLogin + '»)');
     ok(await s.eval('return __t.has("appSidebar") === true'), 'боковое меню на месте');
     ok(!!(await s.eval('return __t.visible("appSidebar")')),
       'после входа боковое меню показано (класс app-logged-in включает его в css/styles.css:527)');
