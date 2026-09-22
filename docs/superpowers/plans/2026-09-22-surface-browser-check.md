@@ -473,7 +473,7 @@ module.exports = {
     check.section('Кабинет клиента — открытие и вход');
 
     await s.navigate(base + '/index.html?demo=1');
-    ok(await s.waitFor('return __t.loggedIn() === true'),
+    ok((await s.waitFor('return __t.loggedIn() === true')).ok,
       'вход по ?demo=1 выполнен');
     ok(await s.eval('return __t.active() <= 1'),
       'одновременно виден не больше одного экрана (сейчас: ' + await s.eval('return __t.active()') + ')');
@@ -498,7 +498,7 @@ module.exports = {
 
     check.section('Кабинет клиента — возврат и сцена');
     /* Ссылку возврата в кабинет добавляет скрипт js/demo-lab.js, поэтому ждём её появления. */
-    ok(await s.waitFor('return __t.hubLink() !== null', 5000),
+    ok((await s.waitFor('return __t.hubLink() !== null', 5000)).ok,
       'есть ссылка возврата на карту демо');
     const before = await s.eval('return __t.labKeys()');
     await s.reload();
@@ -559,7 +559,7 @@ module.exports = {
     const ok = check.ok;
     check.section('АРМ менеджера — вход');
     await s.navigate(base + '/manager/?autologin=1');
-    ok(await s.waitFor('return __t.visible("mainScreen")'),
+    ok((await s.waitFor('return __t.visible("mainScreen")')).ok,
       'вход по ?autologin=1 открывает рабочее место');
     ok(await s.eval('return __t.visible("loginBtn") === false'),
       'экран входа скрыт после автологина');
@@ -639,7 +639,7 @@ module.exports = {
     const ok = check.ok;
     check.section('Стол сделки — очередь');
     await s.navigate(base + '/deal-ops/?demo=1');
-    ok(await s.waitFor('return __t.count("#inbox-list .card-deal") > 0'),
+    ok((await s.waitFor('return __t.count("#inbox-list .card-deal") > 0')).ok,
       'очередь ОЗС не пуста');
     ok((await s.eval('return __t.text("inbox-title")')).length > 0,
       'заголовок очереди заполнен');
@@ -728,7 +728,7 @@ module.exports = {
     const ok = check.ok;
     check.section('АРМ андеррайтера — очередь');
     await s.navigate(base + '/underwriter/?demo=1');
-    ok(await s.waitFor('return __t.count("#inbox-list .card-deal") > 0'),
+    ok((await s.waitFor('return __t.count("#inbox-list .card-deal") > 0')).ok,
       'очередь АНД не пуста');
     ok((await s.eval('return __t.emptyBlocks()')).length === 0,
       'пустых блоков нет' + JSON.stringify(await s.eval('return __t.emptyBlocks()')));
@@ -811,7 +811,7 @@ module.exports = {
     const ok = check.ok;
     check.section('Стол продуктолога — открытие');
     await s.navigate(base + '/productolog/?demo=1');
-    ok(await s.waitFor('return __t.count("#inbox-list .card-deal") > 0'),
+    ok((await s.waitFor('return __t.count("#inbox-list .card-deal") > 0')).ok,
       'список сущностей продукта не пуст');
     ok((await s.eval('return __t.text("inbox-title")')).length > 0,
       'заголовок стола заполнен');
@@ -833,7 +833,7 @@ module.exports = {
 
     check.section('Стол продуктолога — роль риска');
     await s.navigate(base + '/productolog/?demo=1&arm=risk');
-    ok(await s.waitFor('return __t.count("#inbox-list .card-deal") > 0'),
+    ok((await s.waitFor('return __t.count("#inbox-list .card-deal") > 0')).ok,
       'стол риска открывается и заполнен');
     ok((await s.eval('return __t.visibleErrors()')).length === 0, 'ошибок нет');
 
