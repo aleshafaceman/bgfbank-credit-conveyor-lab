@@ -1858,6 +1858,25 @@ console.log('\n=== 17. Completion reads as a success ===');
     'the conditions step returns to the application summary instead');
 }
 
+console.log('\n=== 18. Only the permissions card header is centred ===');
+{
+  /* Центрируется ровно шапка карточки: бейдж «Госуслуги» и её заголовок.
+     Блок, строки разрешений и галочка остаются слева. */
+  const css = fs.readFileSync(path.join(root, 'shared/form-common.css'), 'utf8');
+  const rule = (selector) => (css.match(new RegExp(selector + '\\s*\\{[^}]*\\}')) || [''])[0];
+
+  assert(/justify-content:\s*center/.test(rule('\\.cp-head')),
+    'permissions card header is centred');
+  assert(/text-align:\s*left/.test(rule('\\.cp-grant')),
+    'permissions block itself stays left-aligned');
+  assert(!/justify-content:\s*center/.test(rule('\\.cp-row')),
+    'permission rows stay left-aligned');
+  assert(!/justify-content:\s*center/.test(rule('\\.cp-chips')),
+    'permission chips stay left-aligned');
+  assert(!/\.cp-grant\s*\+\s*\.check/.test(css),
+    'the confirmation checkbox is not centred');
+}
+
 console.log('\n=== Summary ===');
 console.log('Passed: ' + passed);
 console.log('Failed: ' + failed);

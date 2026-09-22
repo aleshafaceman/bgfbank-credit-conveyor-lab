@@ -46,7 +46,9 @@
 
 /* ===== Разрешения цифрового профиля ===== */
 .cp-grant { border: 1.5px solid var(--line, #e1e9f1); border-radius: 14px; padding: 16px 18px; margin: 16px 0 6px; text-align: left; }
-.cp-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+/* Шапка карточки по центру, строки разрешений остаются слева.
+   text-align на flex-контейнер не действует — центрируем через justify-content. */
+.cp-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center; }
 .cp-head b { font-size: 15px; color: var(--navy, #0B4697); }
 .cp-badge {
   font-size: 11px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase;
