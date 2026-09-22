@@ -286,8 +286,21 @@ async function attach(wsUrl) {
       awaitPromise: true
     });
     if (res && res.exceptionDetails) {
-      throw new Error('ошибка на странице: ' + (res.exceptionDetails.text || '') + ' ' +
-        JSON.stringify(res.exceptionDetails.exception && res.exceptionDetails.exception.description || ''));
+      const text = (res.exceptionDetails.text || '') + ' ' +
+        JSON.stringify(res.exceptionDetails.exception && res.exceptionDetails.exception.description || '');
+      /* Исключение, поднятое самим eval, не проходит через обработчик
+         window 'error' (браузер относит его к ошибке вычисления CDP), поэтому
+         монитор сбоев его не видел — и проверка «без сбоев» оставалась зелёной
+         там, где выражение упало. Дописываем сбой в тот же список, чтобы
+         `__t.failures()` не расходился с тем, что реально произошло. */
+      try {
+        await send('Runtime.evaluate', {
+          expression: 'window.__bgfFailures && window.__bgfFailures.push(' +
+            JSON.stringify('eval error: ' + text.trim()) + ')',
+          returnByValue: true
+        });
+      } catch (e) { /* страница могла уйти — сбой уже не записать */ }
+      throw new Error('ошибка на странице: ' + text);
     }
     return res && res.result ? res.result.value : undefined;
   }

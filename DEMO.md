@@ -8,7 +8,7 @@
 - Репозиторий: https://github.com/aleshafaceman/bgfbank-credit-conveyor (`v1.0-demo`)
 
 ### Эта копия (LAB — разработка)
-- **Форма happy-path v1 (ПК):** https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/form/
+- **Форма happy-path (ПК):** https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/form/
 - **АРМ сделки ОЗС/ОПЕРУ (мок открытия счёта):** https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/deal-ops/
 - **АРМ андеррайтера АНД/АПЗ:** https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/underwriter/
 - **АРМ продуктолога / риск-менеджера:** https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/productolog/
@@ -51,7 +51,7 @@ SMS/OTP — любой код. Госуслуги — имитация.
 3. После выкладки Pages подождите ~10 минут или **Ctrl+F5**. Режим инкогнито **не** обходит CDN GitHub Pages.
 4. Один браузер, две вкладки (общий `localStorage`). Split-view нет.
 
-Проверка: `node scripts/pre-release-audit.js` (Failed: 0).
+Проверка перед показом: `node scripts/run-all-checks.js` — одной командой (аудит, формы и все пять поверхностей). Возвращает код 1 при провале любого шага.
 
 ## Happy-path (5–7 мин)
 

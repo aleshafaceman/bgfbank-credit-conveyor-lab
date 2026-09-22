@@ -15,6 +15,9 @@
 
 'use strict';
 
+const common = require('./common');
+const why = common.why;
+
 /* Разделы кабинета — ровно тот список, что переключает navigateTo()
    из js/navigation.js. */
 const VIEWS = ['view-conveyor', 'view-applications', 'view-dashboard', 'view-mortgage',
@@ -47,9 +50,10 @@ const SCENE = 'var st = __t.labStore(); delete st[' + JSON.stringify(NOISY_KEY) 
 module.exports = {
   run: async function (s, base, check) {
     const ok = check.ok;
-    /* Сообщение проверки: при провале waitFor дописываем ошибку страницы, иначе
-       FAIL «раздел раскрыт» не отличить от «нет элемента». */
-    const why = function (r) { return r.message ? ' — ' + r.message : ''; };
+    /* Монитор сбоев страницы: список ведёт обвязка, помощник общий. Перед
+       действием, с которым связана проверка, список чистится, чтобы накопленное
+       раньше не выдавалось за сбой этого действия. */
+    const noFailures = function (msg) { return common.noFailures(s, ok, msg); };
 
     check.section('Кабинет клиента — открытие и вход по ?demo=1');
 
@@ -73,6 +77,7 @@ module.exports = {
 
     check.section('Кабинет клиента — мои заявки');
 
+    await s.eval('return __t.resetFailures()');
     await s.eval('return navigateTo("applications")');
     r = await s.waitFor('return ' + APPS_HIDDEN + ' === false', 5000);
     ok(r.ok, 'раздел «Мои заявки» раскрыт (без класса hidden)' + why(r));
@@ -87,7 +92,7 @@ module.exports = {
     const missing = SEEDED_APPS.filter(function (id) { return listText.indexOf(id) === -1; });
     ok(missing.length === 0,
       'демо-заявки из shared/data.js видны в списке (нет: ' + JSON.stringify(missing) + ')');
-    ok((await s.eval('return __t.visibleErrors()')).length === 0, 'ошибок на экране нет');
+    await noFailures('раздел «Мои заявки» отрисован без сбоев страницы');
 
     const visibleOnApps = await s.eval(VISIBLE_VIEWS);
     ok(visibleOnApps.length === 1 && visibleOnApps[0] === 'view-applications',
