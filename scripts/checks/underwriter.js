@@ -21,7 +21,7 @@
  *    выбирает первую заявку очереди: defaultState() ставит selectedId =
  *    firstIdForRole("and") (underwriter.js:136), а renderWork() снимает hidden,
  *    как только в очереди есть подходящая заявка. Замер на живой странице
- *    подтверждает: сразу после ?demo=1 #work-deal видим и заполнен (~2,4 тыс.
+ *    подтверждает: сразу после штатного сброса сцены #work-deal видим и заполнен (~2,4 тыс.
  *    символов), #work-empty скрыт. Поэтому утверждения «после клика карточка
  *    открылась» сами по себе ничего не проверяют: реакцию на выбор ловим кликом
  *    по ДРУГОЙ карточке, а переключение скрыт/видим — на пустой выборке фильтра
@@ -110,7 +110,8 @@ const BUS_TITLES = BUS_CATALOG.map(function (x) { return x.title; });
 const BUS_SYSTEMS = BUS_CATALOG.map(function (x) { return x.system; });
 const BUS_STEPS = BUS_CATALOG.length;
 
-/* Состояние каждого шага шины для заявки 101 (трек АНД) сразу после ?demo=1.
+/* Состояние каждого шага шины для заявки 101 (трек АНД) сразу после штатного
+   сброса сцены.
    Собрано из busRow()/defaultAppState()/skipPhone() и подтверждено замером: у
    АНД контур АПЗ помечен «контур АПЗ», звонок исключён автоодобрением, СМС и
    B2B ещё не отправлены. */
@@ -380,7 +381,7 @@ module.exports = {
 
     /* --- вход --- */
 
-    check.section('АРМ андеррайтера — очередь АНД после ?demo=1');
+    check.section('АРМ андеррайтера — очередь АНД на свежей сцене');
 
     /* Слепок лабораторного хранилища снимаем ДО захода на стол, на нейтральной
        странице того же origin. Проверять абсолютный список ключей нельзя:
@@ -392,12 +393,29 @@ module.exports = {
     await s.navigate(base + NEUTRAL_PAGE);
     const storeBefore = await s.eval('return __t.labStore()');
 
-    /* ?demo=1 сам сбрасывает bgfbank_lab_underwriter и кладёт свежую сцену из
-       мока (underwriter.js:846-850). */
-    await s.navigate(base + '/underwriter/?demo=1');
-    let r = await s.waitFor('return typeof __t === "object" && ' +
-      '__t.count("#inbox-list .card-deal") > 0 && __t.visible("work-deal") === true', 10000);
-    ok(r.ok, '?demo=1 открывает АРМ андеррайтера и наполняет очередь АНД' + why(r));
+    /* Свежая сцена стола. Раньше её давал ?demo=1, который стирал
+       bgfbank_lab_underwriter (underwriter.js:846-850); параметр удалён вместе с
+       демо-режимом, поэтому сцену готовит сам стол своим штатным сбросом —
+       ровно тем, что вызывает кнопка «Сбросить сцену» в шапке (resetDemo():
+       удаляет ключ стола и кладёт defaultState()).
+       Уникальный адрес `fresh` — не украшение: при переходе на УЖЕ открытый
+       адрес Chrome может отдать документ из back/forward-кэша, скрипты не
+       исполнятся заново, и на экране останется прежняя сцена. */
+    let visit = 0;
+    const openFresh = async function () {
+      visit += 1;
+      await s.navigate(base + '/underwriter/?fresh=' + visit);
+      const reset = await s.eval('return (function() { try { resetDemo(); return "ok"; }' +
+        ' catch (e) { return "ошибка: " + e.message; } })()');
+      if (reset !== 'ok') {
+        return { ok: false, error: null, message: 'штатный сброс сцены не сработал: ' + reset };
+      }
+      return s.waitFor('return typeof __t === "object" && ' +
+        '__t.count("#inbox-list .card-deal") > 0 && __t.visible("work-deal") === true', 10000);
+    };
+
+    let r = await openFresh();
+    ok(r.ok, 'штатный сброс сцены наполняет очередь АНД АРМ андеррайтера' + why(r));
     await noFailures('страница АРМ андеррайтера загрузилась без сбоев');
 
     const storeAfter = await s.eval('return __t.labStore()');
@@ -894,12 +912,13 @@ module.exports = {
       JSON.stringify(badgesApz) + ')');
     await noFailures('работа с решением АПЗ прошла без сбоев страницы');
 
-    check.section('АРМ андеррайтера — сцена: обычный вход хранит, ?demo=1 сбрасывает');
+    check.section('АРМ андеррайтера — сцена: обычный вход хранит, штатный сброс возвращает начало');
 
-    /* Порядок принципиален. Сначала вход БЕЗ ?demo=1: стол читает сцену из
-       localStorage, и одобренные решения обязаны быть на месте. Только потом
-       ?demo=1, который сцену честно стирает. Каждый переход — свой документ и
-       свой список сбоев, поэтому проверок сбоев здесь две. */
+    /* Порядок принципиален. Сначала вход по обычному адресу: стол читает сцену
+       из localStorage, и одобренные решения обязаны быть на месте. Только потом
+       штатный сброс (openFresh), который сцену честно возвращает к началу.
+       Каждый переход — свой документ и свой список сбоев, поэтому проверок
+       сбоев здесь две. */
     await s.navigate(base + '/underwriter/');
     r = await s.waitFor('return typeof __t === "object" && ' +
       '__t.count("#inbox-list .card-deal") === ' + APZ_IDS.length, 10000);
@@ -907,22 +926,23 @@ module.exports = {
     const badgesStored = await badges();
     const badgeStored103 = badgesStored.filter(function (b) { return b.id === APZ_IDS[0]; })[0];
     ok(r.ok && !!stored103 && stored103.step === 'approved' && stored103.role === 'apz',
-      'вход без ?demo=1 читает сцену из localStorage: роль АПЗ и шаг approved на месте (сейчас: ' +
+      'обычный вход читает сцену из localStorage: роль АПЗ и шаг approved на месте (сейчас: ' +
       JSON.stringify(stored103 && { role: stored103.role, step: stored103.step }) + ')' + why(r));
     ok(!!badgeStored103 && badgeStored103.badge === 'одобрено',
       'одобренная ранее заявка залога снова показана одобренной (сейчас: ' +
       JSON.stringify(badgesStored) + ')');
-    await noFailures('вход без ?demo=1 на сохранённой сцене прошёл без сбоев страницы');
+    await noFailures('обычный вход на сохранённой сцене прошёл без сбоев страницы');
 
-    await s.navigate(base + '/underwriter/?demo=1');
+    const freshReset = await openFresh();
     r = await s.waitFor('return typeof __t === "object" && ' +
       '__t.count("#inbox-list .card-deal") === ' + AND_IDS.length, 10000);
     const reset101 = await readApp(AND_IDS[0]);
     const reset103 = await readApp(APZ_IDS[0]);
-    ok(r.ok, '?demo=1 вернул стол к очереди АНД' + why(r));
+    ok(freshReset.ok && r.ok, 'штатный сброс вернул стол к очереди АНД' +
+      why(freshReset.ok ? r : freshReset));
     ok(!!reset101 && reset101.step === 'intake' && reset101.decision === null &&
       reset101.smsId === '' && !!reset103 && reset103.step === 'intake',
-      '?demo=1 стирает одобрения обеих заявок и роль: сцена сброшена (сейчас: ' +
+      'штатный сброс стирает одобрения обеих заявок и роль: сцена сброшена (сейчас: ' +
       JSON.stringify({ a101: reset101 && reset101.step, a103: reset103 && reset103.step }) + ')');
     const officerBack = await s.eval('return __t.text("officer-label")');
     const badgesReset = await badges();
@@ -930,7 +950,7 @@ module.exports = {
       badgesReset.every(function (b) { return b.badge === 'в очереди'; }),
       'после сброса дежурный снова АНД, а все заявки снова «в очереди» (сейчас: «' +
       officerBack + '», значки: ' + JSON.stringify(badgesReset) + ')');
-    await noFailures('сброс сцены по ?demo=1 прошёл без сбоев страницы');
+    await noFailures('штатный сброс сцены прошёл без сбоев страницы');
 
     check.section('АРМ андеррайтера — возврат на карту демо');
 

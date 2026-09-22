@@ -26,9 +26,8 @@
             <div style="margin-top:12px;"><a class="auth-link" onclick="switchAuthView('sms')">Войти по SMS-коду</a></div>
             <div class="auth-divider"><span>или</span></div>
             <button class="btn-auth gosuslugi" onclick="loginViaESIA()"><div class="gos-icon-sm">ГС</div> Войти через Госуслуги</button>
-            <div class="auth-footer auth-footer--demo">
-                <button type="button" class="btn-demo-reset" onclick="resetDemoDataReady()"><i class="fas fa-undo"></i> Сбросить демо · готово к показу</button>
-                <p style="margin:12px 0 0;font-size:12px;"><a class="auth-link" href="start.html">Карта демо: роли, сценарий, что меняем →</a></p>
+            <div class="auth-footer">
+                <p style="margin:0;font-size:12px;"><a class="auth-link" href="start.html">Что это за проект: роли и данные для входа →</a></p>
             </div>
         </div></div></div>
     </div>
@@ -123,7 +122,6 @@
             <!-- Ипотека скрыта в LAB-демо (заглушка) -->
             <a class="nav-link" data-page="profile" onclick="navigateTo('profile')"><i class="fas fa-user-circle"></i> Профиль</a>
             <a class="nav-link" data-page="settings" onclick="navigateTo('settings')"><i class="fas fa-cog"></i> Настройки</a>
-            <button type="button" class="btn-demo-reset btn-demo-reset--sidebar" onclick="resetDemoDataReady()"><i class="fas fa-undo"></i> Сброс демо</button>
             <a class="nav-link logout-link" onclick="logout()" style="margin-top: 12px; opacity: 0.5;"><i class="fas fa-sign-out-alt"></i> Выйти</a>
         </nav>
         <div class="user-profile">
@@ -265,11 +263,10 @@
 
                 <div id="settings-tab-security" class="hidden">
                     <div class="form-section">
-                        <h3><i class="fas fa-undo" style="color: #0B4697;"></i> Демо-режим</h3>
-                        <p class="section-desc">Если заявка уже одобрена и нужно повторить презентацию — сбросьте данные или создайте новую заявку</p>
+                        <h3><i class="fas fa-file-signature" style="color: #0B4697;"></i> Заявки</h3>
+                        <p class="section-desc">Нужна ещё одна заявка — создайте её здесь. Текущие заявки остаются в разделе «Мои заявки».</p>
                         <div style="display:flex;gap:12px;flex-wrap:wrap;">
                             <button type="button" class="btn btn-primary" style="max-width:240px;" onclick="startNewApplicationDemo()"><i class="fas fa-plus" style="margin-right:8px;"></i> Новая заявка</button>
-                            <button type="button" class="btn btn-outline" style="max-width:260px;margin-top:0;" onclick="resetDemoData()"><i class="fas fa-trash-alt" style="margin-right:8px;"></i> Сбросить демо-данные</button>
                         </div>
                     </div>
 
@@ -378,7 +375,7 @@
 <script src="shared/lk-application.js"></script>
 <script src="shared/lk-artifacts.js"></script>
 <script src="js/utils.js"></script>
-<script src="js/demo-lab.js?v=2"></script>
+<script src="js/demo-lab.js?v=3"></script>
 <script src="js/auth.js"></script>
 <script src="js/navigation.js"></script>
 <script src="js/conveyor.js"></script>
@@ -389,6 +386,6 @@
 <script src="js/chat.js"></script>
 <script src="js/scoring.js"></script>
 <script src="js/app.js"></script>
-<script src="js/features-lab.js"></script>
+<script src="js/features-lab.js?v=1"></script>
 </body>
 </html>

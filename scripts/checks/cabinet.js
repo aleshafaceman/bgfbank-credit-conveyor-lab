@@ -6,9 +6,11 @@
  * classList и по контейнерам #applicationsList и #documentsList, а не через
  * __t.screen().
  *
- * Вход проверяется так, как его делает человек: заходом на ?demo=1. Адрес сам
- * себя перенаправляет на ?autologin=1 (js/features-lab.js:22-52), входит в
- * кабинет и снимает служебные параметры из адреса.
+ * Вход проверяется так, как его делает человек: открыть index.html без
+ * параметров, ввести телефон и пароль в #authPhone/#authPassword, нажать «Войти»
+ * и затем «Войти в личный кабинет». Служебных параметров входа (?demo=1,
+ * ?autologin=1, ?checklist=1) в лаборатории больше нет — отдельный раздел
+ * проверяет, что они действительно ничего не делают.
  *
  * Контракт для раннера: module.exports = { run: async function (s, base, check) }.
  */
@@ -55,15 +57,40 @@ module.exports = {
        раньше не выдавалось за сбой этого действия. */
     const noFailures = function (msg) { return common.noFailures(s, ok, msg); };
 
-    check.section('Кабинет клиента — открытие и вход по ?demo=1');
+    check.section('Кабинет клиента — вход по логину и паролю');
 
-    await s.navigate(base + '/index.html?demo=1');
-    let r = await s.waitFor('return typeof __t === "object" && __t.loggedIn() === true', 10000);
-    ok(r.ok, 'вход по ?demo=1 выполнен (класс app-logged-in на #appShell)' + why(r));
+    /* Вход так, как его делает человек: поля заполняются, затем две кнопки
+       подряд. Служебных параметров входа в лаборатории больше нет, поэтому
+       проверка не может «войти» адресом.
+       Параметр `fresh` — не украшение проверки: при переходе на УЖЕ открытый
+       адрес Chrome может отдать документ из back/forward-кэша, скрипты не
+       исполнятся заново, и на экране останется прежняя сессия. Уникальный адрес
+       гарантирует новый документ; кабинет незнакомый параметр игнорирует. */
+    let loginVisit = 0;
+    const login = async function () {
+      loginVisit += 1;
+      await s.navigate(base + '/index.html?fresh=' + loginVisit);
+      let res = await s.waitFor('return typeof __t === "object" && __t.visible("authPhone") === true', 10000);
+      if (!res.ok) return res;
+      await s.eval('return __t.setVal("authPhone", "+7 (999) 123-45-67")');
+      await s.eval('return __t.setVal("authPassword", "password123")');
+      await s.eval('return __t.clickText("#view-auth-login .btn-auth.primary", "Войти")');
+      res = await s.waitFor('return __t.visible("view-auth-success") === true', 8000);
+      if (!res.ok) return res;
+      await s.eval('return __t.clickText("#view-auth-success .btn-auth.primary", "Войти в личный кабинет")');
+      return s.waitFor('return typeof __t === "object" && __t.loggedIn() === true', 10000);
+    };
+
+    let r = await login();
+    ok(r.ok, 'вход по телефону и паролю выполнен (класс app-logged-in на #appShell)' + why(r));
 
     const search = await s.eval('return window.location.search');
-    ok(search.indexOf('demo=') === -1 && search.indexOf('autologin=') === -1,
-      'адрес после входа очищен от служебных параметров (сейчас: «' + search + '»)');
+    ok(search.indexOf('demo=') === -1 && search.indexOf('autologin=') === -1 &&
+      search.indexOf('checklist=') === -1,
+      'адрес не обрастает служебными параметрами (сейчас: «' + search + '»)');
+    const pathAfterLogin = await s.eval('return window.location.pathname');
+    ok(pathAfterLogin === '/index.html',
+      'вход не меняет адрес — остаётся /index.html (сейчас: «' + pathAfterLogin + '»)');
     ok(await s.eval('return __t.has("appSidebar") === true'), 'боковое меню на месте');
     ok(!!(await s.eval('return __t.visible("appSidebar")')),
       'после входа боковое меню показано (класс app-logged-in включает его в css/styles.css:527)');
@@ -150,35 +177,80 @@ module.exports = {
     r = await s.waitFor('return ' + DOCS_HIDDEN + ' === false && ' + APPS_HIDDEN + ' === true', 5000);
     ok(r.ok, 'клик по пункту меню открыл документы' + why(r));
 
-    check.section('Кабинет клиента — возврат на карту демо');
+    check.section('Кабинет клиента — демо-режима больше нет');
 
-    /* Ссылку возврата добавляет js/demo-lab.js:131-143 в боковое меню. Статическая
-       ссылка на start.html есть ещё в оверлее входа (index.html:31), поэтому
-       проверяем именно #bgfHubLink, а не первую попавшуюся ссылку. */
-    await s.eval('return __t.resetFailures()');
-    r = await s.waitFor('return __t.has("bgfHubLink") === true', 5000);
-    ok(r.ok, 'ссылка возврата #bgfHubLink добавлена в боковое меню' + why(r));
-    ok(!!(await s.eval('return __t.visible("bgfHubLink")')), 'ссылка возврата видна в меню');
-    ok(!!(await s.eval('return /start\\.html/.test((document.getElementById("bgfHubLink") || {}).getAttribute("href") || "")')),
-      'ссылка возврата ведёт на start.html (сейчас: «' +
-      (await s.eval('return (document.getElementById("bgfHubLink") || {}).getAttribute("href")')) + '»)');
+    /* Служебные параметры входа удалены вместе с демо-режимом. Проверяем это по
+       поведению, а не по исходникам: адрес открывается, ждём заведомо дольше
+       прежних таймеров автологина (250 + 500 мс) и смотрим, что кабинет остался
+       на экране входа, а адрес не переписан. */
+    const DEMO_QUERIES = [
+      ['?demo=1', '?demo=1'],
+      ['?autologin=1', '?autologin=1'],
+      ['?checklist=1', '?checklist=1'],
+      ['?demo=1&autologin=1&checklist=1', 'набор прежних параметров']
+    ];
+    for (const pair of DEMO_QUERIES) {
+      const query = pair[0];
+      await s.navigate(base + '/index.html' + query);
+      r = await s.waitFor('return typeof __t === "object" && __t.visible("view-auth-login") === true', 8000);
+      await s.delay(1200);
+      const state = await s.eval('return { logged: __t.loggedIn(), login: __t.visible("view-auth-login"),' +
+        ' checklist: __t.has("bgfChecklist"), onboard: __t.has("bgfOnboard"),' +
+        ' search: window.location.search }');
+      ok(r.ok && state.logged === false && state.login === true &&
+        state.checklist === false && state.onboard === false,
+        pair[1] + ' не выполняет вход и не рисует демо-надстроек: кабинет остаётся на экране входа ' +
+        '(сейчас: ' + JSON.stringify(state) + ')');
+      ok(state.search.indexOf(query.slice(1).split('&')[0]) !== -1,
+        pair[1] + ' не переписывает адрес (сейчас: «' + state.search + '»)');
+      await noFailures(pair[1] + ' открывается без сбоев страницы');
+    }
 
-    /* Дымовая проверка проводки: клик по ссылке должен увести на карту демо.
-       Клик открывает НОВЫЙ документ обычной навигацией браузера, а помощники __t
+    /* В сайдбаре кабинета не осталось демо-пунктов: кнопки «Сброс демо» и
+       программно добавленной ссылки «Карта демо». Проверяем и элементы, и текст. */
+    r = await login();
+    ok(r.ok, 'вход после проверки параметров выполнен' + why(r));
+    const sidebar = await s.eval('return (function() { var s = document.getElementById("appSidebar");' +
+      ' if (!s) return null;' +
+      ' return { text: (s.textContent || "").replace(/\\s+/g, " ").trim(),' +
+      '   resetButtons: s.querySelectorAll(".btn-demo-reset").length,' +
+      '   hub: !!document.getElementById("bgfHubLink") }; })()');
+    ok(!!sidebar && sidebar.resetButtons === 0,
+      'в сайдбаре нет кнопки «Сброс демо» (кнопок .btn-demo-reset: ' +
+      (sidebar ? sidebar.resetButtons : 'сайдбар не найден') + ')');
+    ok(!!sidebar && sidebar.hub === false && sidebar.text.indexOf('Карта демо') === -1,
+      'в сайдбаре нет ссылки «Карта демо» (сейчас текст: «' + (sidebar ? sidebar.text : '') + '»)');
+
+    /* Файла подготовки показа больше нет: это проверяет сам сервер, а не строка в
+       разметке. fetch идёт с того же origin, что и кабинет. */
+    const resetStatus = await s.eval('return fetch("reset.html", { cache: "no-store" })' +
+      '.then(function(resp) { return resp.status; }).catch(function(e) { return "ошибка: " + e.message; })');
+    ok(resetStatus === 404,
+      'файла reset.html нет — запрос отдаёт 404 (сейчас: ' + JSON.stringify(resetStatus) + ')');
+
+    check.section('Кабинет клиента — возврат к карте демо с экрана входа');
+
+    /* После удаления демо-режима ссылка возврата у кабинета осталась одна — на
+       экране входа (index.html:29-31). Проверяем и её геометрию, и проводку:
+       клик открывает НОВЫЙ документ обычной навигацией браузера, а помощники __t
        обвязка внедряет только в navigate()/reload() — на карте демо их нет,
        поэтому common.noFailures() здесь не позвать: он читает список через
-       __t.failures(). Сбои читаем методом обвязки s.failures(): он работает без
-       __t и отдаёт либо { list, installed, monitor }, либо null — «список
-       недоступен». Монитор сбоев при этом работает и на новом документе: он
-       ставится на каждую новую страницу (Page.addScriptToEvaluateOnNewDocument),
-       а список создаётся заново — то есть читается ровно то, что случилось на
-       карте демо. */
-    await s.eval('return __t.click("bgfHubLink")');
+       __t.failures(). Сбои читаем методом обвязки s.failures(). */
+    await s.navigate(base + '/index.html?hub=' + Date.now());
+    r = await s.waitFor('return typeof __t === "object" && __t.visible("view-auth-login") === true', 8000);
+    const hubInfo = await s.eval('return (function() { var a = document.getElementById("view-auth-login")' +
+      '.querySelector(\'a[href="start.html"]\'); if (!a) return null; var r = a.getBoundingClientRect();' +
+      ' return { href: a.getAttribute("href"), visible: r.width > 0 && r.height > 0 }; })()');
+    ok(r.ok && !!hubInfo && hubInfo.visible === true && /start\.html/.test(String(hubInfo.href)),
+      'на экране входа есть видимая ссылка возврата на start.html (сейчас: ' + JSON.stringify(hubInfo) + ')');
+    ok(await s.eval('return (function() { var a = document.getElementById("view-auth-login")' +
+      '.querySelector(\'a[href="start.html"]\'); if (!a) return false; a.click(); return true; })()'),
+      'клик по ссылке возврата выполнен');
     r = await s.waitFor('return /start\\.html$/.test(window.location.pathname) && document.readyState === "complete"', 8000);
     await s.delay(300);
     ok(r.ok, 'клик по ссылке возврата открыл карту демо (адрес: «' +
       (await s.eval('return window.location.pathname')) + '»)' + why(r));
-    /* ГРАНИЦА ПРОВЕРКИ: карта демо (start.html:7-9) подключает шрифты с
+    /* ГРАНИЦА ПРОВЕРКИ: карта демо (start.html) подключает шрифты с
        fonts.googleapis.com, и на машине без сети сбой загрузки ресурса попадёт
        в список — тогда FAIL говорит о сети, а не о кабинете (в тексте сбоя виден
        сам адрес ресурса). Это та же граница, что описана у общего помощника
@@ -205,29 +277,26 @@ module.exports = {
 
     check.section('Кабинет клиента — сцена после перезагрузки');
 
-    /* Возвращаемся в кабинет: проверки этого раздела начинаются со входа на
-       чистую страницу, поэтому список сбоев чистим здесь, а не смотрим
-       накопленное на карте демо. */
-    await s.navigate(base + '/index.html?autologin=1');
-    r = await s.waitFor('return typeof __t === "object" && __t.loggedIn() === true', 10000);
-    ok(r.ok, 'повторный вход по ?autologin=1 выполнен' + why(r));
+    /* Возвращаемся в кабинет настоящим входом: проверки этого раздела
+       начинаются со входа на чистую страницу, поэтому список сбоев чистим здесь,
+       а не смотрим накопленное на карте демо. */
+    r = await login();
+    ok(r.ok, 'повторный вход по телефону и паролю выполнен' + why(r));
 
     /* Сцену сравниваем по «ключ → длина значения» без шумного ключа sync_ping:
        по одним именам ключей потеря содержимого не видна, а по сырым размерам
        сцена «терялась» бы из-за таймера.
        Сессию кабинета перезагрузка не сохраняет: js/app.js:62 на DOMContentLoaded
-       снимает app-logged-in, а сценарий демо входит заново по ?autologin=1
-       (start.html:370 — «входит как клиент без сброса»). Поэтому проверяем именно
-       сцену: она должна пережить перезагрузку и снова показать те же заявки. */
+       снимает app-logged-in. Поэтому проверяем именно сцену: она должна пережить
+       перезагрузку, а вход после неё — снова показать те же заявки. */
     const before = await s.eval(SCENE);
     ok(before.length > 20, 'сцена перед перезагрузкой не пуста (слепок: ' + before + ')');
     await s.reload();
     const after = await s.eval(SCENE);
     ok(before === after, 'перезагрузка не теряет данные сцены (до: ' + before + ', после: ' + after + ')');
 
-    await s.navigate(base + '/index.html?autologin=1');
-    r = await s.waitFor('return typeof __t === "object" && __t.loggedIn() === true', 10000);
-    ok(r.ok, 'после перезагрузки клиент входит заново по ?autologin=1 (вход без сброса сцены)' + why(r));
+    r = await login();
+    ok(r.ok, 'после перезагрузки клиент входит заново по логину и паролю' + why(r));
     await s.eval('return navigateTo("applications")');
     r = await s.waitFor('return typeof __t === "object" && __t.count("#applicationsList .application-card") >= 2', 5000);
     ok(r.ok, 'после перезагрузки и повторного входа список заявок снова заполнен' + why(r));
@@ -236,9 +305,8 @@ module.exports = {
     ok(missingAfter.length === 0,
       'после перезагрузки видны те же демо-заявки (нет: ' + JSON.stringify(missingAfter) + ')');
     /* Проверка относится ко всему разделу: вход после перезагрузки, повторный
-       вход по ?autologin=1 и повторная отрисовка списка заявок. Список сбоев
-       очищен перед первым входом этого раздела, поэтому накопленное на карте
-       демо сюда не попадает. */
+       вход и повторная отрисовка списка заявок. Список сбоев очищен перед первым
+       входом этого раздела, поэтому накопленное на карте демо сюда не попадает. */
     await noFailures('повторный вход и отрисовка сцены после перезагрузки прошли без сбоев страницы');
   },
 };

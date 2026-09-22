@@ -1587,10 +1587,9 @@ function syncArmChrome() {
     const el = document.getElementById(id);
     if (el) el.classList.toggle("hidden", arm !== "productolog");
   });
-  ["role-risk", "role-matrix"].forEach(function (id) {
-    const el = document.getElementById(id);
-    if (el) el.classList.toggle("hidden", arm !== "risk");
-  });
+  /* #role-risk и #role-matrix кнопки не прячем: роль риск-менеджера доступна
+     обычным переключателем ролей, как АНД/АПЗ у андеррайтера и ОЗС/ОПЕРУ у
+     стола сделки. ?arm=risk остаётся альтернативным входом в ту же роль. */
   if (document.title) {
     document.title = arm === "risk" ? "БЖФ · АРМ риск-менеджера" : "БЖФ · АРМ продуктолога";
   }
@@ -2357,11 +2356,9 @@ function render() {
 
 if (typeof location !== "undefined" && location.search) {
   const params = new URLSearchParams(location.search);
-  if (params.get("demo") === "1") {
-    localStorage.removeItem(STORE);
-    state = defaultState();
-    save();
-  }
+  /* ?arm=risk — не демо, а альтернативный вход в роль риск-менеджера: та же
+     страница, тот же стол, но сразу открыт АРМ риска. Кнопкой эта роль тоже
+     доступна (#arm-risk и #role-risk). */
   if (params.get("arm") === "risk") {
     state.role = "risk";
     state.selectedId = "scale:fico";

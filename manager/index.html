@@ -25,7 +25,6 @@
         <input type="password" id="passInput" name="passInput" autocomplete="current-password" placeholder="Пароль" value="manager123" style="width:100%;padding:14px;border:1px solid #cbd5e1;border-radius:10px;font-size:15px;text-align:center;margin-bottom:12px;">
         <div id="loginError" style="color:#dc2626;font-size:13px;margin-bottom:12px;display:none;"></div>
         <button id="loginBtn" style="width:100%;padding:14px;border-radius:12px;font-weight:700;font-size:15px;cursor:pointer;border:none;background:#0B4697;color:white;">Войти</button>
-        <button type="button" class="btn-demo-reset" style="width:100%;margin-top:12px;" onclick="resetManagerDemoData()"><i class="fas fa-undo"></i> Сбросить демо · готово к показу</button>
     </div>
 </div>
 
@@ -42,8 +41,7 @@
                 <div class="m-avatar">ЕС</div><div><div class="m-user-name">Елена Смирнова</div><div class="m-user-role">Кредитный менеджер</div></div>
                 <label class="m-fast-scoring" title="Ускорить скоринг для показа"><input type="checkbox" id="chkFastScoring" checked onchange="window.BGF_DEMO=window.BGF_DEMO||{};window.BGF_DEMO.fastScoring=this.checked" name="chkFastScoring"> Быстрый скоринг</label>
                 <label class="m-fast-scoring" title="Снять галочку — возможны проблемы и отказ"><input type="checkbox" id="chkScoringGreen" checked onchange="setManagerScoringMode(this.checked)" name="chkScoringGreen"> Зелёный скоринг</label>
-                <a class="m-logout" href="../start.html" title="Карта демо — точка входа презентации"><i class="fas fa-map"></i></a>
-                <button type="button" class="m-logout" title="Сброс демо" onclick="resetManagerDemoData()"><i class="fas fa-undo"></i></button>
+                <a class="m-logout" href="../start.html" title="Карта демо"><i class="fas fa-map"></i></a>
                 <button class="m-logout" id="logoutBtn"><i class="fas fa-sign-out-alt"></i></button>
             </div>
         </header>
@@ -141,7 +139,7 @@
 <script src="../shared/lk-application.js"></script>
 <script src="../shared/lk-artifacts.js"></script>
 <script src="js/utils.js"></script>
-<script src="js/demo-lab.js?v=2"></script>
+<script src="js/demo-lab.js?v=3"></script>
 <script src="js/navigation.js"></script>
 <script src="js/applications.js"></script>
 <script src="js/actions.js"></script>
@@ -151,7 +149,7 @@
 <script src="js/reports.js"></script>
 <script src="js/scoring.js"></script>
 <script src="js/manager.js"></script>
-<script src="js/features-lab.js"></script>
+<script src="js/features-lab.js?v=1"></script>
 <script>
 (function() {
     function safeCall(name, fn) {

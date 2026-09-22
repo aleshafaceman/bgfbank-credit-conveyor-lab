@@ -152,10 +152,6 @@ function continueOrStartApplication() {
     startNewApplicationDemo();
 }
 
-function resetDemoData() {
-    resetDemoDataReady();
-}
-
 function refreshDashboard() {
     const view = document.getElementById('view-dashboard');
     if (!view) return;

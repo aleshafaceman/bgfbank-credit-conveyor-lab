@@ -42,7 +42,7 @@ function renderApplicationList(filteredApps) {
         }).join('');
     } catch (err) {
         console.error('renderApplicationList failed', err);
-        container.innerHTML = '<div style="color:#94a3b8;font-size:13px;padding:12px;">Не удалось показать список заявок. <button type="button" class="m-btn m-btn-outline" onclick="resetManagerDemoData()">Сбросить демо</button></div>';
+        container.innerHTML = '<div style="color:#94a3b8;font-size:13px;padding:12px;">Не удалось показать список заявок. Обновите страницу.</div>';
     }
 
     if (!container._bgfClickBound) {
@@ -97,7 +97,7 @@ function selectManagerApp(appId) {
         console.error('selectManagerApp', appId, err);
         if (appDetail) {
             appDetail.innerHTML = '<div class="m-detail-empty"><p>Не удалось открыть заявку №' + (appId || '') + '</p>' +
-                '<p style="margin-top:12px;"><button type="button" class="m-btn m-btn-outline" onclick="resetManagerDemoData()">Сбросить демо</button></p></div>';
+                '<p style="margin-top:12px;">Обновите страницу и войдите снова.</p></div>';
         }
     }
 }
@@ -242,7 +242,7 @@ function renderApplicationDetail(appId) {
         bindManagerDetailActions(container);
     } catch (err) {
         console.error('renderApplicationDetail failed', appId, err);
-        container.innerHTML = '<div class="m-detail-empty"><p>Не удалось открыть заявку №' + appId + '</p><p style="font-size:12px;color:#94a3b8;">' + (err && err.message ? err.message : '') + '</p><p style="margin-top:12px;"><button type="button" class="m-btn m-btn-outline" onclick="resetManagerDemoData()">Сбросить демо</button></p></div>';
+        container.innerHTML = '<div class="m-detail-empty"><p>Не удалось открыть заявку №' + appId + '</p><p style="font-size:12px;color:#94a3b8;">' + (err && err.message ? err.message : '') + '</p><p style="margin-top:12px;">Обновите страницу и войдите снова.</p></div>';
     }
     } finally {
         window.__bgfRenderingDetail = false;

@@ -1410,13 +1410,5 @@ function render() {
   renderBus();
 }
 
-if (new URLSearchParams(location.search).get("demo") === "1") {
-  localStorage.removeItem(STORE);
-  localStorage.removeItem(APP_STORE);
-  localStorage.removeItem(SOPD_STORE);
-  state = defaultState();
-  save();
-}
-
 startPoll();
 render();

@@ -563,21 +563,25 @@ console.log('\n=== 7. HTML script order / critical refs ===');
     'manager: lk-artifacts after lk-application');
   const mgrFeatSrc = fs.readFileSync(path.join(root, 'manager/js/features-lab.js'), 'utf8');
   const clientFeatSrc = fs.readFileSync(path.join(root, 'js/features-lab.js'), 'utf8');
-  assert(!/mode === '1' \|\| mode === 'manager' \|\| mode === 'reset'/.test(mgrFeatSrc),
-    'manager ?demo=1 is not bundled with storage reset');
-  assert(/mode === 'reset' \|\| mode === 'manager'/.test(mgrFeatSrc) &&
-    /if \(mode === '1'\)/.test(mgrFeatSrc),
-    'manager resets storage only on demo=reset/manager, not demo=1');
-  assert(/manager\/\?autologin=1/.test(clientFeatSrc) && !/manager\/\?demo=1/.test(clientFeatSrc),
-    'presenter checklist opens manager without wiping storage');
-  assert(/resetManagerDemoData/.test(mgr) && !/не стирает заявку/.test(mgr),
-    'manager login has demo reset and no query-string hint on the form');
+  /* Демо-режима в лаборатории нет: ни автологина по адресу, ни чеклиста
+     ведущего, ни онбординг-подсказки, ни сброса сцены по параметру. Проверяется
+     именно исходник загрузчика кабинета — там эти ветки и жили. */
+  assert(!/autologin|checklist|runClientDemoBoot|maybeShowPresenterChecklist|maybeShowOnboarding/.test(clientFeatSrc),
+    'client features-lab has no autologin, presenter checklist or onboarding boot');
+  assert(!/autologin|runManagerDemoBoot|managerDemoRedirect/.test(mgrFeatSrc),
+    'manager features-lab has no autologin boot');
+  const clientDemoLabSrc = fs.readFileSync(path.join(root, 'js/demo-lab.js'), 'utf8');
+  assert(!/resetDemoDataReady|addHubLink|presentation-mode|bgfChecklist/.test(clientDemoLabSrc),
+    'client demo-lab has no scene reset, sidebar hub link or projector mode');
+  assert(/resetManagerDemoData/.test(mgr) === false &&
+    !/btn-demo-reset/.test(mgr) && !/btn-demo-reset/.test(index),
+    'neither cabinet nor manager login offers a demo reset button');
   const demoMd = fs.readFileSync(path.join(root, 'DEMO.md'), 'utf8');
-  assert(/\/manager\/\?autologin=1/.test(demoMd) && /\/manager\/\?demo=reset/.test(demoMd),
-    'DEMO.md tells presenter to autologin manager without a second reset');
   const readme = fs.readFileSync(path.join(root, 'README.md'), 'utf8');
-  assert(/\/manager\/\?autologin=1/.test(readme),
-    'README points manager demo at autologin, not wipe');
+  assert(!/demo=1|demo=reset|autologin|checklist=1|reset\.html/.test(demoMd + readme),
+    'docs carry no demo query parameters and no reset page');
+  assert(/password123/.test(demoMd) && /manager123/.test(demoMd),
+    'DEMO.md keeps the login credentials');
   assert(/id="docsUploadPanel"/.test(index) && /id="bgfLabFileInput"/.test(index),
     'client documents page has an upload panel and a file input');
   assert(/id="mDocsUploadPanel"/.test(mgr) && /id="bgfLabFileInput"/.test(mgr),
@@ -1496,21 +1500,24 @@ console.log('\n=== 13. Demo hub (start.html) entry point ===');
   assert(fs.existsSync(hubPath), 'demo hub start.html exists');
   const hub = fs.readFileSync(hubPath, 'utf8');
   [
-    ['index.html?autologin=1', 'client cabinet card links without wiping the scene'],
-    ['manager/?autologin=1', 'manager card links without wiping the scene'],
+    ['index.html', 'client cabinet card is linked'],
+    ['manager/', 'manager card is linked'],
     ['underwriter/', 'bank underwriter ARM card is linked'],
     ['deal-ops/', 'deal desk card is linked'],
     ['productolog/', 'productologist ARM card is linked'],
-    ['form/', 'application form card is linked'],
-    ['index.html?demo=1', 'hub offers an explicit fresh-show reset']
+    ['form/', 'application form card is linked']
   ].forEach(function(pair) {
-    assert(hub.indexOf(pair[0]) !== -1, pair[1]);
+    assert(hub.indexOf('href="' + pair[0] + '"') !== -1, pair[1]);
   });
   assert(/AS-IS/.test(hub) && /TO-BE/.test(hub), 'hub narrates AS-IS → TO-BE');
   assert(/conveyor/.test(hub), 'hub names the conveyor orchestrator');
   assert(/макет, а не прод/i.test(hub), 'hub states it is a mock, not production');
-  assert(/autologin=1[\s\S]*?не\s*сброс|без\s*сброса/i.test(hub) || /Не стирает сцену/.test(hub),
-    'hub marks the non-destructive entry as safe');
+  /* Ни одного демо-параметра, страницы подготовки показа и режима проектора на
+     карте быть не должно: кабинет и столы открываются обычным адресом. */
+  assert(!/demo=1|demo=reset|autologin|checklist=1/.test(hub),
+    'hub carries no demo query parameters');
+  assert(!/reset\.html/.test(hub), 'hub does not link the removed reset page');
+  assert(!/режим проектора|клавиша <b>P<\/b>/i.test(hub), 'hub has no projector mode note');
 
   // Каждая поверхность обязана иметь возврат на карту демо — иначе показ превращается в тупик.
   [
@@ -1519,12 +1526,18 @@ console.log('\n=== 13. Demo hub (start.html) entry point ===');
     ['deal-ops/index.html', '../start.html', 'deal desk links to the demo hub'],
     ['underwriter/index.html', '../start.html', 'underwriter desk links to the demo hub'],
     ['productolog/index.html', '../start.html', 'productolog desk links to the demo hub'],
-    ['form/index.html', '../start.html', 'application form links to the demo hub'],
-    ['js/demo-lab.js', 'start.html', 'client sidebar adds the demo hub link']
+    ['form/index.html', '../start.html', 'application form links to the demo hub']
   ].forEach(function(spec) {
     const src = fs.readFileSync(path.join(root, spec[0]), 'utf8');
     assert(src.indexOf(spec[1]) !== -1, spec[2]);
   });
+
+  // Ссылку возврата в сайдбар кабинета больше никто не подкладывает скриптом:
+  // единственная ссылка кабинета — на экране входа (index.html).
+  const clientDemoLab = fs.readFileSync(path.join(root, 'js/demo-lab.js'), 'utf8');
+  const cabinetHtmlSrc = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  assert(!/bgfHubLink/.test(clientDemoLab) && !/bgfHubLink/.test(cabinetHtmlSrc),
+    'client sidebar gets no scripted demo hub link');
 
   // Каждая содержательная поверхность обязана иметь возврат: иначе показ упирается
   // в страницу без выхода. start.html — сам хаб, ему ссылка не нужна.
@@ -1564,29 +1577,24 @@ console.log('\n=== 13. Demo hub (start.html) entry point ===');
   });
   assert(bad.length === 0, 'every hub link resolves to an existing file' + (bad.length ? ' — broken: ' + bad.join(', ') : ''));
 
-  // Полный сброс: одна кнопка вместо обхода пяти поверхностей вручную.
-  const resetPath = path.join(root, 'reset.html');
-  assert(fs.existsSync(resetPath), 'reset.html prepares the whole scene');
-  const resetSrc = fs.existsSync(resetPath) ? fs.readFileSync(resetPath, 'utf8') : '';
-  [
-    ['index.html?demo=1', 'reset covers the client cabinet'],
-    ['manager/?demo=reset', 'reset covers the manager cabinet'],
-    ['deal-ops/?demo=1', 'reset covers the deal desk'],
-    ['underwriter/?demo=1', 'reset covers the underwriter desk'],
-    ['productolog/?demo=1', 'reset covers the productolog desk'],
-    ['start.html', 'reset returns the presenter to the hub']
-  ].forEach(function(pair) {
-    assert(resetSrc.indexOf(pair[0]) !== -1, pair[1]);
+  /* Страницы подготовки показа больше нет: сцену возвращает к началу только
+     кнопка «Сбросить сцену» на самой поверхности, и она не трогает чужие
+     хранилища. Проверяем и отсутствие файла, и отсутствие ссылок на него. */
+  assert(!fs.existsSync(path.join(root, 'reset.html')),
+    'reset.html scene-preparation page is removed');
+  assert(!/reset\.html/.test(hub), 'hub has no link to the removed reset page');
+  const resetRefs = ['README.md', 'DEMO.md', 'start.html'].filter(function(rel) {
+    return /reset\.html/.test(fs.readFileSync(path.join(root, rel), 'utf8'));
   });
-  assert(hub.indexOf('reset.html') !== -1, 'hub offers the one-button scene reset');
-  // Скрытые фреймы не должны попасть в проверку ссылок хаба: они относительные к reset.html.
-  const resetBad = [...resetSrc.matchAll(/src="([^"#?]+)(?:\?[^"]*)?"/g)].map(function(m) { return m[1]; })
-    .filter(function(h) { return !/^https?:/.test(h); })
-    .filter(function(h) {
-      const target = h.endsWith('/') ? path.join(root, h, 'index.html') : path.join(root, h);
-      return !fs.existsSync(target);
-    });
-  assert(resetBad.length === 0, 'every reset target resolves' + (resetBad.length ? ' — broken: ' + resetBad.join(', ') : ''));
+  assert(resetRefs.length === 0,
+    'no docs or hub pages mention reset.html' + (resetRefs.length ? ' — found in: ' + resetRefs.join(', ') : ''));
+
+  // Кнопка сброса сцены есть у каждого стола — это обычное действие пользователя,
+  // а не демо-надстройка: она возвращает к началу только свою поверхность.
+  ['deal-ops/index.html', 'underwriter/index.html', 'productolog/index.html'].forEach(function(rel) {
+    const src = fs.readFileSync(path.join(root, rel), 'utf8');
+    assert(/onclick="resetDemo\(\)"/.test(src), rel + ' offers its own scene reset button');
+  });
 
   // Карта «что выбирать на каждом столе» должна совпадать с данными моков,
   // иначе ведущий ищет в очереди номер, которого там нет.
@@ -1602,7 +1610,7 @@ console.log('\n=== 13. Demo hub (start.html) entry point ===');
 
   // Целостность ссылок на самих поверхностях показа: битая ссылка — это тупик,
   // ради отсутствия которых хаб и делался. docs/ — архив источников, не поверхности.
-  const surfaces = ['index.html', 'start.html', 'reset.html', 'manager/index.html',
+  const surfaces = ['index.html', 'start.html', 'manager/index.html',
     'deal-ops/index.html', 'underwriter/index.html', 'productolog/index.html',
     'form/index.html', 'form-pledge/index.html'];
   const brokenRefs = [];

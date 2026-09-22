@@ -843,12 +843,6 @@ function render() {
   renderBus();
 }
 
-if (typeof location !== "undefined" && location.search && new URLSearchParams(location.search).get("demo") === "1") {
-  localStorage.removeItem(STORE);
-  state = defaultState();
-  save();
-}
-
 if (typeof document !== "undefined" && document.getElementById("inbox-list")) {
   render();
 }

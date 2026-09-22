@@ -24,15 +24,15 @@
  *    вариантов выдачи есть title с ПОЛНЫМ именем варианта. Имя варианта (и
  *    название продукта) — единственный надёжный признак карточки, поэтому
  *    карточка ищется по имени из мока.
- *  - `?demo=1` стирает хранилище и кладёт defaultState(): роль products,
- *    выбран продукт 2 (залог), вкладка terms, и стол САМ открывает первый
- *    элемент — #work-deal видим и заполнен (~4,5 тыс. символов) сразу после
- *    загрузки. Поэтому утверждение «после клика карточка открылась» само по
- *    себе ничего не проверяет; реакцию ловим кликом по ДРУГОЙ карточке.
+ *  - Свежая сцена получается штатным сбросом стола (кнопка «Сбросить сцену» →
+ *    resetDemo()): хранилище стирается и в него кладётся defaultState() — роль
+ *    products, выбран продукт 2 (залог), вкладка terms, и стол САМ открывает
+ *    первый элемент — #work-deal видим и заполнен (~4,5 тыс. символов). Поэтому
+ *    утверждение «после клика карточка открылась» само по себе ничего не
+ *    проверяет; реакцию ловим кликом по ДРУГОЙ карточке.
  *  - `&arm=risk` переключает АРМ: роль становится risk, выбран «Кредитный
- *    балл», в шапке остаётся одна видимая группа разделов (риск + матрица).
- *    Замер: ровно так и происходит, документ переименовывается в «АРМ
- *    риск-менеджера».
+ *    балл». Роль риска доступна и кнопками (#arm-risk, #role-risk, #role-matrix)
+ *    — параметр остался только альтернативным входом.
  *  - ссылка возврата на карту демо — <a class="hub-link" href="../start.html">
  *    БЕЗ идентификатора (index.html:34), поэтому __t.click("hubLink") не
  *    сработает: элемент надо найти по href, как в manager.js, deal-ops.js и
@@ -215,7 +215,7 @@ const busLabels = function (overrides) {
     return over[t] || 'ожидание';
   });
 };
-/* Свежая сцена ?demo=1: ни один шаг не читался (state.bus содержит только
+/* Свежая сцена стола: ни один шаг не читался (state.bus содержит только
    loginom, productolog.js:98). */
 const BUS_FRESH = busLabels();
 /* После выбора пакета и выгрузки таблицы: setSelectedPackage() отмечает
@@ -332,19 +332,36 @@ module.exports = {
     const clickTab = function (label) { return clickExact('#work-deal .work-head .filter', label); };
     const clickInboxFilter = function (label) { return clickExact('#inbox-list .filter', label); };
 
-    /* Навигация без ?demo=1 и &arm=risk. Параметр `nc` — не украшение: при
+    /* Навигация без &arm=risk. Параметр `fresh` — не украшение: при
        переходе на УЖЕ открытый адрес Chrome отдаёт кадр из back/forward-кэша,
        скрипты не исполняются заново, и на экране остаётся прежняя сцена из
        памяти, пока в хранилище лежит другая (замер: переход на /productolog/
-       после ?demo=1&arm=risk показал матрицу при role=matrix в хранилище, а
+       после страницы с другой ролью показал матрицу при role=matrix в хранилище, а
        следующий заход — старые карточки каталога при role=regions). Стол читает
-       только `demo` и `arm` (productolog.js:2358-2369), поэтому лишний параметр
+       только `arm` (productolog.js:2358-2369), поэтому лишний параметр
        для поверхности безвреден, а проверке даёт настоящий новый документ.
 
        Счётчик свой: Date.now() в двух подряд вызовах может совпасть и снова
        попасть в кэш. */
     let visit = 0;
     const freshUrl = function () { visit += 1; return base + '/productolog/?fresh=' + visit; };
+
+    /* Свежая сцена стола: раньше её давал ?demo=1, который стирал
+       bgfbank_lab_productolog и клал defaultState(); параметр удалён вместе с
+       демо-режимом, поэтому сцену готовит сам стол штатным сбросом — тем же, что
+       вызывает кнопка «Сбросить сцену» в шапке (resetDemo():
+       removeItem(STORE); state = defaultState(); save(); render()).
+       Возвращает форму waitFor: { ok, error, message } — у сброса нет своей
+       асинхронности, но вызывающий код читает .ok одинаково. */
+    const openFresh = async function () {
+      await s.navigate(freshUrl());
+      const reset = await s.eval('return (function() { try { resetDemo(); return "ok"; }' +
+        ' catch (e) { return "ошибка: " + e.message; } })()');
+      if (reset !== 'ok') {
+        return { ok: false, error: null, message: 'штатный сброс сцены не сработал: ' + reset };
+      }
+      return { ok: true, error: null, message: '' };
+    };
 
     /* Клик по карточке очереди с именем name из мока и подтверждение по СЦЕНЕ
        сразу двумя признаками: выбранным стал именно этот вариант (selectedSliceId)
@@ -459,7 +476,7 @@ module.exports = {
 
     /* --- вход --- */
 
-    check.section('Стол продуктолога — каталог после ?demo=1');
+    check.section('Стол продуктолога — каталог на свежей сцене');
 
     /* Слепок лабораторного хранилища снимаем ДО захода на стол, на нейтральной
        странице того же origin. Абсолютный список ключей проверять нельзя: браузер
@@ -469,15 +486,15 @@ module.exports = {
     await s.navigate(base + NEUTRAL_PAGE);
     const storeBefore = await s.eval('return __t.labStore()');
 
-    /* ?demo=1 сам стирает bgfbank_lab_productolog и кладёт свежую сцену из мока
-       (productolog.js:2358-2364). */
-    await s.navigate(base + '/productolog/?demo=1');
+    /* Свежая сцена из мока — штатным сбросом стола (openFresh). */
+    const freshOpened = await openFresh();
     /* Первая страница очереди: каталог продуктов с коридором и пять вариантов
        выдачи (PAGE_SIZE = 5). Число проверяется как сумма двух известных
        частей, а не как «больше нуля». */
     let r = await s.waitFor('return typeof __t === "object" && __t.count("#inbox-list .card-deal") === ' +
       INBOX_CARDS_PAGE1 + ' && __t.visible("work-deal") === true && __t.visible("work-empty") === false', 10000);
-    ok(r.ok, '?demo=1 открывает стол продуктолога и наполняет каталог' + why(r));
+    ok(freshOpened.ok && r.ok, 'штатный сброс сцены открывает стол продуктолога и наполняет каталог' +
+      why(freshOpened.ok ? r : freshOpened));
     await noFailures('страница стола продуктолога загрузилась без сбоев');
     const storeAfter = await s.eval('return __t.labStore()');
     const beforeKeys = Object.keys(storeBefore).sort();
@@ -497,13 +514,13 @@ module.exports = {
       ', лишние ключи: ' + JSON.stringify(foreignAdded) +
       ', изменённые: ' + JSON.stringify(foreignChanged) + ')');
 
-    /* Состав сцены ?demo=1 сверяется с моком целиком: роль, выбранный объект,
+    /* Состав свежей сцены сверяется с моком целиком: роль, выбранный объект,
        вкладка, фильтр, страница и РАЗМЕРЫ каталогов. Если мок поменяют, а
        проверку нет, упадут не загадочные утверждения ниже, а эта предпосылка. */
     const demo = await demoState();
     ok(!!demo && demo.role === 'products' && demo.selectedId === 'product:2' &&
       demo.productTab === 'terms' && demo.sliceStatus === 'all' && demo.slicePage === 1,
-      '?demo=1 кладёт сцену продуктолога: роль products, открыт продукт 2 (залог), вкладка terms, ' +
+      'штатный сброс кладёт сцену продуктолога: роль products, открыт продукт 2 (залог), вкладка terms, ' +
       'фильтр all — ровно как в defaultState() (сейчас: ' +
       JSON.stringify(demo && { role: demo.role, selectedId: demo.selectedId, productTab: demo.productTab,
         sliceStatus: demo.sliceStatus, slicePage: demo.slicePage }) + ')');
@@ -552,7 +569,7 @@ module.exports = {
        (state.selectedId) и выбранный вариант выдачи (state.selectedSliceId).
        Но вариант подсвечивается только на вкладке «Варианты выдачи» — в
        sliceCardsHtml() условие `productTab === "slices"` (productolog.js:1603),
-       а ?demo=1 открывает вкладку «Условия». Поэтому на свежей сцене подсвечен
+       а свежая сцена открывает вкладку «Условия». Поэтому на свежей сцене подсвечен
        ровно продукт, и это фиксируется как факт разметки, а не как пожелание:
        реакция на выбор варианта проверяется ниже, на открытой вкладке. */
     const onStart = await cardOn();
@@ -740,9 +757,10 @@ module.exports = {
     check.section('Стол продуктолога — роли: заголовок и содержимое');
 
     await resetFailures();
-    /* Роли-разделы в порядке разметки (index.html:26-30). Риск и матрица скрыты
-       классом hidden, а он в CSS задан как display: none (@media print тоже
-       добавляет .hidden), поэтому у них и класс, и нулевая геометрия. */
+    /* Роли-разделы в порядке разметки (index.html:26-30). Все пять кнопок видны
+       всегда: роли риска и матрицы больше не скрыты классом hidden — так же
+       устроены АНД/АПЗ у андеррайтера и ОЗС/ОПЕРУ у стола сделки. АРМ-группа
+       (#arm-productolog/#arm-risk) остаётся, но ничего не прячет у ролей риска. */
     const arms = await armState();
     const sectionsVisible = arms.visible.filter(function (x) { return x.w > 0; })
       .map(function (x) { return x.id; });
@@ -753,17 +771,16 @@ module.exports = {
     ok(arms.sectionCount === SECTION_ROLES.length &&
       JSON.stringify(arms.armsOn) === JSON.stringify(['arm-productolog']) &&
       JSON.stringify(arms.sectionsOn) === JSON.stringify(['role-products']) &&
-      JSON.stringify(sectionsVisible) === JSON.stringify(['role-products', 'role-options', 'role-regions']) &&
-      JSON.stringify(sectionsHidden) === JSON.stringify(HIDDEN_BY_DEFAULT) &&
-      sectionsAbsent.length === 0,
-      'по умолчанию включён АРМ продуктолога и роль «Продукты», а роли риска и матрицы ' +
-      'скрыты CSS-классом (включено: ' + JSON.stringify(arms.armsOn) + ' / ' + JSON.stringify(arms.sectionsOn) +
+      JSON.stringify(sectionsVisible) === JSON.stringify(SECTION_ROLES) &&
+      sectionsHidden.length === 0 && sectionsAbsent.length === 0,
+      'по умолчанию включён АРМ продуктолога и роль «Продукты», а все пять ролей-разделов видны ' +
+      'кнопками (включено: ' + JSON.stringify(arms.armsOn) + ' / ' + JSON.stringify(arms.sectionsOn) +
       ', видимы: ' + JSON.stringify(sectionsVisible) + ', скрыты: ' + JSON.stringify(sectionsHidden) +
       ', нет в разметке: ' + JSON.stringify(sectionsAbsent) + ')');
-    ok(await s.eval('return document.getElementById("role-risk").className === "role hidden" && ' +
-      'document.getElementById("role-matrix").className === "role hidden"'),
-      'скрытые роли помечены классом hidden, а не просто невидимы: ' +
-      '«' + (await s.eval('return document.getElementById("role-risk").className')) + '»');
+    ok(await s.eval('return document.getElementById("role-risk").className === "role" && ' +
+      'document.getElementById("role-matrix").className === "role"'),
+      'роли риска и матрицы не помечены классом hidden: «' +
+      (await s.eval('return document.getElementById("role-risk").className')) + '»');
 
     /* Каждая роль переключается КЛИКОМ, а не вызовом setRole(): проверяется то,
        что делает человек. Роль обязана сменить и заголовок, и состав очереди,
@@ -832,6 +849,25 @@ module.exports = {
     ok(productsClicked === true && r.ok && backH1 === ROLE_STATE.products.firstH1 && backH1 !== optH1,
       'возврат на роль «Продукты» снова открывает каталог целей (сейчас: «' + backH1 + '»)' + why(r));
     await noFailures('переключение ролей прошло без сбоев страницы');
+
+    /* Роль риска доступна КНОПКОЙ, а не только адресом ?arm=risk: клик по
+       #role-risk открывает шкалы, а возврат в АРМ продуктолога делает видимая
+       кнопка #arm-productolog. Раньше эти роли были скрыты классом hidden и
+       попасть в них можно было только параметром адреса. */
+    await resetFailures();
+    const roleRiskClick = await s.eval('return __t.click("role-risk")');
+    r = await s.waitFor('return /^Шкалы риска/.test(__t.text("inbox-title")) && ' +
+      '__t.count("#inbox-list .card-deal") === ' + SCALE_TITLES.length, 6000);
+    ok(roleRiskClick === true && r.ok,
+      'клик по кнопке #role-risk открывает шкалы риска без параметра в адресе' + why(r));
+    ok(await s.eval('return __t.visible("role-matrix") === true'),
+      'кнопка #role-matrix видна в АРМ риска');
+    const armProductologClick = await s.eval('return __t.click("arm-productolog")');
+    r = await s.waitFor('return /^Продукты/.test(__t.text("inbox-title")) && ' +
+      '__t.count("#inbox-list .card-deal") === ' + INBOX_CARDS_PAGE1, 6000);
+    ok(armProductologClick === true && r.ok,
+      'видимая кнопка #arm-productolog возвращает АРМ продуктолога и каталог' + why(r));
+    await noFailures('переключение в АРМ риска кнопкой и обратно прошло без сбоев страницы');
 
     /* --- вкладки продукта --- */
 
@@ -919,13 +955,14 @@ module.exports = {
     check.section('Стол продуктолога — переключатели продукта и проверка витрины');
 
     await resetFailures();
-    /* Работа с пакетами идёт на СВЕЖЕЙ сцене: ?demo=1 возвращает выбранные
+    /* Работа с пакетами идёт на СВЕЖЕЙ сцене: штатный сброс возвращает выбранные
        пакеты продукта к defaultState() (turbo_2), иначе ожидание зависело бы от
        того, какой пакет успела выбрать предыдущая поверхность в том же
        браузере. */
-    await s.navigate(base + '/productolog/?demo=1');
+    const freshForPackages = await openFresh();
     r = await s.waitFor('return __t.count("#inbox-list .card-deal") === ' + INBOX_CARDS_PAGE1, 10000);
-    ok(r.ok, 'перед разбором пакетов стол снова на свежей сцене ?demo=1' + why(r));    /* Реакция панели продукта на действие. Кнопки-пилюли пакетов вызывают
+    ok(freshForPackages.ok && r.ok, 'перед разбором пакетов стол снова на свежей сцене' +
+      why(freshForPackages.ok ? r : freshForPackages));    /* Реакция панели продукта на действие. Кнопки-пилюли пакетов вызывают
        setSelectedPackage(): меняется и подсветка пилюли, и карточка пакета, и
        сетка ставок КИ из снимка OnePage. Значения ожиданий взяты из мока
        (mock.js:207-214 для turbo_3), а не со страницы. */
@@ -1062,12 +1099,15 @@ module.exports = {
 
     /* --- режим риска --- */
 
-    check.section('Стол продуктолога — режим риска (?demo=1&arm=risk)');
+    check.section('Стол продуктолога — режим риска (&arm=risk)');
 
     /* Запоминаем сцену продуктолога до ухода: по ней ниже видно, что режим риска
-       не пишет в хранилище. */
+       не пишет в хранилище. Сначала свежая сцена штатным сбросом, затем заход с
+       альтернативным входом &arm=risk: он переводит роль в памяти страницы, не
+       трогая хранилище. */
     const productologStore = await demoState();
-    await s.navigate(base + '/productolog/?demo=1&arm=risk');
+    const freshForRisk = await openFresh();
+    await s.navigate(freshUrl() + '&arm=risk');
     r = await s.waitFor('return typeof __t === "object" && ' +
       '__t.count("#inbox-list .card-deal") === ' + SCALE_TITLES.length +
       ' && __t.visible("work-deal") === true', 10000);
@@ -1075,13 +1115,14 @@ module.exports = {
     const riskNames = await cardNames();
     const riskSectionsVisible = riskArm.visible.filter(function (x) { return x.w > 0; })
       .map(function (x) { return x.id; });
-    ok(r.ok, '&arm=risk открывает стол риск-менеджера и наполняет список шкал' + why(r));
+    ok(freshForRisk.ok && r.ok, '&arm=risk открывает стол риск-менеджера и наполняет список шкал' +
+      why(freshForRisk.ok ? r : freshForRisk));
     ok(riskArm.documentTitle === TITLE_RISK &&
       JSON.stringify(riskArm.armsOn) === JSON.stringify(['arm-risk']),
       'документ и шапка переключились на АРМ риск-менеджера (сейчас: «' + riskArm.documentTitle +
       '», включено: ' + JSON.stringify(riskArm.armsOn) + ')');
-    /* Главное утверждение поправки: скрытые по умолчанию роли риска и матрицы
-       появляются только в этом режиме, а роли каталога уходят. */
+    /* В режиме риска АРМ прячет роли каталога, а роли риска и матрицы видны —
+       они больше не скрыты классом hidden, потому что доступны и кнопками. */
     ok(JSON.stringify(riskSectionsVisible) === JSON.stringify(['role-risk', 'role-matrix']) &&
       HIDDEN_BY_DEFAULT.every(function (id) { return riskSectionsVisible.indexOf(id) !== -1; }),
       'в режиме риска видны ровно роли «Риск» и «Матрица», а продукты/опции/регионы скрыты ' +
@@ -1095,7 +1136,7 @@ module.exports = {
     /* Заголовок очереди в режиме риска — «Шкалы риска», а не «Каталог». */
     ok((await inboxTitle()).indexOf('Шкалы риска') === 0,
       'заголовок очереди в режиме риска — «Шкалы риска» (сейчас: «' + (await inboxTitle()).slice(0, 40) + '…»)');
-    /* Сцена ?demo=1&arm=risk: роль риска живёт в памяти страницы, а в хранилище
+    /* Сцена в режиме риска: роль риска живёт в памяти страницы, а в хранилище
        остаётся сброшенная сцена продуктолога. Фиксируем это как факт, а не как
        пожелание: иначе следующее утверждение о перезагрузке было бы загадкой. */
     const riskStore = await demoState();
@@ -1187,10 +1228,11 @@ module.exports = {
       JSON.stringify(storeRestored) + ')');
     await noFailures('перезагрузка на сохранённой сцене прошла без сбоев страницы');
 
-    /* ?demo=1 обязан СБРОСИТЬ сцену: роль возвращается к продуктам, выбран
-       первый продукт, сцена снова равна defaultState(). Проверяем по
-       хранилищу, а не по виду: вид рисует тот же state, что и хранилище. */
-    await s.navigate(base + '/productolog/?demo=1');
+    /* Штатный сброс (кнопка «Сбросить сцену») обязан ВЕРНУТЬ сцену к началу:
+       роль возвращается к продуктам, выбран первый продукт, сцена снова равна
+       defaultState(). Проверяем по хранилищу, а не по виду: вид рисует тот же
+       state, что и хранилище. */
+    const freshReset = await openFresh();
     r = await s.waitFor('return typeof __t === "object" && __t.count("#inbox-list .card-deal") === ' +
       INBOX_CARDS_PAGE1 + ' && /^Продукты/.test(__t.text("inbox-title"))', 10000);
     const reset = await demoState();
@@ -1202,11 +1244,13 @@ module.exports = {
       ' return c.getAttribute("title") !== null; }).length');
     const resetSliceCards = await s.eval('return Array.prototype.filter.call(' +
       'document.querySelectorAll("#inbox-list .card-deal"), function(c) {' +
-      ' return c.getAttribute("title") !== null; }).length');    ok(r.ok, '?demo=1 возвращает стол к роли «Продукты» и первой странице очереди' + why(r));
+      ' return c.getAttribute("title") !== null; }).length');
+    ok(freshReset.ok && r.ok, 'штатный сброс возвращает стол к роли «Продукты» и первой странице очереди' +
+      why(freshReset.ok ? r : freshReset));
     ok(!!reset && reset.role === 'products' && reset.selectedId === 'product:2' &&
       reset.productTab === 'terms' && reset.sliceStatus === 'all' && reset.slicePage === 1 &&
       reset.availability === AVAILABILITY_CELLS,
-      '?demo=1 стирает сцену и кладёт defaultState(): роль products, продукт 2, вкладка terms, ' +
+      'штатный сброс стирает сцену и кладёт defaultState(): роль products, продукт 2, вкладка terms, ' +
       'клеток доступности ' + AVAILABILITY_CELLS + ' (сейчас: ' + JSON.stringify(reset && {
         role: reset.role, selectedId: reset.selectedId, productTab: reset.productTab,
         availability: reset.availability }) + ')');
@@ -1222,7 +1266,7 @@ module.exports = {
       PRODUCTS[1].name + '» (включено: ' + JSON.stringify(resetArm.sectionsOn) +
       ', подсвечено: ' + JSON.stringify(resetOn) + ', показано вариантов: ' +
       JSON.stringify(resetShown) + ')');
-    await noFailures('сброс сцены по ?demo=1 прошёл без сбоев страницы');
+    await noFailures('штатный сброс сцены прошёл без сбоев страницы');
 
     /* Ссылку возврата рисует разметка (productolog/index.html:34,
        <a class="hub-link" href="../start.html">), идентификатора у неё нет —

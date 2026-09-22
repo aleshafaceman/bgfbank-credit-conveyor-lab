@@ -1,67 +1,12 @@
-// ========== LAB features: boot, timeline, EGRN, PDF, onboarding, checklist ==========
+// ========== LAB features: timeline, EGRN, PDF, загрузка документов ==========
+// Кабинет открывается на экране входа и работает только от действий человека:
+// ни автологина по адресу, ни чеклиста ведущего, ни онбординг-подсказки здесь нет.
 
 window.BGF_DEMO = window.BGF_DEMO || {
     fastScoring: true,
     managerOnlyApproval: true,
     lastKnownStatuses: {}
 };
-
-function getDemoQuery() {
-    try {
-        return new URLSearchParams(window.location.search || '');
-    } catch (e) {
-        return { get: function() { return null; } };
-    }
-}
-
-function runClientDemoBoot() {
-    var q = getDemoQuery();
-    var mode = q.get('demo');
-    var auto = q.get('autologin');
-
-    if (mode === '1' || mode === 'client' || mode === 'reset') {
-        if (typeof resetDemoStorage === 'function') resetDemoStorage({ includeUser: false });
-        var url = new URL(window.location.href);
-        url.searchParams.delete('demo');
-        url.searchParams.set('autologin', '1');
-        if (q.get('checklist') === '1') url.searchParams.set('checklist', '1');
-        window.location.replace(url.toString());
-        return;
-    }
-
-    if (auto === '1') {
-        var url2 = new URL(window.location.href);
-        url2.searchParams.delete('autologin');
-        history.replaceState({}, '', url2.toString());
-        setTimeout(function() {
-            if (typeof loginWithPassword === 'function') {
-                try { loginWithPassword(); } catch (e) {
-                    console.error('Автологин клиента: вход по паролю не сработал', e);
-                }
-            }
-            /* loginWithPassword() останавливается на экране «Вход выполнен успешно»
-               и ждёт нажатия кнопки. При автологине кнопку нажимать некому, а
-               карта демо (start.html:365-372) обещает, что ?demo=1 и ?autologin=1
-               входят как клиент. Поэтому входим сразу, если пароль принят. */
-            var success = document.getElementById('view-auth-success');
-            if (success && !success.classList.contains('hidden') && typeof enterApp === 'function') {
-                try { enterApp(); } catch (e) {
-                    console.error('Автологин клиента: вход в кабинет не сработал — презентер останется на экране успеха', e);
-                }
-            }
-            setTimeout(function() {
-                if (typeof navigateTo === 'function') navigateTo('applications');
-                if (typeof showDemoToast === 'function') {
-                    showDemoToast('Режим показа готов', { icon: 'fa-play', duration: 2500 });
-                }
-                maybeShowOnboarding();
-                if (q.get('checklist') === '1') maybeShowPresenterChecklist(true);
-            }, 500);
-        }, 250);
-    } else if (q.get('checklist') === '1') {
-        maybeShowPresenterChecklist(true);
-    }
-}
 
 function getAppTimelineSteps(app) {
     if (!app) return [];
@@ -175,55 +120,7 @@ function printOfferPackage() {
     w.document.close();
 }
 
-function maybeShowOnboarding() {
-    try {
-        if (localStorage.getItem('bgf_lab_onboarded') === '1') return;
-    } catch (e) {}
-    var existing = document.getElementById('bgfOnboard');
-    if (existing) return;
-    var el = document.createElement('div');
-    el.id = 'bgfOnboard';
-    el.className = 'bgf-onboard';
-    el.innerHTML = '<div class="bgf-onboard-card">' +
-        '<h3>Короткий тур</h3>' +
-        '<ol><li>Откройте заявку и нажмите «Продолжить оформление»</li>' +
-        '<li>Выберите объект залога → ЕСИА → примите пакет</li>' +
-        '<li>Напишите менеджеру в чат</li>' +
-        '<li>На вкладке менеджера запустите скоринг</li></ol>' +
-        '<button type="button" class="btn btn-primary" id="bgfOnboardOk">Понятно</button>' +
-        '</div>';
-    document.body.appendChild(el);
-    document.getElementById('bgfOnboardOk').onclick = function() {
-        try { localStorage.setItem('bgf_lab_onboarded', '1'); } catch (e) {}
-        el.remove();
-    };
-}
-
-function maybeShowPresenterChecklist(force) {
-    if (document.getElementById('bgfChecklist')) return;
-    var q = getDemoQuery();
-    if (!force && q.get('checklist') !== '1') return;
-    var el = document.createElement('aside');
-    el.id = 'bgfChecklist';
-    el.className = 'bgf-checklist';
-    el.innerHTML = '<div class="bgf-checklist-head"><b>Скрипт ведущего</b><button type="button" id="bgfChecklistClose">×</button></div>' +
-        '<label><input type="checkbox" id="cl-reset" name="cl-reset"> Сброс демо</label>' +
-        '<label><input type="checkbox" id="cl-esia" name="cl-esia"> Клиент: залог + ЕСИА</label>' +
-        '<label><input type="checkbox" id="cl-turbo" name="cl-turbo"> Пакет «Турбо 2.0»</label>' +
-        '<label><input type="checkbox" id="cl-chat" name="cl-chat"> Чат → менеджер</label>' +
-        '<label><input type="checkbox" id="cl-scoring" name="cl-scoring"> Скоринг → одобрение</label>' +
-        '<label><input type="checkbox" id="cl-toast" name="cl-toast"> Тост «Одобрено»</label>' +
-        '<a href="manager/?autologin=1" target="_blank">Менеджер (без сброса)</a>';
-    document.body.appendChild(el);
-    document.getElementById('bgfChecklistClose').onclick = function() { el.remove(); };
-}
-
 document.addEventListener('DOMContentLoaded', function() {
     if (!document.getElementById('appShell')) return;
-    runClientDemoBoot();
     bindProfileIncomeUpload();
-    setTimeout(function() {
-        var auth = document.getElementById('authFullscreen');
-        if (auth && auth.classList.contains('hidden')) maybeShowOnboarding();
-    }, 1500);
 });

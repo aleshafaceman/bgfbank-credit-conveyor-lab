@@ -1,44 +1,8 @@
-// ========== LAB manager features: negative scoring, demo boot, timeline ==========
+// ========== LAB manager features: negative scoring, timeline ==========
+// Ни автологина по адресу, ни сброса сцены здесь нет: менеджер входит кнопкой,
+// а сцена меняется только его действиями.
 
 window.BGF_DEMO = window.BGF_DEMO || { fastScoring: true, managerOnlyApproval: true, scoringGreen: true };
-
-function managerDemoRedirect(autologin) {
-    var url = new URL(window.location.href);
-    url.searchParams.delete('demo');
-    if (autologin) url.searchParams.set('autologin', '1');
-    window.location.replace(url.toString());
-}
-
-function runManagerDemoBoot() {
-    try {
-        var q = new URLSearchParams(window.location.search || '');
-        var mode = q.get('demo');
-        // Только demo=reset / demo=manager чистят общий localStorage с клиентом.
-        // Старый ?demo=1 здесь стирал принятый пакет — в инкогнито после клиента кнопки
-        // оказывались на сиде processing, а не на той заявке, которую только что собрали.
-        if (mode === 'reset' || mode === 'manager') {
-            if (typeof resetDemoStorage === 'function') resetDemoStorage({ includeUser: false });
-            managerDemoRedirect(true);
-            return;
-        }
-        if (mode === '1') {
-            managerDemoRedirect(true);
-            return;
-        }
-        if (q.get('autologin') === '1') {
-            var url2 = new URL(window.location.href);
-            url2.searchParams.delete('autologin');
-            history.replaceState({}, '', url2.toString());
-            setTimeout(function() {
-                var btn = document.getElementById('loginBtn');
-                if (btn) btn.click();
-                if (typeof showManagerToast === 'function') showManagerToast('Режим показа готов · данные клиента не сбрасывались');
-            }, 250);
-        }
-    } catch (e) {
-        console.error('runManagerDemoBoot', e);
-    }
-}
 
 function setManagerScoringMode(green) {
     window.BGF_DEMO = window.BGF_DEMO || {};
@@ -107,7 +71,6 @@ function getManagerAppTimelineHTML(app) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    runManagerDemoBoot();
     var green = document.getElementById('chkScoringGreen');
     if (green) {
         window.BGF_DEMO = window.BGF_DEMO || {};

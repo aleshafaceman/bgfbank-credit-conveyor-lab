@@ -156,7 +156,8 @@ const BUS_CATALOG = [
 ];
 
 /* Состояние каждого из 21 шага обмена у свежей первой сделки (сразу после
-   ?demo=1). Собрано из мока (deal-ops/mock.js:25-103) и правил busRow()
+   штатного сброса сцены). Собрано из мока (deal-ops/mock.js:25-103) и правил
+   busRow()
    (deal-ops/deal-ops.js:1055-1106), а не снято со страницы: defaultDealState()
    (:155) кладёт в снимок только bus.elma_snapshot = "ok", у первой сделки
    согласие действующее и полное (sopdState() → needTemplate false), заявление
@@ -330,16 +331,28 @@ module.exports = {
 
     /* --- навигация и сцена --- */
 
-    /* Открыть стол по ?demo=1: этот адрес сам сбрасывает bgfbank_lab_dealops
-       (deal-ops.js:1413-1419) и кладёт свежую сцену из мока. */
-    const openDemo = async function () {
-      await s.navigate(base + '/deal-ops/?demo=1');
+    /* Открыть стол на СВЕЖЕЙ сцене. Раньше её давал ?demo=1, который стирал
+       хранилище стола; параметр удалён вместе с демо-режимом, поэтому сцену
+       готовит сам стол своим штатным сбросом — ровно тем, что вызывает кнопка
+       «Сбросить сцену» в шапке (resetDemo(): удаляет ключи стола и кладёт
+       defaultState()).
+       Уникальный адрес `fresh` — не украшение: при переходе на УЖЕ открытый
+       адрес Chrome может отдать документ из back/forward-кэша, скрипты не
+       исполнятся заново, и на экране останется прежняя сцена. */
+    let visit = 0;
+    const openFresh = async function () {
+      visit += 1;
+      await s.navigate(base + '/deal-ops/?fresh=' + visit);
+      const reset = await s.eval('return (function() { try { resetDemo(); return "ok"; }' +
+        ' catch (e) { return "ошибка: " + e.message; } })()');
+      if (reset !== 'ok') {
+        return { ok: false, error: null, message: 'штатный сброс сцены не сработал: ' + reset };
+      }
       return s.waitFor('return typeof __t === "object" && __t.count("#inbox-list .card-deal") > 0', 10000);
     };
 
-    /* Открыть стол БЕЗ ?demo=1 — так он читает сцену из localStorage. Именно
-       этот адрес нужен для проверок сохранения состояния: перезагрузка адреса
-       с ?demo=1 честно стирает сцену, и ожидать от неё сохранности нельзя. */
+    /* Открыть стол на сохранённой сцене — так он читает localStorage. Именно
+       этот адрес нужен для проверок сохранения состояния. */
     const openStored = async function () {
       await s.navigate(base + '/deal-ops/');
       return s.waitFor('return typeof __t === "object" && __t.has("inbox-list") === true', 10000);
@@ -426,10 +439,10 @@ module.exports = {
         ' return { disabled: b.disabled === true, visible: r.width > 0 && r.height > 0 }; })()');
     };
 
-    check.section('Стол сделки — очередь ОЗС после ?demo=1');
+    check.section('Стол сделки — очередь ОЗС на свежей сцене');
 
-    let r = await openDemo();
-    ok(r.ok, '?demo=1 открывает стол сделки и очередь ОЗС' + why(r));
+    let r = await openFresh();
+    ok(r.ok, 'штатный сброс сцены открывает стол сделки и очередь ОЗС' + why(r));
     await noFailures('страница стола загрузилась без сбоев');
     ok(await s.eval('return __t.visible("work-deal") === true'),
       'рабочая область #work-deal показана сразу после открытия (стол сам выбирает первую сделку)');
@@ -852,8 +865,9 @@ module.exports = {
     /* ОПЕРУ — достижимая ветка отрисовки (deal-ops.js:1123-1162), а не только
        пустое состояние: стол показывает сделку, у которой шаг равен operu.
        Своим сценарием до этого шага не дойти, поэтому сцену подсаживаем: правим
-       сохранённое состояние и открываем стол БЕЗ ?demo=1, чтобы он его прочитал. */
-    r = await openDemo();
+       сохранённое состояние и открываем стол по обычному адресу, чтобы он его
+       прочитал. */
+    r = await openFresh();
     ok(r.ok, 'стол открыт для подсадки сцены ОПЕРУ' + why(r));
     const seed = await patchStore(
       ' p.role = "operu";' +
@@ -868,7 +882,7 @@ module.exports = {
       'сцена записана так, как её прочитает стол (сейчас: ' + JSON.stringify(seeded) + ')');
 
     r = await openStored();
-    ok(r.ok, 'стол открылся без ?demo=1 на подсаженной сцене' + why(r));
+    ok(r.ok, 'стол открылся на подсаженной сцене' + why(r));
     r = await s.waitFor('return __t.count("#inbox-list .card-deal") === 1', 5000);
     const operuCards = await cardIds();
     ok(r.ok && operuCards.length === 1 && operuCards[0] === DEAL_IDS[1],
@@ -928,21 +942,19 @@ module.exports = {
       'на карте демо нет рабочей области стола, зато есть её заголовок (сейчас: «' +
       leftDesk.title.slice(0, 40) + '…»)');
 
-    check.section('Стол сделки — ?demo=1 сбрасывает сцену, обычный вход её хранит');
+    check.section('Стол сделки — штатный сброс возвращает сцену, обычный вход её хранит');
 
-    /* Порядок здесь принципиален. Сначала ?demo=1 — этот адрес сам сбрасывает
-       bgfbank_lab_dealops (deal-ops.js:1413-1419). Потом стол открывается БЕЗ
-       ?demo=1 (обычный адрес демо): перезагрузка такой страницы обязана сцену
-       сохранить. Если перезагрузить адрес с ?demo=1, поверхность честно сбросит
-       состояние заново, и проверка «состояние пережило перезагрузку» упала бы на
-       исправной поверхности — то есть была бы дефектом проверки. */
-    r = await openDemo();
-    ok(r.ok, 'возврат на стол сделки по ?demo=1' + why(r));
+    /* Порядок здесь принципиален. Сначала штатный сброс сцены (openFresh) — так
+       же, как кнопкой «Сбросить сцену» в шапке. Потом стол открывается по
+       обычному адресу (openStored): перезагрузка такой страницы обязана сцену
+       сохранить. */
+    r = await openFresh();
+    ok(r.ok, 'возврат стола к свежей сцене штатным сбросом' + why(r));
     await s.eval('return __t.resetFailures()');
 
     /* Сброс проверяется на ПРОБНОМ значении, а не на пустой галочке: отмечаем
        дополнительное условие первой сделки (оно сохраняется в сцену) и рядом
-       кладём собственный пробный маркер внутри состояния. После ?demo=1 обязано
+       кладём собственный пробный маркер внутри состояния. После сброса обязано
        исчезнуть и то, и другое: если сброс отключить, проверка упадёт. */
     const duLabel = await s.eval('return (function() { var l = Array.prototype.filter.call(' +
       'document.querySelectorAll("#work-deal label.check"), function(x) {' +
@@ -960,11 +972,11 @@ module.exports = {
     ok(storedBefore.probe === probeValue && storedBefore.du === true,
       'до сброса в сцене есть и пробный маркер, и отметка ДУ (сейчас: ' + JSON.stringify(storedBefore) + ')');
 
-    r = await openDemo();
-    ok(r.ok, 'повторный вход по ?demo=1 после подсадки сцены' + why(r));
+    r = await openFresh();
+    ok(r.ok, 'повторный штатный сброс после подсадки сцены' + why(r));
     const storedAfterReset = await readStore({ cards: '__t.count("#inbox-list .card-deal")' });
     ok(storedAfterReset.probe === null && storedAfterReset.du === false,
-      '?demo=1 стирает пробный маркер и отметку ДУ — сцена действительно сброшена (сейчас: ' +
+      'штатный сброс стирает пробный маркер и отметку ДУ — сцена действительно сброшена (сейчас: ' +
       JSON.stringify(storedAfterReset) + ')');
     ok(storedAfterReset.cards === DEAL_IDS.length,
       'после сброса стол снова рисует все ' + DEAL_IDS.length + ' сделки мока (карточек: ' +
@@ -974,7 +986,7 @@ module.exports = {
     await noFailures('сброс сцены прошёл без сбоев страницы');
 
     /* Теперь то же состояние набираем заново и проверяем, что обычный вход и
-       перезагрузка (без ?demo=1) его сохраняют. */
+       перезагрузка его сохраняют. */
     await s.eval('return __t.resetFailures()');
     ok(!!(await clickCheckbox('до подписи КОД')),
       'перед перезагрузкой галочка ДУ «до подписи КОД» отмечена снова');
@@ -985,7 +997,7 @@ module.exports = {
     r = await openStored();
     const storedOnReopen = await readStore({ cards: '__t.count("#inbox-list .card-deal")' });
     ok(r.ok && storedOnReopen.probe === probe2 && storedOnReopen.du === true,
-      'вход без ?demo=1 читает сцену из localStorage: маркер и отметка ДУ на месте (сейчас: ' +
+      'обычный вход читает сцену из localStorage: маркер и отметка ДУ на месте (сейчас: ' +
       JSON.stringify(storedOnReopen) + ')' + why(r));
     ids = await cardIds();
     ok(JSON.stringify(ids) === JSON.stringify(DEAL_IDS),

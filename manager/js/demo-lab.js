@@ -1,4 +1,4 @@
-// ========== LAB: демо-полировка менеджера ==========
+// ========== LAB: тосты менеджера ==========
 
 window.BGF_DEMO = window.BGF_DEMO || { fastScoring: true, managerOnlyApproval: true };
 
@@ -7,24 +7,6 @@ function getScoringDelays(fullDelays) {
         return fullDelays.map(function() { return 280; });
     }
     return fullDelays;
-}
-
-function resetManagerDemoData() {
-    if (!confirm('Сбросить демо-данные для показа?\n\nЗаявки и чат вернутся к исходному состоянию.')) return;
-    if (typeof resetDemoStorage === 'function') {
-        resetDemoStorage({ includeUser: false });
-    } else {
-        try {
-            localStorage.removeItem('bgfbank_lab_applications');
-            localStorage.removeItem('bgfbank_lab_clients');
-            localStorage.removeItem('bgfbank_lab_messages');
-            localStorage.removeItem('bgfbank_lab_artifacts');
-            localStorage.removeItem('bgfbank_applications');
-            localStorage.removeItem('bgfbank_clients');
-            localStorage.removeItem('bgfbank_messages');
-        } catch (e) {}
-    }
-    location.reload();
 }
 
 function showManagerToast(message) {

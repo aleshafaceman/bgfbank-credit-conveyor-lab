@@ -47,13 +47,13 @@ function switchManagerTab(tab) {
             var detail = document.getElementById('mAppDetail');
             if (detail) {
                 detail.innerHTML = '<div class="m-detail-empty"><p>Не удалось открыть заявку</p>' +
-                    '<p style="font-size:12px;color:#94a3b8;margin-top:8px;">Нажмите «Сбросить демо» на экране входа и войдите снова.</p></div>';
+                    '<p style="font-size:12px;color:#94a3b8;margin-top:8px;">Обновите страницу и войдите снова.</p></div>';
             }
             return;
         }
         if (target) {
             target.innerHTML = '<div class="m-detail-empty"><p>Не удалось открыть раздел</p>' +
-                '<p style="font-size:12px;color:#94a3b8;margin-top:8px;">Нажмите «Сбросить демо» на экране входа и войдите снова.</p></div>';
+                '<p style="font-size:12px;color:#94a3b8;margin-top:8px;">Обновите страницу и войдите снова.</p></div>';
         }
     }
 }

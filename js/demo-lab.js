@@ -1,5 +1,6 @@
-// ========== LAB: демо-полировка ==========
-// Сброс, тосты, celebration одобрения, presentation mode
+// ========== LAB: тосты и celebration одобрения ==========
+// Ни сброса сцены, ни режима проектора, ни ссылки на карту демо в сайдбаре
+// здесь нет: кабинет реагирует только на действия человека.
 
 window.BGF_DEMO = window.BGF_DEMO || {
     fastScoring: true,
@@ -12,24 +13,6 @@ function getScoringDelays(fullDelays) {
         return fullDelays.map(function() { return 280; });
     }
     return fullDelays;
-}
-
-function resetDemoDataReady() {
-    if (!confirm('Сбросить демо-данные и подготовить показ?\n\nСтатусы и чат вернутся к исходному состоянию.')) return;
-    if (typeof resetDemoStorage === 'function') {
-        resetDemoStorage({ includeUser: false });
-    } else {
-        try {
-            localStorage.removeItem('bgfbank_lab_applications');
-            localStorage.removeItem('bgfbank_lab_clients');
-            localStorage.removeItem('bgfbank_lab_messages');
-            localStorage.removeItem('bgfbank_lab_artifacts');
-            localStorage.removeItem('bgfbank_applications');
-            localStorage.removeItem('bgfbank_clients');
-            localStorage.removeItem('bgfbank_messages');
-        } catch (e) {}
-    }
-    location.reload();
 }
 
 function showDemoToast(message, opts) {
@@ -110,39 +93,8 @@ function initClientDemoLabHooks() {
             if (typeof renderClientChat === 'function') renderClientChat();
         };
     }
-
-    // Presentation mode toggle (P key when not typing)
-    document.addEventListener('keydown', function(e) {
-        if (e.key !== 'p' && e.key !== 'P') return;
-        var tag = (e.target && e.target.tagName) || '';
-        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target.isContentEditable) return;
-        document.body.classList.toggle('presentation-mode');
-        showDemoToast(
-            document.body.classList.contains('presentation-mode')
-                ? 'Режим проектора включён'
-                : 'Режим проектора выключен',
-            { icon: 'fa-desktop', duration: 2000 }
-        );
-    });
-}
-
-// Возврат к карте демо — точке входа презентации (start.html).
-// Ставим ссылку рядом со «Сброс демо», чтобы не раздувать разметку index.html.
-function addHubLink() {
-    var nav = document.querySelector('#appSidebar .nav-group');
-    if (!nav || document.getElementById('bgfHubLink')) return;
-    var a = document.createElement('a');
-    a.id = 'bgfHubLink';
-    a.className = 'nav-link';
-    a.href = 'start.html';
-    a.style.opacity = '0.75';
-    a.innerHTML = '<i class="fas fa-map"></i> Карта демо';
-    var anchor = nav.querySelector('.btn-demo-reset');
-    if (anchor && anchor.parentNode === nav) nav.insertBefore(a, anchor);
-    else nav.appendChild(a);
 }
 
 document.addEventListener('DOMContentLoaded', function() {
     if (document.getElementById('appShell')) initClientDemoLabHooks();
-    addHubLink();
 });

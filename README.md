@@ -18,7 +18,6 @@
 Стабильный демо-показ: https://aleshafaceman.github.io/bgfbank-credit-conveyor/  
 LAB Pages: https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/  
 Карта демо (хаб): https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/start.html  
-Подготовка показа заново (сброс): https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/reset.html  
 Форма потребительского кредита: https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/form/  
 Форма под залог своей квартиры: https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/form-pledge/index.html  
 АРМ сделки (ОЗС / ОПЕРУ, мок): https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/deal-ops/  
@@ -26,9 +25,12 @@ LAB Pages: https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/
 АРМ продуктолога / риск-менеджера (конфиг Solver, мок): https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/productolog/  
 Электронное заявление на счёт (клиент по SMS): https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/deal-ops/account-app.html?t=25BGFB00990001  
 
-Быстрый показ кабинета: клиент `/?demo=1` (сброс + вход), менеджер `/manager/?autologin=1` (вход без сброса). Сброс у менеджера — кнопка на экране входа или `?demo=reset`. Хранилище: `bgfbank_lab_*`.
+Вход только по логину и паролю: клиент `+7 (999) 123-45-67` / `password123`, менеджер
+`admin` / `manager123`. Ни автологина по адресу, ни автосброса, ни страницы подготовки
+показа в лаборатории нет: кабинет и столы открываются обычным адресом, а состояние
+меняется действиями человека. Хранилище: `bgfbank_lab_*`.
 
-Сценарий показа кабинета: см. `DEMO.md`.
+Что где смотреть по ролям: см. `DEMO.md`.
 
 ## Проверки перед показом
 
@@ -47,10 +49,10 @@ node scripts/run-all-checks.js
 Отдельные шаги, если нужен только один:
 
 ```bash
-node scripts/pre-release-audit.js               # разметка, ссылки, общий слой форм — 555
-node scripts/form-flow-check.js                 # обе формы клиента — 80
-node scripts/surface-check.js                   # пять поверхностей — 444
-node scripts/surface-check.js --only=cabinet    # одна поверхность — 33
+node scripts/pre-release-audit.js               # разметка, ссылки, общий слой форм — 553
+node scripts/form-flow-check.js                 # обе формы клиента — 96
+node scripts/surface-check.js                   # пять поверхностей — 470
+node scripts/surface-check.js --only=cabinet    # одна поверхность — 54
 ```
 
 Обычный прогон (без `--base`) поднимает локальный сервер, запускает headless
@@ -67,21 +69,21 @@ Chrome и проходит сценарии как пользователь: в�
 
 | Поверхность | Ключ `--only=` | Проверок |
 |-------------|----------------|----------|
-| Кабинет клиента | `cabinet` | 33 |
-| АРМ менеджера | `manager` | 84 |
+| Кабинет клиента | `cabinet` | 54 |
+| АРМ менеджера | `manager` | 85 |
 | Стол сделки ОЗС / ОПЕРУ | `deal-ops` | 122 |
 | АРМ андеррайтера (АНД / АПЗ) | `underwriter` | 103 |
-| Стол продуктолога / риск-менеджера | `productolog` | 102 |
-| Формы клиента (потребительский кредит + залог) | `forms` | 80 |
-| Аудит разметки (без браузера, не поверхность) | — | 555 |
+| Стол продуктолога / риск-менеджера | `productolog` | 106 |
+| Формы клиента (потребительский кредит + залог) | `forms` | 96 |
+| Аудит разметки (без браузера, не поверхность) | — | 553 |
 
-`--only` принимает и список: `--only=cabinet,forms` даёт 33 + 80 = 113.
+`--only` принимает и список: `--only=cabinet,forms` даёт 54 + 96 = 150.
 
-**Почему без `--only` выходит 444, а не 524.** Прогон `surface-check.js` без
+**Почему без `--only` выходит 470, а не 566.** Прогон `surface-check.js` без
 `--only` идёт по списку пяти поверхностей (`DEFAULT_SURFACES`,
-`scripts/surface-check.js:44`), и форм в нём нет: у форм свой отдельный шаг в
+`scripts/surface-check.js:48`), и форм в нём нет: у форм свой отдельный шаг в
 `run-all-checks.js`, иначе в единой команде они считались бы дважды. Поэтому
-`node scripts/surface-check.js` даёт 444, а с `--only=forms` — 80. В карте
+`node scripts/surface-check.js` даёт 470, а с `--only=forms` — 96. В карте
 поверхностей формы остаются, так что `--only=forms,cabinet` работает как обычно.
 Прогон без `--only` пропусков не даёт: за все пять поверхностей есть файлы.
 

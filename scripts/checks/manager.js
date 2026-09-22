@@ -43,7 +43,7 @@ const NOISY_KEY = 'bgfbank_lab_sync_ping';
    его не пересоздают, поэтому именно по нему видно, что сцену не стёрли:
    набор ключей bgfbank_lab_* после полного сброса совпадает с исходным, и
    сравнение одних имён ключей такую потерю не заметило бы. */
-const PROBE_KEY = 'bgfbank_lab_probe_autologin';
+const PROBE_KEY = 'bgfbank_lab_probe_login';
 
 /* Одно и то же выражение нужно в трёх местах — вынесено, чтобы задачи по
    остальным поверхностям не копировали его. */
@@ -104,21 +104,36 @@ module.exports = {
        стол продуктолога). */
     const noFailures = function (msg) { return common.noFailures(s, ok, msg); };
 
-    check.section('АРМ менеджера — вход по ?autologin=1');
+    check.section('АРМ менеджера — вход по логину и паролю');
 
-    await s.navigate(base + '/manager/?autologin=1');
-    let r = await s.waitFor('return typeof __t === "object" && __t.visible("mainScreen") === true', 10000);
-    ok(r.ok, 'вход по ?autologin=1 открывает рабочее место (#mainScreen виден)' + why(r));
-    /* Признак автологина по брифу: экран входа скрыт. */
+    /* Вход так, как его делает человек: открыть manager/ без параметров,
+       заполнить #loginInput/#passInput и нажать #loginBtn. Автологина по адресу
+       в лаборатории больше нет.
+       Параметр `fresh` — свой счётчик визитов: при переходе на УЖЕ открытый
+       адрес Chrome может отдать документ из back/forward-кэша, скрипты не
+       исполнятся заново, и на экране останется прежний вход. Уникальный адрес
+       гарантирует новый документ; менеджер незнакомый параметр игнорирует. */
+    let loginVisit = 0;
+    const login = async function () {
+      loginVisit += 1;
+      await s.navigate(base + '/manager/?fresh=' + loginVisit);
+      let res = await s.waitFor('return typeof __t === "object" && __t.visible("loginBtn") === true', 10000);
+      if (!res.ok) return res;
+      await s.eval('return __t.setVal("loginInput", "admin")');
+      await s.eval('return __t.setVal("passInput", "manager123")');
+      await s.eval('return __t.click("loginBtn")');
+      return s.waitFor('return typeof __t === "object" && __t.visible("mainScreen") === true', 10000);
+    };
+
+    let r = await login();
+    ok(r.ok, 'вход по логину admin и паролю manager123 открывает рабочее место (#mainScreen виден)' + why(r));
     ok(await s.eval('return __t.visible("loginBtn") === false'),
-      'кнопка входа #loginBtn после автологина не видна');
+      'кнопка входа #loginBtn после входа не видна');
     ok(await s.eval('return __t.visible("authScreen") === false'),
-      'оверлей авторизации #authScreen после автологина не виден');
-    /* manager/js/features-lab.js:28-31 снимает autologin из адреса через
-       history.replaceState, чтобы параметр не остался в адресной строке показа. */
+      'оверлей авторизации #authScreen после входа не виден');
     const search = await s.eval('return window.location.search');
-    ok(search.indexOf('autologin=') === -1,
-      'служебный параметр ?autologin снят из адреса (сейчас: «' + search + '»)');
+    ok(search.indexOf('autologin=') === -1 && search.indexOf('demo=') === -1,
+      'адрес не содержит служебных параметров входа (сейчас: «' + search + '»)');
     ok(await s.eval('return __t.has("mAppCards") === true'), 'контейнер очереди #mAppCards на месте');
     ok(await s.eval('return __t.has("mAppDetail") === true'), 'панель заявки #mAppDetail на месте');
     ok(await s.eval('return __t.has("mClientDetail") === true'), 'панель клиента #mClientDetail на месте');
@@ -397,24 +412,31 @@ module.exports = {
     ok(r.ok, 'клик по видимой ссылке возврата открыл карту демо (адрес: «' +
       (await s.eval('return window.location.pathname')) + '»)' + why(r));
 
-    check.section('АРМ менеджера — ?autologin=1 не стирает заявку клиента');
+    check.section('АРМ менеджера — вход менеджера не стирает заявку клиента');
 
-    /* Свойство сцены из DEMO.md:28 — «?autologin=1: автологин менеджера без
-       сброса (заявка клиента остаётся)», в отличие от ?demo=reset.
+    /* Свойство сцены: вход менеджера кнопкой не трогает общее хранилище
+       кабинетов (раньше это же свойство проверялось на ?autologin=1, которого
+       больше нет).
        Проверять его сравнением «заявки кабинета против очереди менеджера»
        бессмысленно: оба списка порождает один предикат visibleCabinetApplications
        над одним и тем же детерминированным сидом (shared/data.js:118-187),
        поэтому сброс восстановил бы ровно те же четыре заявки и проверка прошла бы
        даже после стирания. Нужен маркер, которого в сиде нет и который сброс
        уничтожает. Их два:
-         1) пробный ключ bgfbank_lab_probe_autologin — переживает перезагрузку,
+         1) пробный ключ bgfbank_lab_probe_login — переживает перезагрузку,
             но не переживает очистку localStorage целиком;
          2) пробная заявка клиента, добавленная в общую сцену через addApplication()
-            уже после сидирования, — её сброс (resetDemoStorage) сносит вместе с
+            уже после сидирования, — её сброс сносит вместе с
             bgfbank_lab_applications, и она пропадает из очереди менеджера. */
-    await s.navigate(base + '/index.html?demo=1');
+    await s.navigate(base + '/index.html?fresh=' + Date.now());
+    r = await s.waitFor('return typeof __t === "object" && __t.visible("authPhone") === true', 10000);
+    await s.eval('return __t.setVal("authPhone", "+7 (999) 123-45-67")');
+    await s.eval('return __t.setVal("authPassword", "password123")');
+    await s.eval('return __t.clickText("#view-auth-login .btn-auth.primary", "Войти")');
+    await s.waitFor('return __t.visible("view-auth-success") === true', 8000);
+    await s.eval('return __t.clickText("#view-auth-success .btn-auth.primary", "Войти в личный кабинет")');
     r = await s.waitFor('return typeof __t === "object" && __t.loggedIn() === true', 10000);
-    ok(r.ok, 'кабинет клиента вошёл по ?demo=1 и заполнил сцену' + why(r));
+    ok(r.ok, 'кабинет клиента вошёл по логину и паролю и заполнил сцену' + why(r));
 
     const stamp = Date.now();
     const probeValue = 'probe-' + stamp;
@@ -438,14 +460,15 @@ module.exports = {
       'кабинет видит заявки клиента, включая пробную (видимых: ' + cabinetIds.length + ')');
     const sceneAfterCabinet = await s.eval(SCENE);
 
-    await s.navigate(base + '/manager/?autologin=1');
-    r = await s.waitFor('return __t.visible("mainScreen") === true && ' + CARD_COUNT + ' >= 1', 10000);
-    ok(r.ok, 'менеджер вошёл по ?autologin=1 после клиента' + why(r));
+    r = await login();
+    ok(r.ok, 'менеджер вошёл по логину и паролю после клиента' + why(r));
+    r = await s.waitFor('return ' + CARD_COUNT + ' >= 1', 8000);
+    ok(r.ok, 'после входа очередь менеджера отрисована карточками .m-app-card' + why(r));
 
     /* Основное утверждение раздела: сцену не пересоздали. */
     const probeAfter = await s.eval('return localStorage.getItem(' + JSON.stringify(PROBE_KEY) + ')');
     ok(probeAfter === probeValue,
-      '?autologin=1 не стёр сцену: пробный ключ на месте со своим значением (сейчас: «' + probeAfter + '»)');
+      'вход менеджера не стёр сцену: пробный ключ на месте со своим значением (сейчас: «' + probeAfter + '»)');
     const queueAfter = await s.eval('return __t.text("mAppCards")');
     ok(queueAfter.indexOf(probeAppId) !== -1,
       'пробная заявка клиента №' + probeAppId + ' осталась в очереди менеджера ' +
@@ -460,13 +483,13 @@ module.exports = {
 
     check.section('АРМ менеджера — сцена после перезагрузки');
 
-    /* Менеджер, в отличие от кабинета, сессию не хранит: manager/js/features-lab.js
-       снимает ?autologin из адреса через history.replaceState, поэтому после
-       перезагрузки показывается экран входа. Это не дефект поверхности — так же
-       ведёт себя кабинет (js/app.js:62 снимает app-logged-in на DOMContentLoaded).
-       Проверяем ровно то, что обещано: сцена переживает перезагрузку, а повторный
-       вход показывает ту же очередь. Слепок «ключ → длина значения» строже
-       требуемого брифом набора имён ключей: потеря ключа в нём тоже видна. */
+    /* Менеджер, в отличие от кабинета, сессию не хранит: страница не запоминает
+       вход, поэтому после перезагрузки показывается экран входа. Это не дефект
+       поверхности — так же ведёт себя кабинет (js/app.js:62 снимает
+       app-logged-in на DOMContentLoaded). Проверяем ровно то, что обещано: сцена
+       переживает перезагрузку, а повторный вход показывает ту же очередь. Слепок
+       «ключ → длина значения» строже требуемого брифом набора имён ключей:
+       потеря ключа в нём тоже видна. */
     const sceneBefore = await s.eval(SCENE);
     ok(sceneBefore.indexOf('bgfbank_lab_applications:') !== -1,
       'слепок сцены перед перезагрузкой не пуст (' + sceneBefore + ')');

@@ -148,8 +148,7 @@
         <span class="topbar-brand">БЖФ Банк</span>
         <span class="topbar-title">Кредитный конвейер · карта демо</span>
         <div class="topbar-actions">
-            <a class="btn" href="https://github.com/aleshafaceman/bgfbank-credit-conveyor-lab/blob/main/DEMO.md" target="_blank" rel="noopener">Сценарий показа</a>
-            <a class="btn btn--accent" href="reset.html">Подготовить показ заново</a>
+            <a class="btn" href="https://github.com/aleshafaceman/bgfbank-credit-conveyor-lab/blob/main/DEMO.md" target="_blank" rel="noopener">Роли и данные для входа</a>
         </div>
     </div>
 </div>
@@ -248,7 +247,7 @@
             <p class="meta"><b>Заявка:</b> №4421-И · <b>Логин:</b> +7 (999) 123-45-67 / password123</p>
             <p class="meta"><span class="pill pill--ok">Не стирает сцену</span></p>
             <div class="cta">
-                <a class="btn btn--primary" href="index.html?autologin=1&checklist=1">Открыть кабинет</a>
+                <a class="btn btn--primary" href="index.html">Открыть кабинет</a>
             </div>
         </div>
 
@@ -259,7 +258,7 @@
             <p class="meta"><b>Логин:</b> admin / manager123 · флажок «Зелёный скоринг» переключает исход</p>
             <p class="meta"><span class="pill pill--ok">Не стирает сцену</span></p>
             <div class="cta">
-                <a class="btn btn--primary" href="manager/?autologin=1">Открыть АРМ</a>
+                <a class="btn btn--primary" href="manager/">Открыть АРМ</a>
             </div>
         </div>
 
@@ -271,7 +270,6 @@
             <p class="meta"><span class="pill pill--ok">Своё хранилище</span></p>
             <div class="cta">
                 <a class="btn btn--primary" href="underwriter/">Открыть АРМ</a>
-                <a class="btn" href="underwriter/?demo=1">Сбросить сцену</a>
             </div>
         </div>
 
@@ -283,7 +281,6 @@
             <p class="meta"><span class="pill pill--ok">Своё хранилище</span></p>
             <div class="cta">
                 <a class="btn btn--primary" href="deal-ops/">Открыть стол</a>
-                <a class="btn" href="deal-ops/?demo=1">Сбросить сцену</a>
             </div>
         </div>
 
@@ -295,7 +292,6 @@
             <p class="meta"><span class="pill pill--info">Своё хранилище</span></p>
             <div class="cta">
                 <a class="btn btn--primary" href="productolog/">Открыть АРМ</a>
-                <a class="btn" href="productolog/?demo=1&arm=risk">Роль риск-менеджера</a>
             </div>
         </div>
 
@@ -354,58 +350,49 @@
     </table>
     <p class="lead" style="margin-top:10px;">Ветки столов — <b>не продолжение</b> заявки из кабинета, а отдельные подготовленные кейсы: их задача показать разные исходы, не собирая каждый заново. В целевом конвейере одна заявка проходит все стадии под одним идентификатором — это и есть работа оркестратора, которой в макете пока нет.</p>
 
-    <h2><span class="num">5.</span> Как не сломать сцену на показе</h2>
-    <p class="lead">Сброс данных у разных поверхностей устроен по-разному. Красные ссылки стирают подготовленную сцену — не нажимайте их в середине показа. Кнопка <b>«Подготовить показ заново»</b> в шапке сбрасывает <b>сразу все пять</b> поверхностей.</p>
+    <h2><span class="num">5.</span> Как открывать поверхности</h2>
+    <p class="lead">Никаких служебных параметров в адресе нет: кабинет и столы открываются обычным адресом, а состояние меняется только действиями человека. Сцена каждой поверхности хранится в браузере (<code>bgfbank_lab_*</code>) и переживает перезагрузку страницы.</p>
     <table>
         <thead>
-            <tr><th>Ссылка</th><th>Что делает</th><th>Когда безопасно</th></tr>
+            <tr><th>Адрес</th><th>Что делает</th><th>Вход</th></tr>
         </thead>
         <tbody>
             <tr>
-                <td><code>reset.html</code></td>
-                <td>Кнопка <b>«Подготовить показ заново»</b>: сбрасывает <b>все пять</b> поверхностей по очереди и возвращает на эту карту. Ничего не нужно обходить вручную</td>
-                <td class="success">Только перед началом показа</td>
+                <td><code>index.html</code></td>
+                <td>Кабинет клиента: экран входа, дальше — заявки, документы, профиль</td>
+                <td>Телефон и пароль, кнопка «Войти», затем «Войти в личный кабинет»</td>
             </tr>
             <tr>
-                <td><code>index.html?demo=1</code></td>
-                <td>Стирает общее хранилище кабинетов и входит как клиент — заявка и чат возвращаются к исходному состоянию</td>
-                <td class="danger">Только перед началом показа</td>
+                <td><code>manager/</code></td>
+                <td>АРМ менеджера: та же заявка, что собрал клиент (общее хранилище)</td>
+                <td>Логин <code>admin</code> и пароль <code>manager123</code></td>
             </tr>
             <tr>
-                <td><code>index.html?autologin=1</code></td>
-                <td>Входит как клиент <b>без</b> сброса</td>
-                <td class="safe">В любой момент</td>
+                <td><code>deal-ops/</code></td>
+                <td>Стол сделки ОЗС / ОПЕРУ: своя сцена, роли переключаются кнопками</td>
+                <td>Входа нет — стол открывается сразу</td>
             </tr>
             <tr>
-                <td><code>manager/?autologin=1</code></td>
-                <td>Входит менеджером без сброса — видит заявку, которую собрал клиент</td>
-                <td class="safe">В любой момент</td>
+                <td><code>underwriter/</code></td>
+                <td>АРМ андеррайтера АНД / АПЗ: своя сцена, роли переключаются кнопками</td>
+                <td>Входа нет — стол открывается сразу</td>
             </tr>
             <tr>
-                <td><code>manager/?demo=reset</code></td>
-                <td>Стирает общее хранилище кабинетов и входит менеджером</td>
-                <td class="danger">Только перед началом показа</td>
-            </tr>
-            <tr>
-                <td><code>deal-ops/?demo=1</code><br><code>underwriter/?demo=1</code><br><code>productolog/?demo=1</code></td>
-                <td>Сбрасывает <b>только свою</b> сцену стола; данные кабинетов не трогает</td>
-                <td class="danger">Если нужно вернуть стол к началу</td>
-            </tr>
-            <tr>
-                <td>Ссылки без параметров</td>
-                <td>Просто открывают поверхность на текущем состоянии</td>
-                <td class="safe">В любой момент</td>
+                <td><code>productolog/</code></td>
+                <td>Стол продуктолога и риск-менеджера: своя сцена, роли переключаются кнопками</td>
+                <td>Входа нет — стол открывается сразу</td>
             </tr>
         </tbody>
     </table>
+    <p class="lead" style="margin-top:10px;">Столы умеют возвращать свою сцену к началу кнопкой <b>«Сбросить сцену»</b> в шапке — это обычное действие, кабинет клиента оно не затрагивает.</p>
 
     <h2><span class="num">6.</span> Сценарий показа: одна сделка за 7 минут</h2>
-    <p class="lead">Перед началом нажмите <b>«Подготовить показ заново»</b> в шапке — сбросятся все пять поверхностей. Клавиша <b>P</b> включает режим проектора.</p>
+    <p class="lead">Откройте кабинет клиента и войдите под данными из раздела «Доступы». Дальше всё делается вручную, в одной вкладке — сцена сохраняется между страницами.</p>
     <div class="steps">
         <div class="step">
             <div class="who">Подготовка</div>
-            <div class="what">Сброс сцены и вход клиента</div>
-            <div class="say">Нажмите <b>«Подготовить показ заново»</b> в шапке этой страницы: откроется страница подготовки, где по очереди сбросятся клиент, менеджер, стол сделки, андеррайтер и продуктолог, после чего вы вернётесь на карту. Затем откройте кабинет клиента с заявкой №4421-И. Скажите: <b>«Сейчас заявка живёт в ELMA, а кабинет — лишь проекция её статусов. Покажем, каким становится путь».</b></div>
+            <div class="what">Вход клиента</div>
+            <div class="say">Откройте <code>index.html</code>, введите телефон <code>+7 (999) 123-45-67</code> и пароль <code>password123</code>, нажмите <b>«Войти»</b>, затем <b>«Войти в личный кабинет»</b>. Вы в заявке №4421-И. Скажите: <b>«Сейчас заявка живёт в ELMA, а кабинет — лишь проекция её статусов. Покажем, каким становится путь».</b></div>
         </div>
         <div class="step">
             <div class="who">Шаг 1 · клиент</div>
@@ -414,7 +401,7 @@
         </div>
         <div class="step">
             <div class="who">Шаг 2 · менеджер</div>
-            <div class="what">Вторая вкладка: manager/?autologin=1</div>
+            <div class="what">Вторая вкладка: manager/ — вход admin / manager123</div>
             <div class="say">Заявка клиента уже здесь — <b>то же хранилище, тот же агрегат</b>. Запустите быстрый и зелёный скоринг, покажите <b>протокол</b> и разбор ставки, затем одобрение. Вернитесь в первую вкладку: у клиента появился тост и документ о решении. Подчеркните: <b>протокол скоринга сохранён</b>, а не показан одной цифрой.</div>
         </div>
         <div class="step">
@@ -442,7 +429,7 @@
     <h2><span class="num">7.</span> Доступы</h2>
     <div class="creds">
         <div class="cred"><b>Клиент:</b> +7 (999) 123-45-67 · password123<br><span style="color:#64748b">SMS и OTP — любой код. Госуслуги — имитация.</span></div>
-        <div class="cred"><b>Менеджер:</b> admin · manager123<br><span style="color:#64748b">Вход без сброса: <code>manager/?autologin=1</code></span></div>
+        <div class="cred"><b>Менеджер:</b> admin · manager123<br><span style="color:#64748b">Вход на <code>manager/</code> той же кнопкой «Войти».</span></div>
     </div>
 
     <h2><span class="num">8.</span> Границы макета</h2>
@@ -461,7 +448,7 @@
 
     <footer>
         БЖФ Банк · лабораторный макет кредитного конвейера. Данные вымышленные, персональных данных клиентов банка здесь нет.
-        Полный сценарий и технические детали — в <a href="https://github.com/aleshafaceman/bgfbank-credit-conveyor-lab/blob/main/DEMO.md" target="_blank" rel="noopener">DEMO.md</a>
+        Роли и что где смотреть — в <a href="https://github.com/aleshafaceman/bgfbank-credit-conveyor-lab/blob/main/DEMO.md" target="_blank" rel="noopener">DEMO.md</a>
         и <a href="https://github.com/aleshafaceman/bgfbank-credit-conveyor-lab/blob/main/docs/_LK_KNOWLEDGE_BASE.md" target="_blank" rel="noopener">базе знаний</a>.
     </footer>
 
