@@ -98,7 +98,7 @@ Visio после одобрения: «Подготовка паспорта с�
 
 ### 1.2. Happy-path показа кабинетов (сценарий руководства)
 
-`[repo:DEMO.md]`:
+`[repo:ROLES.md]`:
 
 1. Клиент: вход → **Мои заявки** → №4421-И → таймлайн → **Продолжить оформление**.
 2. Объект залога → **ЕСИА** → прескоринг → сравнение пакетов → «Рекомендуем» → принять / печать оффера.
@@ -287,7 +287,7 @@ du_catalog: {
 | СМС ДБО | `dbo_sms` | отправлено после открытия счёта |
 
 > «Искать счёт в ЦФТ — `FindRetailAccount`; если счёта нет — шесть автопроверок… Шина показывает статус callback (`ELMA ← {"deal_id","status"}`).»  
-> `[repo:DEMO.md]`
+> `[repo:ROLES.md]`
 
 Шесть проверок `[repo:deal-ops/mock.js]` `checks`:
 
@@ -310,7 +310,7 @@ du_catalog: {
 
 | Канал | Источник | Что это | L3 |
 |-------|----------|---------|----|
-| OTP входа / регистрации кабинета | AS-IS 28.08.2026: **MFMS SMPP** `[src:lk-arch/lk-external-integrations.html]` §3, §9 | прямая исходящая из `partner-api`; «критичность: логин в кабинет» | LAB: любой код `[repo:DEMO.md]`. Спеки SMPP **нет** — не писать PDU, не подменять SMSTraffic |
+| OTP входа / регистрации кабинета | AS-IS 28.08.2026: **MFMS SMPP** `[src:lk-arch/lk-external-integrations.html]` §3, §9 | прямая исходящая из `partner-api`; «критичность: логин в кабинет» | LAB: любой код `[repo:ROLES.md]`. Спеки SMPP **нет** — не писать PDU, не подменять SMSTraffic |
 | Согласие ПДн/БКИ (`consent`) | HTML §7: «ELMA ECRequest + SMS» | не TrustGate и не OTP входа | тексты СОПД/БКИ — артефакты C1/C2, не SMS-провайдер |
 | Исходящие SMS банка (брокеру и т.п.) | **SMSTraffic HTTP API v2** `[src:smstraffic/README.md]` — страница прислана отдельно, в HTML интеграций **имени SMSTraffic нет** | Host `https://api.smstraffic.ru` (резерв `api2`). `POST /v2/send` + `Authorization: Bearer`; `destinations[].id` (= callback `sms_id`). Статусы: `POST /v2/statuses/list` или push (`sms_id`, `status`, `tracking_data`). Happy-path `Delivered` | persist `smsId`+`Delivered` на M10 («СМС брокеру» СПР). Ключ / Bearer / текст OTP **не** хранить |
 | ДБО после открытия счёта | ЦФТ `DboSms` `[src:skill/systems.md]` | шина стола `dbo_sms` / `dbo_sms_sent` | стол, не кабинет P0 |
@@ -331,7 +331,7 @@ Visio UW звонок (не Skorozvon API): «Исключить звонок п
 `application.signing_channel`: `smartdeal` | `paper` `[repo:deal-ops/mock.js]`.
 
 Шина: `request_ukep` → `create_signing_package` → `start_signing` → `bank_signed` → `signing_completed` → `kod_signed`.  
-Электронная подпись КОД — **не** обращение в Росреестр `[repo:DEMO.md]` `[repo:deal-ops/deal-ops.js]` HELP.kod.
+Электронная подпись КОД — **не** обращение в Росреестр `[repo:ROLES.md]` `[repo:deal-ops/deal-ops.js]` HELP.kod.
 
 ### 2.8. Visio (выгрузки + то, что уже в столе)
 
@@ -434,7 +434,7 @@ JSON-модель каталога `[repo:docs/katalog-opcij-zalog.md]` §10:
 ### 3.8. СОПД
 
 `consents[]`: `consent_id`, `type: PERSONAL_DATA`, `form` (`full`|`short`), `version`, `accepted_at`, `valid_until`, `channel` (`sms`|`partner`|`manager`), `file_name`.  
-Дата лида в шаблон СОПД **не** подставляется `[repo:DEMO.md]`. Visio: «Загрузка паспорта/СОПД» на входе `[src:visio/vsdx_lead_page.txt]`.
+Дата лида в шаблон СОПД **не** подставляется `[repo:ROLES.md]`. Visio: «Загрузка паспорта/СОПД» на входе `[src:visio/vsdx_lead_page.txt]`.
 
 ### 3.9. Поля Loginom / ТЗ (для L3, не выдуманы)
 
