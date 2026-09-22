@@ -468,6 +468,9 @@ return true;
  *   keep   — не убивать Chrome и не удалять профиль после прогона;
  *   timeoutMs — сколько ждать в waitFor/waitForScreen по умолчанию (8000 мс).
  *
+ * waitFor(expr) возвращает { ok, error, message }, поэтому проверки читают
+ * результат как (await s.waitFor(...)).ok.
+ *
  * Возвращает: { base, profile, keep, eval, send, navigate, waitReady, reload,
  *               waitFor, waitForScreen, delay, close }.
  */
@@ -537,14 +540,24 @@ async function launch(options) {
     throw new Error('страница не догрузилась');
   }
 
-  /* Ждём, пока выражение на странице станет истинным. Возвращает true/false. */
+  /* Ждём, пока выражение на странице станет истинным.
+     Возвращает { ok, error, message }: ok — стало ли выражение истинным;
+     error/message — последняя ошибка eval за время опроса. Ошибку не глушим:
+     иначе настоящая поломка страницы выглядит как «условие не наступило».
+     Вызывающий код обязан читать .ok: объект сам по себе всегда истинен. */
   async function waitFor(expr, limit) {
     const deadline = Date.now() + (limit || defaultWait);
+    let lastError = null;
     while (Date.now() < deadline) {
-      try { if (await cdp.eval(expr)) return true; } catch (e) { /* страница ещё не готова */ }
+      try {
+        if (await cdp.eval(expr)) return { ok: true, error: null, message: '' };
+        lastError = null;   /* выражение отработало и оказалось ложным — это не ошибка */
+      } catch (e) {
+        lastError = e;
+      }
       await sleep(150);
     }
-    return false;
+    return { ok: false, error: lastError, message: lastError ? lastError.message : '' };
   }
 
   /* Ждём нужный экран: часть переходов идёт через setTimeout (прескоринг, оценка).
