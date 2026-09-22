@@ -9,8 +9,8 @@ function setManagerScoringMode(green) {
     window.BGF_DEMO.scoringGreen = !!green;
     var el = document.getElementById('chkScoringGreen');
     if (el) el.checked = !!green;
-    if (typeof showManagerToast === 'function') {
-        showManagerToast(green ? 'Скоринг: всегда зелёный' : 'Скоринг: возможны проблемы (демо отказа)');
+    if (typeof showToast === 'function') {
+        showToast(green ? 'Скоринг: всегда зелёный' : 'Скоринг: возможны проблемы (демо отказа)');
     }
 }
 

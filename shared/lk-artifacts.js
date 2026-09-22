@@ -642,7 +642,7 @@ function ensureArtifactModal() {
 function openArtifact(id) {
     var art = typeof id === 'object' ? id : getArtifact(id);
     if (!art) {
-        if (typeof showDemoToast === 'function') showDemoToast('Документ не найден', { icon: 'fa-file', duration: 2000 });
+        if (typeof showToast === 'function') showToast('Документ не найден', { icon: 'fa-file', duration: 2000 });
         else if (typeof managerNotify === 'function') managerNotify('Документ не найден');
         else alert('Документ не найден');
         return;
@@ -940,9 +940,11 @@ function labUploadDocument(docName, appId, opts) {
         var fname = (file && file.name) || (String(name).replace(/\s+/g, '_') + '.pdf');
         var fsize = (file && file.size) || 18432;
         var msg = 'Документ «' + name + '» принят · ' + fname + ' · ' + fsize + ' Б';
+        /* На каждой поверхности тост один и имя у него одно — showToast: в кабинете
+           его даёт js/lab-utils.js (понимает опции), у менеджера manager/js/lab-utils.js
+           (опции игнорирует, поэтому ветка с опциями годится обоим). */
         if (typeof managerNotify === 'function' && actor === 'manager') managerNotify(msg);
-        else if (typeof showDemoToast === 'function') showDemoToast(msg, { icon: 'fa-file-upload', duration: 2500 });
-        else if (typeof showManagerToast === 'function') showManagerToast(msg);
+        else if (typeof showToast === 'function') showToast(msg, { icon: 'fa-file-upload', duration: 2500 });
     }
 
     if (opts.file) {

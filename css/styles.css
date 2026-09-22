@@ -675,17 +675,17 @@ input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 22p
 }
 .client-quick-replies .quick-reply:hover { border-color: #0B4697; background: #eef5fb; }
 
-.bgf-demo-toast {
+.bgf-toast {
     position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(20px);
     z-index: 4000; opacity: 0; transition: 0.3s ease; pointer-events: none; max-width: min(520px, calc(100vw - 24px));
 }
-.bgf-demo-toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
-.bgf-demo-toast-inner {
+.bgf-toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
+.bgf-toast-inner {
     display: flex; align-items: center; gap: 10px; background: #0B4697; color: white;
     padding: 14px 18px; border-radius: 14px; box-shadow: 0 16px 40px rgba(0,45,80,0.28); font-size: 14px; font-weight: 600; line-height: 1.4;
 }
-.bgf-demo-toast--celebrate .bgf-demo-toast-inner { background: linear-gradient(135deg, #065f46, #059669); }
-.bgf-demo-toast--manager .bgf-demo-toast-inner { background: #1e3a5f; }
+.bgf-toast--celebrate .bgf-toast-inner { background: linear-gradient(135deg, #065f46, #059669); }
+.bgf-toast--manager .bgf-toast-inner { background: #1e3a5f; }
 
 /* Timeline */
 .app-timeline {

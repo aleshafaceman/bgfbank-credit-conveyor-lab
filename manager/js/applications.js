@@ -360,8 +360,8 @@ function mActionsHint(text, extraClass) {
 }
 
 function managerNotify(message) {
-    if (typeof showManagerToast === 'function') {
-        try { showManagerToast(String(message || '')); return; } catch (e) {}
+    if (typeof showToast === 'function') {
+        try { showToast(String(message || '')); return; } catch (e) {}
     }
     try { alert(String(message || '')); } catch (e2) {}
 }

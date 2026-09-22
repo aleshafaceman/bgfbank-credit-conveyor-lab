@@ -249,12 +249,12 @@ body { background: #f0f4f8; min-height: 100vh; }
 .m-funnel-bar--warn i { background: #f59e0b; }
 .m-funnel-bar--ok i { background: #13A538; }
 .m-funnel-bar--bad i { background: #dc2626; }
-.bgf-demo-toast {
+.bgf-toast {
     position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(20px);
     z-index: 4000; opacity: 0; transition: 0.3s ease; pointer-events: none; max-width: min(520px, calc(100vw - 24px));
 }
-.bgf-demo-toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
-.bgf-demo-toast-inner {
+.bgf-toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
+.bgf-toast-inner {
     display: flex; align-items: center; gap: 10px; background: #1e3a5f; color: white;
     padding: 14px 18px; border-radius: 14px; box-shadow: 0 16px 40px rgba(0,45,80,0.28); font-size: 14px; font-weight: 600;
 }

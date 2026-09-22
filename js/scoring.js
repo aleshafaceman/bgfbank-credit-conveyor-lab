@@ -167,8 +167,8 @@ document.addEventListener('click', function(e) {
     if (!btn) return;
     // LAB: одобрение только у менеджера — клиентский полный скоринг отключён
     if (window.BGF_DEMO && window.BGF_DEMO.managerOnlyApproval) {
-        if (typeof showDemoToast === 'function') {
-            showDemoToast('Полный скоринг выполняет менеджер. Напишите в чат или дождитесь решения.', { icon: 'fa-user-tie' });
+        if (typeof showToast === 'function') {
+            showToast('Полный скоринг выполняет менеджер. Напишите в чат или дождитесь решения.', { icon: 'fa-user-tie' });
         }
         if (typeof toggleChat === 'function') toggleChat();
         return;

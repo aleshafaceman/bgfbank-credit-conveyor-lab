@@ -15,15 +15,15 @@ function getScoringDelays(fullDelays) {
     return fullDelays;
 }
 
-function showDemoToast(message, opts) {
+function showToast(message, opts) {
     opts = opts || {};
-    var existing = document.getElementById('bgfDemoToast');
+    var existing = document.getElementById('bgfToast');
     if (existing) existing.remove();
 
     var toast = document.createElement('div');
-    toast.id = 'bgfDemoToast';
-    toast.className = 'bgf-demo-toast' + (opts.celebrate ? ' bgf-demo-toast--celebrate' : '');
-    toast.innerHTML = '<div class="bgf-demo-toast-inner">' +
+    toast.id = 'bgfToast';
+    toast.className = 'bgf-toast' + (opts.celebrate ? ' bgf-toast--celebrate' : '');
+    toast.innerHTML = '<div class="bgf-toast-inner">' +
         (opts.icon ? '<i class="fas ' + opts.icon + '"></i>' : '') +
         '<span>' + message + '</span></div>';
     document.body.appendChild(toast);
@@ -53,7 +53,7 @@ function checkApprovalCelebration() {
         if (prev[app.id] && prev[app.id] !== 'approved' && app.status === 'approved') {
             var rate = app.rate != null ? Number(app.rate).toFixed(1) + '%' : '';
             var pay = app.payment != null ? '~ ' + app.payment.toLocaleString('ru-RU') + ' ₽' : '';
-            showDemoToast(
+            showToast(
                 'Менеджер одобрил заявку №' + app.id +
                 (rate ? ' · ' + rate : '') +
                 (pay ? ' · ' + pay : ''),

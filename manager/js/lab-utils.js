@@ -9,13 +9,13 @@ function getScoringDelays(fullDelays) {
     return fullDelays;
 }
 
-function showManagerToast(message) {
-    var existing = document.getElementById('bgfDemoToast');
+function showToast(message) {
+    var existing = document.getElementById('bgfToast');
     if (existing) existing.remove();
     var toast = document.createElement('div');
-    toast.id = 'bgfDemoToast';
-    toast.className = 'bgf-demo-toast bgf-demo-toast--manager';
-    toast.innerHTML = '<div class="bgf-demo-toast-inner"><i class="fas fa-comment-dots"></i><span>' + message + '</span></div>';
+    toast.id = 'bgfToast';
+    toast.className = 'bgf-toast bgf-toast--manager';
+    toast.innerHTML = '<div class="bgf-toast-inner"><i class="fas fa-comment-dots"></i><span>' + message + '</span></div>';
     document.body.appendChild(toast);
     requestAnimationFrame(function() { toast.classList.add('visible'); });
     setTimeout(function() {
@@ -33,7 +33,7 @@ function checkIncomingClientMessages() {
     var clientMsgs = history.filter(function(m) { return m.from === 'client'; });
     if (_mgrLastMsgCount && clientMsgs.length > _mgrLastMsgCount) {
         var last = clientMsgs[clientMsgs.length - 1];
-        showManagerToast('Новое сообщение от клиента: «' + (last.text || '').substring(0, 60) + '»');
+        showToast('Новое сообщение от клиента: «' + (last.text || '').substring(0, 60) + '»');
         var tabBtn = document.getElementById('tabChat');
         if (tabBtn) tabBtn.classList.add('m-tab--pulse');
         // Auto-open chat if main screen visible

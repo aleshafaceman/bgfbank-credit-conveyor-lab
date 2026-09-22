@@ -458,8 +458,8 @@ function acceptOfferPackage() {
     if (typeof recordRateBreakdown === 'function') {
         try { recordRateBreakdown(activeId); } catch (eRb) {}
     }
-    if (typeof showDemoToast === 'function') {
-        showDemoToast('Условия зафиксированы · документ в разделе «Документы»', { icon: 'fa-file-signature', duration: 2800 });
+    if (typeof showToast === 'function') {
+        showToast('Условия зафиксированы · документ в разделе «Документы»', { icon: 'fa-file-signature', duration: 2800 });
     }
 }
 

@@ -7,7 +7,6 @@ const MESSAGES_KEY = 'bgfbank_lab_messages';
 const USER_KEY = 'bgfbank_lab_user';
 const SYNC_KEY = 'bgfbank_lab_sync_ping';
 const ARTIFACTS_KEY = 'bgfbank_lab_artifacts';
-const LEGACY_KEYS = ['bgfbank_applications', 'bgfbank_clients', 'bgfbank_messages', 'bgfbank_user', 'bgfbank_sync_ping'];
 
 let sharedApplications = [];
 let sharedClients = {};
@@ -341,22 +340,6 @@ function initSharedDataSync(handler) {
         if (typeof handler === 'function') handler(e.key);
         if (typeof window.onSharedDataUpdated === 'function') window.onSharedDataUpdated(e.key);
     });
-}
-
-function resetDemoStorage(options) {
-    options = options || {};
-    try {
-        localStorage.removeItem(STORAGE_KEY);
-        localStorage.removeItem(CLIENTS_KEY);
-        localStorage.removeItem(MESSAGES_KEY);
-        localStorage.removeItem(ARTIFACTS_KEY);
-        if (options.includeUser) localStorage.removeItem(USER_KEY);
-        // Чистим и legacy-ключи стабильного демо, чтобы не путать показ
-        LEGACY_KEYS.forEach(function(k) {
-            try { localStorage.removeItem(k); } catch (e) {}
-        });
-        bumpSharedSync('reset');
-    } catch (e) {}
 }
 
 // ========== API ЗАЯВКИ ==========

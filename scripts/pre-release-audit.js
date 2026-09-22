@@ -380,7 +380,7 @@ console.log('\n=== 4. Client applications HTML / CTA ===');
 
   const featCode = fs.readFileSync(path.join(root, 'js/features-lab.js'), 'utf8');
   vm.runInNewContext(featCode, ctx, { filename: 'js/features-lab.js' });
-  ctx.showDemoToast = function() {};
+  ctx.showToast = function() {};
   ctx.uploadMissingDocDemo('Справка о доходе или 2-НДФЛ', '4421-И');
   const afterCancel = ctx.renderClientDUSection(ctx.getAllApplications().find(a => a.id === '4421-И'));
   assert(/Загружено/.test(afterCancel), 'canceling the file picker does not clear an already uploaded card');
@@ -570,26 +570,26 @@ console.log('\n=== 7. HTML script order / critical refs ===');
     'client features-lab has no autologin, presenter checklist or onboarding boot');
   assert(!/autologin|runManagerDemoBoot|managerDemoRedirect/.test(mgrFeatSrc),
     'manager features-lab has no autologin boot');
-  const clientDemoLabSrc = fs.readFileSync(path.join(root, 'js/demo-lab.js'), 'utf8');
-  assert(!/resetDemoDataReady|addHubLink|presentation-mode|bgfChecklist/.test(clientDemoLabSrc),
-    'client demo-lab has no scene reset, sidebar hub link or projector mode');
+  const clientLabUtilsSrc = fs.readFileSync(path.join(root, 'js/lab-utils.js'), 'utf8');
+  assert(!/resetDemoDataReady|addHubLink|presentation-mode|bgfChecklist/.test(clientLabUtilsSrc),
+    'client lab-utils.js has no scene reset, sidebar hub link or projector mode');
   assert(/resetManagerDemoData/.test(mgr) === false &&
     !/btn-demo-reset/.test(mgr) && !/btn-demo-reset/.test(index),
     'neither cabinet nor manager login offers a demo reset button');
-  const demoMd = fs.readFileSync(path.join(root, 'DEMO.md'), 'utf8');
+  const rolesMd = fs.readFileSync(path.join(root, 'ROLES.md'), 'utf8');
   const readme = fs.readFileSync(path.join(root, 'README.md'), 'utf8');
-  assert(!/demo=1|demo=reset|autologin|checklist=1|reset\.html/.test(demoMd + readme),
+  assert(!/demo=1|demo=reset|autologin|checklist=1|reset\.html/.test(rolesMd + readme),
     'docs carry no demo query parameters and no reset page');
-  assert(/password123/.test(demoMd) && /manager123/.test(demoMd),
-    'DEMO.md keeps the login credentials');
+  assert(/password123/.test(rolesMd) && /manager123/.test(rolesMd),
+    'ROLES.md keeps the login credentials');
   assert(/id="docsUploadPanel"/.test(index) && /id="bgfLabFileInput"/.test(index),
     'client documents page has an upload panel and a file input');
   assert(/id="mDocsUploadPanel"/.test(mgr) && /id="bgfLabFileInput"/.test(mgr),
     'manager documents page has an upload panel and a file input');
   assert(/startClientDocUpload/.test(index),
     'dashboard 2-НДФЛ shortcut goes to document upload');
-  assert(/CDN GitHub Pages/.test(demoMd),
-    'DEMO.md notes incognito does not bypass Pages CDN');
+  assert(/CDN GitHub Pages/.test(rolesMd),
+    'ROLES.md notes incognito does not bypass Pages CDN');
   const extrasCss = fs.readFileSync(path.join(root, 'css/styles.css'), 'utf8');
   assert(extrasCss.indexOf('.pkg-extras-panel.hidden') > extrasCss.indexOf('.pkg-extras-panel {'),
     'Дополнительно panel .hidden overrides display:flex');
@@ -1094,10 +1094,16 @@ console.log('\n=== 9. L3 artifacts registry ===');
   });
   assert(vis.some(a => a.kind === 'egrn') && vis.some(a => a.kind === 'express_eval'),
     'client Documents keeps EGRN and valuation');
-  ctx.resetDemoStorage({ includeUser: false });
-  ctx._artifactStore = null;
-  const after = JSON.parse(ctx.localStorage.getItem('bgfbank_lab_artifacts') || 'null');
-  assert(!after, 'resetDemoStorage clears artifacts key');
+  /* Модуль артефактов читает localStorage, а не память: если ключ убрали из
+     хранилища (сцена возвращена к началу), инвалидация кэша не имеет права
+     вернуть удалённую запись. Проверяем обе стороны — запись была до очистки
+     и не всплыла после неё. */
+  const egrnId = (ctx.listArtifacts().filter(function(a) { return a && a.kind === 'egrn'; })[0] || {}).id;
+  const egrnBeforeWipe = !!egrnId && !!ctx.getArtifact(egrnId);
+  ctx.localStorage.removeItem('bgfbank_lab_artifacts');
+  ctx.invalidateArtifactStore();
+  assert(egrnBeforeWipe && !ctx.getArtifact(egrnId),
+    'artifacts dropped from storage do not come back through a stale cache');
 
   ctx.selectedAppId = '4421-И';
   ctx._els.mArtFilterApp.value = '';
@@ -1534,9 +1540,9 @@ console.log('\n=== 13. Demo hub (start.html) entry point ===');
 
   // Ссылку возврата в сайдбар кабинета больше никто не подкладывает скриптом:
   // единственная ссылка кабинета — на экране входа (index.html).
-  const clientDemoLab = fs.readFileSync(path.join(root, 'js/demo-lab.js'), 'utf8');
+  const clientLabUtils = fs.readFileSync(path.join(root, 'js/lab-utils.js'), 'utf8');
   const cabinetHtmlSrc = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
-  assert(!/bgfHubLink/.test(clientDemoLab) && !/bgfHubLink/.test(cabinetHtmlSrc),
+  assert(!/bgfHubLink/.test(clientLabUtils) && !/bgfHubLink/.test(cabinetHtmlSrc),
     'client sidebar gets no scripted demo hub link');
 
   // Каждая содержательная поверхность обязана иметь возврат: иначе показ упирается
@@ -1547,7 +1553,7 @@ console.log('\n=== 13. Demo hub (start.html) entry point ===');
     assert(/href="(\.\.\/)?start\.html"/.test(src), rel + ' has a hub return link in markup');
   });
 
-  // Ссылки хаба живут в demo-lab.js и deal-ops.css. Без ?v= Pages отдаёт из кэша
+  // Ссылки хаба живут в lab-utils.js и deal-ops.css. Без ?v= Pages отдаёт из кэша
   // старую копию — и «Карта демо» пропадает из сайдбара/шапки прямо на показе.
   const verRe = /\?v=\d+/;
   const clientHtml = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
@@ -1556,8 +1562,8 @@ console.log('\n=== 13. Demo hub (start.html) entry point ===');
     const tag = (html.match(new RegExp('<script src="' + name.replace(/[.\/]/g, '\\$&') + '[^"]*"')) || [''])[0];
     return verRe.test(tag);
   };
-  assert(bustScript(clientHtml, 'js/demo-lab.js'), 'client demo-lab.js is cache-busted');
-  assert(bustScript(mgrHtml, 'js/demo-lab.js'), 'manager demo-lab.js is cache-busted');
+  assert(bustScript(clientHtml, 'js/lab-utils.js'), 'client lab-utils.js is cache-busted');
+  assert(bustScript(mgrHtml, 'js/lab-utils.js'), 'manager lab-utils.js is cache-busted');
   [['deal-ops/index.html', 'deal-ops.css'], ['underwriter/index.html', '../deal-ops/deal-ops.css'],
    ['productolog/index.html', '../deal-ops/deal-ops.css']].forEach(function(pair) {
     const html = fs.readFileSync(path.join(root, pair[0]), 'utf8');
@@ -1583,7 +1589,7 @@ console.log('\n=== 13. Demo hub (start.html) entry point ===');
   assert(!fs.existsSync(path.join(root, 'reset.html')),
     'reset.html scene-preparation page is removed');
   assert(!/reset\.html/.test(hub), 'hub has no link to the removed reset page');
-  const resetRefs = ['README.md', 'DEMO.md', 'start.html'].filter(function(rel) {
+  const resetRefs = ['README.md', 'ROLES.md', 'start.html'].filter(function(rel) {
     return /reset\.html/.test(fs.readFileSync(path.join(root, rel), 'utf8'));
   });
   assert(resetRefs.length === 0,
