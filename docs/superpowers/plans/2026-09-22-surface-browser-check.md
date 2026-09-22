@@ -500,11 +500,11 @@ module.exports = {
     /* Ссылку возврата в кабинет добавляет скрипт js/demo-lab.js, поэтому ждём её появления. */
     ok(await s.waitFor('return __t.hubLink() !== null', 5000),
       'есть ссылка возврата на карту демо');
-    const before = await s.eval('return __t.sorted(__t.store())');
+    const before = await s.eval('return __t.labKeys()');
     await s.reload();
     ok(await s.eval('return __t.loggedIn() === true'),
       'после перезагрузки клиент остаётся в кабинете');
-    const after = await s.eval('return __t.sorted(__t.store())');
+    const after = await s.eval('return __t.labKeys()');
     ok(before === after, 'перезагрузка не теряет данные сцены');
   },
 };
@@ -584,11 +584,11 @@ module.exports = {
     check.section('АРМ менеджера — возврат и сцена');
     ok(await s.eval('return __t.hubLink() !== null'),
       'есть ссылка возврата на карту демо');
-    const before = await s.eval('return __t.sorted(__t.store())');
+    const before = await s.eval('return __t.labKeys()');
     await s.reload();
     ok(await s.eval('return __t.visible("mainScreen")'),
       'после перезагрузки менеджер остаётся в рабочем месте');
-    const after = await s.eval('return __t.sorted(__t.store())');
+    const after = await s.eval('return __t.labKeys()');
     ok(before === after, 'перезагрузка не стирает заявку клиента');
   },
 };
@@ -670,12 +670,12 @@ module.exports = {
 
     check.section('Стол сделки — возврат и сцена');
     ok(await s.eval('return __t.hubLink() !== null'), 'есть ссылка возврата на карту демо');
-    const before = await s.eval('return __t.sorted(__t.store())');
+    const before = await s.eval('return __t.labKeys()');
     await s.reload();
     await s.delay(600);
     ok(await s.eval('return __t.count("#inbox-list .card-deal") > 0'),
       'после перезагрузки очередь на месте');
-    const after = await s.eval('return __t.sorted(__t.store())');
+    const after = await s.eval('return __t.labKeys()');
     ok(before === after, 'перезагрузка не теряет состояние стола');
   },
 };
@@ -755,12 +755,12 @@ module.exports = {
 
     check.section('АРМ андеррайтера — возврат и сцена');
     ok(await s.eval('return __t.hubLink() !== null'), 'есть ссылка возврата на карту демо');
-    const before = await s.eval('return __t.sorted(__t.store())');
+    const before = await s.eval('return __t.labKeys()');
     await s.reload();
     await s.delay(600);
     ok(await s.eval('return __t.count("#inbox-list .card-deal") > 0'),
       'после перезагрузки очередь на месте');
-    ok(before === (await s.eval('return __t.sorted(__t.store())')),
+    ok(before === (await s.eval('return __t.labKeys()')),
       'перезагрузка не теряет состояние стола');
   },
 };
@@ -839,12 +839,12 @@ module.exports = {
 
     check.section('Стол продуктолога — возврат и сцена');
     ok(await s.eval('return __t.hubLink() !== null'), 'есть ссылка возврата на карту демо');
-    const before = await s.eval('return __t.sorted(__t.store())');
+    const before = await s.eval('return __t.labKeys()');
     await s.reload();
     await s.delay(600);
     ok(await s.eval('return __t.count("#inbox-list .card-deal") > 0'),
       'после перезагрузки стол на месте');
-    ok(before === (await s.eval('return __t.sorted(__t.store())')),
+    ok(before === (await s.eval('return __t.labKeys()')),
       'перезагрузка не теряет настройки продукта');
   },
 };
