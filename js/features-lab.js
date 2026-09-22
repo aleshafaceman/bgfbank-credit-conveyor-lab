@@ -37,6 +37,14 @@ function runClientDemoBoot() {
             if (typeof loginWithPassword === 'function') {
                 try { loginWithPassword(); } catch (e) {}
             }
+            /* loginWithPassword() останавливается на экране «Вход выполнен успешно»
+               и ждёт нажатия кнопки. При автологине кнопку нажимать некому, а
+               карта демо (start.html:365-372) обещает, что ?demo=1 и ?autologin=1
+               входят как клиент. Поэтому входим сразу, если пароль принят. */
+            var success = document.getElementById('view-auth-success');
+            if (success && !success.classList.contains('hidden') && typeof enterApp === 'function') {
+                try { enterApp(); } catch (e) {}
+            }
             setTimeout(function() {
                 if (typeof navigateTo === 'function') navigateTo('applications');
                 if (typeof showDemoToast === 'function') {
