@@ -406,6 +406,22 @@ window.__t = {
       return e.classList.contains('on') && (e.textContent || '').trim();
     }).map(function(e) { return e.id + ': ' + e.textContent.trim(); });
   },
+  /* Сбои страницы, накопленные монитором FAILURE_MONITOR_PARTS: непойманные
+     исключения, необработанные отказы промисов и вызовы alert(). Помощник
+     отдаёт копию списка, чтобы вызывающий код не мог его случайно очистить.
+     Пустой список — это и есть проверяемое свойство «страница отработала без
+     сбоев». В отличие от visibleErrors() (ищет .err.on, которых на большинстве
+     поверхностей просто нет в разметке и потому проверка не может упасть),
+     этот список наполняет сам браузер, и он умеет становиться непустым. */
+  failures: function() {
+    return (window.__bgfFailures || []).slice();
+  },
+  /* Очистка перед проверяемым действием: накопленное при загрузке страницы не
+     должно смешиваться с тем, что случилось во время самого действия. */
+  resetFailures: function() {
+    window.__bgfFailures = [];
+    return true;
+  },
   /* Старое имя того же помощника: прогон форм пока зовёт errorsVisible,
      задача 7 переведёт вызовы на visibleErrors. Реализация одна. */
   errorsVisible: function() {
@@ -465,6 +481,73 @@ window.__t = {
 return true;
 `;
 
+/* ---------- монитор сбоев страницы ---------- */
+
+/*
+ * Код, который ставится в каждую новую страницу ДО её скриптов
+ * (Page.addScriptToEvaluateOnNewDocument). Он ведёт window.__bgfFailures:
+ * список сбоев, которые страница пережила. Читают его помощники
+ * __t.failures()/__t.resetFailures().
+ *
+ * Зачем это нужно: проверить «страница отработала без сбоев» иначе нечем.
+ * Дежурное «в разметке нет видимых .err» ничего не доказывает — на поверхностях,
+ * где .err вообще не встречается, такое утверждение не может упасть. Здесь же
+ * список наполняет сам браузер, поэтому непойманное исключение, отказ промиса
+ * или alert() делают проверку красной.
+ *
+ * Код намеренно защищён от самого себя: каждый обработчик ставится в своём
+ * try/catch, а window.alert подменяется только если браузер разрешает
+ * перезапись. Иначе единственная неожиданность в этом файле (например,
+ * неизменяемый alert) убила бы весь монитор, и проверка сбоев молча зеленела бы
+ * на пустом списке — то есть ровно то, от чего мы уходим.
+ *
+ * alert() не «глушим молча»: его текст уходит в список сбоев, а сам вызов
+ * становится no-op, чтобы модальное окно не остановило прогон.
+ *
+ * Монитор ставится несколькими КОРОТКИМИ скриптами, а не одним длинным: длинный
+ * текст в Page.addScriptToEvaluateOnNewDocument у этой связки «Chrome + WebSocket»
+ * до страницы не доходил (зарегистрированный скрипт молча не исполнялся, а
+ * проверка сбоев зеленела на пустом списке). Короткие скрипты проверены, поэтому
+ * монитор собирается из кусков.
+ */
+const FAILURE_MONITOR_PARTS = [
+  /* 1. Хранилище и признак того, что монитор вообще дошёл до страницы. */
+  '(function () {\n' +
+  '  window.__bgfFailures = [];\n' +
+  '  window.__bgfMonitor = { error: false, rejection: false, alert: false };\n' +
+  '})();\n',
+  /* 2. Непойманные исключения. */
+  '(function () {\n' +
+  '  try {\n' +
+  "    window.addEventListener('error', function (ev) {\n" +
+  '      var where = ev && ev.filename ? " (" + ev.filename + ":" + (ev.lineno || 0) + ")" : "";\n' +
+  "      window.__bgfFailures.push('uncaught error: ' + ((ev && ev.message) || 'без сообщения') + where);\n" +
+  '    }, true);\n' +
+  '    window.__bgfMonitor.error = true;\n' +
+  '  } catch (e) {}\n' +
+  '})();\n',
+  /* 3. Необработанные отказы промисов. */
+  '(function () {\n' +
+  '  try {\n' +
+  "    window.addEventListener('unhandledrejection', function (ev) {\n" +
+  "      var why = (ev && ev.reason && ev.reason.message) || (ev && ev.reason) || 'без причины';\n" +
+  "      window.__bgfFailures.push('unhandled rejection: ' + why);\n" +
+  '    });\n' +
+  '    window.__bgfMonitor.rejection = true;\n' +
+  '  } catch (e) {}\n' +
+  '})();\n',
+  /* 4. alert(): текст уходит в список сбоев, сам вызов становится no-op, чтобы
+        модальное окно не остановило прогон. */
+  '(function () {\n' +
+  '  try {\n' +
+  '    var real = window.alert;\n' +
+  "    window.alert = function (text) { window.__bgfFailures.push('alert: ' + text); };\n" +
+  '    window.__bgfRealAlert = real;\n' +
+  '    window.__bgfMonitor.alert = window.alert !== real;\n' +
+  '  } catch (e) {}\n' +
+  '})();\n'
+];
+
 /* ---------- запуск прогона ---------- */
 
 /*
@@ -482,6 +565,10 @@ return true;
  *
  * waitFor(expr) возвращает { ok, error, message }, поэтому проверки читают
  * результат как (await s.waitFor(...)).ok.
+ *
+ * Перед первой навигацией в страницу ставится монитор сбоев
+ * (FAILURE_MONITOR_PARTS), который читают помощники __t.failures() и
+ * __t.resetFailures().
  *
  * Возвращает: { base, profile, keep, eval, send, navigate, waitReady, reload,
  *               waitFor, waitForScreen, delay, close }.
@@ -531,6 +618,19 @@ async function launch(options) {
     }
     if (local) local.stop();
     throw err;
+  }
+
+  /* Монитор сбоев ставится ДО первой навигации и переустанавливается на каждой
+     новой странице (Page.addScriptToEvaluateOnNewDocument переживает и переходы,
+     и reload). Если постановка не удалась, это не повод валить прогон: проверки
+     сбоев увидят пустой список, а собственные проверки поверхностей продолжат
+     работать — но молчать об этом не надо, пишем в консоль. */
+  try {
+    for (const source of FAILURE_MONITOR_PARTS) {
+      await cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: source });
+    }
+  } catch (e) {
+    console.log('Не удалось поставить монитор сбоев страницы: ' + e.message);
   }
 
   /* Уникальный параметр в адресе: у Pages кэш расходится по узлам, и один заход

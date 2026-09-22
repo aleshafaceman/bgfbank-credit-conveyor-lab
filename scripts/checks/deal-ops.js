@@ -10,25 +10,33 @@
  * Что важно в разметке (проверено по deal-ops/index.html и deal-ops.js):
  *  - очередь лежит в #inbox-list карточками .card-deal, заголовок — #inbox-title
  *    (renderInbox(), deal-ops.js:1013). Карточка — <button> БЕЗ data-атрибута,
- *    номер сделки лежит внутри <b>, поэтому карточку ищем по тексту номера.
+ *    номер сделки лежит внутри <b>, поэтому карточку ищем по вхождению номера, а
+ *    фильтры и кнопки — по ТОЧНОЙ подписи (подстрока «ЕСИА» попала бы в «без
+ *    ЕСИА», а «До подписи КОД» — в «После подписи КОД»).
  *  - #work-deal после открытия уже заполнен: state.selectedId по умолчанию
  *    равен первой сделке мока (defaultState(), deal-ops.js:174). Поэтому
  *    утверждение «карточка открыта» само по себе ничего не проверяет — реакцию
  *    на выбор ловим кликом по ДРУГОЙ карточке.
- *  - фильтров .filter на странице семь (бриф, измерение контролёра), и это
- *    ровно те семь, что рисует разметка: три очереди (#inbox-list, «Все» /
- *    «ЕСИА» / «без ЕСИА») и четыре в карточке (когда открывать счёт и канал
- *    заявления). Сужают выборку очереди только первые три; остальные четыре
- *    переключают поля карточки — их проверяем по значку «on» и по тексту.
- *  - переключатель роли (#role-ozs / #role-operu) меняет и заголовок очереди,
- *    и её содержимое: ОПЕРУ видит только сделки на шаге operu.
+ *  - фильтров .filter на странице семь, и это две разные вещи: три фильтра
+ *    очереди (#inbox-list, «Все» / «ЕСИА» / «без ЕСИА») и четыре переключателя
+ *    карточки (когда открывать счёт и канал заявления). Выборку очереди сужают
+ *    только первые три.
+ *  - переключатель роли (#role-ozs / #role-operu) меняет и заголовок очереди, и
+ *    её содержимое: ОПЕРУ видит только сделки на шаге operu.
  *  - ссылка возврата на карту демо — <a class="hub-link" href="../start.html">
  *    без идентификатора (deal-ops/index.html:25), поэтому __t.click("hubLink")
  *    не сработает: элемент надо найти по href, как это сделано в manager.js.
  *
- * Помощники __t внедряются харнессом после navigate/reload, а waitFor
- * возвращает { ok, error, message } — поэтому везде (await s.waitFor(...)).ok,
- * а ошибка страницы добавляется в сообщение через r.message.
+ * Про сбои страницы: разметка стола НЕ содержит элементов .err (класс .err есть
+ * только в дочерних формах deal-ops/account-app.js и sopd-app.js), поэтому
+ * дежурное «видимых ошибок нет» через __t.visibleErrors() здесь не может упасть
+ * никогда. Вместо него проверяется список сбоев, который наполняет сам браузер:
+ * __t.failures() из scripts/lib/browser-check.js (непойманные исключения,
+ * необработанные отказы промисов, вызовы alert()).
+ *
+ * Помощники __t внедряются харнессом после navigate/reload; waitFor возвращает
+ * { ok, error, message }, а его выражение — ТЕЛО функции, поэтому везде
+ * 'return …' и (await s.waitFor(...)).ok.
  *
  * Контракт для раннера: module.exports = { run: async function (s, base, check) }.
  */
@@ -54,9 +62,9 @@ const DEAL_MARKERS = [
 ];
 
 /* Фильтр очереди → ожидаемая выборка. Признак esia_consent есть только у
-   сделок 1 и 3 (mock.js:31, 108, 177, 244). Значения заданы в проверке
-   заранее, а не посчитаны на странице: иначе «фильтр не фильтрует» прошло бы
-   зелёным, потому что проверка считала бы по тому же коду, что и поверхность. */
+   сделок 1 и 3 (mock.js:31, 108, 177, 244). Значения заданы в проверке заранее,
+   а не посчитаны на странице: иначе «фильтр не фильтрует» прошло бы зелёным,
+   потому что проверка считала бы по тому же коду, что и поверхность. */
 const ESIA_FILTER = {
   esia: ['25BGFB00990001', '25BGFB00990003'],
   no_esia: ['25BGFB00990002', '25BGFB00990004']
@@ -72,16 +80,20 @@ const WORK_FILTERS = ['До подписи КОД', 'После подписи �
 /* Две стороны переключателя канала заявления (deal-ops.js:1271-1272). */
 const CHANNEL_LABELS = ['Электронно · СМС', 'Бумага · печать и скан'];
 
+/* Бумажный канал заявления (deal-ops.js:1279-1287): печать шаблона — кнопка,
+   а загрузка скана — не кнопка, а <label class="file-pick"> с полем файла и
+   подписью в .file-pick-btn. Поэтому у второй подписи проверяется видимый
+   элемент, а не кнопка. */
+const PAPER_LABEL = 'Бумага · печать и скан';
+const PAPER_PRINT = 'Печать шаблона';
+const PAPER_SCAN = 'Загрузить скан';
+const PAPER_SCAN_SELECTOR = '#work-deal .file-pick .file-pick-btn';
+const PAPER_ACTIONS = [PAPER_PRINT, PAPER_SCAN];
+
 /* Две стороны переключателя «когда открывать счёт» (deal-ops.js:1253-1256).
    У первой сделки мока (account_open_when: "after_kod") включена вторая. */
 const WHEN_BEFORE = 'До подписи КОД';
 const WHEN_AFTER = 'После подписи КОД';
-
-/* Ключ сцены стола: состояние всех сделок (deal-ops.js:1). */
-const STORE = 'bgfbank_lab_dealops';
-
-/* Условие проверки начала сцены: снимок сделки и место под решение о счёте. */
-const SNAPSHOT_STAGE = 'Сделка / Идентификация / Когда открывать счёт / Заявление на открытие счёта';
 
 /* Кнопки карточки сделки, наличие которых обещано разметкой для первой сделки:
    идентификация (deal-ops.js:1352), подпись КОД (1379-1380) и интернет-банк
@@ -90,8 +102,29 @@ const SNAPSHOT_STAGE = 'Сделка / Идентификация / Когда �
    намеренно, иначе проверка требовала бы от поверхности отсутствующей кнопки. */
 const WORK_ACTIONS = ['Искать счёт в ЦФТ', 'Клиент подписал КОД', 'Клиент открыл интернет-банк по СМС'];
 
-/* Действия в карточке, которые обязаны быть заперты на этапе идентификации. */
-const WORK_DISABLED = WORK_ACTIONS;
+/* Кнопки, которые обязаны быть заперты, пока сделка стоит на идентификации. */
+const WORK_LOCKED = ['Клиент подписал КОД', 'Клиент открыл интернет-банк по СМС'];
+
+/* Факты первого СОПД первой сделки (mock.js:66-77) — касание, форма, канал, срок
+   и вывод блока. Значения из мока, а не со страницы. */
+const SOPD_FIRST = {
+  when: '10.03.2026',
+  form: 'полная · банк 2026.2 полная',
+  channel: 'СМС / электронная форма',
+  until: '11.03.2031',
+  verdict: 'Действует, полная электронная форма.'
+};
+
+/* Кнопки, которые стол не должен предлагать, когда согласие действующее
+   (deal-ops.js:1216-1220). */
+const SOPD_EXTRA = ['Отправить полную форму СМС', 'Шаблон полная · бумага'];
+
+/* Кнопки решения ОПЕРУ (deal-ops.js:1159-1160). */
+const OPERU_APPROVE = 'Согласовать открытие → ОЗС';
+const OPERU_REJECT = 'Отказать · стоп-фактор';
+
+/* Ключ сцены стола: состояние всех сделок (deal-ops.js:1). */
+const STORE = 'bgfbank_lab_dealops';
 
 /* Номера карточек в #inbox-list по порядку. Атрибута data-deal-id в разметке
    нет (deal-ops.js:1048 рисует <button class="card-deal"> с <b>номер</b>),
@@ -102,35 +135,64 @@ const CARD_IDS_BARE = 'Array.prototype.map.call(document.querySelectorAll("#inbo
   ' return ' + JSON.stringify(DEAL_IDS) + '.filter(function(id) { return t.indexOf(id) !== -1; })[0] || "?";' +
   ' })';
 
-/* Тот же обход, но в форме с 'return': и s.eval(), и s.waitFor() исполняют ТЕЛО
-   функции, поэтому без return выражение даёт undefined — waitFor тогда молча не
+/* Тот же обход в форме с 'return': и s.eval(), и s.waitFor() исполняют ТЕЛО
+   функции, поэтому без return выражение даёт undefined, и waitFor молча не
    срабатывает, а проверка зеленеет не по делу. */
 const CARD_IDS = 'return ' + CARD_IDS_BARE;
 
-/* Значок показывает, что выбор действительно ушёл на другую сделку. */
+/* Число подсвеченных карточек. */
 const HIGHLIGHTED = 'Array.prototype.filter.call(document.querySelectorAll("#inbox-list .card-deal"),' +
   ' function(c) { return c.classList.contains("on"); }).length';
 
 /* Номера подсвеченных карточек — по ним видно, какая сделка открыта. */
-const HIGHLIGHTED_IDS = 'Array.prototype.map.call(' +
+const HIGHLIGHTED_IDS = 'return Array.prototype.map.call(' +
   'document.querySelectorAll("#inbox-list .card-deal.on"), function(c) {' +
   ' var t = c.textContent || "";' +
   ' return ' + JSON.stringify(DEAL_IDS) + '.filter(function(id) { return t.indexOf(id) !== -1; })[0] || "?"; })';
 
-/* Содержимое рабочей области: по нему видно, перерисовалась ли карточка сделки. */
+/* Содержимое рабочей области: по нему видно, перерисовалась ли карточка. */
 const WORK = 'return { id: (function() { var h = document.querySelector("#work-deal h1");' +
   ' return h ? h.textContent.replace(/\\s+/g, " ").trim() : ""; })(),' +
   ' text: __t.text("work-deal") }';
 
-/* Один фильтр очереди по точной подписи. */
-const queueFilter = function (label) {
-  return 'return __t.clickText("#inbox-list .filter", ' + JSON.stringify(label) + ')';
-};
+/* Подписи элементов с классом .filter внутри #work-deal. */
+const WORK_FILTER_LABELS = 'return Array.prototype.map.call(' +
+  'document.querySelectorAll("#work-deal .filter"), function(b) { return (b.textContent || "").trim(); })';
 
-/* Один .filter по точной подписи — подпись сверяем, чтобы не поймать чужую кнопку. */
-const filterById = function (label) {
-  return 'return __t.clickText(".filter", ' + JSON.stringify(label) + ')';
-};
+/* Подписи кнопок карточки сделки. */
+const WORK_BUTTON_LABELS = 'return Array.prototype.map.call(' +
+  'document.querySelectorAll("#work-deal button"), function(b) {' +
+  ' return (b.textContent || "").replace(/\\s+/g, " ").trim(); })';
+
+/* Состояние подписи загрузки скана: это не кнопка, а span внутри label. */
+const SCAN_STATE = 'return (function() { var s = document.querySelector(' +
+  JSON.stringify(PAPER_SCAN_SELECTOR) + '); if (!s) return null;' +
+  ' var r = s.getBoundingClientRect();' +
+  ' return { text: (s.textContent || "").trim(), visible: r.width > 0 && r.height > 0 }; })()';
+
+/* Номер сделки, открытой в #work-deal: в h1 рядом с номером стоит значок ЕСИА,
+   поэтому номер достаём поиском по списку известных сделок. */
+const OPEN_DEAL = 'return (function() { var h = document.querySelector("#work-deal h1");' +
+  ' if (!h) return "?"; var t = h.textContent || "";' +
+  ' return ' + JSON.stringify(DEAL_IDS) + '.filter(function(id) { return t.indexOf(id) !== -1; })[0] || "?"; })()';
+
+/* Снимок сцены стола для сравнения до и после перезагрузки: разобранное
+   состояние из localStorage, приведённое к стабильному виду.
+   Сравнивать имена ключей из __t.labKeys() бессмысленно — ключ не исчезает
+   никогда, а selectedId в состояние подставляет сам defaultState(); поэтому
+   сравниваются ЗНАЧЕНИЯ, а штатно меняющиеся журнал ELMA и статусы шины обмена
+   (их обновляет каждый ответ систем) из слепка исключены. */
+const STORE_SNAPSHOT = 'return (function() { try {' +
+  ' var raw = localStorage.getItem(' + JSON.stringify(STORE) + ');' +
+  ' if (!raw) return "нет ключа";' +
+  ' var p = JSON.parse(raw);' +
+  ' var out = { ver: p.ver, role: p.role, filter: p.filter, selectedId: p.selectedId, deals: {} };' +
+  ' Object.keys(p.deals || {}).forEach(function(id) {' +
+  '   var d = p.deals[id];' +
+  '   var copy = {};' +
+  '   Object.keys(d).forEach(function(k) { if (k !== "bus" && k !== "elmaLog") copy[k] = d[k]; });' +
+  '   out.deals[id] = copy; });' +
+  ' return JSON.stringify(out); } catch (e) { return "ошибка разбора: " + e.message; } })()';
 
 module.exports = {
   run: async function (s, base, check) {
@@ -139,51 +201,144 @@ module.exports = {
        FAIL «очередь отрисована» не отличить от «элемента нет». */
     const why = function (r) { return r && r.message ? ' — ' + r.message : ''; };
 
-    const openDesk = async function () {
+    /* --- помощники --- */
+
+    /* Точный клик по элементу, чья подпись совпадает с label целиком.
+       __t.clickText ищет подстроку, поэтому «ЕСИА» попал бы в «без ЕСИА»,
+       а WHEN_AFTER — в WHEN_BEFORE. */
+    const clickExact = function (sel, label) {
+      return s.eval('return (function() { var hit = Array.prototype.slice.call(document.querySelectorAll(' +
+        JSON.stringify(sel) + ')).filter(function(e) {' +
+        ' return (e.textContent || "").replace(/\\s+/g, " ").trim() === ' + JSON.stringify(label) + '; })[0];' +
+        ' if (!hit) return false; hit.click(); return true; })()');
+    };
+
+    /* Клик по переключателю (очередь или карточка) по точной подписи. */
+    const clickFilter = function (label) { return clickExact('.filter', label); };
+
+    /* Строгая проверка «страница отработала без сбоев». В отличие от
+       __t.visibleErrors() (в разметке стола нет .err, поэтому то утверждение не
+       могло упасть никогда), список наполняет сам браузер: непойманное
+       исключение, отказ промиса или alert() делают проверку красной. */
+    const noFailures = async function (msg) {
+      const state = await s.eval('return (function() { try {' +
+        ' return { list: __t.failures(), monitor: window.__bgfMonitor || null };' +
+        ' } catch (e) { return { error: e.message }; } })()');
+      if (state.error) return ok(false, msg + ' (монитор сбоев недоступен: ' + state.error + ')');
+      const list = Array.isArray(state.list) ? state.list : [];
+      /* Наличие монитора — часть утверждения: если он не поставился, пустой
+         список означал бы не «сбоев нет», а «сбои никто не считал». */
+      const installed = !!(state.monitor && state.monitor.error === true &&
+        state.monitor.rejection === true && state.monitor.alert === true);
+      return ok(installed && list.length === 0,
+        msg + ' (' + (installed ? '' : 'монитор сбоев установлен не полностью: ' +
+          JSON.stringify(state.monitor) + '; ') +
+        (list.length ? list.join(' | ') : 'сбоев нет') + ')');
+    };
+
+    /* --- навигация и сцена --- */
+
+    /* Открыть стол по ?demo=1: этот адрес сам сбрасывает bgfbank_lab_dealops
+       (deal-ops.js:1413-1419) и кладёт свежую сцену из мока. */
+    const openDemo = async function () {
       await s.navigate(base + '/deal-ops/?demo=1');
       return s.waitFor('return typeof __t === "object" && __t.count("#inbox-list .card-deal") > 0', 10000);
     };
 
-    /* Открытая сделка по заголовку карточки. В h1 рядом с номером стоит значок
-       ЕСИА, поэтому номер достаём поиском по списку известных сделок, а не
-       сравнением всей строки заголовка. */
-    const OPEN_DEAL = '(function() { var h = document.querySelector("#work-deal h1");' +
-      ' if (!h) return "?"; var t = h.textContent || "";' +
-      ' return ' + JSON.stringify(DEAL_IDS) + '.filter(function(id) { return t.indexOf(id) !== -1; })[0] || "?"; })()';
-
-    /* Выбор сделки кликом по её карточке в очереди — с ожиданием, пока карточка
-       действительно перерисуется на неё. Возвращает объект waitFor. */
-    const selectCard = function (dealId) {
-      const click = 'return (function() { var c = Array.prototype.slice.call(' +
-        'document.querySelectorAll("#inbox-list .card-deal")).filter(function(x) {' +
-        ' return (x.textContent || "").indexOf(' + JSON.stringify(dealId) + ') !== -1; })[0];' +
-        ' if (!c) return false; c.click(); return true; })()';
-      return s.eval(click).then(function (clicked) {
-        if (clicked !== true) return { ok: false, error: null, message: 'карточка не найдена', clicked: false };
-        return s.waitFor('return ' + OPEN_DEAL + ' === ' + JSON.stringify(dealId), 6000);
-      });
+    /* Открыть стол БЕЗ ?demo=1 — так он читает сцену из localStorage. Именно
+       этот адрес нужен для проверок сохранения состояния: перезагрузка адреса
+       с ?demo=1 честно стирает сцену, и ожидать от неё сохранности нельзя. */
+    const openStored = async function () {
+      await s.navigate(base + '/deal-ops/');
+      return s.waitFor('return typeof __t === "object" && __t.has("inbox-list") === true', 10000);
     };
 
-    /* Номера карточек, как их видит страница. */
+    /* Правка сохранённой сцены: подсадка состояния и пробные маркеры. Стол
+       читает localStorage при загрузке, поэтому после правки его надо открыть
+       заново (openStored). */
+    const patchStore = function (fnBody) {
+      return s.eval('return (function() { try {' +
+        ' var raw = localStorage.getItem(' + JSON.stringify(STORE) + ');' +
+        ' var p = raw ? JSON.parse(raw) : null;' +
+        ' if (!p) return "нет сцены";' +
+        fnBody +
+        ' localStorage.setItem(' + JSON.stringify(STORE) + ', JSON.stringify(p));' +
+        ' return "ok"; } catch (e) { return "ошибка: " + e.message; } })()');
+    };
+
+    /* Чтение полей сцены, которыми проверяется сохранность и сброс. */
+    const readStore = function (fields) {
+      return s.eval('return (function() { try {' +
+        ' var p = JSON.parse(localStorage.getItem(' + JSON.stringify(STORE) + ') || "{}");' +
+        ' var d = (p.deals && p.deals[' + JSON.stringify(DEAL_IDS[0]) + ']) || {};' +
+        ' return { probe: p.probe || null, role: p.role || null,' +
+        '   du: !!(d.du && d.du.du_18), step: d.step || null,' +
+        '   cards: ' + fields.cards + ' }; } catch (e) { return { error: e.message }; } })()');
+    };
+
+    /* Номера карточек очереди, как их видит страница. */
     const cardIds = function () { return s.eval(CARD_IDS); };
 
-    /* Ожидание нужного набора карточек. Ловит и «фильтр не фильтрует» (карточек
-       столько же, сколько было), и «фильтр выкосил очередь» (пусто).
-       И waitFor, и eval исполняют ТЕЛО функции, поэтому обе формы начинаются с
-       'return': без него выражение даёт undefined и ожидание молча не наступает. */
-    const waitForCards = function (ids) {
-      const expr = 'return JSON.stringify(' + CARD_IDS_BARE + ') === ' +
-        JSON.stringify(JSON.stringify(ids)) + ' && ' + HIGHLIGHTED + ' === 1';
-      return s.waitFor(expr, 6000);
+    /* Подписи включённых (класс on) переключателей внутри sel. */
+    const activeFilterLabels = function (sel) {
+      return s.eval('return Array.prototype.filter.call(document.querySelectorAll(' + JSON.stringify(sel) + '),' +
+        ' function(b) { return b.classList.contains("on"); })' +
+        '.map(function(b) { return (b.textContent || "").trim(); })');
     };
 
-    /* Снимок содержимого рабочей области: id и текст. */
+    /* Ожидание нужного набора карточек: ловит и «фильтр не фильтрует» (карточек
+       столько же, сколько было), и «фильтр выкосил очередь» (пусто). */
+    const waitForCards = function (ids) {
+      return s.waitFor('return JSON.stringify(' + CARD_IDS_BARE + ') === ' +
+        JSON.stringify(JSON.stringify(ids)) + ' && ' + HIGHLIGHTED + ' === 1', 6000);
+    };
+
+    /* Выбор сделки кликом по её карточке — с ожиданием, пока карточка
+       действительно перерисуется на неё. */
+    const selectCard = async function (dealId) {
+      const clicked = await s.eval('return (function() { var c = Array.prototype.slice.call(' +
+        'document.querySelectorAll("#inbox-list .card-deal")).filter(function(x) {' +
+        ' return (x.textContent || "").indexOf(' + JSON.stringify(dealId) + ') !== -1; })[0];' +
+        ' if (!c) return false; c.click(); return true; })()');
+      if (clicked !== true) return { ok: false, error: null, message: 'карточка не найдена' };
+      return s.waitFor(OPEN_DEAL + ' === ' + JSON.stringify(dealId), 6000);
+    };
+
+    /* Открытая сделка, содержимое карточки, подписи кнопок и переключателей. */
+    const openDeal = function () { return s.eval(OPEN_DEAL); };
     const work = function () { return s.eval(WORK); };
+    const workButtons = function () { return s.eval(WORK_BUTTON_LABELS); };
+    const workFilterLabels = function () { return s.eval(WORK_FILTER_LABELS); };
+
+    /* Галочка в карточке по фрагменту подписи: отметить и прочитать состояние. */
+    const clickCheckbox = function (fragment) {
+      return s.eval('return (function() { var l = Array.prototype.filter.call(' +
+        'document.querySelectorAll("#work-deal label.check"), function(x) {' +
+        ' return (x.textContent || "").indexOf(' + JSON.stringify(fragment) + ') !== -1; })[0];' +
+        ' if (!l) return false; var i = l.querySelector("input"); if (!i) return false;' +
+        ' i.click(); return i.checked === true; })()');
+    };
+    const checkboxState = function (fragment) {
+      return s.eval('return (function() { var l = Array.prototype.filter.call(' +
+        'document.querySelectorAll("#work-deal label.check"), function(x) {' +
+        ' return (x.textContent || "").indexOf(' + JSON.stringify(fragment) + ') !== -1; })[0];' +
+        ' if (!l) return null; var i = l.querySelector("input"); return i ? i.checked : null; })()');
+    };
+
+    /* Состояние кнопки карточки по точной подписи. */
+    const buttonState = function (label) {
+      return s.eval('return (function() { var b = Array.prototype.filter.call(' +
+        'document.querySelectorAll("#work-deal button"), function(x) {' +
+        ' return (x.textContent || "").replace(/\\s+/g, " ").trim() === ' + JSON.stringify(label) + '; })[0];' +
+        ' if (!b) return null; var r = b.getBoundingClientRect();' +
+        ' return { disabled: b.disabled === true, visible: r.width > 0 && r.height > 0 }; })()');
+    };
 
     check.section('Стол сделки — очередь ОЗС после ?demo=1');
 
-    let r = await openDesk();
+    let r = await openDemo();
     ok(r.ok, '?demo=1 открывает стол сделки и очередь ОЗС' + why(r));
+    await noFailures('страница стола загрузилась без сбоев');
     ok(await s.eval('return __t.visible("work-deal") === true'),
       'рабочая область #work-deal показана сразу после открытия (стол сам выбирает первую сделку)');
     ok(await s.eval('return __t.count("#inbox-list .card-deal") === ' + DEAL_IDS.length),
@@ -191,14 +346,10 @@ module.exports = {
       (await s.eval('return __t.count("#inbox-list .card-deal")')) + ')');
 
     let ids = await cardIds();
-    ok(ids.length === DEAL_IDS.length && ids.indexOf('?') === -1,
-      'номер сделки читается в каждой карточке (сейчас: ' + JSON.stringify(ids) + ')');
     const missingCards = DEAL_IDS.filter(function (id) { return ids.indexOf(id) === -1; });
-    ok(missingCards.length === 0,
-      'в очереди видны все сделки мока ' + JSON.stringify(DEAL_IDS) +
-      ' (нет: ' + JSON.stringify(missingCards) + ')');
-    ok(JSON.stringify(ids) === JSON.stringify(DEAL_IDS),
-      'порядок карточек — порядок мока (сейчас: ' + JSON.stringify(ids) + ')');
+    ok(ids.length === DEAL_IDS.length && ids.indexOf('?') === -1 && missingCards.length === 0,
+      'в очереди видны все сделки мока в порядке мока (сейчас: ' + JSON.stringify(ids) +
+      ', нет: ' + JSON.stringify(missingCards) + ')');
 
     const inboxText = await s.eval('return __t.text("inbox-list")');
     const clientsMissing = DEAL_CLIENTS.filter(function (f) { return inboxText.indexOf(f) === -1; });
@@ -208,163 +359,151 @@ module.exports = {
     ok(title.indexOf('Очередь ОЗС') === 0,
       'заголовок очереди подписан «Очередь ОЗС» (сейчас: «' + title + '»)');
 
-    /* Значок ЕСИА: у сделок 1 и 3 согласие есть, у 2 и 4 — нет. Считаем по
-       подписям значков (esiaBadge(), deal-ops.js:367-371). */
+    /* Значки ЕСИА: у сделок 1 и 3 согласие есть, у 2 и 4 — нет (esiaBadge(),
+       deal-ops.js:367-371). Считаем и сами значки, и карточки: если отрисовка
+       значков сломается, проверка упадёт. */
     const badges = await s.eval('return {' +
       ' esia: __t.count("#inbox-list .badge-esia"),' +
-      ' noesia: __t.count("#inbox-list .badge-noesia") }');
+      ' noesia: __t.count("#inbox-list .badge-noesia"),' +
+      ' cards: __t.count("#inbox-list .card-deal") }');
     ok(badges.esia === 2 && badges.noesia === 2,
       'значки ЕСИА в очереди совпадают с моком: 2 «ЕСИА» и 2 «без ЕСИА» (сейчас: ' +
       JSON.stringify(badges) + ')');
+    ok(badges.esia + badges.noesia === badges.cards,
+      'значок есть у каждой карточки и ровно один (значков: ' + (badges.esia + badges.noesia) +
+      ', карточек: ' + badges.cards + ')');
 
     const empty = await s.eval('return __t.emptyBlocks()');
     ok(empty.length === 0, 'пустых видимых блоков на экране нет (найдено: ' + JSON.stringify(empty) + ')');
-    ok((await s.eval('return __t.visibleErrors()')).length === 0, 'ошибок на экране нет');
-    ok((await s.eval('return __t.visible("work-empty")')) === false,
+    ok(await s.eval('return __t.visible("work-empty") === false'),
       'подсказка #work-empty скрыта, раз сделка уже открыта');
 
-    check.section('Стол сделки — фильтры');
+    check.section('Стол сделки — фильтры очереди');
 
-    /* Бриф: фильтров семь. Проверяем и общее число, и то, что три из них живут
-       в очереди, а четыре — в карточке: если панель карточки перестанет
+    /* Все семь .filter и граница между группами: три фильтра очереди против
+       четырёх переключателей карточки. Если панель карточки перестанет
        рисоваться, «фильтров семь» развалится. */
     ok(await s.eval('return __t.count(".filter")') === 7,
       'на столе семь переключателей .filter, как измерено (сейчас: ' +
       (await s.eval('return __t.count(".filter")')) + ')');
-    const queueFiltersFound = await s.eval('return Array.prototype.filter.call(' +
-      'document.querySelectorAll("#inbox-list .filter"), function(b) {' +
-      ' return ' + JSON.stringify(QUEUE_FILTERS) + '.indexOf((b.textContent || "").trim()) !== -1; })' +
-      '.map(function(b) { return (b.textContent || "").trim(); })');
-    ok(queueFiltersFound.length === QUEUE_FILTERS.length,
-      'в очереди на месте все три фильтра ' + JSON.stringify(QUEUE_FILTERS) +
-      ' (найдено: ' + JSON.stringify(queueFiltersFound) + ')');
     ok(await s.eval('return __t.count("#inbox-list .filter") === 3'),
       'в очереди ровно три .filter (сейчас: ' +
       (await s.eval('return __t.count("#inbox-list .filter")')) + ')');
-    ok(await s.eval('return (function() { var on = Array.prototype.filter.call(' +
-      'document.querySelectorAll("#inbox-list .filter"), function(b) { return b.classList.contains("on"); });' +
-      ' return on.length === 1 && (on[0].textContent || "").trim() === "Все"; })()'),
-      'сразу после открытия включён фильтр «Все» и только он');
+    const queueLabels = await s.eval('return Array.prototype.map.call(' +
+      'document.querySelectorAll("#inbox-list .filter"), function(b) { return (b.textContent || "").trim(); })');
+    ok(JSON.stringify(queueLabels) === JSON.stringify(QUEUE_FILTERS),
+      'фильтры очереди подписаны ' + JSON.stringify(QUEUE_FILTERS) + ' (сейчас: ' + JSON.stringify(queueLabels) + ')');
+    const activeOnStart = await activeFilterLabels('#inbox-list .filter');
+    ok(activeOnStart.length === 1 && activeOnStart[0] === 'Все',
+      'сразу после открытия включён фильтр «Все» и только он (включено: ' + JSON.stringify(activeOnStart) + ')');
 
     /* Фильтр «ЕСИА»: выборка обязана схлопнуться ровно до сделок с согласием.
        Утверждение ловит и «фильтр не фильтрует» (остались все четыре), и
        «фильтр фильтрует не по тому полю» (осталась не та половина). */
-    ok(!!(await s.eval(queueFilter('ЕСИА'))), 'фильтр «ЕСИА» найден и нажат');
+    ok(!!(await clickFilter('ЕСИА')), 'фильтр «ЕСИА» найден и нажат');
     r = await waitForCards(ESIA_FILTER.esia);
     ids = await cardIds();
     ok(r.ok, 'фильтр «ЕСИА» оставляет только сделки с согласием ' + JSON.stringify(ESIA_FILTER.esia) +
       ' (сейчас: ' + JSON.stringify(ids) + ')' + why(r));
-    ok(await s.eval('return (function() { var on = Array.prototype.filter.call(' +
-      'document.querySelectorAll("#inbox-list .filter"), function(b) { return b.classList.contains("on"); });' +
-      ' return on.length === 1 && (on[0].textContent || "").trim() === "ЕСИА"; })()'),
-      'включённым показан именно фильтр «ЕСИА»');
+    const activeEsia = await activeFilterLabels('#inbox-list .filter');
+    ok(activeEsia.length === 1 && activeEsia[0] === 'ЕСИА',
+      'включённым показан именно фильтр «ЕСИА» (включено: ' + JSON.stringify(activeEsia) + ')');
+    const esiaInList = await s.eval('return __t.count("#inbox-list .card-deal .badge-esia")');
+    ok(esiaInList === ESIA_FILTER.esia.length,
+      'в выборке «ЕСИА» значок стоит у каждой карточки (значков: ' + esiaInList +
+      ', карточек: ' + ids.length + ')');
 
-    /* Фильтр «без ЕСИА» — дополнительная половина: так проверка не пройдёт,
-       если поверхность сузила выборку один раз и больше не реагирует. */
-    ok(!!(await s.eval(queueFilter('без ЕСИА'))), 'фильтр «без ЕСИА» найден и нажат');
+    /* Фильтр «без ЕСИА» — вторая половина: так проверка не пройдёт, если
+       поверхность сузила выборку один раз и больше не реагирует. */
+    ok(!!(await clickFilter('без ЕСИА')), 'фильтр «без ЕСИА» найден и нажат');
     r = await waitForCards(ESIA_FILTER.no_esia);
     ids = await cardIds();
     ok(r.ok, 'фильтр «без ЕСИА» оставляет только сделки без согласия ' +
       JSON.stringify(ESIA_FILTER.no_esia) + ' (сейчас: ' + JSON.stringify(ids) + ')' + why(r));
-    ok(await s.eval('return __t.text("inbox-list").indexOf("badge-esia") === -1'),
-      'в выборке «без ЕСИА» не осталось карточек со значком ЕСИА');
+    const noEsiaBadges = await s.eval('return {' +
+      ' esia: __t.count("#inbox-list .badge-esia"),' +
+      ' noesia: __t.count("#inbox-list .badge-noesia") }');
+    ok(noEsiaBadges.esia === 0 && noEsiaBadges.noesia === ESIA_FILTER.no_esia.length,
+      'в выборке «без ЕСИА» нет карточек со значком ЕСИА, а «без ЕСИА» — у каждой (сейчас: ' +
+      JSON.stringify(noEsiaBadges) + ')');
 
     /* Возврат к «Все» обязан восстановить полную очередь и её порядок. */
-    ok(!!(await s.eval(queueFilter('Все'))), 'фильтр «Все» найден и нажат');
+    ok(!!(await clickFilter('Все')), 'фильтр «Все» найден и нажат');
     r = await waitForCards(DEAL_IDS);
     ids = await cardIds();
-    ok(r.ok, 'возврат к «Все» восстанавливает всю очередь ' + JSON.stringify(DEAL_IDS) +
-      ' (сейчас: ' + JSON.stringify(ids) + ')' + why(r));
-    ok(JSON.stringify(ids) === JSON.stringify(DEAL_IDS),
-      'после переключения фильтров порядок карточек не изменился');
-    /* Открытой должна остаться сделка, которая в новой выборке есть: если
-       фильтр выкинул выбранную карточку, стол обязан переназначить выбор, а не
-       оставить подсветку на несуществующей строке. */
-    const highlightedAfterFilter = await s.eval('return ' + HIGHLIGHTED_IDS);
+    ok(r.ok && JSON.stringify(ids) === JSON.stringify(DEAL_IDS),
+      'возврат к «Все» восстанавливает всю очередь в прежнем порядке (сейчас: ' + JSON.stringify(ids) + ')' + why(r));
+    /* Открытой должна остаться сделка, которая в новой выборке есть: если фильтр
+       выкинул выбранную карточку, стол обязан переназначить выбор, а не оставить
+       подсветку на несуществующей строке. */
+    const highlightedAfterFilter = await s.eval(HIGHLIGHTED_IDS);
     ok(highlightedAfterFilter.length === 1 && ids.indexOf(highlightedAfterFilter[0]) !== -1,
       'открытая сделка осталась в выборке фильтра (открыто: ' + JSON.stringify(highlightedAfterFilter) +
       ', выборка: ' + JSON.stringify(ids) + ')');
-    ok((await s.eval('return __t.visibleErrors()')).length === 0, 'после работы с фильтрами ошибок нет');
+    await noFailures('переключение фильтров очереди прошло без сбоев страницы');
 
     check.section('Стол сделки — карточка сделки');
 
     /* Сначала явно открываем первую сделку: после фильтров открытой могла
-       остаться вторая, а карточки у сделок разные (у второй короткая форма
-       СОПД и другой набор действий счёт/КОД) — разбирать её под видом «первой»
-       нельзя. Дальше переключатели карточки проверяются уже на первой сделке. */
+       остаться вторая, а карточки у сделок разные (у второй короткая форма СОПД
+       и другой набор действий счёт/КОД) — разбирать её под видом «первой» нельзя. */
     r = await selectCard(DEAL_IDS[0]);
     ok(r.ok, 'карточка первой сделки ' + DEAL_IDS[0] + ' найдена и открыта' + why(r));
 
     const work0 = await work();
-    ok(work0.text.length > 500,
-      'карточка первой сделки заполнена (длина текста: ' + work0.text.length + ')');
-    ok(work0.id.indexOf(DEAL_IDS[0]) !== -1 && work0.text.indexOf(DEAL_MARKERS[0].client) !== -1,
-      'в карточке открыта первая сделка мока ' + DEAL_IDS[0] + ' и её клиент (заголовок: «' + work0.id + '»)');
-    ok(work0.text.indexOf(DEAL_MARKERS[0].stage) !== -1,
-      'карточка показывает этап сделки «' + DEAL_MARKERS[0].stage + '»');
+    ok(work0.text.indexOf(DEAL_MARKERS[0].client) !== -1 && (await openDeal()) === DEAL_IDS[0],
+      'в карточке открыта первая сделка ' + DEAL_IDS[0] + ' и её клиент ' +
+      DEAL_MARKERS[0].client + ' (заголовок: «' + work0.id + '»)');
     const workStage = await s.eval('return (function() { var e = document.querySelector("#work-deal .stage-now");' +
       ' return e ? (e.textContent || "").trim() : ""; })()');
     ok(workStage === DEAL_MARKERS[0].stage,
-      'подпись текущего этапа в шапке карточки — «' + DEAL_MARKERS[0].stage + '» (сейчас: «' + workStage + '»)');
-    const snapshotMissing = SNAPSHOT_STAGE.split(' / ')
+      'карточка подписана этапом «' + DEAL_MARKERS[0].stage + '» (сейчас: «' + workStage + '»)');
+    const workBlocks = ['Сделка', 'Идентификация', 'Когда открывать счёт', 'Заявление на открытие счёта',
+      'Клиент подписал КОД']
       .filter(function (t) { return work0.text.indexOf(t) === -1; });
-    ok(snapshotMissing.length === 0,
-      'в карточке есть снимок сделки и заявление на счёт (нет: ' + JSON.stringify(snapshotMissing) + ')');
+    ok(workBlocks.length === 0,
+      'в карточке есть снимок сделки, идентификация, заявление на счёт и комплект КОД (нет: ' +
+      JSON.stringify(workBlocks) + ')');
     const docsMissing = ['Кредитный договор', 'График платежей', 'Договор об ипотеке']
       .filter(function (t) { return work0.text.indexOf(t) === -1; });
     ok(docsMissing.length === 0,
       'в карточке перечислены документы комплекта КОД (нет: ' + JSON.stringify(docsMissing) + ')');
 
-    const actions = await s.eval('return Array.prototype.map.call(' +
-      'document.querySelectorAll("#work-deal button"), function(b) {' +
-      ' return (b.textContent || "").replace(/\\s+/g, " ").trim(); })');
-    ok(actions.length >= WORK_ACTIONS.length,
-      'в карточке есть действия (кнопок: ' + actions.length + ')');
-    const actionsMissing = WORK_ACTIONS.filter(function (t) { return actions.indexOf(t) === -1; });
+    const cardButtons = await workButtons();
+    const actionsMissing = WORK_ACTIONS.filter(function (t) { return cardButtons.indexOf(t) === -1; });
     ok(actionsMissing.length === 0,
       'в карточке на месте действия ' + JSON.stringify(WORK_ACTIONS) +
-      ' (нет: ' + JSON.stringify(actionsMissing) + ')');
+      ' (нет: ' + JSON.stringify(actionsMissing) + ', всего кнопок: ' + cardButtons.length + ')');
 
-    /* У первой сделки первое СОПД полное, действующее и получено по СМС
-       (mock.js:66-77), поэтому блок не должен предлагать «доформировать»
-       согласие и обязан показать факты именно этой сделки. Значения взяты из
-       мока, а не посчитаны на странице: иначе проверка читала бы тот же код,
-       что и поверхность. */
-    const sopdFacts = await s.eval('return (function() { var t = __t.text("work-deal");' +
-      ' var i = t.indexOf("Первое СОПД"); return i === -1 ? "" : t.slice(i, i + 300); })()');
-    const sopdExpected = ['10.03.2026', 'полная · банк 2026.2 полная', 'СМС / электронная форма', '11.03.2031'];
-    const sopdMissing = sopdExpected.filter(function (x) { return sopdFacts.indexOf(x) === -1; });
-    ok(sopdFacts.length > 0 && sopdMissing.length === 0,
+    /* Факты первого СОПД сверяем по ВСЕМУ тексту кнопок и карточки, а не по
+       срезу строки: у первой сделки форма полная и действующая (mock.js:66-77),
+       поэтому стол не должен предлагать «доформировать» согласие. Раньше здесь
+       стоял срез в 300 символов — строка действий оставалась за его границей, и
+       проверка на лишние кнопки была слепой. */
+    const sopdExpected = [SOPD_FIRST.when, SOPD_FIRST.form, SOPD_FIRST.channel, SOPD_FIRST.until];
+    const sopdMissing = sopdExpected.filter(function (x) { return work0.text.indexOf(x) === -1; });
+    ok(work0.text.indexOf('Первое СОПД') !== -1 && sopdMissing.length === 0,
       'блок «Первое СОПД» показывает касание, полную форму, канал и срок из мока (нет: ' +
       JSON.stringify(sopdMissing) + ')');
-    /* «Скачать и проверить» есть всегда (deal-ops.js:1215), а вот действия
-       доформирования («Шаблон … · бумага», «Отправить полную форму СМС») стол
-       рисует только при sopd.needTemplate. У первой сделки форма полная и
-       версия актуальная, значит этих кнопок быть не должно — их появление
-       означало бы, что стол считает согласие недостаточным. */
-    const sopdExtra = ['Отправить полную форму СМС', 'Шаблон полная · бумага']
-      .filter(function (x) { return sopdFacts.indexOf(x) !== -1; });
+    ok(work0.text.indexOf(SOPD_FIRST.verdict) !== -1,
+      'блок СОПД сообщает, что согласие действует (текста «' + SOPD_FIRST.verdict + '» нет)');
+    const sopdExtra = SOPD_EXTRA.filter(function (x) { return cardButtons.indexOf(x) !== -1; });
     ok(sopdExtra.length === 0,
       'стол не предлагает доформировать действующее согласие (нашлись лишние действия: ' +
       JSON.stringify(sopdExtra) + ')');
 
     /* Действия, недоступные на этапе идентификации, обязаны быть заперты: это не
-       «кнопки на месте», а «кнопки не пускают». Если снять disabled, проверка
-       упадёт. */
-    const notDisabled = await s.eval('return (function() { var out = [];' +
-      ' Array.prototype.forEach.call(document.querySelectorAll("#work-deal button"), function(b) {' +
-      ' var t = (b.textContent || "").trim();' +
-      ' if (' + JSON.stringify(WORK_DISABLED) + '.indexOf(t) === -1) return;' +
-      ' if (t === "Искать счёт в ЦФТ") return;' +
-      ' if (b.disabled !== true) out.push(t); }); return out; })()');
-    ok(notDisabled.length === 0,
+       «кнопки на месте», а «кнопки не пускают». Если снять disabled, упадёт. */
+    const notLocked = (await Promise.all(WORK_LOCKED.map(buttonState)))
+      .map(function (st, i) { return st && st.disabled === true ? null : WORK_LOCKED[i]; })
+      .filter(Boolean);
+    ok(notLocked.length === 0,
       'подпись КОД и интернет-банк заперты на этапе идентификации (не заперты: ' +
-      JSON.stringify(notDisabled) + ')');
+      JSON.stringify(notLocked) + ')');
 
-    /* Кнопка идентификации должна быть заперта до галочек: это не «кнопка на
-       месте», а «кнопка не пускает дальше» — проверяем оба состояния.
+    /* Кнопка идентификации заперта до галочек — проверяем оба состояния.
        Какая галочка нужна, зависит от сделки: с согласием ЕСИА — явка клиента,
-       без него — сверка паспорта (esiaBlock, deal-ops.js:1231-1239). */
+       без него — сверка паспорта (deal-ops.js:354-357, 1231-1239). */
     const needLabel = await s.eval('return (function() {' +
       ' var t = __t.text("work-deal");' +
       ' if (t.indexOf("ЕСИА: да") !== -1) return "Клиент явился";' +
@@ -372,175 +511,175 @@ module.exports = {
       ' return ""; })()');
     ok(needLabel.length > 0,
       'в карточке подписан признак ЕСИА, по нему выбирается нужная галочка (сейчас: «' + needLabel + '»)');
-    ok(await s.eval('return (function() { var b = Array.prototype.filter.call(' +
-      'document.querySelectorAll("#work-deal button"), function(x) {' +
-      ' return (x.textContent || "").trim() === "Искать счёт в ЦФТ"; })[0];' +
-      ' return !!b && b.disabled === true; })()'),
-      '«Искать счёт в ЦФТ» заперта, пока не отмечены согласие и телефон');
-    ok(await s.eval('return (function() { var l = Array.prototype.filter.call(' +
-      'document.querySelectorAll("#work-deal label.check"), function(x) {' +
-      ' return (x.textContent || "").indexOf(' + JSON.stringify(needLabel) + ') !== -1; })[0];' +
-      ' if (!l) return false; var i = l.querySelector("input"); if (!i) return false;' +
-      ' i.click(); return i.checked === true; })()'),
-      'галочка «' + needLabel + '» найдена и отмечена');
-    ok(await s.eval('return __t.clickText("#work-deal label.check", "Телефон подтверждён")'),
-      'галочка «Телефон подтверждён» найдена и нажата');
+    const identityBefore = await buttonState(WORK_ACTIONS[0]);
+    ok(!!identityBefore && identityBefore.disabled === true && identityBefore.visible === true,
+      '«' + WORK_ACTIONS[0] + '» видна и заперта, пока не отмечены согласие и телефон (сейчас: ' +
+      JSON.stringify(identityBefore) + ')');
+    ok(!!(await clickCheckbox(needLabel)), 'галочка «' + needLabel + '» найдена и отмечена');
+    ok(!!(await clickCheckbox('Телефон подтверждён')), 'галочка «Телефон подтверждён» найдена и нажата');
     r = await s.waitFor('return (function() { var b = Array.prototype.filter.call(' +
       'document.querySelectorAll("#work-deal button"), function(x) {' +
-      ' return (x.textContent || "").trim() === "Искать счёт в ЦФТ"; })[0];' +
+      ' return (x.textContent || "").trim() === ' + JSON.stringify(WORK_ACTIONS[0]) + '; })[0];' +
       ' return !!b && b.disabled === false; })()', 5000);
-    ok(r.ok, 'после отметки паспорта/явки и телефона кнопка «Искать счёт в ЦФТ» разблокирована' + why(r));
-    ok((await s.eval('return __t.visibleErrors()')).length === 0, 'ошибок в карточке нет');
+    const identityAfter = await buttonState(WORK_ACTIONS[0]);
+    ok(r.ok && !!identityAfter && identityAfter.disabled === false,
+      'после отметки паспорта/явки и телефона кнопка «' + WORK_ACTIONS[0] + '» разблокирована (сейчас: ' +
+      JSON.stringify(identityAfter) + ')' + why(r));
 
     /* Проводка выбора: клик по ДРУГОЙ карточке обязан перерисовать #work-deal на
-       другую сделку. Именно это ломает подмена selectDeal() заглушкой. */
+       другую сделку. Если выбор сломать, содержимое остаётся прежним. */
     const work1 = await work();
-    const hit = await s.eval('return (function() { var c = Array.prototype.slice.call(' +
-      'document.querySelectorAll("#inbox-list .card-deal")).filter(function(x) {' +
-      ' return (x.textContent || "").indexOf(' + JSON.stringify(DEAL_IDS[1]) + ') !== -1; })[0];' +
-      ' if (!c) return false; c.click(); return true; })()');
-    ok(hit === true, 'карточка второй сделки ' + DEAL_IDS[1] + ' найдена и нажата');
-    r = await s.waitFor('return (function() { var h = document.querySelector("#work-deal h1");' +
-      ' return !!h && (h.textContent || "").indexOf(' + JSON.stringify(DEAL_IDS[1]) + ') !== -1; })()', 6000);
+    r = await selectCard(DEAL_IDS[1]);
     const work2 = await work();
     ok(r.ok, 'клик по другой карточке открывает сделку ' + DEAL_IDS[1] +
       ' (сейчас: «' + work2.id + '»)' + why(r));
-    ok(work2.text !== work1.text,
-      'содержимое #work-deal изменилось после выбора другой сделки (до: ' + work1.id +
-      ', после: ' + work2.id + ')');
-    ok(work2.id !== work1.id, 'заголовок карточки сменился: «' + work1.id + '» → «' + work2.id + '»');
+    ok(work2.text !== work1.text && work2.id !== work1.id,
+      'содержимое #work-deal перерисовалось на другую сделку («' + work1.id + '» → «' + work2.id + '»)');
     ok(work2.text.indexOf(DEAL_MARKERS[1].client) !== -1,
       'в карточке показан клиент выбранной сделки (' + DEAL_MARKERS[1].client + ')');
 
-    /* Полный круг: третья сделка, потом возврат на первую. Так видно, что
-       выбор не «залипает» на второй карточке. */
-    ok(!!(await s.eval('return (function() { var c = Array.prototype.slice.call(' +
-      'document.querySelectorAll("#inbox-list .card-deal")).filter(function(x) {' +
-      ' return (x.textContent || "").indexOf(' + JSON.stringify(DEAL_IDS[2]) + ') !== -1; })[0];' +
-      ' if (!c) return false; c.click(); return true; })()')),
-      'карточка третьей сделки ' + DEAL_IDS[2] + ' найдена и нажата');
-    r = await s.waitFor('return (function() { var h = document.querySelector("#work-deal h1");' +
-      ' return !!h && (h.textContent || "").indexOf(' + JSON.stringify(DEAL_IDS[2]) + ') !== -1; })()', 6000);
+    /* Полный круг: третья сделка, потом возврат на первую. Так видно, что выбор
+       не «залипает» на второй карточке. */
+    r = await selectCard(DEAL_IDS[2]);
     const work3 = await work();
-    ok(r.ok, 'выбор третьей сделки открывает ' + DEAL_IDS[2] + why(r));
-    ok(work3.text.indexOf(DEAL_MARKERS[2].client) !== -1,
-      'в карточке показан клиент третьей сделки (' + DEAL_MARKERS[2].client + ')');
+    ok(r.ok && work3.text.indexOf(DEAL_MARKERS[2].client) !== -1,
+      'выбор третьей сделки открывает ' + DEAL_IDS[2] + ' с её клиентом ' +
+      DEAL_MARKERS[2].client + why(r));
     r = await selectCard(DEAL_IDS[0]);
     const work4 = await work();
-    ok(r.ok, 'возврат на первую сделку снова открывает ' + DEAL_IDS[0] + why(r));
-    ok(work4.text.indexOf(DEAL_MARKERS[0].client) !== -1,
-      'карточка вернулась к клиенту первой сделки (' + DEAL_MARKERS[0].client + ')');
-    const highlighted = await s.eval('return ' + HIGHLIGHTED_IDS);
+    ok(r.ok && work4.text.indexOf(DEAL_MARKERS[0].client) !== -1,
+      'возврат на первую сделку открывает ' + DEAL_IDS[0] + ' с её клиентом ' +
+      DEAL_MARKERS[0].client + why(r));
+    const highlighted = await s.eval(HIGHLIGHTED_IDS);
     ok(highlighted.length === 1 && highlighted[0] === DEAL_IDS[0],
       'подсвечена ровно одна карточка — открытая сделка ' + DEAL_IDS[0] +
       ' (подсвечено: ' + JSON.stringify(highlighted) + ')');
-    ok((await s.eval('return __t.visibleErrors()')).length === 0, 'после выбора сделок ошибок нет');
+    await noFailures('выбор сделок прошёл без сбоев страницы');
 
     check.section('Стол сделки — переключатели карточки');
 
-    /* Четыре .filter карточки: канал заявления и момент открытия счёта. Это не
-       фильтры очереди — они меняют содержимое #work-deal, поэтому проверяем
-       переключение по значку «on» и по факту изменения текста. Обе стороны
-       канала ищем по подписям среди .filter карточки: подписи уникальны, а
-       класс .channel-switch носят ДВЕ разные группы (канал и «когда открывать
-       счёт»), поэтому выбор по классу собрал бы варианты из обеих групп. */
-    const workFiltersFound = await s.eval('return Array.prototype.filter.call(' +
-      'document.querySelectorAll("#work-deal .filter"), function(b) {' +
-      ' return ' + JSON.stringify(WORK_FILTERS) + '.indexOf((b.textContent || "").trim()) !== -1; })' +
-      '.map(function(b) { return (b.textContent || "").trim(); })');
-    ok(workFiltersFound.length === WORK_FILTERS.length,
+    const workLabels = await workFilterLabels();
+    const workFiltersMissing = WORK_FILTERS.filter(function (l) { return workLabels.indexOf(l) === -1; });
+    ok(workFiltersMissing.length === 0,
       'в карточке сделки на месте четыре переключателя ' + JSON.stringify(WORK_FILTERS) +
-      ' (найдено: ' + JSON.stringify(workFiltersFound) + ')');
+      ' (нет: ' + JSON.stringify(workFiltersMissing) + ')');
 
-    /* Канал заявления на счёт (deal-ops.js:1267-1273): переключение обязано
-       сменить подсказку и набор кнопок панели. Какая сторона включена сейчас —
-       узнаём у страницы: у первой сделки канал по умолчанию СМС, но состояние
-       карточки к этому месту уже менялось. */
-    const channelOn = await s.eval('return Array.prototype.filter.call(' +
-      'document.querySelectorAll("#work-deal .filter"), function(x) {' +
-      ' return x.classList.contains("on") && ' + JSON.stringify(CHANNEL_LABELS) +
-      '.indexOf((x.textContent || "").trim()) !== -1; })' +
-      '.map(function(x) { return (x.textContent || "").trim(); })');
-    ok(channelOn.length === 1 && CHANNEL_LABELS.indexOf(channelOn[0]) !== -1,
+    /* Канал заявления на счёт (deal-ops.js:1267-1288): переключение обязано
+       сменить набор действий панели — на бумажном канале появляются печать
+       шаблона и загрузка скана, которых на электронном нет. Утверждаем именно
+       появление этих кнопок, а не «текст изменился». */
+    const channelOn = (await activeFilterLabels('#work-deal .filter'))
+      .filter(function (l) { return CHANNEL_LABELS.indexOf(l) !== -1; });
+    ok(channelOn.length === 1,
       'в группе канала заявления включён ровно один вариант из двух (сейчас: ' + JSON.stringify(channelOn) + ')');
-    const target = CHANNEL_LABELS.filter(function (l) { return l !== channelOn[0]; })[0];
-    const beforeSwitch = await work();
-    ok(!!(await s.eval(filterById(target))), 'переключатель канала «' + target + '» найден и нажат');
+    const firstChannel = channelOn[0];
+    const target = CHANNEL_LABELS.filter(function (l) { return l !== firstChannel; })[0];
+    const buttonsBeforeChannel = await workButtons();
+    const scanBefore = await s.eval(SCAN_STATE);
+    const paperBefore = PAPER_ACTIONS.filter(function (t) { return buttonsBeforeChannel.indexOf(t) !== -1; });
+    ok(!!(await clickFilter(target)), 'переключатель канала «' + target + '» найден и нажат');
     r = await s.waitFor('return (function() { var b = Array.prototype.filter.call(' +
       'document.querySelectorAll("#work-deal .filter"), function(x) {' +
       ' return (x.textContent || "").trim() === ' + JSON.stringify(target) + '; })[0];' +
       ' return !!b && b.classList.contains("on"); })()', 5000);
-    const switched = await work();
-    ok(r.ok, 'переключение канала на «' + target + '» отмечает выбранный вариант значком «on»' + why(r));
-    ok(switched.text !== beforeSwitch.text,
-      'переключение канала меняет содержимое карточки: «' + channelOn[0] + '» → «' + target +
-      '» (до: ' + beforeSwitch.text.length + ' символов, после: ' + switched.text.length + ')');
-    const changedId = await s.eval('return ' + OPEN_DEAL);
-    ok(changedId === DEAL_IDS[0],
+    const afterChannel = (await activeFilterLabels('#work-deal .filter'))
+      .filter(function (l) { return CHANNEL_LABELS.indexOf(l) !== -1; });
+    ok(r.ok && afterChannel.length === 1 && afterChannel[0] === target,
+      'переключение канала включает «' + target + '» и снимает «' + firstChannel +
+      '» (включено: ' + JSON.stringify(afterChannel) + ')' + why(r));
+
+    const buttonsAfterChannel = await workButtons();
+    const scanAfter = await s.eval(SCAN_STATE);
+    if (target === PAPER_LABEL) {
+      ok(buttonsAfterChannel.indexOf(PAPER_PRINT) !== -1,
+        'бумажный канал рисует кнопку «' + PAPER_PRINT + '» (кнопок в карточке: ' +
+        buttonsAfterChannel.length + ')');
+      ok(!!scanAfter && scanAfter.visible === true && scanAfter.text === PAPER_SCAN,
+        'бумажный канал рисует видимую загрузку скана «' + PAPER_SCAN + '» (сейчас: ' +
+        JSON.stringify(scanAfter) + ')');
+      ok(paperBefore.length === 0 && (scanBefore === null || scanBefore.visible !== true),
+        'до переключения бумажных действий в карточке не было (кнопки: ' + JSON.stringify(paperBefore) +
+        ', скан: ' + JSON.stringify(scanBefore) + ')');
+    } else {
+      const paperLeft = PAPER_ACTIONS.filter(function (t) { return buttonsAfterChannel.indexOf(t) !== -1; });
+      ok(buttonsAfterChannel.indexOf(PAPER_PRINT) === -1,
+        'электронный канал убирает печать шаблона (осталось: ' + JSON.stringify(paperLeft) + ')');
+      ok(scanAfter === null || scanAfter.visible !== true,
+        'электронный канал убирает загрузку скана (сейчас: ' + JSON.stringify(scanAfter) + ')');
+      ok(paperBefore.indexOf(PAPER_PRINT) !== -1,
+        'до переключения в карточке была печать шаблона (были: ' + JSON.stringify(paperBefore) + ')');
+    }
+    ok((await openDeal()) === DEAL_IDS[0],
       'переключение канала не меняет открытую сделку — остаётся ' + DEAL_IDS[0] +
-      ' (сейчас: «' + changedId + '»)');
+      ' (сейчас: «' + (await openDeal()) + '»)');
 
     /* Момент открытия счёта — вторая пара переключателей той же карточки
-       (deal-ops.js:1251-1256): у первой сделки открытая по умолчанию сторона
-       «после подписи КОД», клик по «до подписи» обязан её переключить и
-       оставить ровно один включённый вариант во всей группе. */
-    const whenOnBefore = await s.eval('return Array.prototype.filter.call(' +
-      'document.querySelectorAll("#work-deal .filter"), function(x) { return x.classList.contains("on"); })' +
-      '.map(function(x) { return (x.textContent || "").trim(); })');
-    ok(whenOnBefore.indexOf(WHEN_AFTER) !== -1 && whenOnBefore.indexOf(WHEN_BEFORE) === -1,
+       (deal-ops.js:1251-1256): у первой сделки включено «после подписи КОД»,
+       клик по «до подписи» обязан переключить ровно один вариант. */
+    const whenOnBefore = (await activeFilterLabels('#work-deal .filter'))
+      .filter(function (l) { return l === WHEN_BEFORE || l === WHEN_AFTER; });
+    ok(whenOnBefore.length === 1 && whenOnBefore[0] === WHEN_AFTER,
       'у первой сделки счёт открывают после подписи КОД (включено: ' + JSON.stringify(whenOnBefore) + ')');
-    ok(!!(await s.eval(filterById(WHEN_BEFORE))), 'переключатель «' + WHEN_BEFORE + '» найден и нажат');
+    ok(!!(await clickFilter(WHEN_BEFORE)), 'переключатель «' + WHEN_BEFORE + '» найден и нажат');
     r = await s.waitFor('return (function() { var on = Array.prototype.filter.call(' +
       'document.querySelectorAll("#work-deal .filter"), function(x) { return x.classList.contains("on"); })' +
       '.map(function(x) { return (x.textContent || "").trim(); });' +
       ' return on.indexOf(' + JSON.stringify(WHEN_BEFORE) + ') !== -1 && on.indexOf(' +
       JSON.stringify(WHEN_AFTER) + ') === -1; })()', 5000);
+    const whenOnAfter = (await activeFilterLabels('#work-deal .filter'))
+      .filter(function (l) { return l === WHEN_BEFORE || l === WHEN_AFTER; });
     ok(r.ok, 'переключение на «' + WHEN_BEFORE + '» включает только его (включено: ' +
-      JSON.stringify(await s.eval('return Array.prototype.filter.call(' +
-        'document.querySelectorAll("#work-deal .filter"), function(x) { return x.classList.contains("on"); })' +
-        '.map(function(x) { return (x.textContent || "").trim(); })')) + ')' + why(r));
-    ok((await s.eval('return __t.visibleErrors()')).length === 0, 'после переключателей карточки ошибок нет');
+      JSON.stringify(whenOnAfter) + ')' + why(r));
+    await noFailures('переключатели карточки отработали без сбоев страницы');
 
-    check.section('Стол сделки — ОПЕРУ и ход обмена');
+    check.section('Стол сделки — ОПЕРУ с непустой очередью');
 
-    /* Роль ОПЕРУ — второй стол той же поверхности: своя очередь и своя шапка.
-       На свежей сцене ни одна сделка не стоит на шаге operu, поэтому очередь
-       ОПЕРУ пуста и рисует предупреждение. Если фильтр по шагу сломается,
-       ОПЕРУ покажет все четыре сделки, и проверка это заметит. */
-    ok(await s.eval('return __t.click("role-operu") === true'), 'переключатель роли ОПЕРУ найден и нажат');
-    r = await s.waitFor('return __t.text("inbox-title").indexOf("Очередь ОПЕРУ") === 0', 5000);
-    ok(r.ok, 'переключение роли меняет заголовок очереди на «Очередь ОПЕРУ» (сейчас: «' +
-      (await s.eval('return __t.text("inbox-title")')) + '»)' + why(r));
-    ok(await s.eval('return __t.count("#inbox-list .card-deal") === 0'),
-      'у ОПЕРУ нет сделок без ошибок проверок (карточек: ' +
-      (await s.eval('return __t.count("#inbox-list .card-deal")')) + ')');
-    const operuText = await s.eval('return __t.text("inbox-list")');
-    ok(operuText.indexOf('Очередь пуста') !== -1,
-      'пустая очередь ОПЕРУ объясняет себя текстом (сейчас: «' + operuText.slice(0, 60) + '…»)');
-    const operuWork = await s.eval('return __t.text("work-deal")');
-    ok(operuWork.indexOf('Стол ошибок проверок') !== -1,
-      'рабочая область ОПЕРУ показывает свой стол ошибок (сейчас: «' + operuWork.slice(0, 60) + '…»)');
-    const officerOperu = await s.eval('return __t.text("officer-label")');
-    ok(officerOperu.indexOf('ОПЕРУ') !== -1,
-      'подпись дежурного сменилась на ОПЕРУ (сейчас: «' + officerOperu + '»)');
-    ok((await s.eval('return __t.visibleErrors()')).length === 0, 'у ОПЕРУ ошибок на экране нет');
+    /* ОПЕРУ — достижимая ветка отрисовки (deal-ops.js:1123-1162), а не только
+       пустое состояние: стол показывает сделку, у которой шаг равен operu.
+       Своим сценарием до этого шага не дойти, поэтому сцену подсаживаем: правим
+       сохранённое состояние и открываем стол БЕЗ ?demo=1, чтобы он его прочитал. */
+    r = await openDemo();
+    ok(r.ok, 'стол открыт для подсадки сцены ОПЕРУ' + why(r));
+    const seed = await patchStore(
+      ' p.role = "operu";' +
+      ' if (!p.deals || !p.deals[' + JSON.stringify(DEAL_IDS[1]) + ']) return "нет сделки";' +
+      ' p.deals[' + JSON.stringify(DEAL_IDS[1]) + '].step = "operu";');
+    ok(seed === 'ok', 'сцена подсажена: у сделки ' + DEAL_IDS[1] + ' шаг operu, роль operu (сейчас: «' + seed + '»)');
+    const seeded = await s.eval('return (function() { try {' +
+      ' var p = JSON.parse(localStorage.getItem(' + JSON.stringify(STORE) + ') || "{}");' +
+      ' return { role: p.role, step: p.deals[' + JSON.stringify(DEAL_IDS[1]) + '].step }; }' +
+      ' catch (e) { return { error: e.message }; } })()');
+    ok(seeded.role === 'operu' && seeded.step === 'operu',
+      'сцена записана так, как её прочитает стол (сейчас: ' + JSON.stringify(seeded) + ')');
 
-    ok(await s.eval('return __t.click("role-ozs") === true'), 'возврат роли ОЗС найден и нажат');
-    r = await s.waitFor('return __t.count("#inbox-list .card-deal") === ' + DEAL_IDS.length, 5000);
-    ok(r.ok, 'возврат роли ОЗС восстанавливает очередь из ' + DEAL_IDS.length + ' сделок' + why(r));
-    ids = await cardIds();
-    ok(JSON.stringify(ids) === JSON.stringify(DEAL_IDS),
-      'после возврата состава очереди прежний (сейчас: ' + JSON.stringify(ids) + ')');
-
-    /* Панель «Ход обмена» — своя у этого стола: она показывает 21 шаг обмена с
-       внешними системами (BUS_CATALOG, deal-ops.js:7-29). */
-    const busRows = await s.eval('return __t.count("#bus-list .int")');
-    ok(busRows === 21, 'в «Ходе обмена» ровно 21 шаг (сейчас: ' + busRows + ')');
-    const busText = await s.eval('return __t.text("bus-list")');
-    ok(busText.indexOf('Комплект КОД получен') !== -1 && busText.indexOf('Счёт открыт') !== -1,
-      'шаги обмена подписаны (длина текста: ' + busText.length + ')');
-    ok(busText.indexOf('ожидание') !== -1,
-      'до начала работы шаги обмена стоят в ожидании, а не выдуманы завершёнными');
+    r = await openStored();
+    ok(r.ok, 'стол открылся без ?demo=1 на подсаженной сцене' + why(r));
+    r = await s.waitFor('return __t.count("#inbox-list .card-deal") === 1', 5000);
+    const operuCards = await cardIds();
+    ok(r.ok && operuCards.length === 1 && operuCards[0] === DEAL_IDS[1],
+      'очередь ОПЕРУ содержит ровно сделку с ошибкой проверки ' + DEAL_IDS[1] +
+      ' (сейчас: ' + JSON.stringify(operuCards) + ')' + why(r));
+    const operuTitle = await s.eval('return __t.text("inbox-title")');
+    ok(operuTitle.indexOf('Очередь ОПЕРУ') === 0,
+      'заголовок очереди — «Очередь ОПЕРУ» (сейчас: «' + operuTitle + '»)');
+    const operuWorkText = await s.eval('return __t.text("work-deal")');
+    ok(operuWorkText.indexOf('Снимок сделки') !== -1 && operuWorkText.indexOf('Стол ОПЕРУ') !== -1,
+      'карточка ОПЕРУ отрисована снимком сделки с панелью решений (сейчас: «' +
+      operuWorkText.slice(0, 80) + '…»)');
+    ok(operuWorkText.indexOf(DEAL_MARKERS[1].client) !== -1,
+      'в карточке ОПЕРУ клиент подсаженной сделки (' + DEAL_MARKERS[1].client + ')');
+    const operuApprove = await buttonState(OPERU_APPROVE);
+    const operuReject = await buttonState(OPERU_REJECT);
+    ok(!!operuApprove && operuApprove.disabled === false && operuApprove.visible === true,
+      'в карточке ОПЕРУ есть активная и видимая кнопка «' + OPERU_APPROVE + '» (сейчас: ' +
+      JSON.stringify(operuApprove) + ')');
+    ok(!!operuReject && operuReject.disabled === false && operuReject.visible === true,
+      'в карточке ОПЕРУ есть активная и видимая кнопка «' + OPERU_REJECT + '» (сейчас: ' +
+      JSON.stringify(operuReject) + ')');
+    const operuChecks = await s.eval('return __t.count("#work-deal .check-tile")');
+    ok(operuChecks === 6,
+      'в карточке ОПЕРУ все шесть проверок из мока (плиток: ' + operuChecks + ')');
+    await noFailures('карточка ОПЕРУ отрисована без сбоев страницы');
 
     check.section('Стол сделки — возврат на карту демо');
 
@@ -549,17 +688,14 @@ module.exports = {
        поэтому, как в manager.js, находим элемент по href и кликаем его. */
     const hub = await s.eval('return __t.hubLink()');
     ok(/start\.html/.test(String(hub)), 'ссылка возврата ведёт на start.html (сейчас: «' + hub + '»)');
-    const hubText = await s.eval('return (function() { var a = Array.prototype.slice.call(' +
+    const hubInfo = await s.eval('return (function() { var a = Array.prototype.slice.call(' +
       'document.querySelectorAll("a")).filter(function(x) {' +
       ' return /start\\.html/.test(x.getAttribute("href") || ""); })[0];' +
-      ' return a ? (a.textContent || "").replace(/\\s+/g, " ").trim() : ""; })()');
-    ok(hubText.indexOf('Карта демо') !== -1,
-      'ссылка возврата подписана «Карта демо» (сейчас: «' + hubText + '»)');
-    ok(await s.eval('return (function() { var a = Array.prototype.slice.call(' +
-      'document.querySelectorAll("a")).filter(function(x) {' +
-      ' return /start\\.html/.test(x.getAttribute("href") || ""); })[0];' +
-      ' if (!a) return false; var r = a.getBoundingClientRect(); return r.width > 0 && r.height > 0; })()'),
-      'ссылка возврата видна на экране');
+      ' if (!a) return null; var r = a.getBoundingClientRect();' +
+      ' return { text: (a.textContent || "").replace(/\\s+/g, " ").trim(),' +
+      '   visible: r.width > 0 && r.height > 0 }; })()');
+    ok(!!hubInfo && hubInfo.text.indexOf('Карта демо') !== -1 && hubInfo.visible === true,
+      'ссылка возврата подписана «Карта демо» и видна (сейчас: ' + JSON.stringify(hubInfo) + ')');
     ok(await s.eval('return (function() { var a = Array.prototype.slice.call(' +
       'document.querySelectorAll("a")).filter(function(x) {' +
       ' return /start\\.html/.test(x.getAttribute("href") || ""); })[0];' +
@@ -577,73 +713,97 @@ module.exports = {
       'на карте демо нет рабочей области стола, зато есть её заголовок (сейчас: «' +
       leftDesk.title.slice(0, 40) + '…»)');
 
-    check.section('Стол сделки — состояние переживает перезагрузку');
+    check.section('Стол сделки — ?demo=1 сбрасывает сцену, обычный вход её хранит');
 
-    /* Сцену стола проверяем в два шага, и порядок здесь принципиален.
-       Сначала ?demo=1 — этот адрес сам сбрасывает bgfbank_lab_dealops
-       (deal-ops.js:1413-1419), поэтому всё, что набрано до него, пропадёт.
-       Потом открываем стол БЕЗ ?demo=1 (обычный адрес демо, с которого и
-       приходит человек): перезагрузка такой страницы обязана сохранить сцену.
-       Если перезагрузить адрес с ?demo=1, поверхность честно сбросит состояние
-       заново, и проверка «состояние пережило перезагрузку» провалится на
+    /* Порядок здесь принципиален. Сначала ?demo=1 — этот адрес сам сбрасывает
+       bgfbank_lab_dealops (deal-ops.js:1413-1419). Потом стол открывается БЕЗ
+       ?demo=1 (обычный адрес демо): перезагрузка такой страницы обязана сцену
+       сохранить. Если перезагрузить адрес с ?demo=1, поверхность честно сбросит
+       состояние заново, и проверка «состояние пережило перезагрузку» упала бы на
        исправной поверхности — то есть была бы дефектом проверки. */
-    r = await openDesk();
-    ok(r.ok, 'возврат на стол сделки по ?demo=1 для проверки сброса' + why(r));
-    ok(await s.eval('return (function() { var l = Array.prototype.filter.call(' +
-      'document.querySelectorAll("#work-deal label.check"), function(x) {' +
-      ' return (x.textContent || "").indexOf("до подписи КОД") !== -1; })[0];' +
-      ' if (!l) return false; var i = l.querySelector("input"); return !!i && i.checked === false; })()'),
-      '?demo=1 сбрасывает сцену: галочка ДУ «до подписи КОД» снята');
+    r = await openDemo();
+    ok(r.ok, 'возврат на стол сделки по ?demo=1' + why(r));
+    await s.eval('return __t.resetFailures()');
 
-    /* Дальше — обычный адрес стола: он читает сцену из localStorage. */
-    await s.navigate(base + '/deal-ops/');
-    r = await s.waitFor('return typeof __t === "object" && __t.count("#inbox-list .card-deal") === ' +
-      DEAL_IDS.length, 10000);
-    ok(r.ok, 'стол открывается и без ?demo=1, читая сцену из localStorage' + why(r));
-
+    /* Сброс проверяется на ПРОБНОМ значении, а не на пустой галочке: отмечаем
+       дополнительное условие первой сделки (оно сохраняется в сцену) и рядом
+       кладём собственный пробный маркер внутри состояния. После ?demo=1 обязано
+       исчезнуть и то, и другое: если сброс отключить, проверка упадёт. */
     const duLabel = await s.eval('return (function() { var l = Array.prototype.filter.call(' +
       'document.querySelectorAll("#work-deal label.check"), function(x) {' +
       ' return (x.textContent || "").indexOf("до подписи КОД") !== -1; })[0];' +
       ' return l ? (l.textContent || "").replace(/\\s+/g, " ").trim() : ""; })()');
     ok(duLabel.length > 0,
       'у первой сделки есть дополнительное условие «до подписи КОД» (сейчас: «' + duLabel + '»)');
-    ok(await s.eval('return (function() { var l = Array.prototype.filter.call(' +
-      'document.querySelectorAll("#work-deal label.check"), function(x) {' +
-      ' return (x.textContent || "").indexOf("до подписи КОД") !== -1; })[0];' +
-      ' if (!l) return false; var i = l.querySelector("input"); if (!i) return false;' +
-      ' i.click(); return i.checked === true; })()'),
-      'галочка ДУ «до подписи КОД» отмечена');
-    const duStored = await s.eval('return (function() { try { var raw = localStorage.getItem(' +
-      JSON.stringify(STORE) + '); if (!raw) return -1; var p = JSON.parse(raw);' +
-      ' return (p.deals && p.deals[' + JSON.stringify(DEAL_IDS[0]) + '] && p.deals[' +
-      JSON.stringify(DEAL_IDS[0]) + '].du && p.deals[' + JSON.stringify(DEAL_IDS[0]) + '].du.du_18) ? 1 : 0; }' +
-      ' catch (e) { return -2; } })()');
-    ok(duStored === 1,
-      'отметка ДУ сохранена в ' + STORE + ' (значение: ' + duStored + ')');
-    const sceneBefore = await s.eval('return __t.labKeys()');
-    ok(sceneBefore.indexOf(STORE) !== -1,
-      'ключ сцены стола ' + STORE + ' присутствует в localStorage (ключи: ' + sceneBefore + ')');
+    ok((await checkboxState('до подписи КОД')) === false,
+      'до отметки галочка ДУ «до подписи КОД» снята (в сцене du_18 = false)');
+    ok(!!(await clickCheckbox('до подписи КОД')), 'галочка ДУ «до подписи КОД» отмечена');
+    const probeValue = 'probe-' + Date.now();
+    const probe = await patchStore(' p.probe = ' + JSON.stringify(probeValue) + ';');
+    ok(probe === 'ok', 'в сцену положен пробный маркер «' + probeValue + '» (сейчас: «' + probe + '»)');
+    const storedBefore = await readStore({ cards: '__t.count("#inbox-list .card-deal")' });
+    ok(storedBefore.probe === probeValue && storedBefore.du === true,
+      'до сброса в сцене есть и пробный маркер, и отметка ДУ (сейчас: ' + JSON.stringify(storedBefore) + ')');
+
+    r = await openDemo();
+    ok(r.ok, 'повторный вход по ?demo=1 после подсадки сцены' + why(r));
+    const storedAfterReset = await readStore({ cards: '__t.count("#inbox-list .card-deal")' });
+    ok(storedAfterReset.probe === null && storedAfterReset.du === false,
+      '?demo=1 стирает пробный маркер и отметку ДУ — сцена действительно сброшена (сейчас: ' +
+      JSON.stringify(storedAfterReset) + ')');
+    ok(storedAfterReset.cards === DEAL_IDS.length,
+      'после сброса стол снова рисует все ' + DEAL_IDS.length + ' сделки мока (карточек: ' +
+      storedAfterReset.cards + ')');
+    ok((await checkboxState('до подписи КОД')) === false,
+      'после сброса галочка ДУ в карточке снята');
+    await noFailures('сброс сцены прошёл без сбоев страницы');
+
+    /* Теперь то же состояние набираем заново и проверяем, что обычный вход и
+       перезагрузка (без ?demo=1) его сохраняют. */
+    await s.eval('return __t.resetFailures()');
+    ok(!!(await clickCheckbox('до подписи КОД')),
+      'перед перезагрузкой галочка ДУ «до подписи КОД» отмечена снова');
+    const probe2 = 'probe-' + Date.now();
+    const probeSet = await patchStore(' p.probe = ' + JSON.stringify(probe2) + ';');
+    ok(probeSet === 'ok', 'в сцену положен второй пробный маркер «' + probe2 + '» (сейчас: «' + probeSet + '»)');
+
+    r = await openStored();
+    const storedOnReopen = await readStore({ cards: '__t.count("#inbox-list .card-deal")' });
+    ok(r.ok && storedOnReopen.probe === probe2 && storedOnReopen.du === true,
+      'вход без ?demo=1 читает сцену из localStorage: маркер и отметка ДУ на месте (сейчас: ' +
+      JSON.stringify(storedOnReopen) + ')' + why(r));
+    ids = await cardIds();
+    ok(JSON.stringify(ids) === JSON.stringify(DEAL_IDS),
+      'после обычного входа очередь та же (карточек: ' + ids.length + ')');
+
+    const snapshotBefore = await s.eval(STORE_SNAPSHOT);
+    ok(snapshotBefore.length > 100 && snapshotBefore.indexOf('"deals"') !== -1 &&
+      snapshotBefore.indexOf('"operu"') === -1,
+      'слепок состояния перед перезагрузкой не пуст и не содержит подсадки ОПЕРУ (длина: ' +
+      snapshotBefore.length + ')');
 
     await s.reload();
     r = await s.waitFor('return typeof __t === "object" && __t.count("#inbox-list .card-deal") === ' +
       DEAL_IDS.length, 10000);
-    ids = await cardIds();
-    ok(r.ok && JSON.stringify(ids) === JSON.stringify(DEAL_IDS),
-      'после перезагрузки очередь та же (карточек: ' + ids.length + ')' + why(r));
-    ok(await s.eval('return (function() { var l = Array.prototype.filter.call(' +
-      'document.querySelectorAll("#work-deal label.check"), function(x) {' +
-      ' return (x.textContent || "").indexOf("до подписи КОД") !== -1; })[0];' +
-      ' if (!l) return false; var i = l.querySelector("input"); return !!i && i.checked === true; })()'),
-      'после перезагрузки отметка ДУ «до подписи КОД» на месте (сцена не потеряна)');
-    const workAfter = await work();
-    ok(workAfter.id.indexOf(DEAL_IDS[0]) !== -1,
-      'после перезагрузки открыта выбранная сделка ' + DEAL_IDS[0] +
-      ' (сейчас: «' + workAfter.id + '»)');
-    const sceneAfter = await s.eval('return __t.labKeys()');
-    ok(sceneBefore === sceneAfter,
-      'перезагрузка не меняет состав ключей сцены (до: ' + sceneBefore + ', после: ' + sceneAfter + ')');
+    ok(r.ok, 'после перезагрузки стол снова показывает очередь' + why(r));
+
+    /* Слепок «состояние целиком» сравнивает ЗНАЧЕНИЯ, а не имена ключей: имена не
+       исчезают никогда (в этом и была слабость прежней проверки через
+       __t.labKeys()), а selectedId в состояние подставляет сам defaultState(),
+       поэтому «открыта первая сделка» ничего не доказывает. Штатно меняющиеся
+       журнал ELMA и статусы шины обмена из слепка исключены. */
+    const snapshotAfter = await s.eval(STORE_SNAPSHOT);
+    ok(snapshotAfter === snapshotBefore,
+      'перезагрузка сохранила состояние целиком, а не только имена ключей (до: ' +
+      snapshotBefore.length + ' символов, после: ' + snapshotAfter.length + ' символов)');
+    const afterReload = await readStore({ cards: '__t.count("#inbox-list .card-deal")' });
+    ok(afterReload.probe === probe2 && afterReload.du === true,
+      'после перезагрузки пробный маркер и отметка ДУ на месте — сцену не потеряли (сейчас: ' +
+      JSON.stringify(afterReload) + ')');
+    ok((await checkboxState('до подписи КОД')) === true,
+      'отметка ДУ «до подписи КОД» видна в карточке после перезагрузки');
     ok(await s.eval('return __t.count(".filter")') === 7,
       'после перезагрузки все семь переключателей .filter снова на месте');
-    ok((await s.eval('return __t.visibleErrors()')).length === 0, 'после перезагрузки ошибок нет');
+    await noFailures('перезагрузка прошла без сбоев страницы');
   },
 };
