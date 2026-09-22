@@ -1515,8 +1515,16 @@ console.log('\n=== 13. Demo hub (start.html) entry point ===');
   ].forEach(function(pair) {
     assert(hub.indexOf('href="' + pair[0] + '"') !== -1, pair[1]);
   });
-  assert(/AS-IS/.test(hub) && /TO-BE/.test(hub), 'hub narrates AS-IS → TO-BE');
-  assert(/conveyor/.test(hub), 'hub names the conveyor orchestrator');
+  /* Карта для руководства. Страницу переписали человеческим языком, поэтому
+     проверяем то, на чём она теперь держится: подписи «было / стало», понятный
+     язык в шапке и главную кнопку. Разбор «что выбирать на каждом столе» и
+     номера заявок с карты убраны — ведущему они не нужны, а из таблицы
+     аудита ниже сняты проверки, которые их требовали. */
+  assert(/Как сейчас/.test(hub) && /Как предлагаем/.test(hub),
+    'hub contrasts the current state with the proposal');
+  assert(/оркестратор|ведёт одну заявку/.test(hub),
+    'hub explains what carries the application through the stages');
+  assert(/Открыть кабинет/.test(hub), 'hub leads with the cabinet entry action');
   assert(/макет, а не прод/i.test(hub), 'hub states it is a mock, not production');
   /* Ни одного демо-параметра, страницы подготовки показа и режима проектора на
      карте быть не должно: кабинет и столы открываются обычным адресом. */
@@ -1602,17 +1610,16 @@ console.log('\n=== 13. Demo hub (start.html) entry point ===');
     assert(/onclick="resetDemo\(\)"/.test(src), rel + ' offers its own scene reset button');
   });
 
-  // Карта «что выбирать на каждом столе» должна совпадать с данными моков,
-  // иначе ведущий ищет в очереди номер, которого там нет.
-  ['25BGFB00990001', '25BGFB00990004', '25BGFB00990101', '25BGFB00990104', '4421-И'].forEach(function(id) {
-    assert(hub.indexOf(id) !== -1, 'presenter map names ' + id);
-  });
-  assert(/та же самая сделка/i.test(hub), 'map marks deal 001 as the same deal as the cabinet');
-  assert(/не продолжение/i.test(hub), 'map says the other desks are branches, not a continuation');
-  const dealMockIds = [...fs.readFileSync(path.join(root, 'deal-ops/mock.js'), 'utf8')
-    .matchAll(/deal_id:\s*"([^"]+)"/g)].map(function(m) { return m[1]; });
-  const missingDeal = dealMockIds.filter(function(id) { return hub.indexOf(id) === -1 && hub.indexOf(id.slice(-3)) === -1; });
-  assert(missingDeal.length === 0, 'map covers every deal desk scenario' + (missingDeal.length ? ' — missing: ' + missingDeal.join(', ') : ''));
+  /* Разбор «что выбирать на каждом столе» и номера заявок с карты убраны вместе
+     с переписыванием страницы: карту читает руководство, и внутренних номеров
+     на ней быть не должно. Проверки, которые требовали эти номера и пометки
+     («та же самая сделка», «не продолжение»), сняты сознательно — они держали
+     ровно тот текст, который решили убрать. Взамен на странице проверяется
+     отсутствие внутренних идентификаторов: если номер или имя переменной
+     вернутся на карту, прогон это заметит. */
+  const leakedIds = (hub.match(/25BGFB\d{8,}|bgfbank_lab_|elma_id|\.xlsx/g) || []);
+  assert(leakedIds.length === 0,
+    'hub carries no internal identifiers' + (leakedIds.length ? ' — found: ' + [...new Set(leakedIds)].join(', ') : ''));
 
   // Целостность ссылок на самих поверхностях показа: битая ссылка — это тупик,
   // ради отсутствия которых хаб и делался. docs/ — архив источников, не поверхности.

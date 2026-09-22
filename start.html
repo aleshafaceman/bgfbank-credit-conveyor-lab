@@ -17,7 +17,6 @@
         --bgf-ink: #1e293b;
         --bgf-muted: #7e9bb6;
         --bgf-ok: #13A538;
-        --bgf-danger: #dc2626;
     }
     * { box-sizing: border-box; }
     body {
@@ -45,10 +44,8 @@
     .btn:hover { background: var(--bgf-sky); }
     .btn--primary { background: var(--bgf-navy); border-color: var(--bgf-navy); color: #fff; }
     .btn--primary:hover { background: var(--bgf-navy-deep); }
-    .btn--accent { background: var(--bgf-accent); border-color: var(--bgf-accent); color: #fff; }
-    .btn--accent:hover { filter: brightness(.94); }
 
-    /* Герой */
+    /* Шапка страницы */
     .hero { background: linear-gradient(135deg, var(--bgf-navy) 0%, var(--bgf-navy-deep) 62%, #0a2f5c 100%); color: #fff; padding: 44px 0 38px; }
     .hero-inner { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
     .hero h1 { font-family: 'Roboto Condensed', Roboto, sans-serif; font-size: 34px; line-height: 1.15; margin: 0 0 12px; font-weight: 700; }
@@ -61,35 +58,33 @@
     }
     .notice b { color: #fff; }
 
-    h2 { font-family: 'Roboto Condensed', Roboto, sans-serif; color: var(--bgf-navy); font-size: 23px; margin: 40px 0 6px; }
+    h2 { font-family: 'Roboto Condensed', Roboto, sans-serif; color: var(--bgf-navy); font-size: 23px; margin: 46px 0 8px; }
     h2 .num { color: var(--bgf-ok); }
-    .lead { color: var(--bgf-muted); margin: 0 0 18px; font-size: 14px; }
+    .lead { color: #64748b; margin: 0 0 18px; font-size: 14px; max-width: 820px; }
 
     /* Было / стало */
     .split { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
     .panel { background: #fff; border: 1px solid var(--bgf-line); border-radius: 14px; padding: 18px 20px; }
     .panel--as { border-top: 3px solid var(--bgf-muted); }
     .panel--to { border-top: 3px solid var(--bgf-ok); }
-    .panel h3 { margin: 0 0 10px; font-size: 15px; font-family: 'Roboto Condensed', Roboto, sans-serif; }
+    .panel h3 { margin: 0 0 12px; font-size: 15px; font-family: 'Roboto Condensed', Roboto, sans-serif; }
     .panel--as h3 { color: #64748b; }
     .panel--to h3 { color: var(--bgf-ok); }
     .panel ul { margin: 0; padding-left: 18px; font-size: 14px; }
-    .panel li { margin-bottom: 7px; }
+    .panel li { margin-bottom: 9px; }
     .panel li b { color: var(--bgf-navy); }
 
-    /* Схема */
+    /* Схема пути сделки */
     .flow { background: #fff; border: 1px solid var(--bgf-line); border-radius: 14px; padding: 18px 20px; overflow-x: auto; }
-    .flow-line { display: flex; align-items: stretch; gap: 8px; min-width: 860px; }
+    .flow-line { display: flex; align-items: stretch; gap: 8px; min-width: 820px; }
     .flow-step { flex: 1; border: 1px solid var(--bgf-line); border-radius: 10px; padding: 10px 12px; background: var(--bgf-sky); }
     .flow-step .k { font-size: 11px; color: var(--bgf-muted); font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
     .flow-step .v { font-size: 13px; font-weight: 700; color: var(--bgf-navy); }
     .flow-step .d { font-size: 11.5px; color: #64748b; margin-top: 3px; }
-    .flow-step--now { background: #fff7f0; border-color: #f6c9a5; }
-    .flow-step--now .v { color: #b45309; }
     .flow-arrow { align-self: center; color: var(--bgf-muted); font-weight: 700; }
-    .flow-note { margin-top: 12px; font-size: 12.5px; color: var(--bgf-muted); }
+    .flow-note { margin-top: 12px; font-size: 12.5px; color: #64748b; }
 
-    /* Карточки ролей */
+    /* Карточки поверхностей */
     .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
     .card { background: #fff; border: 1px solid var(--bgf-line); border-radius: 14px; padding: 18px 20px; display: flex; flex-direction: column; }
     .card .role { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--bgf-muted); }
@@ -100,39 +95,27 @@
     .card .cta { margin-top: auto; padding-top: 14px; display: flex; gap: 8px; flex-wrap: wrap; }
     .pill { display: inline-block; font-size: 11px; font-weight: 700; border-radius: 999px; padding: 3px 9px; }
     .pill--ok { background: #e7f7ec; color: #0f7a2b; }
-    .pill--warn { background: #fff2e6; color: #b45309; }
     .pill--info { background: var(--bgf-sky); color: var(--bgf-navy); }
 
-    /* Таблицы */
-    table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid var(--bgf-line); border-radius: 12px; overflow: hidden; font-size: 13.5px; }
-    th, td { text-align: left; padding: 10px 13px; border-bottom: 1px solid var(--bgf-line); vertical-align: top; }
-    th { background: var(--bgf-sky); color: var(--bgf-navy); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
-    tr:last-child td { border-bottom: none; }
-    code { background: var(--bgf-sky); border: 1px solid var(--bgf-line); border-radius: 6px; padding: 1px 6px; font-size: 12.5px; color: var(--bgf-navy-deep); font-family: ui-monospace, Consolas, monospace; }
-    td.danger { color: var(--bgf-danger); font-weight: 700; }
-    td.safe { color: var(--bgf-ok); font-weight: 700; }
-    td.success { color: var(--bgf-navy); font-weight: 700; }
-
-    /* Сценарий */
-    .steps { counter-reset: s; }
-    .step { background: #fff; border: 1px solid var(--bgf-line); border-radius: 12px; padding: 14px 16px 14px 58px; position: relative; margin-bottom: 10px; }
-    .step::before {
-        counter-increment: s; content: counter(s);
-        position: absolute; left: 16px; top: 14px; width: 28px; height: 28px; border-radius: 50%;
-        background: var(--bgf-ok); color: #fff; font-weight: 700; font-size: 14px;
-        display: flex; align-items: center; justify-content: center;
-    }
-    .step .who { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--bgf-muted); }
-    .step .what { font-size: 14px; font-weight: 500; margin: 2px 0 4px; }
-    .step .say { font-size: 13px; color: #64748b; }
-    .step .say b { color: var(--bgf-ink); }
-
-    /* Логины */
+    /* Доступы */
     .creds { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     .cred { background: #fff; border: 1px solid var(--bgf-line); border-radius: 12px; padding: 14px 16px; font-size: 13.5px; }
     .cred b { color: var(--bgf-navy); }
 
-    footer { margin-top: 40px; padding-top: 18px; border-top: 1px solid var(--bgf-line); font-size: 12.5px; color: var(--bgf-muted); }
+    /* Объяснение сокращений */
+    .terms { background: #fff; border: 1px solid var(--bgf-line); border-radius: 14px; padding: 6px 20px 14px; }
+    .terms dl { margin: 0; font-size: 13.5px; }
+    .terms div { padding: 9px 0; border-bottom: 1px solid var(--bgf-line); }
+    .terms div:last-child { border-bottom: none; }
+    .terms dt { font-weight: 700; color: var(--bgf-navy); }
+    .terms dd { margin: 2px 0 0; color: #475569; }
+
+    /* Границы макета */
+    .limits { background: #fff; border: 1px solid var(--bgf-line); border-left: 3px solid var(--bgf-accent); border-radius: 14px; padding: 16px 20px; font-size: 13.5px; }
+    .limits p { margin: 0 0 8px; }
+    .limits p:last-child { margin-bottom: 0; }
+
+    footer { margin-top: 46px; padding-top: 18px; border-top: 1px solid var(--bgf-line); font-size: 12.5px; color: var(--bgf-muted); }
 
     @media (max-width: 760px) {
         .split, .creds { grid-template-columns: 1fr; }
@@ -156,73 +139,71 @@
 <div class="hero">
     <div class="hero-inner">
         <h1>Новый кредитный конвейер БЖФ</h1>
-        <p>Заменить ELMA доменным оркестратором в стеке ЛК: конечный автомат заявки, очереди задач по ролям, свой IAM. Не BPMS и не конструктор процессов — кредитный конвейер, где правила маршрута это данные, а интеграции идут только через адаптер и outbox.</p>
+        <p>Заявка ведёт себя как процесс: у неё есть стадии, задачи по ролям и правила, которые настраивает банк, а не поставщик системы. Этот макет показывает, как такой конвейер выглядит для клиента и для сотрудников банка.</p>
         <div class="tags">
             <span class="tag">11 этапов процесса</span>
             <span class="tag">53 статуса ELMA → свои стадии</span>
             <span class="tag">три АРМ</span>
-            <span class="tag">strangler 0–5, без big-bang</span>
+            <span class="tag">переход по этапам, без остановки работы</span>
             <span class="tag">Loginom · ЦФТ · МО · SmartDeal</span>
         </div>
         <div class="notice">
-            <b>Это макет, а не прод.</b> Все внешние системы имитированы: живых Loginom, ЦФТ, ФНС, МО и SmartDeal нет. ЕСИА — имитация, OTP — любые 4 цифры, данные хранятся в браузере (<code>bgfbank_lab_*</code>). Ни одно действие здесь не обращается к банковским системам.
+            <b>Это макет, а не прод.</b> Внешние системы здесь имитированы: настоящих ELMA, Loginom, ЦФТ и SmartDeal нет. Госуслуги тоже имитация, код подтверждения — любые четыре цифры. Данные живут только в вашем браузере и никуда не отправляются.
         </div>
     </div>
 </div>
 
 <div class="wrap">
 
-    <h2><span class="num">1.</span> Что меняем и почему</h2>
-    <p class="lead">Сегодня ELMA одновременно BPM-движок и рабочее место банка. Кастом банка конфликтует с ядром вендора, поэтому править её дальше нецелесообразно. Другую BPMS ставить тоже не будем — это повторит ту же судьбу.</p>
+    <h2><span class="num">1.</span> Что не так сейчас и что предлагаем</h2>
+    <p class="lead">Сегодня ELMA (действующая система банка для ведения заявок) — это одновременно и процесс, и рабочие места сотрудников. Обновления поставщика конфликтуют с доработками банка, поэтому развивать её дальше невыгодно. Ставить другую систему того же типа — значит повторить ту же историю.</p>
     <div class="split">
         <div class="panel panel--as">
-            <h3>AS-IS</h3>
+            <h3>Как сейчас</h3>
             <ul>
-                <li><b>ELMA</b> — и процесс, и АРМ АНД, процессинга, СБ, АПЗ, структуратора, КК, ОЗС.</li>
-                <li>Обновления вендора <b>конфликтуют</b> с доработками банка.</li>
-                <li>Вход в ЛК завязан на ELMA как на <b>каталог пользователей</b> (<code>elma_id</code>).</li>
-                <li>В офисе после «КОД сформирован» данные вводят <b>заново</b>: второе окно ОПЕРУ, повторный паспорт, СОПД датой визита. Норматив 45 минут, из них ~30 — очередь.</li>
-                <li>Статусы партнёрского ЛК — <b>схлопывание</b> 53 кодов ELMA, не рабочий инструмент банка.</li>
+                <li>Процесс и рабочие места сотрудников в одной системе. Обновления поставщика конфликтуют с доработками банка.</li>
+                <li>Вход в кабинет клиента зависит от списка пользователей в ELMA.</li>
+                <li>После подписания КОД в офисе данные вводят заново: отдельное окно для исключений, повторный паспорт. Обычно это 45 минут, из них около 30 — ожидание.</li>
+                <li>Статусы в кабинете — упрощённый пересказ 53 кодов системы, а не рабочий инструмент.</li>
             </ul>
         </div>
         <div class="panel panel--to">
-            <h3>TO-BE</h3>
+            <h3>Как предлагаем</h3>
             <ul>
-                <li><b><code>conveyor</code></b> — отдельный сервис: агрегат заявки, автомат стадий, inbox задач, SLA, проекции статусов.</li>
-                <li><b>Три АРМ со своим IAM</b>, а не <code>elma_id</code>: форма подачи, АРМ продаж, АРМ банка.</li>
-                <li>UI <b>не вызывает</b> Loginom, ЦФТ и SmartDeal — только оркестратор, дальше адаптер и outbox.</li>
-                <li>После КОД источник правды — <b>снимок</b>. Клиент остаётся у ОЗС, второго окна нет, СОПД не переподписывают.</li>
-                <li>Правила маршрута, SLA и лимиты циклов — <b>данные</b>, а не патчи ядра.</li>
+                <li>Отдельный сервис ведёт одну заявку от начала до конца: стадии, задачи по ролям, контроль сроков.</li>
+                <li>Три рабочих места со своим входом вместо зависимости от ELMA.</li>
+                <li>После КОД источник правды — подписанный комплект документов. Клиента не просят заново: второго окна нет, СОПД датой визита не переподписывают.</li>
+                <li>Правила маршрута, сроки и лимиты — настройки банка, а не правки в системе поставщика. Переходим по этапам, без остановки работы.</li>
             </ul>
         </div>
     </div>
 
-    <h2><span class="num">2.</span> Сквозной путь сделки в демо</h2>
-    <p class="lead">Пять поверхностей макета покрывают путь заявки от подачи до подписания КОД. Оранжевым отмечен участок, который в лабе показан наиболее подробно.</p>
+    <h2><span class="num">2.</span> Путь сделки в демо</h2>
+    <p class="lead">Пять поверхностей макета покрывают путь заявки от подачи до подписания КОД.</p>
     <div class="flow">
         <div class="flow-line">
             <div class="flow-step">
                 <div class="k">Шаг 1</div>
                 <div class="v">Клиент</div>
-                <div class="d">Заявка · ЕСИА · залог · пакет</div>
+                <div class="d">Заявка · Госуслуги · залог · выбор условий</div>
             </div>
             <div class="flow-arrow">→</div>
             <div class="flow-step">
                 <div class="k">Шаг 2</div>
                 <div class="v">Менеджер</div>
-                <div class="d">Прескоринг · скоринг · решение</div>
+                <div class="d">Предварительная оценка · скоринг · решение</div>
             </div>
             <div class="flow-arrow">→</div>
             <div class="flow-step">
                 <div class="k">Шаг 3</div>
                 <div class="v">Андеррайтер</div>
-                <div class="d">АНД ∥ АПЗ · барьер паспорта</div>
+                <div class="d">Две очереди: человек и объект · паспорт сделки</div>
             </div>
             <div class="flow-arrow">→</div>
             <div class="flow-step">
                 <div class="k">Шаг 4</div>
                 <div class="v">Стол сделки</div>
-                <div class="d">ОЗС · счёт · КОД · ДБО</div>
+                <div class="d">Счёт · проверки · подписание КОД · ДБО</div>
             </div>
             <div class="flow-arrow">→</div>
             <div class="flow-step">
@@ -232,7 +213,7 @@
             </div>
         </div>
         <div class="flow-note">
-            Шаги 1–2 работают на <b>общем хранилище</b>: заявка, собранная у клиента, видна менеджеру в той же вкладке браузера. Шаги 3–5 — <b>изолированные столы</b> со своими данными: переход между ними сцену не портит. Продуктолог — не участник сделки, а конфигуратор условий для калькулятора, поэтому стоит отдельно.
+            Заявка клиента и АРМ менеджера работают с одними данными — заявку, собранную клиентом, менеджер видит сразу. Три стола банка живут каждый со своей сценой. Продуктолог в сделке не участвует: он настраивает условия, по которым считает калькулятор.
         </div>
     </div>
 
@@ -241,22 +222,22 @@
     <div class="grid">
 
         <div class="card">
-            <div class="role">Шаг 1 · клиент B2C</div>
+            <div class="role">Шаг 1 · клиент</div>
             <h3>Личный кабинет заёмщика</h3>
-            <p>Happy-path залога: заявка, цифровой профиль ЕСИА, объект и оценка, прескоринг, сравнение пакетов, принятие условий, документы, уведомление об одобрении.</p>
-            <p class="meta"><b>Заявка:</b> №4421-И · <b>Логин:</b> +7 (999) 123-45-67 / password123</p>
-            <p class="meta"><span class="pill pill--ok">Не стирает сцену</span></p>
+            <p>Заявка под залог квартиры: подтверждение данных через Госуслуги, объект и его оценка, предварительное решение, выбор условий, документы, уведомление об одобрении.</p>
+            <p class="meta"><b>Вход:</b> +7 (999) 123-45-67 / password123</p>
+            <p class="meta"><span class="pill pill--ok">Сцена не стирается</span></p>
             <div class="cta">
                 <a class="btn btn--primary" href="index.html">Открыть кабинет</a>
             </div>
         </div>
 
         <div class="card">
-            <div class="role">Шаг 2 · продажи и КЦ</div>
+            <div class="role">Шаг 2 · продажи и контакт-центр</div>
             <h3>АРМ менеджера</h3>
-            <p>Карточка заявки клиента, блок цифрового профиля, прескоринг, полный скоринг с протоколом, разбор ставки, запрос ДУ, опись документов, одобрение.</p>
-            <p class="meta"><b>Логин:</b> admin / manager123 · флажок «Зелёный скоринг» переключает исход</p>
-            <p class="meta"><span class="pill pill--ok">Не стирает сцену</span></p>
+            <p>Заявка клиента в работе сотрудника: проверка данных, скоринг с протоколом, разбор ставки, запрос дополнительных документов, одобрение.</p>
+            <p class="meta"><b>Вход:</b> admin / manager123</p>
+            <p class="meta"><span class="pill pill--ok">Сцена не стирается</span></p>
             <div class="cta">
                 <a class="btn btn--primary" href="manager/">Открыть АРМ</a>
             </div>
@@ -265,9 +246,9 @@
         <div class="card">
             <div class="role">Шаг 3 · банк</div>
             <h3>АРМ андеррайтера (АНД / АПЗ)</h3>
-            <p>Две очереди: человек и объект. Комплект, скоринг, ФССП с надбавкой, опция «Зелёный коридор», КК, звонок. Паспорт сделки открывается только когда одобрены оба контура.</p>
-            <p class="meta"><b>Заявки:</b> 25BGFB00990101 · 25BGFB00990102 · 25BGFB00990103 · 25BGFB00990104 · стол не зовёт Loginom сам — только оркестратор</p>
-            <p class="meta"><span class="pill pill--ok">Своё хранилище</span></p>
+            <p>Две очереди: проверка заёмщика и проверка объекта. Комплект документов, скоринг, надбавка за исполнительное производство, проверка объекта, звонок клиенту. Паспорт сделки открывается, когда одобрены оба направления.</p>
+            <p class="meta"><b>Роли:</b> переключатель АНД / АПЗ на одной странице</p>
+            <p class="meta"><span class="pill pill--ok">Своя сцена</span></p>
             <div class="cta">
                 <a class="btn btn--primary" href="underwriter/">Открыть АРМ</a>
             </div>
@@ -276,31 +257,31 @@
         <div class="card">
             <div class="role">Шаг 4 · банк</div>
             <h3>Стол сделки (ОЗС / ОПЕРУ)</h3>
-            <p>Снимок после «КОД сформирован», идентификация, СОПД, шесть автопроверок счёта, заявление РКО, подписание КОД, ДБО. Самый проработанный банковский стол в лабе.</p>
-            <p class="meta"><b>Заявки:</b> 25BGFB00990001 · 25BGFB00990002 · 25BGFB00990003 · 25BGFB00990004 · четыре разных кейса СОПД и ЕСИА</p>
-            <p class="meta"><span class="pill pill--ok">Своё хранилище</span></p>
+            <p>Работа после подписания КОД: идентификация клиента, сверка паспорта, проверки счёта, заявление на расчётное обслуживание, подписание КОД, подключение ДБО. Самый подробный банковский стол в макете.</p>
+            <p class="meta"><b>Роли:</b> переключатель ОЗС / ОПЕРУ на одной странице</p>
+            <p class="meta"><span class="pill pill--ok">Своя сцена</span></p>
             <div class="cta">
                 <a class="btn btn--primary" href="deal-ops/">Открыть стол</a>
             </div>
         </div>
 
         <div class="card">
-            <div class="role">Конфигурация условий</div>
+            <div class="role">Настройка условий</div>
             <h3>АРМ продуктолога и риск-менеджера</h3>
-            <p>Справочник, который читает калькулятор предложений: продукты, опции, регионы, шкалы риска. Рабочий канон условий — OnePage: лист это цель, колонка это пакет, строки КИ1–КИ5. Матрица настраивается только из <code>.xlsx</code>.</p>
+            <p>Справочник, из которого калькулятор берёт условия: продукты, опции, регионы, шкалы риска. Показывает, что условия — это данные, которые настраивает банк.</p>
             <p class="meta"><b>Роли:</b> переключатель Продуктолог / Риск-менеджер на одной странице</p>
-            <p class="meta"><span class="pill pill--info">Своё хранилище</span></p>
+            <p class="meta"><span class="pill pill--info">Своя сцена</span></p>
             <div class="cta">
                 <a class="btn btn--primary" href="productolog/">Открыть АРМ</a>
             </div>
         </div>
 
         <div class="card">
-            <div class="role">Клиент B2C · отдельный путь</div>
-            <h3>Форма подачи</h3>
-            <p><b>Потребительский кредит</b> — основной сценарий: клиент задаёт желаемые сумму, срок или комфортный платёж, видит расчёт аннуитета, подписывает три согласия (ПДн, запрос в БКИ, цели цифрового профиля) и входит через Госуслуги.</p>
-            <p class="meta">Согласие на кредитную историю вынесено отдельной картой: цель <code>CREDIT_REPORT</code>, срок 3 месяца, без обязательств по долгу</p>
-            <p class="meta"><span class="pill pill--info">Своё хранилище</span></p>
+            <div class="role">Клиент · отдельный путь</div>
+            <h3>Форма подачи заявки</h3>
+            <p>Путь клиента без кабинета: выбрать сумму и срок или удобный платёж, увидеть расчёт, дать три согласия и войти через Госуслуги. Есть два вида кредита — потребительский и под залог квартиры.</p>
+            <p class="meta"><b>Вход:</b> Госуслуги — имитация, код любой</p>
+            <p class="meta"><span class="pill pill--info">Своя сцена</span></p>
             <div class="cta">
                 <a class="btn btn--primary" href="form/">Потребительский кредит</a>
                 <a class="btn" href="form-pledge/index.html">Под залог квартиры</a>
@@ -309,142 +290,32 @@
 
     </div>
 
-    <h2><span class="num">4.</span> Что выбирать на каждом столе</h2>
-    <p class="lead">У кабинетов и банковских столов <b>разные номера заявок</b> — это разные системы, и в макете связь между ними не проставлена. Чтобы не искать нужную строку вслух, вот соответствие.</p>
-    <table>
-        <thead>
-            <tr><th>Поверхность</th><th>Номер в макете</th><th>Кто</th><th>Что показывает</th></tr>
-        </thead>
-        <tbody>
-            <tr>
-                <td>Кабинет клиента</td>
-                <td><code>4421-И</code></td>
-                <td>Александр Кузнецов</td>
-                <td>Основная заявка показа: ЕСИА, залог, пакет, одобрение</td>
-            </tr>
-            <tr>
-                <td>Стол сделки</td>
-                <td><code>25BGFB00990001</code></td>
-                <td>Кузнецов Александр Игоревич</td>
-                <td><b>Та же самая сделка</b>, что в кабинете, — тот же человек и телефон. Единственная реальная стыковка в макете</td>
-            </tr>
-            <tr>
-                <td>Стол сделки</td>
-                <td><code>25BGFB00990002</code> · <code>25BGFB00990003</code> · <code>25BGFB00990004</code></td>
-                <td>Орлов · Соколова · Белов</td>
-                <td>Ветки сценария: короткое СОПД без ЕСИА, просроченное СОПД с открытым счётом, ошибка ИНН → ОПЕРУ</td>
-            </tr>
-            <tr>
-                <td>Андеррайтер</td>
-                <td><code>25BGFB00990101</code> · <code>25BGFB00990102</code></td>
-                <td>Лебедев · Новикова</td>
-                <td>Очередь АНД: автоодобрение без звонка и ручной разбор с ФССП</td>
-            </tr>
-            <tr>
-                <td>Андеррайтер</td>
-                <td><code>25BGFB00990103</code> · <code>25BGFB00990104</code></td>
-                <td>Морозов · Савельев</td>
-                <td>Очередь АПЗ: квартира в МКАД и коммерция через КК</td>
-            </tr>
-        </tbody>
-    </table>
-    <p class="lead" style="margin-top:10px;">Ветки столов — <b>не продолжение</b> заявки из кабинета, а отдельные подготовленные кейсы: их задача показать разные исходы, не собирая каждый заново. В целевом конвейере одна заявка проходит все стадии под одним идентификатором — это и есть работа оркестратора, которой в макете пока нет.</p>
-
-    <h2><span class="num">5.</span> Как открывать поверхности</h2>
-    <p class="lead">Никаких служебных параметров в адресе нет: кабинет и столы открываются обычным адресом, а состояние меняется только действиями человека. Сцена каждой поверхности хранится в браузере (<code>bgfbank_lab_*</code>) и переживает перезагрузку страницы.</p>
-    <table>
-        <thead>
-            <tr><th>Адрес</th><th>Что делает</th><th>Вход</th></tr>
-        </thead>
-        <tbody>
-            <tr>
-                <td><code>index.html</code></td>
-                <td>Кабинет клиента: экран входа, дальше — заявки, документы, профиль</td>
-                <td>Телефон и пароль, кнопка «Войти», затем «Войти в личный кабинет»</td>
-            </tr>
-            <tr>
-                <td><code>manager/</code></td>
-                <td>АРМ менеджера: та же заявка, что собрал клиент (общее хранилище)</td>
-                <td>Логин <code>admin</code> и пароль <code>manager123</code></td>
-            </tr>
-            <tr>
-                <td><code>deal-ops/</code></td>
-                <td>Стол сделки ОЗС / ОПЕРУ: своя сцена, роли переключаются кнопками</td>
-                <td>Входа нет — стол открывается сразу</td>
-            </tr>
-            <tr>
-                <td><code>underwriter/</code></td>
-                <td>АРМ андеррайтера АНД / АПЗ: своя сцена, роли переключаются кнопками</td>
-                <td>Входа нет — стол открывается сразу</td>
-            </tr>
-            <tr>
-                <td><code>productolog/</code></td>
-                <td>Стол продуктолога и риск-менеджера: своя сцена, роли переключаются кнопками</td>
-                <td>Входа нет — стол открывается сразу</td>
-            </tr>
-        </tbody>
-    </table>
-    <p class="lead" style="margin-top:10px;">Столы умеют возвращать свою сцену к началу кнопкой <b>«Сбросить сцену»</b> в шапке — это обычное действие, кабинет клиента оно не затрагивает.</p>
-
-    <h2><span class="num">6.</span> Сценарий показа: одна сделка за 7 минут</h2>
-    <p class="lead">Откройте кабинет клиента и войдите под данными из раздела «Доступы». Дальше всё делается вручную, в одной вкладке — сцена сохраняется между страницами.</p>
-    <div class="steps">
-        <div class="step">
-            <div class="who">Подготовка</div>
-            <div class="what">Вход клиента</div>
-            <div class="say">Откройте <code>index.html</code>, введите телефон <code>+7 (999) 123-45-67</code> и пароль <code>password123</code>, нажмите <b>«Войти»</b>, затем <b>«Войти в личный кабинет»</b>. Вы в заявке №4421-И. Скажите: <b>«Сейчас заявка живёт в ELMA, а кабинет — лишь проекция её статусов. Покажем, каким становится путь».</b></div>
-        </div>
-        <div class="step">
-            <div class="who">Шаг 1 · клиент</div>
-            <div class="what">Мои заявки → №4421-И → Продолжить оформление</div>
-            <div class="say">Покажите таймлайн этапов. Затем: объект залога → <b>ЕСИА</b> → прескоринг → сравнение пакетов → <b>«Турбо 2.0»</b> → принять условия. Обратите внимание: <b>каждое значимое действие оставляет документ</b> — откройте раздел «Документы» и покажите оферту и выписку. Это и есть «осязаемость»: после показа остаётся след, а не только слайд.</div>
-        </div>
-        <div class="step">
-            <div class="who">Шаг 2 · менеджер</div>
-            <div class="what">Вторая вкладка: manager/ — вход admin / manager123</div>
-            <div class="say">Заявка клиента уже здесь — <b>то же хранилище, тот же агрегат</b>. Запустите быстрый и зелёный скоринг, покажите <b>протокол</b> и разбор ставки, затем одобрение. Вернитесь в первую вкладку: у клиента появился тост и документ о решении. Подчеркните: <b>протокол скоринга сохранён</b>, а не показан одной цифрой.</div>
-        </div>
-        <div class="step">
-            <div class="who">Шаг 3 · андеррайтер</div>
-            <div class="what">underwriter/ — очередь АНД, заявка 25BGFB00990101</div>
-            <div class="say">Здесь два независимых контура: <b>человек</b> и <b>объект</b>. Покажите автоодобрение без звонка. Затем заявку <b>25BGFB00990102</b>: ФССП 180 тыс. даёт надбавку +2 п.п. и вариант «Зелёный коридор» — и это <b>опция продукта, а не четвёртая цель кредита</b>. Главное: стол <b>не вызывает Loginom сам</b>, только оркестратор.</div>
-        </div>
-        <div class="step">
-            <div class="who">Шаг 4 · стол сделки</div>
-            <div class="what">deal-ops/ — заявка 25BGFB00990001</div>
-            <div class="say">Это ответ на боль офиса. Снимок приходит по событию <b>«КОД сформирован»</b>, а не по визиту клиента. Идентификация и сверка паспорта <b>со снимком</b>, СОПД не переподписывают датой визита. Затем автопроверки: у заявки <b>25BGFB00990004</b> проверка ИНН даёт ошибку и уходит в ОПЕРУ — покажите, что ОПЕРУ это <b>исключение</b>, а не второе окно для каждого. Закончите подписанием КОД и открытием счёта.</div>
-        </div>
-        <div class="step">
-            <div class="who">Шаг 5 · продуктолог</div>
-            <div class="what">productolog/ — вкладки Продукты · Опции · Регионы</div>
-            <div class="say">Покажите, что условия — это <b>данные, которые настраивает банк</b>, а не код вендора. Сетка OnePage: цель, пакет, категория КИ. Переключите роль на <b>Риск-менеджера</b>: шкалы и матрица. Это прямой ответ на «кастом против ядра».</div>
-        </div>
-        <div class="step">
-            <div class="who">Финал</div>
-            <div class="what">Возврат к карте и следующий шаг</div>
-            <div class="say">Вернитесь на эту страницу. Резюме: <b>процесс показан целиком — от подачи до счёта; правила и условия принадлежат банку; интеграции изолированы адаптерами</b>. Дальше — этапы strangler: что забираем первым и что оставляем в ELMA.</div>
-        </div>
-    </div>
-
-    <h2><span class="num">7.</span> Доступы</h2>
+    <h2><span class="num">4.</span> Доступы</h2>
     <div class="creds">
-        <div class="cred"><b>Клиент:</b> +7 (999) 123-45-67 · password123<br><span style="color:#64748b">SMS и OTP — любой код. Госуслуги — имитация.</span></div>
-        <div class="cred"><b>Менеджер:</b> admin · manager123<br><span style="color:#64748b">Вход на <code>manager/</code> той же кнопкой «Войти».</span></div>
+        <div class="cred"><b>Клиент:</b> +7 (999) 123-45-67 · password123<br><span style="color:#64748b">Код подтверждения и Госуслуги — имитация, подойдёт любой код.</span></div>
+        <div class="cred"><b>Менеджер:</b> admin · manager123<br><span style="color:#64748b">Вход в АРМ менеджера той же кнопкой «Войти».</span></div>
     </div>
 
-    <h2><span class="num">8.</span> Границы макета</h2>
-    <p class="lead">Честные ограничения — чтобы на показе не возникло ложных ожиданий.</p>
-    <table>
-        <thead><tr><th>Что</th><th>Состояние в макете</th></tr></thead>
-        <tbody>
-            <tr><td>Оркестратор <code>conveyor</code></td><td>Спроектирован в документах; <b>кода нет</b> — это следующий шаг после согласования</td></tr>
-            <tr><td>АРМ банка целиком</td><td>Показаны АНД/АПЗ и ОЗС/ОПЕРУ. Процессинг, СБ, структуратор, КК, ЦФО, выдача — <b>ещё не показаны</b></td></tr>
-            <tr><td>Интеграции</td><td>Все имитированы: Loginom, ЦФТ, ФНС, МВД, Федресурс, ФТС, МО, SmartDeal</td></tr>
-            <tr><td>Паспорт сделки и КОД</td><td>Паспорт — на столе ОЗС; в кабинетах только карточка. Открытый вопрос плана — где место паспорта</td></tr>
-            <tr><td>Хранение</td><td>Браузер (<code>bgfbank_lab_*</code>), а не PostgreSQL. Файлы не сохраняются — только метаданные</td></tr>
-            <tr><td>Ветка отказа</td><td>Сознательно вне показа: демонстрируется happy-path</td></tr>
-        </tbody>
-    </table>
+    <h2><span class="num">5.</span> Что означают сокращения</h2>
+    <p class="lead">По тексту и на экранах встречаются банковские сокращения. Ниже — что они значат.</p>
+    <div class="terms">
+        <dl>
+            <div><dt>БКИ</dt><dd>бюро кредитных историй — откуда банк получает кредитную историю заёмщика.</dd></div>
+            <div><dt>АНД / АПЗ</dt><dd>роли андеррайтера: проверка заёмщика и проверка объекта залога.</dd></div>
+            <div><dt>ОЗС / ОПЕРУ</dt><dd>роли стола сделки: работа с клиентом и разбор исключений (случаев, которые не прошли автопроверку).</dd></div>
+            <div><dt>СОПД</dt><dd>согласие на обработку персональных данных.</dd></div>
+            <div><dt>КОД</dt><dd>комплект документов, который подписывается при сделке. После него источник правды — подписанный комплект.</dd></div>
+            <div><dt>ДБО</dt><dd>дистанционное банковское обслуживание — доступ клиента к счетам через интернет.</dd></div>
+            <div><dt>ЦФТ</dt><dd>система, в которой банк ведёт счета и операции.</dd></div>
+        </dl>
+    </div>
+
+    <h2><span class="num">6.</span> Границы макета</h2>
+    <div class="limits">
+        <p>Внешние системы и проверки имитированы: настоящих ELMA, Loginom, ЦФТ, SmartDeal, ФНС, МВД и Федресурса здесь нет.</p>
+        <p>Данные хранятся только в браузере и переживают перезагрузку страницы, но никуда не уходят. Файлы не сохраняются — только отметка о них.</p>
+        <p>Показаны не все рабочие места банка: процессинг, служба безопасности, структуратор и выдача в макет не вошли. Ветка отказа сознательно не показывается — демонстрируется успешный путь сделки.</p>
+    </div>
 
     <footer>
         БЖФ Банк · лабораторный макет кредитного конвейера. Данные вымышленные, персональных данных клиентов банка здесь нет.
