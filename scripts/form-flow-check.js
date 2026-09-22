@@ -257,6 +257,31 @@ window.__t = {
   orderOf: function(ids) {
     var all = Array.prototype.slice.call(document.querySelectorAll('.esia-actions button'));
     return all.map(function(b) { return (b.textContent || '').trim(); });
+  },
+  /* Имитация перетаскивания ползунка: несколько шагов подряд.
+     Важно, что элемент остаётся тем же — если блок перерисовывается,
+     браузер теряет захват и ползунок «не едет». */
+  drag: function(id, steps) {
+    var el = document.getElementById(id);
+    if (!el) return { ok: false, reason: 'нет элемента ' + id };
+    var first = el;
+    var same = true;
+    var values = [];
+    for (var i = 0; i < steps.length; i++) {
+      var alive = document.getElementById(id);
+      if (alive !== first) same = false;
+      first = alive || first;
+      if (!alive) break;
+      alive.value = String(steps[i]);
+      alive.dispatchEvent(new Event('input', { bubbles: true }));
+      values.push(alive.value);
+    }
+    return {
+      ok: true,
+      sameElement: same,
+      values: values,
+      finalValue: document.getElementById(id) ? document.getElementById(id).value : null
+    };
   }
 };
 return true;
@@ -362,6 +387,15 @@ async function runConsumer(s, base) {
   await s.eval('return __t.setVal("wiTerm", "84")');
   ok((await s.eval('return __t.text("wiPay")')) !== payAfter, 'ползунок срока пересчитывает платёж');
 
+  /* Перетаскивание: элемент под пальцем не должен подменяться, иначе ползунок замирает. */
+  const dragAmount = await s.eval('return __t.drag("wiAmount", [800000, 1500000, 2200000, 3000000])');
+  ok(dragAmount.ok && dragAmount.sameElement,
+    'перетаскивание суммы не подменяет ползунок (шагов: ' + (dragAmount.values || []).length + ')');
+  ok(dragAmount.finalValue === '3000000', 'значение ползунка доехало до конца: ' + dragAmount.finalValue);
+  const dragTerm = await s.eval('return __t.drag("wiTerm", [12, 24, 36, 60])');
+  ok(dragTerm.ok && dragTerm.sameElement, 'перетаскивание срока не подменяет ползунок');
+  ok(dragTerm.finalValue === '60', 'значение срока доехало: ' + dragTerm.finalValue);
+
   section('Потребительский кредит — сохранение и возврат');
   const saved = await s.eval('return __t.store()');
   ok(saved && saved.indexOf('consumer') !== -1, 'прогресс записан в хранилище');
@@ -438,6 +472,10 @@ async function runPledge(s, base) {
   ok(limitBefore.length > 3 && limitAfter.length > 3, 'ползунок срока показывает сумму к выдаче: ' + limitAfter);
   const pkgCount = await s.eval('return document.querySelectorAll("#pkg-list input").length');
   ok(pkgCount === 3, 'залоговых предложений три');
+  const dragPledge = await s.eval('return __t.drag("wiTerm", [5, 10, 15, 20])');
+  ok(dragPledge.ok && dragPledge.sameElement,
+    'перетаскивание срока в залоге не подменяет ползунок');
+  ok(dragPledge.finalValue === '20', 'значение срока доехало: ' + dragPledge.finalValue);
 
   section('Залоговый кредит — сохранение и возврат');
   await s.reload();

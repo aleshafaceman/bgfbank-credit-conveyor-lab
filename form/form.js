@@ -37,7 +37,9 @@ const state = {
   ads: F.emptyAds(),
   esiaAt: "",
   /** сохранённые пакеты шага предложений, чтобы «что если» считалось от того же набора */
-  pkgs: []
+  pkgs: [],
+  /** блок «что если» строится один раз: перестройка обрывала перетаскивание ползунка */
+  whatIfBuilt: false
 };
 
 const MAIN = ["phone", "terms", "calc", "consents", "esia", "preview", "packages", "status"];
@@ -301,34 +303,63 @@ function rangeRow(id, title, min, max, step, value, valueLabel) {
   "</div>";
 }
 
+/* Блок строим один раз. Если перестраивать его на каждое движение ползунка,
+   сам <input type="range"> заменяется под пальцем и перетаскивание обрывается. */
 function renderWhatIf() {
   const host = $("whatif");
   if (!host) return;
+
+  if (!state.whatIfBuilt) {
+    host.innerHTML =
+      '<div class="whatif">' +
+        "<h3>Подберите условия</h3>" +
+        rangeRow("wiAmount", "Сумма", MIN_AMOUNT, MAX_AMOUNT, 50000, state.amount, F.fmtMoney(state.amount)) +
+        rangeRow("wiTerm", "Срок", MIN_TERM, MAX_TERM, 6, state.term, F.monthsLabel(state.term)) +
+        '<div class="whatif-result">' +
+          "<div>Платёж в месяц<b id=\"wiPay\"></b></div>" +
+          "<div>Всего к возврату<b id=\"wiTotal\"></b></div>" +
+        "</div>" +
+      "</div>";
+
+    $("wiAmount").addEventListener("input", function () {
+      state.amount = Number(this.value);
+      onWhatIfChange();
+    });
+    $("wiTerm").addEventListener("input", function () {
+      state.term = Number(this.value);
+      onWhatIfChange();
+    });
+    state.whatIfBuilt = true;
+  }
+  updateWhatIfValues();
+}
+
+/* Обновляет подписи и шкалы, не трогая сами элементы ползунков. */
+function updateWhatIfValues() {
   const rate = effRate();
   const pay = F.annuity(state.amount, rate, state.term);
-  host.innerHTML =
-    '<div class="whatif">' +
-      "<h3>Подберите условия</h3>" +
-      rangeRow("wiAmount", "Сумма", MIN_AMOUNT, MAX_AMOUNT, 50000, state.amount, F.fmtMoney(state.amount)) +
-      rangeRow("wiTerm", "Срок", MIN_TERM, MAX_TERM, 6, state.term, F.monthsLabel(state.term)) +
-      '<div class="whatif-result">' +
-        "<div>Платёж в месяц<b id=\"wiPay\">" + F.fmtMoney(pay) + "</b></div>" +
-        "<div>Всего к возврату<b id=\"wiTotal\">" + F.fmtMoney(pay * state.term + insuranceCost()) + "</b></div>" +
-      "</div>" +
-    "</div>";
 
-  $("wiAmount").addEventListener("input", function () {
-    state.amount = Number(this.value);
-    state.payment = F.annuity(state.amount, effRate(), state.term);
-    renderWhatIf();
-    renderPackages();
-  });
-  $("wiTerm").addEventListener("input", function () {
-    state.term = Number(this.value);
-    state.payment = F.annuity(state.amount, effRate(), state.term);
-    renderWhatIf();
-    renderPackages();
-  });
+  const amountOut = $("wiAmountOut");
+  if (amountOut) amountOut.textContent = F.fmtMoney(state.amount);
+  const termOut = $("wiTermOut");
+  if (termOut) termOut.textContent = F.monthsLabel(state.term);
+
+  const amountRange = $("wiAmount");
+  if (amountRange && document.activeElement !== amountRange) amountRange.value = String(state.amount);
+  const termRange = $("wiTerm");
+  if (termRange && document.activeElement !== termRange) termRange.value = String(state.term);
+
+  const payOut = $("wiPay");
+  if (payOut) payOut.textContent = F.fmtMoney(pay);
+  const totalOut = $("wiTotal");
+  if (totalOut) totalOut.textContent = F.fmtMoney(pay * state.term + insuranceCost());
+}
+
+/* Ползунок двигает сумму или срок: пересчитываем платёж и обновляем пакеты. */
+function onWhatIfChange() {
+  state.payment = F.annuity(state.amount, effRate(), state.term);
+  updateWhatIfValues();
+  renderPackages();
 }
 
 function acceptOffer() {

@@ -68,6 +68,8 @@ const state = {
   cadastral: "",
   pkg: "rec",
   egrnOk: false,
+  /** блок «что если» строится один раз: перестройка обрывала перетаскивание ползунка */
+  whatIfBuilt: false,
   consents: F.emptyConsents(),
   ads: F.emptyAds(),
   esiaAt: ""
@@ -344,41 +346,77 @@ function rangeRow(id, title, min, max, step, value, valueLabel) {
   "</div>";
 }
 
+/* Блок строим один раз. Если перестраивать его на каждое движение ползунка,
+   сам <input type="range"> заменяется под пальцем и перетаскивание обрывается. */
 function renderWhatIf() {
   const host = $("whatif");
   if (!host || !state.object) return;
+
+  if (!state.whatIfBuilt) {
+    host.innerHTML =
+      '<div class="whatif">' +
+        "<h3>Подберите условия</h3>" +
+        rangeRow("wiAmount", "Сумма", MIN_AMOUNT, MAX_AMOUNT, 100000, state.amount, F.fmtMoney(state.amount)) +
+        rangeRow("wiTerm", "Срок", MIN_TERM, MAX_TERM, 1, state.term, F.yearsLabel(state.term)) +
+        '<div class="whatif-result">' +
+          "<div>Сумма к выдаче<b id=\"wiLimit\"></b></div>" +
+          "<div>Платёж в месяц<b id=\"wiPay\"></b></div>" +
+        "</div>" +
+        '<p class="hint" id="wiHint"></p>' +
+      "</div>";
+
+    $("wiAmount").addEventListener("input", function () {
+      state.amount = Number(this.value);
+      onWhatIfChange();
+    });
+    $("wiTerm").addEventListener("input", function () {
+      state.term = Number(this.value);
+      /* Держим выпадающий список срока на шаге условий в согласии с ползунком. */
+      const sel = $("term");
+      if (sel && !isNaN(state.term)) {
+        const near = Array.prototype.slice.call(sel.options)
+          .map(function (o) { return Number(o.value); })
+          .reduce(function (a, b) { return Math.abs(b - state.term) < Math.abs(a - state.term) ? b : a; });
+        sel.value = String(near);
+      }
+      onWhatIfChange();
+    });
+    state.whatIfBuilt = true;
+  }
+  updateWhatIfValues();
+}
+
+/* Обновляет подписи и шкалы, не трогая сами элементы ползунков. */
+function updateWhatIfValues() {
   const years = state.term;
   const limit = maxLoan();
   const pay = paymentOf(limit, PLEDGE_RATE, years);
-  host.innerHTML =
-    '<div class="whatif">' +
-      "<h3>Подберите условия</h3>" +
-      rangeRow("wiAmount", "Сумма", MIN_AMOUNT, MAX_AMOUNT, 100000, state.amount, F.fmtMoney(state.amount)) +
-      rangeRow("wiTerm", "Срок", MIN_TERM, MAX_TERM, 1, years, F.yearsLabel(years)) +
-      '<div class="whatif-result">' +
-        "<div>Сумма к выдаче<b id=\"wiLimit\">" + F.fmtMoney(limit) + "</b></div>" +
-        "<div>Платёж в месяц<b id=\"wiPay\">" + F.fmtMoney(pay) + "</b></div>" +
-      "</div>" +
-      '<p class="hint">Лимит ограничен оценкой квартиры: больше 60% от ' + F.fmtMoney(state.object.price) + " банк не выдаст.</p>" +
-    "</div>";
 
-  $("wiAmount").addEventListener("input", function () {
-    state.amount = Number(this.value);
-    renderWhatIf();
-    renderPackages();
-  });
-  $("wiTerm").addEventListener("input", function () {
-    state.term = Number(this.value);
-    const sel = $("term");
-    if (sel && !isNaN(state.term)) {
-      const near = Array.prototype.slice.call(sel.options)
-        .map(function (o) { return Number(o.value); })
-        .reduce(function (a, b) { return Math.abs(b - state.term) < Math.abs(a - state.term) ? b : a; });
-      sel.value = String(near);
-    }
-    renderWhatIf();
-    renderPackages();
-  });
+  const amountOut = $("wiAmountOut");
+  if (amountOut) amountOut.textContent = F.fmtMoney(state.amount);
+  const termOut = $("wiTermOut");
+  if (termOut) termOut.textContent = F.yearsLabel(years);
+
+  const amountRange = $("wiAmount");
+  if (amountRange && document.activeElement !== amountRange) amountRange.value = String(state.amount);
+  const termRange = $("wiTerm");
+  if (termRange && document.activeElement !== termRange) termRange.value = String(years);
+
+  const limitOut = $("wiLimit");
+  if (limitOut) limitOut.textContent = F.fmtMoney(limit);
+  const payOut = $("wiPay");
+  if (payOut) payOut.textContent = F.fmtMoney(pay);
+  const hint = $("wiHint");
+  if (hint) {
+    hint.textContent = "Лимит ограничен оценкой квартиры: больше 60% от " +
+      F.fmtMoney(state.object.price) + " банк не выдаст.";
+  }
+}
+
+function onWhatIfChange() {
+  state.payment = paymentOf(maxLoan(), PLEDGE_RATE, state.term);
+  updateWhatIfValues();
+  renderPackages();
 }
 
 function acceptOffer() {
