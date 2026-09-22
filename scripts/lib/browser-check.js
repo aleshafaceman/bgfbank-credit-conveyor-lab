@@ -18,6 +18,8 @@
  *
  * Харнесс внедряет помощники __t сам — в navigate() и reload(). Отдельно звать
  * s.eval(HELPERS) не нужно; HELPERS остаётся экспортом для совместимости.
+ * После обычной навигации по ссылке (новый документ мимо navigate()) помощников
+ * на странице нет: сбои там читает s.failures() — он работает без __t.
  */
 
 'use strict';
@@ -620,8 +622,10 @@ const FAILURE_MONITOR_PARTS = [
  * (FAILURE_MONITOR_PARTS), который читают помощники __t.failures() и
  * __t.resetFailures().
  *
- * Возвращает: { base, profile, keep, eval, send, navigate, waitReady, reload,
- *               waitFor, waitForScreen, delay, close }.
+ * Возвращает: { base, profile, keep, eval, send, failures, navigate, waitReady,
+ *               reload, waitFor, waitForScreen, delay, close }.
+ * failures() читает сбои страницы без помощников __t: { list, installed, monitor }
+ * либо null, если прочитать не удалось (см. комментарий у метода).
  */
 async function launch(options) {
   const opt = options || {};
@@ -736,6 +740,56 @@ async function launch(options) {
     keep: keep,
     eval: function (expression) { return cdp.eval(expression); },
     send: function (method, params) { return cdp.send(method, params); },
+    /* Сбои страницы БЕЗ помощников __t.
+       Помощники обвязка внедряет только в navigate()/reload(), поэтому после
+       обычной навигации по ссылке (клик по «Карта демо» открывает новый документ
+       start.html) на странице есть монитор сбоев, но нет __t — и __t.failures()
+       там не позвать. Этот метод читает список монитора напрямую, а монитор
+       ставится на каждый новый документ (Page.addScriptToEvaluateOnNewDocument),
+       поэтому видно ровно то, что случилось на новом документе.
+
+       От __t.failures() отличается и требованием к странице, и формой ответа:
+         { list: string[], installed: boolean, monitor: object|null } — список
+             сбоев, признак того, что монитор установлен (все три обработчика:
+             error, rejection, alert), и сырой window.__bgfMonitor для текста FAIL
+             (видно, какой именно обработчик не встал);
+         null — прочитать не удалось (страница ушла, контекст недоступен, eval
+             упал). Это «список недоступен», а НЕ «сбоев нет»: вызывающий код
+             обязан различать эти случаи (см. cabinet.js — там пропуск, не OK).
+       Пустой list при installed === false тоже ничего не доказывает: монитор не
+       дошёл до страницы, и сбои никто не считал — ровно критерий
+       common.noFailures(). Список и признак монитора читаются ОДНИМ обращением:
+       два отдельных вызова могли бы попасть на разные документы, если страница
+       уйдёт между ними. */
+    failures: async function () {
+      let state = null;
+      try {
+        state = await cdp.eval('return (function() { try {' +
+          ' var raw = window.__bgfFailures;' +
+          ' var m = window.__bgfMonitor || null;' +
+          /* Проверка именно на массив: монитор заводит __bgfFailures массивом
+             (FAILURE_MONITOR_PARTS, часть 1), а строку или объект оттуда
+             принимать нельзя — не-массив, прочитанный как список, дал бы пустой
+             список и молчаливую зелень. Отсутствие __bgfFailures на живой
+             странице — это «монитор не ставился», а не «не удалось прочитать»:
+             отдаём null-список, вызывающий код видит installed === false и
+             падает, а не пропускает проверку. */
+          ' return {' +
+          '  list: Array.isArray(raw) ? raw.slice() : null,' +
+          '  monitor: m,' +
+          '  installed: !!(m && m.error === true && m.rejection === true && m.alert === true)' +
+          ' };' +
+          ' } catch (e) { return null; } })()');
+      } catch (e) {
+        return null;   /* страница ушла, контекст недоступен или eval бросил */
+      }
+      if (!state) return null;   /* на странице бросил сам замер — читать нечего */
+      return {
+        list: Array.isArray(state.list) ? state.list : [],
+        installed: !!state.installed,
+        monitor: state.monitor || null
+      };
+    },
     /* Помощники внедряются и здесь, и в reload: вызывающие прогоны не обязаны
        делать это сами. Повторное внедрение безвредно. */
     navigate: async function (url) {
