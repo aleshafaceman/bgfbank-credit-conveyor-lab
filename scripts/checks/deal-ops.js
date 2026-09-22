@@ -43,6 +43,11 @@
 
 'use strict';
 
+/* Общие помощники поверхностей: why() и строгая проверка сбоев страницы.
+   Раньше обе жили здесь и копировались в соседние чеки — теперь копия одна
+   (scripts/checks/common.js). Поведение не изменилось. */
+const common = require('./common');
+
 /* Сделки мока deal-ops/mock.js:25-307 — в том порядке, в каком их строит
    renderInbox(). Бриф: 4 карточки в очереди ОЗС. */
 const DEAL_IDS = ['25BGFB00990001', '25BGFB00990002', '25BGFB00990003', '25BGFB00990004'];
@@ -199,7 +204,7 @@ module.exports = {
     const ok = check.ok;
     /* Сообщение проверки: при провале waitFor дописываем ошибку страницы, иначе
        FAIL «очередь отрисована» не отличить от «элемента нет». */
-    const why = function (r) { return r && r.message ? ' — ' + r.message : ''; };
+    const why = common.why;
 
     /* --- помощники --- */
 
@@ -232,20 +237,11 @@ module.exports = {
        2. Внешний ресурс даст ЛОЖНЫЙ сбой: deal-ops/index.html:10 подключает
           шрифты с fonts.googleapis.com, и на машине без доступа к сети это
           честное «uncaught error» в списке. Если на другом стенде проверка
-          упала именно на fonts.googleapis.com — причина в сети, а не в столе. */
-    const noFailures = async function (msg) {
-      const state = await s.eval('return (function() { try {' +
-        ' return { list: __t.failures(), monitor: window.__bgfMonitor || null };' +
-        ' } catch (e) { return { error: e.message }; } })()');
-      if (state.error) return ok(false, msg + ' (монитор сбоев недоступен: ' + state.error + ')');
-      const list = Array.isArray(state.list) ? state.list : [];
-      const installed = !!(state.monitor && state.monitor.error === true &&
-        state.monitor.rejection === true && state.monitor.alert === true);
-      return ok(installed && list.length === 0,
-        msg + ' (' + (installed ? '' : 'монитор сбоев установлен не полностью: ' +
-          JSON.stringify(state.monitor) + '; ') +
-        (list.length ? list.join(' | ') : 'сбоев нет') + ')');
-    };
+          упала именно на fonts.googleapis.com — причина в сети, а не в столе.
+
+       Само тело помощника вынесено в scripts/checks/common.js: он одинаков у
+       трёх поверхностей (здесь, в АРМ менеджера и в АРМ андеррайтера). */
+    const noFailures = function (msg) { return common.noFailures(s, ok, msg); };
 
     /* --- навигация и сцена --- */
 

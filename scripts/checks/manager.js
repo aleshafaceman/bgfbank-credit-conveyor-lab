@@ -24,6 +24,10 @@
 
 'use strict';
 
+/* Общие помощники поверхностей: why() и строгая проверка сбоев страницы
+   (scripts/checks/common.js) — одна копия на все чеки. */
+const common = require('./common');
+
 /* Заявки, которые shared/data.js:118-187 сеет, если хранилище пустое.
    Значения взяты из файла данных, не выдуманы. */
 const SEEDED_APPS = ['4421-И', '3890-И', '3701-И', '4460-И'];
@@ -80,7 +84,7 @@ module.exports = {
     const ok = check.ok;
     /* Сообщение проверки: при провале waitFor дописываем ошибку страницы, иначе
        FAIL «очередь отрисована» не отличить от «элемента нет». */
-    const why = function (r) { return r && r.message ? ' — ' + r.message : ''; };
+    const why = common.why;
 
     /* Строгая проверка «страница отработала без сбоев».
 
@@ -93,24 +97,11 @@ module.exports = {
        часть утверждения: если он не поставился, пустой список означал бы не
        «сбоев нет», а «сбои никто не считал».
 
-       Перед действием, с которым связана проверка, сцена чистится
+       Перед действием, с которым связана проверка, список чистится
        __t.resetFailures(), чтобы накопленное раньше не выдавалось за сбой этого
-       действия. Границы монитора: дочерние окна и iframe он не видит, а
-       недоступный внешний ресурс (шрифты fonts.googleapis.com в manager/index.html)
-       даёт ложный сбой — это сеть, а не АРМ. */
-    const noFailures = async function (msg) {
-      const state = await s.eval('return (function() { try {' +
-        ' return { list: __t.failures(), monitor: window.__bgfMonitor || null };' +
-        ' } catch (e) { return { error: e.message }; } })()');
-      if (state.error) return ok(false, msg + ' (монитор сбоев недоступен: ' + state.error + ')');
-      const list = Array.isArray(state.list) ? state.list : [];
-      const installed = !!(state.monitor && state.monitor.error === true &&
-        state.monitor.rejection === true && state.monitor.alert === true);
-      return ok(installed && list.length === 0,
-        msg + ' (' + (installed ? '' : 'монитор сбоев установлен не полностью: ' +
-          JSON.stringify(state.monitor) + '; ') +
-        (list.length ? list.join(' | ') : 'сбоев нет') + ')');
-    };
+       действия. Тело помощника вынесено в scripts/checks/common.js: он одинаков
+       у трёх поверхностей. */
+    const noFailures = function (msg) { return common.noFailures(s, ok, msg); };
 
     check.section('АРМ менеджера — вход по ?autologin=1');
 
