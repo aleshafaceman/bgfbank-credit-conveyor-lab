@@ -53,7 +53,7 @@ node scripts/run-all-checks.js
 ```bash
 node scripts/pre-release-audit.js               # разметка, ссылки, общий слой форм — 551
 node scripts/form-flow-check.js                 # обе формы клиента — 96
-node scripts/surface-check.js                   # шесть поверхностей — 550
+node scripts/surface-check.js                   # шесть поверхностей — 553
 node scripts/surface-check.js --only=cabinet    # одна поверхность — 64
 ```
 
@@ -74,7 +74,7 @@ Chrome и проходит сценарии как пользователь: в�
 | Кабинет клиента | `cabinet` | 64 |
 | АРМ менеджера | `manager` | 92 |
 | Стол сделки ОЗС / ОПЕРУ | `deal-ops` | 122 |
-| АРМ андеррайтера (АНД / АПЗ) | `underwriter` | 131 |
+| АРМ андеррайтера (АНД / АПЗ) | `underwriter` | 134 |
 | АРМ участника кредитного комитета | `kk-member` | 35 |
 | Стол продуктолога / риск-менеджера | `productolog` | 106 |
 | Формы клиента (потребительский кредит + залог) | `forms` | 96 |
@@ -82,11 +82,11 @@ Chrome и проходит сценарии как пользователь: в�
 
 `--only` принимает и список: `--only=cabinet,forms` даёт 64 + 96 = 160.
 
-**Почему без `--only` выходит 550, а не 646.** Прогон `surface-check.js` без
+**Почему без `--only` выходит 553, а не 649.** Прогон `surface-check.js` без
 `--only` идёт по списку шести поверхностей (`DEFAULT_SURFACES`,
 `scripts/surface-check.js:49`), и форм в нём нет: у форм свой отдельный шаг в
 `run-all-checks.js`, иначе в единой команде они считались бы дважды. Поэтому
-`node scripts/surface-check.js` даёт 550, а с `--only=forms` — 96. В карте
+`node scripts/surface-check.js` даёт 553, а с `--only=forms` — 96. В карте
 поверхностей формы остаются, так что `--only=forms,cabinet` работает как обычно.
 Прогон без `--only` пропусков не даёт: за все шесть поверхностей есть файлы.
 

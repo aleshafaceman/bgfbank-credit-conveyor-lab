@@ -734,9 +734,38 @@ module.exports = {
       'содержимое #work-deal перерисовалось на заёмщика ' + CARD_WHO[AND_IDS[1]] +
       ' (было ' + work0.length + ' символов, стало ' + work1.length + ')');
     ok(work1.indexOf('Погашение долга перед ФССП') !== -1 && work1.indexOf('нужен звонок') !== -1,
-      'у второй заявки показаны её собственные признаки: ДУ 12 и нужный звонок');
+      'у второй заявки показаны её собственные признаки: условие из справочника и нужный звонок');
     ok(work0.indexOf('Погашение долга перед ФССП') === -1 && work0.indexOf('звонок исключён') !== -1,
-      'у первой заявки своих ДУ нет, а звонок исключён автоодобрением — карточки не спутаны');
+      'у первой заявки своих условий нет, а звонок исключён автоодобрением — карточки не спутаны');
+
+    /* Дополнительные условия показаны списком с состоянием — так же, как их
+       читает менеджер. Нумерации справочника («виды 0–18») в карточке быть не
+       должно: сотруднику она ничего не говорит. */
+    ok(work1.indexOf('Дополнительные условия') !== -1 &&
+      work1.indexOf('Снято 0 из 1') !== -1 && work1.indexOf('не снято') !== -1 &&
+      work1.indexOf('до подписи КОД') !== -1 && work1.indexOf('из решения СПР') !== -1,
+      'условие второй заявки показано списком: состояние, срок сделки и источник (сейчас: «' +
+      work1.slice(-260) + '»)');
+    ok(work0.indexOf('Дополнительных условий по этой заявке нет') !== -1 &&
+      work0.indexOf('0–18') === -1,
+      'пустой список условий объяснён словами, без нумерации справочника (сейчас: «' +
+      work0.slice(-180) + '»)');
+
+    /* Отметка снимает условие: и состояние строки, и счётчик меняются, а в сцену
+       уходит отметка — по ней потом видно, что условие закрыто. */
+    const duTicked = await s.eval('return (function () { var l = Array.prototype.slice.call(' +
+      'document.querySelectorAll("#work-deal .du-row label.check")).filter(function (x) {' +
+      ' return (x.textContent || "").indexOf("Погашение долга перед ФССП") !== -1; })[0];' +
+      ' if (!l) return false; l.querySelector("input").click(); return true; })()');
+    r = await s.waitFor('return (function () { try {' +
+      ' var p = JSON.parse(localStorage.getItem(' + JSON.stringify(STORE) + ') || "{}");' +
+      ' return (((p.apps || {})[' + JSON.stringify(AND_IDS[1]) + '] || {}).du || {}).du_12 === true;' +
+      ' } catch (e) { return false; } })()', 5000);
+    const work1Done = await workText();
+    ok(duTicked === true && r.ok && work1Done.indexOf('Снято 1 из 1') !== -1 &&
+      work1Done.indexOf('снято') !== -1,
+      'отметка снимает условие: состояние строки и счётчик меняются (сейчас: «' +
+      work1Done.slice(-220) + '»)' + why(r));
     const activeAfterSecond = await activeIds();
     ok(activeAfterSecond.length === 1 && activeAfterSecond[0] === AND_IDS[1],
       'подсветка переехала на открытую заявку (подсвечено: ' + JSON.stringify(activeAfterSecond) + ')');

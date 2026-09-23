@@ -183,3 +183,12 @@
   min-height: 34px;
 }
 .comment .req-note { font-size: 11.5px; color: var(--danger); margin-top: 4px; }
+
+/* Дополнительные условия: список с состоянием, а не строка галочек. Состояние
+   читается словами («снято» / «не снято»), срок и источник — отдельными метками. */
+.du-list { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; }
+.du-row { padding: 8px 0; border-bottom: 1px solid var(--line); }
+.du-row:last-child { border-bottom: 0; }
+.du-row .check { margin: 0; }
+.du-row--done .check span { color: var(--muted); }
+.du-meta { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 0 26px; }

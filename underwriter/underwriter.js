@@ -73,6 +73,11 @@ const HELP = {
     about: "Минимум по заёмщику: паспорт, СНИЛС, согласие на обработку данных, анкета. По объекту — выписка ЕГРН и правоустанавливающие документы. Виды дополнительных условий — только из справочника.",
     next: "Если не хватает документа — доработка процессору, не отказ."
   },
+  du: {
+    title: "Дополнительные условия",
+    about: "Условия, которые банк ставит к сделке: принести документ, погасить долг, оформить согласие. Список приходит из решения системы и проверок — свободного ввода здесь нет. Условие снимают отметкой, когда оно выполнено; пока не снято, оно уходит в сделку.",
+    next: "Отметьте условие, когда оно выполнено. Если документ не принесли — это доработка, а не отказ."
+  },
   scoring: {
     title: "Скоринг",
     about: "Система принятия решений определяет решение по человеку и долговую нагрузку. Категорию кредитной истории она на входе не знает — та появляется после АНД.",
@@ -1101,6 +1106,34 @@ function renderBus() {
   }).join("");
 }
 
+/* Дополнительные условия — списком, как их читает менеджер: название условия
+   словами, что с ним сейчас, к какому моменту сделки оно относится и откуда
+   взялось. Отметка снимает условие; пока оно не снято, оно уходит дальше в
+   сделку. Вид условия берётся из справочника банка и приходит словами —
+   сотруднику не нужно знать нумерацию справочника. */
+function duListHtml(a, s) {
+  const list = a.additional_conditions || [];
+  if (!list.length) {
+    return '<p class="hint">Дополнительных условий по этой заявке нет: система принятия решений и проверки их не назначали.</p>';
+  }
+  const done = list.filter(function (x) { return !!s.du[x.id]; }).length;
+  const rows = list.map(function (x) {
+    const marked = !!s.du[x.id];
+    return '<div class="du-row' + (marked ? " du-row--done" : "") + '">' +
+      '<label class="check"><input type="checkbox" ' + (marked ? "checked" : "") +
+      ' onchange="toggleDu(\'' + x.id + '\', this)"><span>' + esc(duTitle(x)) + "</span></label>" +
+      '<div class="du-meta">' +
+      '<span class="chip ' + (marked ? "chip--done" : "chip--wait") + '">' +
+      (marked ? "снято" : "не снято") + "</span>" +
+      '<span class="chip">' + (x.when === "issue" ? "на выдачу" : "до подписи КОД") + "</span>" +
+      (x.suggested ? '<span class="chip">из решения СПР</span>' : "") +
+      "</div></div>";
+  }).join("");
+  return '<p class="hint">Снято ' + done + " из " + list.length +
+    ". Неснятые условия уходят дальше в сделку.</p>" +
+    '<div class="du-list">' + rows + "</div>";
+}
+
 function renderWork() {
   const empty = document.getElementById("work-empty");
   const box = document.getElementById("work-deal");
@@ -1129,14 +1162,7 @@ function renderWork() {
   const docsHtml = docs.map((d) =>
     '<span class="doc">' + d.title + (d.ok ? "" : " · нет") + "</span>"
   ).join("");
-  const duHtml = (a.additional_conditions || []).length
-    ? (a.additional_conditions.map((x) =>
-      '<label class="check"><input type="checkbox" ' + (s.du[x.id] ? "checked" : "") +
-      ' onchange="toggleDu(\'' + x.id + '\', this)"><span>' + duTitle(x) +
-      (x.suggested ? " · из решения СПР" : "") +
-      (x.when === "issue" ? " · на выдачу" : " · до подписи КОД") +
-      "</span></label>").join(""))
-    : "<p class=\"hint\">Открытых ДУ нет. Виды только 0–18.</p>";
+  const duHtml = duListHtml(a, s);
 
   const flags =
     '<div class="flag-row">' +
@@ -1252,7 +1278,7 @@ function renderWork() {
     (docsComplete(a) ? "" : '<p class="sopd-warn">В снимке не хватает документа — это доработка, не отказ.</p>') +
     "</div>" +
 
-    '<div class="panel">' + panelHead("Доп. условия", "docs") + duHtml + "</div>" +
+    '<div class="panel">' + panelHead("Дополнительные условия", "du") + duHtml + "</div>" +
 
     scoringBlock + reviewBlock + verifyBlock + apzBlock + kkBlock +
 
