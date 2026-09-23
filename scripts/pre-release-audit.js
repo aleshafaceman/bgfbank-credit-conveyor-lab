@@ -1281,8 +1281,13 @@ console.log('\n=== 11. ARM underwriter / productolog ===');
     'underwriter names Loginom methods on the bus');
   assert(/не этот АРМ/.test(uwJs) && /Паспорт сделки/.test(uwJs),
     'underwriter does not host deal passport');
-  assert(!/FetchEgrnByCadastral/.test(uwJs) && /файл \+ OCR/.test(uwJs),
-    'EGRN on underwriter is file+OCR, not SMEV');
+  /* Выписка ЕГРН приходит файлом и распознаётся, кадастрового запроса в Росреестр
+     со стола нет. Точную формулировку держать нельзя: её правили на человеческую,
+     поэтому ищем её в самом модальном окне шага, а не где-то в файле. */
+  const egrnLead = (uwJs.match(/showModal\("Выписка ЕГРН",\s*"([^"]*)"/) || [])[1] || '';
+  assert(!/FetchEgrnByCadastral/.test(uwJs) && /распозна/.test(egrnLead) &&
+    /Росреестр/.test(egrnLead),
+    'EGRN on underwriter comes as a recognised file, not a cadastral SMEV call');
   assert(/оркестратор/.test(uwHtml) && /АНД/.test(uwHtml) && /АПЗ/.test(uwHtml),
     'underwriter chrome has AND/APZ roles');
   assert(!/PTI|DTI/.test(uwJs) || /не DTI/.test(uwJs),

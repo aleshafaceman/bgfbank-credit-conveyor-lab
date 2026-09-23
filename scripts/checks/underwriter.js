@@ -96,15 +96,15 @@ const QUEUE_BY_ROLE = {
    система. Один список на все проверки шины — три копии этих строк разъехались
    бы при первой же правке каталога. */
 const BUS_CATALOG = [
-  { title: 'СБ пройдена', system: 'ELMA' },
-  { title: 'Решение по заёмщику', system: 'оркестратор → Loginom getDecision' },
-  { title: 'ПДН', system: 'оркестратор → Loginom getPdn' },
-  { title: 'Оценка залога', system: 'оркестратор → Loginom getEval' },
-  { title: 'Express МО', system: 'оркестратор → express.ocenka.mobi' },
-  { title: 'ЕГРН', system: 'файл + OCR Basis, не СМЭВ' },
-  { title: 'Звонок верификации', system: 'Skorozvon' },
-  { title: 'СМС брокеру', system: 'SMSTraffic /v2/send' },
-  { title: 'Статус в кабинет', system: 'B2B webhook' }
+  { title: 'СБ пройдена', system: 'служба безопасности' },
+  { title: 'Решение по заёмщику', system: 'система принятия решений банка' },
+  { title: 'Долговая нагрузка', system: 'система принятия решений банка' },
+  { title: 'Оценка залога', system: 'система принятия решений банка' },
+  { title: 'Экспресс-оценка объекта', system: 'сервис оценки недвижимости' },
+  { title: 'Выписка ЕГРН', system: 'файл и распознавание, не запрос в Росреестр' },
+  { title: 'Звонок верификации', system: 'роботизированный дозвон' },
+  { title: 'СМС брокеру', system: 'сервис рассылок' },
+  { title: 'Статус в кабинет', system: 'кабинет партнёра' }
 ];
 const BUS_TITLES = BUS_CATALOG.map(function (x) { return x.title; });
 const BUS_SYSTEMS = BUS_CATALOG.map(function (x) { return x.system; });
@@ -118,10 +118,10 @@ const BUS_STEPS = BUS_CATALOG.length;
 const BUS_AND_101_LABELS = {
   'СБ пройдена': 'успех',
   'Решение по заёмщику': 'ожидание',
-  'ПДН': 'ожидание',
+  'Долговая нагрузка': 'ожидание',
   'Оценка залога': 'контур АПЗ',
-  'Express МО': 'контур АПЗ',
-  'ЕГРН': 'контур АПЗ',
+  'Экспресс-оценка объекта': 'контур АПЗ',
+  'Выписка ЕГРН': 'контур АПЗ',
   'Звонок верификации': 'исключён',
   'СМС брокеру': 'ожидание',
   'Статус в кабинет': 'ожидание'
@@ -133,10 +133,10 @@ const BUS_AND_101_LABELS = {
 const BUS_APZ_103_LABELS = {
   'СБ пройдена': 'успех',
   'Решение по заёмщику': 'успех',
-  'ПДН': 'успех',
+  'Долговая нагрузка': 'успех',
   'Оценка залога': 'ожидание',
-  'Express МО': 'ожидание',
-  'ЕГРН': 'ожидание',
+  'Экспресс-оценка объекта': 'ожидание',
+  'Выписка ЕГРН': 'ожидание',
   'Звонок верификации': 'исключён',
   'СМС брокеру': 'ожидание',
   'Статус в кабинет': 'ожидание'
@@ -646,7 +646,7 @@ module.exports = {
       JSON.stringify(afterScoring && { step: afterScoring.step, bus: afterScoring.bus }) + ')');
     diff = busDiff(await busRows(), busExpected(Object.assign({}, BUS_AND_101_LABELS, {
       'Решение по заёмщику': 'успех',
-      'ПДН': 'успех'
+      'Долговая нагрузка': 'успех'
     })));
     ok(diff.wrong.length === 0 && diff.missing.length === 0,
       '«Ход обмена» после скоринга показывает успех шагов заёмщика (расхождения: ' +
@@ -665,14 +665,14 @@ module.exports = {
       JSON.stringify(approved && { decision: approved.decision, smsId: approved.smsId }) + ')');
     r = await s.waitFor('return __t.count("#work-deal .done-banner") >= 1', 5000);
     const bannersAnd = await banners();
-    ok(r.ok && hasBanner(bannersAnd, 'Клиент одобрен (ELMA 5)') && hasBanner(bannersAnd, 'sms_0101'),
+    ok(r.ok && hasBanner(bannersAnd, 'Клиент одобрен.') && hasBanner(bannersAnd, 'sms_0101'),
       'карточка сообщает об одобрении клиента и об отправленной СМС (баннеры: ' +
       JSON.stringify(bannersAnd) + ')');
     ok(hasBanner(bannersAnd, BANNER_BARRIER),
       'барьер паспорта сделки снят: одобрены оба контура (баннеры: ' + JSON.stringify(bannersAnd) + ')');
     const busAfterApprove = busDiff(await busRows(), busExpected(Object.assign({}, BUS_AND_101_LABELS, {
       'Решение по заёмщику': 'успех',
-      'ПДН': 'успех',
+      'Долговая нагрузка': 'успех',
       'СМС брокеру': 'sms_0101',
       'Статус в кабинет': 'успех'
     })));
@@ -777,7 +777,7 @@ module.exports = {
       '     return (x.textContent || "").replace(/\\s+/g, " ").trim(); }) }; })()');
     ok(!!objectPanel && objectPanel.visible === true &&
       objectPanel.params.join(' | ').indexOf('77:06:0004002:551') !== -1 &&
-      objectPanel.params.join(' | ').indexOf('FLAT') !== -1,
+      objectPanel.params.join(' | ').indexOf('квартира') !== -1,
       'видимая панель «Объект залога» показывает тип и кадастровый номер заявки из мока (' +
       JSON.stringify(objectPanel && objectPanel.params) + ')');
     const apzButtons = await s.eval(WORK_BUTTONS);
@@ -820,7 +820,7 @@ module.exports = {
     ok(r.ok && (await workHead()) === APZ_IDS[1] && headBefore104 !== APZ_IDS[1],
       'клик по карточке коммерции перерисовывает карточку с ' + headBefore104 + ' на ' + APZ_IDS[1] +
       why(r));
-    ok(work104.indexOf('Критерий КК: тип недвижимости — коммерция') !== -1 &&
+    ok(work104.indexOf('На кредитный комитет: тип недвижимости — коммерция') !== -1 &&
       work104.indexOf('Внутренний оценщик банка подтвердил коммерцию') !== -1,
       'у заявки коммерции показана причина вынесения на КК из мока и требование ' +
       'внутреннего оценщика');
@@ -850,21 +850,23 @@ module.exports = {
       ' if (!o || o.classList.contains("hidden")) return null; var r = o.getBoundingClientRect();' +
       ' return { visible: r.width > 0 && r.height > 0, title: __t.text("modal-title"),' +
       '   lead: __t.text("modal-lead") }; })()');
+    /* Окно должно сказать две вещи: выписка приходит файлом и распознаётся, и
+       запроса в Росреестр отсюда нет. Держим смысл, а не точную фразу. */
     ok(egrnClicked === true && !!egrnModal && egrnModal.visible === true &&
-      egrnModal.title === 'Выписка ЕГРН' && egrnModal.lead.indexOf('файл + OCR Basis') !== -1 &&
-      egrnModal.lead.indexOf('не вызываем') !== -1,
-      'шаг ЕГРН объясняет себя видимым модальным окном: файл + OCR Basis, кадастровый СМЭВ ' +
-      'не вызываем (сейчас: ' + JSON.stringify(egrnModal) + ')');
-    r = await waitReady('getEval / Express');
+      egrnModal.title === 'Выписка ЕГРН' && egrnModal.lead.indexOf('распознаётся') !== -1 &&
+      /Росреестр[^.]*не идёт/.test(egrnModal.lead),
+      'шаг ЕГРН объясняет себя видимым модальным окном: файл и распознавание, запроса ' +
+      'в Росреестр нет (сейчас: ' + JSON.stringify(egrnModal) + ')');
+    r = await waitReady('Запросить оценку');
     const afterEgrn = await readApp(APZ_IDS[0]);
     ok(r.ok, 'ЕГРН отработал, окно закрылось и разблокировало оценку' + why(r));
     ok(!!afterEgrn && afterEgrn.step === 'eval' && afterEgrn.bus.egrn === 'ok',
       'ЕГРН записан в сцену: шаг eval, шаг шины egrn — успех (сейчас: ' +
       JSON.stringify(afterEgrn && { step: afterEgrn.step, egrn: afterEgrn.bus.egrn }) + ')');
-    const evalClicked = await clickButton('getEval / Express');
+    const evalClicked = await clickButton('Запросить оценку');
     r = await waitIdle();
     ok(evalClicked === true && r.ok,
-      'клик по «getEval / Express» запускает оценку, и она завершается: окно закрыто, стол свободен' +
+      'клик по «Запросить оценку» запускает оценку, и она завершается: окно закрыто, стол свободен' +
       why(r));
     r = await waitStep(APZ_IDS[0], 'title');
     const afterEval = await readApp(APZ_IDS[0]);
@@ -890,15 +892,15 @@ module.exports = {
       JSON.stringify(approvedApz && { decision: approvedApz.decision, smsId: approvedApz.smsId }) + ')');
     r = await s.waitFor('return __t.count("#work-deal .done-banner") >= 1', 5000);
     const bannersApz = await banners();
-    ok(r.ok && hasBanner(bannersApz, 'Залог одобрен (ELMA 23)') && !hasBanner(bannersApz, 'СМС'),
+    ok(r.ok && hasBanner(bannersApz, 'Залог одобрен.') && !hasBanner(bannersApz, 'СМС'),
       'карточка сообщает об одобрении залога и не поминает СМС брокеру (баннеры: ' +
       JSON.stringify(bannersApz) + ')');
     ok(hasBanner(bannersApz, BANNER_BARRIER),
       'барьер паспорта сделки снят и в контуре залога (баннеры: ' + JSON.stringify(bannersApz) + ')');
     const busAfterApz = busDiff(await busRows(), busExpected(Object.assign({}, BUS_APZ_103_LABELS, {
       'Оценка залога': 'успех',
-      'Express МО': 'успех',
-      'ЕГРН': 'успех',
+      'Экспресс-оценка объекта': 'успех',
+      'Выписка ЕГРН': 'успех',
       'Статус в кабинет': 'успех'
     })));
     ok(busAfterApz.missing.length === 0 && busAfterApz.wrong.length === 0,
