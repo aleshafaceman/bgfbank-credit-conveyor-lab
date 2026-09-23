@@ -29,7 +29,7 @@ window.UNDERWRITER_MOCK = {
     {
       deal_id: "25BGFB00990101",
       track: "and",
-      title: "Автоодобрение · КИ2 · LTV 48% · без звонка",
+      title: "Автоодобрение · категория 2 · кредит к стоимости 48% · без звонка",
       scenario: "auto_approve",
       peer: { apz_status: "pledge_approved" },
       sb_passed: true,
@@ -49,7 +49,7 @@ window.UNDERWRITER_MOCK = {
       fssp_debt: 0,
       pdn: 0.31,
       skip_phone_verify: true,
-      skip_phone_reason: "Автоодобрение СПР. Visio: звонок не нужен при автоодобрении; также при LTV < 50%, залоге/рефине, сумме ≤ 10 млн и квартире в МКАД.",
+      skip_phone_reason: "Автоодобрение: звонок не нужен. Также не звоним, когда кредит к стоимости ниже 50%, кредит залоговый или рефинансирование, сумма до 10 млн, а квартира в пределах МКАД.",
       loginom: {
         DECISION: 1,
         DECISION_TYPE: "auto",
@@ -89,7 +89,7 @@ window.UNDERWRITER_MOCK = {
     {
       deal_id: "25BGFB00990102",
       track: "and",
-      title: "Ручной АНД · ФССП 180 тыс · ДУ 12",
+      title: "Ручной АНД · ФССП 180 тыс · доп. условие 12",
       scenario: "manual_fssp",
       peer: { apz_status: "in_apz" },
       sb_passed: true,
@@ -151,7 +151,7 @@ window.UNDERWRITER_MOCK = {
     {
       deal_id: "25BGFB00990103",
       track: "apz",
-      title: "АПЗ · квартира в МКАД · Express accepted",
+      title: "АПЗ · квартира в МКАД · оценка принята",
       scenario: "pledge_flat",
       peer: { and_status: "client_approved" },
       sb_passed: true,
@@ -199,7 +199,7 @@ window.UNDERWRITER_MOCK = {
         express_status: "accepted"
       },
       docs_pledge: [
-        { id: "egrn", title: "Выписка ЕГРН (файл + OCR)", ok: true },
+        { id: "egrn", title: "Выписка ЕГРН (файл)", ok: true },
         { id: "title", title: "Правоустанавливающий документ", ok: true },
         { id: "eval", title: "Экспресс-оценка МО", ok: true }
       ],
@@ -208,7 +208,7 @@ window.UNDERWRITER_MOCK = {
     {
       deal_id: "25BGFB00990104",
       track: "apz",
-      title: "АПЗ · коммерция · оценщик банка · КК",
+      title: "Коммерческая недвижимость · внутренний оценщик · кредитный комитет",
       scenario: "commerce_kk",
       peer: { and_status: "client_approved" },
       sb_passed: true,
@@ -230,7 +230,7 @@ window.UNDERWRITER_MOCK = {
       skip_phone_verify: false,
       need_bank_appraiser: true,
       need_kk: true,
-      kk_reason: "Критерий КК: тип недвижимости — коммерция. Visio: внутренний оценщик обязателен, 180–300 мин.",
+      kk_reason: "На кредитный комитет: тип недвижимости — коммерция. Внутренний оценщик обязателен, рассмотрение занимает от 3 до 5 часов.",
       loginom: {
         APPRAISAL_PLEDGE_COST: 28600000,
         EVAL_STATUS: "accepted"
@@ -257,7 +257,7 @@ window.UNDERWRITER_MOCK = {
         express_status: "accepted"
       },
       docs_pledge: [
-        { id: "egrn", title: "Выписка ЕГРН (файл + OCR)", ok: true },
+        { id: "egrn", title: "Выписка ЕГРН (файл)", ok: true },
         { id: "title", title: "Правоустанавливающий документ", ok: true },
         { id: "eval", title: "Экспресс-оценка МО", ok: true }
       ],

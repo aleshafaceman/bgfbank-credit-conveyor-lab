@@ -3,15 +3,15 @@ const STORE_VER = 1;
 const MOCK = window.UNDERWRITER_MOCK;
 
 const BUS_CATALOG = [
-  { id: "sb_done", title: "СБ пройдена", system: "ELMA" },
-  { id: "getDecision", title: "Решение по заёмщику", system: "оркестратор → Loginom getDecision" },
-  { id: "getPdn", title: "ПДН", system: "оркестратор → Loginom getPdn" },
-  { id: "getEval", title: "Оценка залога", system: "оркестратор → Loginom getEval" },
-  { id: "express", title: "Express МО", system: "оркестратор → express.ocenka.mobi" },
-  { id: "egrn", title: "ЕГРН", system: "файл + OCR Basis, не СМЭВ" },
-  { id: "skorozvon", title: "Звонок верификации", system: "Skorozvon" },
-  { id: "broker_sms", title: "СМС брокеру", system: "SMSTraffic /v2/send" },
-  { id: "b2b", title: "Статус в кабинет", system: "B2B webhook" }
+  { id: "sb_done", title: "СБ пройдена", system: "служба безопасности" },
+  { id: "getDecision", title: "Решение по заёмщику", system: "система принятия решений банка" },
+  { id: "getPdn", title: "Долговая нагрузка", system: "система принятия решений банка" },
+  { id: "getEval", title: "Оценка залога", system: "система принятия решений банка" },
+  { id: "express", title: "Экспресс-оценка объекта", system: "сервис оценки недвижимости" },
+  { id: "egrn", title: "Выписка ЕГРН", system: "файл и распознавание, не запрос в Росреестр" },
+  { id: "skorozvon", title: "Звонок верификации", system: "роботизированный дозвон" },
+  { id: "broker_sms", title: "СМС брокеру", system: "сервис рассылок" },
+  { id: "b2b", title: "Статус в кабинет", system: "кабинет партнёра" }
 ];
 
 const AND_BAR = [
@@ -57,7 +57,7 @@ const HELP = {
   },
   bus: {
     title: "Ход обмена",
-    about: "Ответы оркестратора. Стол не бьёт в Loginom, МО, ФНС и ЦФТ напрямую.",
+    about: "Что стол получил и отправил. Сам он в системы банка и внешние сервисы не обращается — только через оркестратор.",
     next: "Зелёный кружок — шаг уже есть в снимке или выполнен."
   },
   summary: {
@@ -67,32 +67,32 @@ const HELP = {
   },
   docs: {
     title: "Комплект",
-    about: "Минимум ФЛ: паспорт, СНИЛС, СОПД, анкета. По объекту — ЕГРН и правоустановка. Виды ДУ только из справочника ELMA 0–18.",
+    about: "Минимум по заёмщику: паспорт, СНИЛС, согласие на обработку данных, анкета. По объекту — выписка ЕГРН и правоустанавливающие документы. Виды дополнительных условий — только из справочника.",
     next: "Если не хватает документа — доработка процессору, не отказ."
   },
   scoring: {
     title: "Скоринг",
-    about: "Loginom getDecision — решение по человеку, getPdn — ПДН (не DTI из лабораторного overlay). Solver на входе КИ не знает.",
+    about: "Система принятия решений определяет решение по человеку и долговую нагрузку. Категорию кредитной истории она на входе не знает — та появляется после АНД.",
     next: "Авторешение можно принять. Иначе — анализ и кнопка «Расчёт»."
   },
   calc: {
     title: "Расчёт",
-    about: "Visio: кнопка «Расчет» после анализа доходов и расходов. Параметры должны пройти мин. требования банка.",
+    about: "Расчёт запускается после анализа доходов и расходов. Параметры должны пройти минимальные требования банка.",
     next: "Если звонок не исключён правилом — верификация, иначе решение."
   },
   verify: {
     title: "Звонок",
-    about: "Visio: не звонить при автоодобрении и при LTV < 50% + залог/рефин + сумма ≤ 10 млн + квартира в МКАД.",
+    about: "Не звоним при автоодобрении, а также когда кредит к стоимости ниже 50%, кредит залоговый или рефинансирование, сумма до 10 млн, квартира в пределах МКАД.",
     next: "После звонка — решение или КК."
   },
   apz: {
     title: "Залог",
-    about: "ЕГРН в AS-IS — файл и OCR, не кадастровый СМЭВ. Цена — Express accepted или getEval. Коммерция всегда на внутреннего оценщика.",
+    about: "Выписка приходит файлом и распознаётся, запрос в Росреестр не идёт. Оценка — экспресс или решение системы. По коммерческой недвижимости обязателен внутренний оценщик.",
     next: "«Залог одобрен» снимает барьер вместе с «клиент одобрен»."
   },
   decision: {
     title: "Решение",
-    about: "Одобрение: чек-лист, СМС брокеру, статус в B2B. Отказ — с правом или без пересмотра. КК — по сумме, типу недвижимости, региону.",
+    about: "Одобрение: чек-лист, СМС брокеру, статус в кабинет партнёра. Отказ — с правом или без пересмотра. Кредитный комитет — по сумме, типу недвижимости, региону.",
     next: "Когда оба контура одобрены, паспорт сделки открывается не здесь."
   }
 };
@@ -181,10 +181,76 @@ function fmtPct(v) {
   return (Number(v) * 100).toFixed(0) + "%";
 }
 
+function decisionTypeLabel(code) {
+  if (code === "auto") return "автоматическое";
+  if (code === "manual") return "ручное";
+  return code;
+}
+
 function purposeLabel(code) {
   if (code === "mortgage") return "покупка";
   if (code === "cash_on_pledge") return "залог";
   if (code === "refinancing") return "рефинансирование";
+  return code;
+}
+
+/* Коды справочников приходят из данных, а на экран должны попадать словами:
+   «ndfl2» и «FLAT» сотруднику ничего не говорят. Незнакомый код отдаём как
+   есть, чтобы новый случай был виден, а не подменялся выдуманным текстом. */
+function incomeTypeLabel(code) {
+  var map = {
+    ndfl2: "справка 2-НДФЛ",
+    ndfl3: "декларация 3-НДФЛ",
+    bank_form: "справка по форме банка",
+    statement: "выписка по счёту",
+    szils: "сведения из ПФР",
+    esia: "данные из Госуслуг"
+  };
+  return map[code] || code;
+}
+
+function collateralTypeLabel(code) {
+  var map = {
+    FLAT: "квартира",
+    APARTMENT: "апартаменты",
+    HOUSE: "жилой дом",
+    TOWNHOUSE: "таунхаус",
+    LAND: "земельный участок",
+    GARAGE: "гараж",
+    COMMERCE: "коммерческая недвижимость",
+    SHARE: "доля"
+  };
+  return map[code] || code;
+}
+
+function packageLabel(code) {
+  var map = {
+    PKG_RECOMMENDED: "рекомендуемый",
+    PKG_NO_INSURANCE: "без страхования",
+    PKG_COMMISSION: "с комиссией"
+  };
+  return map[code] || code;
+}
+
+function expressStatusLabel(code) {
+  var map = {
+    accepted: "принята",
+    pending: "в работе",
+    rejected: "не принята",
+    failed: "ошибка"
+  };
+  return map[code] || code;
+}
+
+/* Категория кредитной истории: в данных код вида K3_2, на экране — «категория 3.2».
+   Лучшая К1 и очень плохая К5 называются словами, остальные — номером. */
+function kiLabel(code) {
+  if (!code) return "—";
+  if (code === "K1") return "категория 1 · лучшая";
+  if (code === "K5") return "категория 5 · очень плохая";
+  if (code === "NEGATIVE") return "негативная";
+  var m = /^K(\d)(?:_(\d))?$/.exec(code);
+  if (m) return "категория " + m[1] + (m[2] ? "." + m[2] : "");
   return code;
 }
 
@@ -423,20 +489,20 @@ async function runScoring() {
   const s = st();
   if (busy || a.track !== "and" || !s.docsOk) return;
   busy = true;
-  showModal("Скоринг заёмщика", "Оркестратор вызывает Loginom. Solver пакеты на входе сюда не считаем.");
-  addModalLine("getDecision/execute · APPLICATION_ID " + a.deal_id, "on");
+  showModal("Скоринг заёмщика", "Оркестратор запрашивает решение в системе принятия решений. Пакеты, выбранные на входе, здесь не пересчитываются.");
+  addModalLine("Запрос решения по заявке " + a.deal_id, "on");
   setBus("getDecision", "pending");
   renderBus();
   await sleep(700);
   const L = a.loginom;
   setBus("getDecision", "ok");
-  addModalLine("DECISION_TYPE=" + L.DECISION_TYPE + " · ClientCategory=" + L.ClientCategory + " · SCORE=" + L.SCORE, "ok");
-  addModalLine(L.MSG_CODE + ": " + L.MSG_DESC, L.DECISION_TYPE === "auto" ? "ok" : "on");
+  addModalLine("Решение: " + decisionTypeLabel(L.DECISION_TYPE) + " · балл " + L.SCORE + " · " + kiLabel(L.ClientCategory), "ok");
+  addModalLine(L.MSG_DESC, L.DECISION_TYPE === "auto" ? "ok" : "on");
   setBus("getPdn", "pending");
   renderBus();
   await sleep(500);
   setBus("getPdn", "ok");
-  addModalLine("getPdn · ПДН " + fmtPct(a.pdn) + " (не DTI)", "ok");
+  addModalLine("Долговая нагрузка, ПДН " + fmtPct(a.pdn), "ok");
   s.step = L.DECISION_TYPE === "auto" ? "decision" : "review";
   save();
   await sleep(600);
@@ -450,13 +516,13 @@ async function runCalc() {
   const s = st();
   if (busy || s.step !== "review") return;
   busy = true;
-  showModal("Расчёт", "Кнопка «Расчет» из Visio андеррайтинга. Мин. требования банка по сумме, LTV и ПДН.");
-  addModalLine("Сумма " + fmtMoney(a.amount) + " · LTV " + fmtPct(a.ltv), "on");
+  showModal("Расчёт", "Расчёт показателей заявки. Проверяем, что сумма, кредит к стоимости и долговая нагрузка проходят требования банка.");
+  addModalLine("Сумма " + fmtMoney(a.amount) + " · кредит к стоимости " + fmtPct(a.ltv), "on");
   await sleep(500);
   const fsspAdd = a.fssp_debt > 100000 ? 2 : 0;
   const corridor = s.greenCorridor ? " · опция «Зелёный коридор»" : "";
   addModalLine("Надбавка ФССП +" + fsspAdd + " п.п." + corridor, "ok");
-  addModalLine("ПДН " + fmtPct(a.pdn) + " в допуске лабораторного сценария", "ok");
+  addModalLine("Долговая нагрузка, ПДН " + fmtPct(a.pdn) + " — в допуске сценария", "ok");
   s.calcDone = true;
   s.step = skipPhone(a) ? "decision" : "verify";
   save();
@@ -471,13 +537,13 @@ async function runEgrn() {
   const s = st();
   if (busy || a.track !== "apz" || !s.docsOk) return;
   busy = true;
-  showModal("Выписка ЕГРН", "AS-IS кабинета: файл + OCR Basis. Кадастровый СМЭВ в этом столе не вызываем.");
+  showModal("Выписка ЕГРН", "Выписка приходит файлом и распознаётся автоматически. В этом столе запрос в Росреестр не идёт.");
   addModalLine("Кадастр " + a.collateral.cadastral, "on");
   setBus("egrn", "pending");
   renderBus();
   await sleep(700);
   setBus("egrn", "ok");
-  addModalLine("Файл принят, OCR совпал с адресом объекта", "ok");
+  addModalLine("Файл принят, распознанный адрес совпал с адресом объекта", "ok");
   s.step = "eval";
   save();
   await sleep(500);
@@ -491,8 +557,8 @@ async function runEval() {
   const s = st();
   if (busy || s.step !== "eval") return;
   busy = true;
-  showModal("Оценка залога", "getEval тянет Express. PDF отчёта в localStorage не кладём.");
-  addModalLine("GET express/" + (a.collateral.express_id || "—") + " · status=" + a.collateral.express_status, "on");
+  showModal("Оценка залога", "Запрашиваем экспресс-оценку объекта. Отчёт хранится в системе, а не в браузере.");
+  addModalLine("Запрос экспресс-оценки " + (a.collateral.express_id || "—") + " · результат: " + expressStatusLabel(a.collateral.express_status), "on");
   setBus("express", "pending");
   setBus("getEval", "pending");
   renderBus();
@@ -528,16 +594,16 @@ async function approve() {
   busy = true;
   const client = a.track === "and";
   showModal(client ? "Клиент одобрен" : "Залог одобрен",
-    client ? "ELMA 5. СМС брокеру — SMSTraffic, не OTP кабинета." : "ELMA 23. Барьер паспорта — оба одобрения.");
+    client ? "Клиент одобрен. Брокеру уходит СМС от сервиса рассылок, а не код входа в кабинет." : "Залог одобрен. Паспорт сделки откроется, когда одобрены и клиент, и объект.");
   addModalLine(client ? "Чек-лист АНД" : "Чек-лист АПЗ", "on");
   await sleep(400);
   if (client) {
     s.smsId = "sms_" + a.deal_id.slice(-4);
     setBus("broker_sms", "ok");
-    addModalLine("SMSTraffic POST /v2/send · smsId=" + s.smsId + " · Delivered", "ok");
+    addModalLine("СМС отправлено брокеру · номер " + s.smsId, "ok");
   }
   setBus("b2b", "ok");
-  addModalLine("Статус в B2B кабинет", "ok");
+  addModalLine("Статус отправлен в кабинет партнёра", "ok");
   s.step = "approved";
   s.decision = client ? "client_approved" : "pledge_approved";
   save();
@@ -690,7 +756,7 @@ function renderWork() {
   const flags =
     '<div class="flag-row">' +
     '<span class="flag">цель: ' + purposeLabel(a.credit_purpose) + "</span>" +
-    '<span class="flag">пакет ' + a.package_id + "</span>" +
+    '<span class="flag">пакет: ' + packageLabel(a.package_id) + "</span>" +
     (s.greenCorridor ? '<span class="flag warn">Зелёный коридор · опция</span>' : "") +
     (a.fssp_debt > 100000 ? '<span class="flag warn">ФССП ' + fmtMoney(a.fssp_debt) + "</span>" : '<span class="flag ok">ФССП нет</span>') +
     (skipPhone(a) ? '<span class="flag ok">звонок исключён</span>' : '<span class="flag warn">нужен звонок</span>') +
@@ -698,13 +764,13 @@ function renderWork() {
 
   const scoringBlock = a.track !== "and" ? "" :
     '<div class="panel">' + panelHead("Скоринг СПР", "scoring") +
-    "<p class=\"lead\">getDecision и getPdn. КИ появится после АНД, Solver её на входе не знает.</p>" +
+    "<p class=\"lead\">Система принятия решений считает балл и долговую нагрузку. Категория кредитной истории появится после АНД: калькулятор на входе её не знает.</p>" +
     (s.bus.getDecision === "ok"
       ? '<div class="grid-4">' +
-        '<div class="param"><small>DECISION_TYPE</small><b>' + a.loginom.DECISION_TYPE + "</b></div>" +
-        '<div class="param"><small>ClientCategory</small><b>' + a.loginom.ClientCategory + "</b></div>" +
-        '<div class="param"><small>SCORE</small><b>' + a.loginom.SCORE + "</b></div>" +
-        '<div class="param"><small>ПДН</small><b>' + fmtPct(a.pdn) + "</b></div></div>" +
+        '<div class="param"><small>Решение</small><b>' + decisionTypeLabel(a.loginom.DECISION_TYPE) + "</b></div>" +
+        '<div class="param"><small>Категория кредитной истории</small><b>' + kiLabel(a.loginom.ClientCategory) + "</b></div>" +
+        '<div class="param"><small>Балл</small><b>' + a.loginom.SCORE + "</b></div>" +
+        '<div class="param"><small>Долговая нагрузка, ПДН</small><b>' + fmtPct(a.pdn) + "</b></div></div>" +
         '<p class="hint">' + a.loginom.MSG_CODE + " · " + a.loginom.MSG_DESC + "</p>"
       : '<button type="button" class="btn btn-primary" ' + (s.docsOk ? "" : "disabled") +
         ' onclick="runScoring()">Запустить скоринг</button>' +
@@ -715,7 +781,7 @@ function renderWork() {
     '<div class="panel">' + panelHead("Анализ и расчёт", "calc") +
     '<div class="calc-grid">' +
     '<div class="param"><small>Доход / мес.</small><b>' + fmtMoney(a.borrower.income_monthly) + "</b></div>" +
-    '<div class="param"><small>Подтверждение</small><b>' + a.borrower.income_type + "</b></div>" +
+    '<div class="param"><small>Подтверждение</small><b>' + incomeTypeLabel(a.borrower.income_type) + "</b></div>" +
     '<div class="param"><small>Занятость</small><b>' + a.borrower.work_status + "</b></div></div>" +
     (a.fssp_debt > 100000
       ? '<label class="check"><input type="checkbox" ' + (s.greenCorridor ? "checked" : "") +
@@ -730,15 +796,15 @@ function renderWork() {
   const verifyBlock = a.track !== "and" ? "" :
     '<div class="panel">' + panelHead("Верификация", "verify") +
     (skipPhone(a)
-      ? "<p class=\"hint\">" + (a.skip_phone_reason || "Звонок исключён правилом Visio.") + "</p>"
+      ? "<p class=\"hint\">" + (a.skip_phone_reason || "Звонок не требуется по правилам.") + "</p>"
       : '<label class="check"><input type="checkbox" ' + (s.callDone ? "checked" : "") +
-        ' onchange="toggleCall(this)"><span>Звонок заёмщику и работодателю (Skorozvon). Результат — в шине, не в кабинете.</span></label>') +
+        ' onchange="toggleCall(this)"><span>Звонок заёмщику и работодателю (роботизированный дозвон). Результат — в шине, не в кабинете.</span></label>') +
     "</div>";
 
   const apzBlock = a.track !== "apz" ? "" :
     '<div class="panel span-2">' + panelHead("Объект залога", "apz") +
     '<div class="grid-4">' +
-    '<div class="param"><small>Тип</small><b>' + a.collateral.type + "</b></div>" +
+    '<div class="param"><small>Тип</small><b>' + collateralTypeLabel(a.collateral.type) + "</b></div>" +
     '<div class="param"><small>Кадастр</small><b>' + a.collateral.cadastral + "</b></div>" +
     '<div class="param"><small>Оценка</small><b>' + fmtMoney(a.collateral.appraisal) + "</b></div>" +
     '<div class="param"><small>Ликвидность</small><b>' + a.liquidity + "</b></div></div>" +
@@ -747,7 +813,7 @@ function renderWork() {
     '<button type="button" class="btn btn-primary" ' + (s.docsOk && s.step === "intake" ? "" : "disabled") +
     ' onclick="runEgrn()">Запросить ЕГРН</button>' +
     '<button type="button" class="btn btn-primary" ' + (s.step === "eval" ? "" : "disabled") +
-    ' onclick="runEval()">getEval / Express</button>' +
+    ' onclick="runEval()">Запросить оценку</button>' +
     "</div>" +
     '<label class="check"><input type="checkbox" ' + (s.titleOk ? "checked" : "") +
     ' onchange="toggleTitle(this)"><span>Правоустанавливающие документы согласованы</span></label>' +
@@ -782,7 +848,7 @@ function renderWork() {
     '<div class="steps" aria-label="Этапы">' + dots + "</div>" +
     "<h1>" + a.deal_id +
     (a.track === "and" && s.bus.getDecision === "ok"
-      ? '<span class="ki-pill">' + a.loginom.ClientCategory + "</span>"
+      ? '<span class="ki-pill">' + kiLabel(a.loginom.ClientCategory) + "</span>"
       : "") +
     "</h1>" +
     '<p class="stage-now">' + (STAGE_TITLE[s.step] || "В работе") + "</p>" +
@@ -795,7 +861,7 @@ function renderWork() {
     '<div class="panel span-2">' + panelHead("Заявка", "summary") + '<div class="grid-4">' +
     '<div class="param"><small>Продукт</small><b>' + a.product_name + "</b></div>" +
     '<div class="param"><small>Сумма</small><b>' + fmtMoney(a.amount) + "</b></div>" +
-    '<div class="param"><small>LTV</small><b>' + fmtPct(a.ltv) + "</b></div>" +
+    '<div class="param"><small>Кредит к стоимости</small><b>' + fmtPct(a.ltv) + "</b></div>" +
     '<div class="param"><small>Регион</small><b>' + a.region + "</b></div></div>" +
     flags +
     '<p class="hint">Заёмщик: <b>' + a.borrower.full_name + "</b> · " + a.borrower.phone + "</p></div>" +
@@ -825,7 +891,7 @@ function renderWork() {
     '<button type="button" class="btn btn-danger" onclick="refuse(false)">Отказ без пересмотра</button>' +
     "</div>" +
     (s.step === "approved"
-      ? '<div class="done-banner">' + (a.track === "and" ? "Клиент одобрен (ELMA 5)." : "Залог одобрен (ELMA 23).") +
+      ? '<div class="done-banner">' + (a.track === "and" ? "Клиент одобрен." : "Залог одобрен.") +
         (s.smsId ? " СМС брокеру " + s.smsId + "." : "") + "</div>"
       : s.step === "rework"
         ? '<div class="stop-banner" style="background:#fff4ec;border-color:#fdba74;color:#9a3412">Возврат процессору / продавцу. Повторный АНД или АПЗ после доработки.</div>'
