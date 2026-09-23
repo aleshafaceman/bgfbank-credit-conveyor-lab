@@ -371,6 +371,13 @@ function save() {
 let state = load();
 let busy = false;
 
+/* Темп окна шага. Раньше строки появлялись через 400–700 мс, а окно закрывалось
+   ещё через полсекунды: на показе человек не успевал прочитать, что произошло.
+   STEP_PAUSE — пауза между строками, STEP_HOLD — сколько окно стоит с готовым
+   результатом, прежде чем закрыться. */
+const STEP_PAUSE = 900;
+const STEP_HOLD = 2600;
+
 function app() {
   return MOCK.applications.find((a) => a.deal_id === state.selectedId);
 }
@@ -776,19 +783,19 @@ async function runScoring() {
   addModalLine("Запрос решения по заявке " + a.deal_id, "on");
   setBus("getDecision", "pending");
   renderBus();
-  await sleep(700);
+  await sleep(STEP_PAUSE);
   const L = a.loginom;
   setBus("getDecision", "ok");
   addModalLine("Решение: " + decisionTypeLabel(L.DECISION_TYPE) + " · балл " + L.SCORE + " · " + kiLabel(L.ClientCategory), "ok");
   addModalLine(L.MSG_DESC, L.DECISION_TYPE === "auto" ? "ok" : "on");
   setBus("getPdn", "pending");
   renderBus();
-  await sleep(500);
+  await sleep(STEP_PAUSE);
   setBus("getPdn", "ok");
   addModalLine("Долговая нагрузка, ПДН " + fmtPct(a.pdn), "ok");
   s.step = L.DECISION_TYPE === "auto" ? "decision" : "review";
   save();
-  await sleep(600);
+  await sleep(STEP_HOLD);
   hideModal();
   busy = false;
   render();
@@ -801,7 +808,7 @@ async function runCalc() {
   busy = true;
   showModal("Расчёт", "Расчёт показателей заявки. Проверяем, что сумма, кредит к стоимости и долговая нагрузка проходят требования банка.");
   addModalLine("Сумма " + fmtMoney(a.amount) + " · кредит к стоимости " + fmtPct(a.ltv), "on");
-  await sleep(500);
+  await sleep(STEP_PAUSE);
   const fsspAdd = a.fssp_debt > 100000 ? 2 : 0;
   const corridor = s.greenCorridor ? " · опция «Зелёный коридор»" : "";
   addModalLine("Надбавка ФССП +" + fsspAdd + " п.п." + corridor, "ok");
@@ -809,7 +816,7 @@ async function runCalc() {
   s.calcDone = true;
   s.step = skipPhone(a) ? "decision" : "verify";
   save();
-  await sleep(500);
+  await sleep(STEP_HOLD);
   hideModal();
   busy = false;
   render();
@@ -824,12 +831,12 @@ async function runEgrn() {
   addModalLine("Кадастр " + a.collateral.cadastral, "on");
   setBus("egrn", "pending");
   renderBus();
-  await sleep(700);
+  await sleep(STEP_PAUSE);
   setBus("egrn", "ok");
   addModalLine("Файл принят, распознанный адрес совпал с адресом объекта", "ok");
   s.step = "eval";
   save();
-  await sleep(500);
+  await sleep(STEP_HOLD);
   hideModal();
   busy = false;
   render();
@@ -841,17 +848,23 @@ async function runEval() {
   if (busy || s.step !== "eval") return;
   busy = true;
   showModal("Оценка залога", "Запрашиваем экспресс-оценку объекта. Отчёт хранится в системе, а не в браузере.");
-  addModalLine("Запрос экспресс-оценки " + (a.collateral.express_id || "—") + " · результат: " + expressStatusLabel(a.collateral.express_status), "on");
+  /* В окне не должно быть служебных кодов: «price=… · accepted» и «exp_lab_103»
+     сотруднику ничего не говорят. Строки — по-русски и по одной. */
+  addModalLine("Запрос отправлен в сервис оценки недвижимости", "on");
   setBus("express", "pending");
   setBus("getEval", "pending");
   renderBus();
-  await sleep(700);
+  await sleep(STEP_PAUSE);
+  const evalOk = a.collateral.express_status === "accepted";
   setBus("express", "ok");
   setBus("getEval", "ok");
-  addModalLine("price=" + fmtMoney(a.collateral.appraisal) + " · accepted", "ok");
+  addModalLine("Сервис вернул стоимость объекта: " + fmtMoney(a.collateral.appraisal), "ok");
+  addModalLine("Оценка " + expressStatusLabel(a.collateral.express_status) +
+    (evalOk ? " · объект и стоимость совпали с данными заявки" : " · ждём решение оценщика"),
+  evalOk ? "ok" : "on");
   s.step = "title";
   save();
-  await sleep(500);
+  await sleep(STEP_HOLD);
   hideModal();
   busy = false;
   render();
@@ -879,7 +892,7 @@ async function approve() {
   showModal(client ? "Клиент одобрен" : "Залог одобрен",
     client ? "Клиент одобрен. Брокеру уходит СМС от сервиса рассылок, а не код входа в кабинет." : "Залог одобрен. Паспорт сделки откроется, когда одобрены и клиент, и объект.");
   addModalLine(client ? "Чек-лист АНД" : "Чек-лист АПЗ", "on");
-  await sleep(400);
+  await sleep(STEP_PAUSE);
   if (client) {
     s.smsId = "sms_" + a.deal_id.slice(-4);
     setBus("broker_sms", "ok");
@@ -890,7 +903,7 @@ async function approve() {
   s.step = "approved";
   s.decision = client ? "client_approved" : "pledge_approved";
   save();
-  await sleep(600);
+  await sleep(STEP_HOLD);
   hideModal();
   busy = false;
   render();

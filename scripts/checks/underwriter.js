@@ -1199,6 +1199,25 @@ module.exports = {
       'ЕГРН записан в сцену: шаг eval, шаг шины egrn — успех (сейчас: ' +
       JSON.stringify(afterEgrn && { step: afterEgrn.step, egrn: afterEgrn.bus.egrn }) + ')');
     const evalClicked = await clickButton('Запросить оценку');
+    /* Окно шага говорит по-русски и не закрывается мгновенно. Раньше в нём жили
+       «price=… · accepted» и код сервиса «exp_lab_103», а закрывалось оно через
+       полсекунды после последней строки — прочитать нечего.
+       Строки появляются по очереди, поэтому окно читается не сразу после клика,
+       а через паузу: к этому моменту все строки на месте, а окно ещё открыто. */
+    const evalTitle = await s.eval('return __t.text("modal-title")');
+    await s.delay(1400);
+    const evalModal = await s.eval('return (function() { var o = document.getElementById("overlay");' +
+      ' if (!o) return null; return { open: !o.classList.contains("hidden"),' +
+      '   title: __t.text("modal-title"), log: __t.text("modal-log") }; })()');
+    ok(evalClicked === true && evalTitle === 'Оценка залога',
+      'клик по «Запросить оценку» открывает окно «Оценка залога» (сейчас: «' + evalTitle + '»)');
+    ok(!!evalModal && evalModal.log.indexOf('Сервис вернул стоимость объекта') !== -1 &&
+      evalModal.log.indexOf('price=') === -1 && evalModal.log.indexOf('accepted') === -1 &&
+      evalModal.log.indexOf('exp_lab') === -1,
+      'окно оценки говорит по-русски: сумма словами, без «price=», «accepted» и кодов сервиса (сейчас: «' +
+      (evalModal && evalModal.log) + '»)');
+    ok(!!evalModal && evalModal.open === true,
+      'окно оценки не закрывается мгновенно: через 1,4 с после клика оно ещё открыто, и обе строки видны');
     r = await waitIdle();
     ok(evalClicked === true && r.ok,
       'клик по «Запросить оценку» запускает оценку, и она завершается: окно закрыто, стол свободен' +
