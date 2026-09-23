@@ -768,10 +768,12 @@ function renderWork() {
     (s.bus.getDecision === "ok"
       ? '<div class="grid-4">' +
         '<div class="param"><small>Решение</small><b>' + decisionTypeLabel(a.loginom.DECISION_TYPE) + "</b></div>" +
-        '<div class="param"><small>Категория кредитной истории</small><b>' + kiLabel(a.loginom.ClientCategory) + "</b></div>" +
+        '<div class="param"><small>Категория КИ</small><b>' + kiLabel(a.loginom.ClientCategory) + "</b></div>" +
         '<div class="param"><small>Балл</small><b>' + a.loginom.SCORE + "</b></div>" +
-        '<div class="param"><small>Долговая нагрузка, ПДН</small><b>' + fmtPct(a.pdn) + "</b></div></div>" +
-        '<p class="hint">' + a.loginom.MSG_CODE + " · " + a.loginom.MSG_DESC + "</p>"
+        '<div class="param"><small>Долговая нагрузка</small><b>' + fmtPct(a.pdn) + "</b></div></div>" +
+        /* Код правила (FSSP_001) сотруднику ничего не даёт, а место занимает:
+           он и переносил строку. Оставляем только формулировку. */
+        '<p class="hint">' + a.loginom.MSG_DESC + "</p>"
       : '<button type="button" class="btn btn-primary" ' + (s.docsOk ? "" : "disabled") +
         ' onclick="runScoring()">Запустить скоринг</button>' +
         '<p class="hint">Без комплектности кнопка неактивна.</p>') +
@@ -861,7 +863,10 @@ function renderWork() {
     '<div class="panel span-2">' + panelHead("Заявка", "summary") + '<div class="grid-4">' +
     '<div class="param"><small>Продукт</small><b>' + a.product_name + "</b></div>" +
     '<div class="param"><small>Сумма</small><b>' + fmtMoney(a.amount) + "</b></div>" +
-    '<div class="param"><small>Кредит к стоимости</small><b>' + fmtPct(a.ltv) + "</b></div>" +
+    /* Подпись короткая намеренно: колонка 100 px, минус отступы остаётся 76 px,
+       а «Кредит к стоимости» занимает 117 px и переносилось на две строки —
+       из-за этого сетка выглядела разъехавшейся. */
+    '<div class="param"><small>Кредит</small><b>' + fmtPct(a.ltv) + "</b></div>" +
     '<div class="param"><small>Регион</small><b>' + a.region + "</b></div></div>" +
     flags +
     '<p class="hint">Заёмщик: <b>' + a.borrower.full_name + "</b> · " + a.borrower.phone + "</p></div>" +

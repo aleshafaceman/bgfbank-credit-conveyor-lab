@@ -57,7 +57,7 @@ window.UNDERWRITER_MOCK = {
         ClientCategory: "K2",
         NEGATIVE: "0",
         MSG_CODE: "AA_AUTO",
-        MSG_DESC: "Автоодобрение по правилам Approval"
+        MSG_DESC: "Автоодобрение: заявка прошла правила банка без ручного разбора"
       },
       borrower: {
         full_name: "Кузнецов А.С. — заявка 101",
@@ -117,7 +117,7 @@ window.UNDERWRITER_MOCK = {
         ClientCategory: "K3_2",
         NEGATIVE: "0",
         MSG_CODE: "FSSP_001",
-        MSG_DESC: "Задолженность ФССП свыше 100 000 ₽ (Москва/МО). Надбавка SURCH_FSSP +2 п.п., не автоотказ."
+        MSG_DESC: "Задолженность ФССП свыше 100 000 ₽ (Москва и область). Ставка выше на 2 п.п., но это не отказ."
       },
       borrower: {
         full_name: "Кузнецов А.С. — заявка 102",
