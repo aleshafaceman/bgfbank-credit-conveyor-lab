@@ -1530,6 +1530,33 @@ console.log('\n=== 13. Demo hub (start.html) entry point ===');
   assert(/задачи по ролям|задача[^.]*срок[^.]*владелец/i.test(hub),
     'hub explains who owns the work and what holds the deadline');
   assert(/Открыть кабинет/.test(hub), 'hub leads with the cabinet entry action');
+
+  /* Битая картинка на показе выглядит как сломанная страница и при этом молчит:
+     браузер просто рисует пустое место. Проверяем, что каждый файл, который
+     просит любая страница, лежит на месте. Ссылку на схему убрали из docs/,
+     поэтому заодно ловим и забытые переносы. */
+  (function checkImages() {
+    const pages = ['index.html', 'start.html', 'manager/index.html', 'deal-ops/index.html',
+      'underwriter/index.html', 'productolog/index.html',
+      'form/index.html', 'form-pledge/index.html'];
+    const missing = [];
+    pages.forEach(function(rel) {
+      const abs = path.join(root, rel);
+      if (!fs.existsSync(abs)) return;
+      const html = fs.readFileSync(abs, 'utf8');
+      const srcRe = /<img[^>]*\ssrc="([^"]+)"/g;
+      let m;
+      while ((m = srcRe.exec(html)) !== null) {
+        const src = m[1];
+        if (/^https?:|^data:/.test(src)) continue;
+        const target = path.resolve(path.dirname(abs), src.split('?')[0]);
+        if (!fs.existsSync(target)) missing.push(rel + ' → ' + src);
+      }
+    });
+    assert(missing.length === 0,
+      'every image on every page resolves to an existing file' +
+      (missing.length ? ' — broken: ' + missing.join(', ') : ''));
+  })();
   assert(/макет, а не прод/i.test(hub), 'hub states it is a mock, not production');
   /* Ни одного демо-параметра, страницы подготовки показа и режима проектора на
      карте быть не должно: кабинет и столы открываются обычным адресом. */
