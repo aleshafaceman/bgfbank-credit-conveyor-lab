@@ -1522,8 +1522,13 @@ console.log('\n=== 13. Demo hub (start.html) entry point ===');
      аудита ниже сняты проверки, которые их требовали. */
   assert(/Как сейчас/.test(hub) && /Как предлагаем/.test(hub),
     'hub contrasts the current state with the proposal');
-  assert(/оркестратор|ведёт одну заявку/.test(hub),
-    'hub explains what carries the application through the stages');
+  /* Страница перешла с «заменить ELMA» на «что в процессе стоит дорого и что
+     меняем», поэтому проверка держит её новую опору: работу ведут по ролям,
+     у задачи есть срок и владелец. Раньше здесь искались слова «оркестратор» и
+     «ведёт одну заявку» — их со страницы убрали вместе с канцеляритом, но сама
+     мысль осталась, просто другими словами. */
+  assert(/задачи по ролям|задача[^.]*срок[^.]*владелец/i.test(hub),
+    'hub explains who owns the work and what holds the deadline');
   assert(/Открыть кабинет/.test(hub), 'hub leads with the cabinet entry action');
   assert(/макет, а не прод/i.test(hub), 'hub states it is a mock, not production');
   /* Ни одного демо-параметра, страницы подготовки показа и режима проектора на
