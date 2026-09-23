@@ -22,7 +22,9 @@
  *    карточки (когда открывать счёт и канал заявления). Выборку очереди сужают
  *    только первые три.
  *  - переключатель роли (#role-ozs / #role-operu) меняет и заголовок очереди, и
- *    её содержимое: ОПЕРУ видит только сделки на шаге operu.
+ *    её содержимое: ОПЕРУ видит только сделки на шаге operu. Вкладка ОПЕРУ
+ *    спрятана (deal-ops/index.html, флаг OPERU_DESK_VISIBLE в deal-ops.js) и
+ *    сцена на нём не открывается; ветку проверяют вызовом setRole("operu").
  *  - ссылка возврата на карту демо — <a class="hub-link" href="../start.html">
  *    без идентификатора (deal-ops/index.html:25), поэтому __t.click("hubLink")
  *    не сработает: элемент надо найти по href, как это сделано в manager.js.
@@ -817,13 +819,54 @@ module.exports = {
       JSON.stringify(successTitles) + ')');
     await noFailures('панель «Ход обмена» отрисована без сбоев страницы');
 
+    check.section('Стол сделки — ОПЕРУ спрятан');
+
+    /* Второй стол этой поверхности (ОПЕРУ) убран из показа: процессы там пока не
+       разобраны, а стол, который ведущий не может объяснить, на показе хуже, чем
+       его отсутствие. Проверяем ровно то, что обещано: вкладки нет, роль на
+       столе одна, и сохранённый выбор ОПЕРУ сцена игнорирует — иначе посетитель
+       попал бы на стол без вкладки. Логика ОПЕРУ при этом живая: её проверяют
+       два следующих раздела, выставляя роль вызовом setRole("operu"). */
+    const operuTab = await s.eval('return (function() {' +
+      ' var b = document.getElementById("role-operu");' +
+      ' if (!b) return null; var r = b.getBoundingClientRect();' +
+      ' return { hidden: b.hidden === true, visible: r.width > 0 && r.height > 0 }; })()');
+    ok(!!operuTab && operuTab.hidden === true && operuTab.visible === false,
+      'вкладка ОПЕРУ в шапке спрятана и не занимает места (сейчас: ' + JSON.stringify(operuTab) + ')');
+    const operuRoles = await s.eval('return { visible: Array.prototype.filter.call(' +
+      'document.querySelectorAll(".role"), function(b) { var r = b.getBoundingClientRect();' +
+      ' return r.width > 0 && r.height > 0; }).map(function(b) { return b.id; }),' +
+      ' on: Array.prototype.map.call(document.querySelectorAll(".role.on"), function(b) { return b.id; }) }');
+    ok(JSON.stringify(operuRoles.visible) === JSON.stringify(['role-ozs']),
+      'на столе видна ровно одна роль — ОЗС (сейчас: ' + JSON.stringify(operuRoles.visible) + ')');
+    ok(JSON.stringify(operuRoles.on) === JSON.stringify(['role-ozs']),
+      'включена ровно одна роль — ОЗС (сейчас: ' + JSON.stringify(operuRoles.on) + ')');
+
+    /* Старый выбор ОПЕРУ в сцене (он легко остаётся у того, кто открывал стол до
+       этой правки) не должен открывать спрятанный стол. */
+    const staleSeed = await patchStore(' p.role = "operu";');
+    ok(staleSeed === 'ok', 'в сцену подсажен сохранённый выбор ОПЕРУ (сейчас: «' + staleSeed + '»)');
+    r = await openStored();
+    const staleRole = await s.eval('return (function() { try { return state.role; }' +
+      ' catch (e) { return "нет доступа: " + e.message; } })()');
+    const staleTitle = await s.eval('return __t.text("inbox-title")');
+    ids = await cardIds();
+    ok(r.ok && staleRole === 'ozs',
+      'обычный вход игнорирует сохранённый выбор ОПЕРУ и открывает ОЗС (сейчас: «' +
+      staleRole + '»)' + why(r));
+    ok(staleTitle.indexOf('Очередь ОЗС') === 0,
+      'шапка очереди после такого входа — «Очередь ОЗС» (сейчас: «' + staleTitle + '»)');
+    ok(JSON.stringify(ids) === JSON.stringify(DEAL_IDS),
+      'в очереди ОЗС снова все сделки мока (сейчас: ' + JSON.stringify(ids) + ')');
+    await noFailures('вход со старым выбором ОПЕРУ прошёл без сбоев страницы');
+
     check.section('Стол сделки — ОПЕРУ: пустая очередь');
 
     /* Роль ОПЕРУ — второй стол той же поверхности: своя очередь, своя шапка и
-       своя рабочая область. Проверяем переключение роли кликом (а не вызовом
-       setRole) и ПУСТОЕ состояние: на свежей сцене ни одна сделка не стоит на
-       шаге operu, поэтому очередь ошибок пуста и объясняет себя текстом. */
-    ok(await s.eval('return __t.click("role-operu") === true'), 'переключатель роли ОПЕРУ найден и нажат');
+       своя рабочая область. Вкладки на столе нет, поэтому проверка выставляет
+       роль тем же обработчиком, что висел на кнопке, и смотрит ПУСТОЕ
+       состояние: на свежей сцене ни одна сделка не стоит на шаге operu. */
+    ok(await s.eval('return __t.click("role-operu") === true'), 'ветка ОПЕРУ включается вызовом setRole через кнопку');
     r = await s.waitFor('return __t.count("#inbox-list .card-deal") === 0', 5000);
     const operuEmpty = await s.eval('return {' +
       ' cards: __t.count("#inbox-list .card-deal"),' +
@@ -862,27 +905,31 @@ module.exports = {
 
     check.section('Стол сделки — ОПЕРУ с непустой очередью');
 
-    /* ОПЕРУ — достижимая ветка отрисовки (deal-ops.js:1123-1162), а не только
-       пустое состояние: стол показывает сделку, у которой шаг равен operu.
-       Своим сценарием до этого шага не дойти, поэтому сцену подсаживаем: правим
+    /* ОПЕРУ — живая ветка отрисовки (deal-ops.js:1123-1162), а не только пустое
+       состояние: стол показывает сделку, у которой шаг равен operu. Своим
+       сценарием до этого шага не дойти, поэтому сцену подсаживаем: правим
        сохранённое состояние и открываем стол по обычному адресу, чтобы он его
-       прочитал. */
+       прочитал. Роль при этом НЕ сохраняется в сцену: стол спрятан, и сцена на
+       нём не открывается (см. предыдущий раздел) — роль выставляет проверка. */
     r = await openFresh();
     ok(r.ok, 'стол открыт для подсадки сцены ОПЕРУ' + why(r));
     const seed = await patchStore(
-      ' p.role = "operu";' +
       ' if (!p.deals || !p.deals[' + JSON.stringify(DEAL_IDS[1]) + ']) return "нет сделки";' +
       ' p.deals[' + JSON.stringify(DEAL_IDS[1]) + '].step = "operu";');
-    ok(seed === 'ok', 'сцена подсажена: у сделки ' + DEAL_IDS[1] + ' шаг operu, роль operu (сейчас: «' + seed + '»)');
+    ok(seed === 'ok', 'сцена подсажена: у сделки ' + DEAL_IDS[1] + ' шаг operu (сейчас: «' + seed + '»)');
     const seeded = await s.eval('return (function() { try {' +
       ' var p = JSON.parse(localStorage.getItem(' + JSON.stringify(STORE) + ') || "{}");' +
       ' return { role: p.role, step: p.deals[' + JSON.stringify(DEAL_IDS[1]) + '].step }; }' +
       ' catch (e) { return { error: e.message }; } })()');
-    ok(seeded.role === 'operu' && seeded.step === 'operu',
-      'сцена записана так, как её прочитает стол (сейчас: ' + JSON.stringify(seeded) + ')');
+    ok(seeded.role === 'ozs' && seeded.step === 'operu',
+      'сцена записана так, как её прочитает стол: шаг operu, роль ОЗС (сейчас: ' + JSON.stringify(seeded) + ')');
 
     r = await openStored();
     ok(r.ok, 'стол открылся на подсаженной сцене' + why(r));
+    const switched = await s.eval('return (function() { try { setRole("operu"); return "ok"; }' +
+      ' catch (e) { return "ошибка: " + e.message; } })()');
+    ok(switched === 'ok', 'ветка ОПЕРУ открыта вызовом setRole("operu") — вкладки на столе нет' +
+      (switched === 'ok' ? '' : ' (' + switched + ')'));
     r = await s.waitFor('return __t.count("#inbox-list .card-deal") === 1', 5000);
     const operuCards = await cardIds();
     ok(r.ok && operuCards.length === 1 && operuCards[0] === DEAL_IDS[1],

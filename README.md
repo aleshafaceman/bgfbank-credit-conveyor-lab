@@ -20,7 +20,7 @@ LAB Pages: https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/
 Карта демо (хаб): https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/start.html  
 Форма потребительского кредита: https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/form/  
 Форма под залог своей квартиры: https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/form-pledge/index.html  
-АРМ сделки (ОЗС / ОПЕРУ, мок): https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/deal-ops/  
+АРМ сделки (ОЗС, мок): https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/deal-ops/  
 АРМ андеррайтера (АНД / АПЗ, мок): https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/underwriter/  
 АРМ участника кредитного комитета (мок): https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/underwriter/kk-member.html  
 АРМ продуктолога / риск-менеджера (конфиг Solver, мок): https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/productolog/  
@@ -37,7 +37,7 @@ LAB Pages: https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/
 
 Одна команда запускает всё: статический аудит разметки, браузерный прогон форм
 клиента и прогон шести поверхностей лаборатории (кабинет клиента, АРМ менеджера,
-стол сделки ОЗС/ОПЕРУ, АРМ андеррайтера, АРМ участника кредитного комитета,
+стол сделки ОЗС, АРМ андеррайтера, АРМ участника кредитного комитета,
 стол продуктолога).
 
 ```bash
@@ -51,10 +51,10 @@ node scripts/run-all-checks.js
 Отдельные шаги, если нужен только один:
 
 ```bash
-node scripts/pre-release-audit.js               # разметка, ссылки, общий слой форм — 563
+node scripts/pre-release-audit.js               # разметка, ссылки, общий слой форм — 566
 node scripts/form-flow-check.js                 # обе формы клиента — 96
-node scripts/surface-check.js                   # шесть поверхностей — 568
-node scripts/surface-check.js --only=cabinet    # одна поверхность — 64
+node scripts/surface-check.js                   # шесть поверхностей — 577
+node scripts/surface-check.js --only=cabinet    # одна поверхность — 73
 ```
 
 Обычный прогон (без `--base`) поднимает локальный сервер, запускает headless
@@ -73,22 +73,27 @@ Chrome и проходит сценарии как пользователь: в�
 |-------------|----------------|----------|
 | Кабинет клиента | `cabinet` | 73 |
 | АРМ менеджера | `manager` | 95 |
-| Стол сделки ОЗС / ОПЕРУ | `deal-ops` | 122 |
+| Стол сделки ОЗС | `deal-ops` | 131 |
 | АРМ андеррайтера (АНД / АПЗ) | `underwriter` | 137 |
 | АРМ участника кредитного комитета | `kk-member` | 35 |
 | Стол продуктолога / риск-менеджера | `productolog` | 106 |
 | Формы клиента (потребительский кредит + залог) | `forms` | 96 |
-| Аудит разметки (без браузера, не поверхность) | — | 563 |
+| Аудит разметки (без браузера, не поверхность) | — | 566 |
 
-`--only` принимает и список: `--only=cabinet,forms` даёт 64 + 96 = 160.
+`--only` принимает и список: `--only=cabinet,forms` даёт 73 + 96 = 169.
 
-**Почему без `--only` выходит 568, а не 664.** Прогон `surface-check.js` без
+**Почему без `--only` выходит 577, а не 673.** Прогон `surface-check.js` без
 `--only` идёт по списку шести поверхностей (`DEFAULT_SURFACES`,
 `scripts/surface-check.js:49`), и форм в нём нет: у форм свой отдельный шаг в
 `run-all-checks.js`, иначе в единой команде они считались бы дважды. Поэтому
-`node scripts/surface-check.js` даёт 568, а с `--only=forms` — 96. В карте
+`node scripts/surface-check.js` даёт 577, а с `--only=forms` — 96. В карте
 поверхностей формы остаются, так что `--only=forms,cabinet` работает как обычно.
 Прогон без `--only` пропусков не даёт: за все шесть поверхностей есть файлы.
+
+Второй стол этой поверхности (ОПЕРУ — разбор ошибок проверок) спрятан: вкладки в
+шапке нет, сцена на нём не открывается. Логика живая, её проверяют вызовом
+`setRole("operu")`, поэтому 131 проверка считается на том же столе (флаг
+`OPERU_DESK_VISIBLE` в `deal-ops/deal-ops.js`).
 
 ### Опции прогонов
 

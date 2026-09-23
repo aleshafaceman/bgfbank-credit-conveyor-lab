@@ -78,6 +78,10 @@ body::after {
   font-family: inherit;
 }
 .role.on { background: #fff; color: var(--navy); border-color: #fff; }
+/* Спрятанный стол ОПЕРУ: атрибут hidden, а не только подпись в разметке.
+   Правило нужно потому, что .role задаёт свои свойства кнопке и перебивает
+   умолчание браузера для [hidden]. */
+.role[hidden] { display: none; }
 .header-actions { margin-left: auto; display: flex; align-items: center; gap: 16px; font-size: 13px; }
 .header-actions button {
   height: 36px; padding: 0 12px; border-radius: 10px;

@@ -14,7 +14,7 @@
 ### Эта копия (LAB — разработка)
 - **Карта поверхностей:** https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/start.html
 - **Форма happy-path (ПК):** https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/form/
-- **АРМ сделки ОЗС/ОПЕРУ (мок открытия счёта):** https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/deal-ops/
+- **АРМ сделки ОЗС (мок открытия счёта):** https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/deal-ops/
 - **АРМ андеррайтера АНД/АПЗ:** https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/underwriter/
 - **АРМ участника кредитного комитета:** https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/underwriter/kk-member.html
 - **АРМ продуктолога / риск-менеджера:** https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/productolog/
@@ -66,6 +66,8 @@ SMS/OTP — любой код. Госуслуги — имитация. Стол
 ## АРМ сделки (открытие счёта, мок)
 
 `/deal-ops/`. Это не ELMA: стол ОЗС после КОД. Госуслуги на сделке не открываем — ЕСИА это флаг с заявки. На карточке этапы по-русски (Клиент → Счёт → Проверки → Заявление → Подпись → АБС → ДБО). Иконка **i** у блока — зачем он и какой следующий шаг.
+
+Второй стол этой поверхности — **ОПЕРУ** (разбор ошибок проверок) — на показе спрятан: вкладки в шапке нет, и сцена на нём не открывается. Процессы ОПЕРУ ещё не разобраны, а стол, который ведущий не может объяснить, хуже, чем его отсутствие. Логика живая: сделка с ошибкой проверки по-прежнему уходит на шаг `operu` и помечается «на ОПЕРУ», а сам стол рисуется, если выставить роль вызовом `setRole("operu")` в консоли. Вернуть вкладку — поставить `OPERU_DESK_VISIBLE = true` в `deal-ops/deal-ops.js`.
 
 Электронная форма клиента (то, что в SMS): `/deal-ops/account-app.html?t=25BGFB00990001`. Полная СОПД по SMS: `/deal-ops/sopd-app.html?t=25BGFB00990002`. Хранилища: `bgfbank_lab_account_app`, `bgfbank_lab_sopd`.
 

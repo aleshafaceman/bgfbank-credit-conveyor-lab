@@ -1647,6 +1647,23 @@ console.log('\n=== 13. Demo hub (start.html) entry point ===');
     assert(/href="(\.\.\/)?start\.html"/.test(src), rel + ' has a hub return link in markup');
   });
 
+  /* Второй стол АРМ сделки — ОПЕРУ — спрятан до разбора его процессов: вкладки в
+     шапке нет, сцена на нём не открывается. Проверка статическая, по трём файлам:
+     атрибут hidden в разметке, правило CSS, которое его действительно скрывает
+     (.role задаёт кнопке свои свойства и перебивает умолчание браузера для
+     [hidden]), и флаг, из-за которого load() приводит роль к ОЗС. */
+  (function () {
+    const opsHtml = fs.readFileSync(path.join(root, 'deal-ops/index.html'), 'utf8');
+    const opsJs = fs.readFileSync(path.join(root, 'deal-ops/deal-ops.js'), 'utf8');
+    const opsCss = fs.readFileSync(path.join(root, 'deal-ops/deal-ops.css'), 'utf8');
+    const tab = (opsHtml.match(/<button[^>]*id="role-operu"[^>]*>/) || [''])[0];
+    assert(/\bhidden\b/.test(tab), 'deal desk keeps the ОПЕРУ tab hidden in markup');
+    assert(/\.role\[hidden\]\s*\{\s*display:\s*none/.test(opsCss),
+      'the hidden role tab is actually not displayed');
+    assert(/const OPERU_DESK_VISIBLE = false;/.test(opsJs),
+      'the scene does not open on the hidden ОПЕРУ desk');
+  }());
+
   // Ссылки хаба живут в lab-utils.js и deal-ops.css. Без ?v= Pages отдаёт из кэша
   // старую копию — и «Карта демо» пропадает из сайдбара/шапки прямо на показе.
   const verRe = /\?v=\d+/;

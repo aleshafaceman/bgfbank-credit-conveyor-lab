@@ -4,6 +4,15 @@ const SOPD_STORE = "bgfbank_lab_sopd";
 const STORE_VER = 6;
 const MOCK = window.DEAL_OPS_MOCK;
 
+/* Второй стол этой поверхности — ОПЕРУ (разбор ошибок проверок) — спрятан:
+   вкладки нет, сцена на нём не открывается, поэтому на столе видно только ОЗС.
+   Процессы ОПЕРУ пока не разобраны, а показывать стол, который ведущий не может
+   объяснить, хуже, чем не показывать его вовсе. Логика при этом живая: сделка с
+   ошибкой проверки по-прежнему уходит на шаг operu (startChecks ниже), а сам
+   стол рисуется, если роль выставить вызовом setRole("operu") — так его и
+   проверяют scripts/checks/deal-ops.js. Вернуть вкладку — поставить true. */
+const OPERU_DESK_VISIBLE = false;
+
 const BUS_CATALOG = [
   { id: "elma_snapshot", title: "Комплект КОД получен", system: "ELMA" },
   { id: "cft_find", title: "Поиск счёта", system: "ЦФТ" },
@@ -183,6 +192,11 @@ function load() {
     MOCK.deals.forEach((d) => {
       if (!parsed.deals[d.deal_id]) parsed.deals[d.deal_id] = defaultDealState(d);
     });
+    /* Сцена не открывается на спрятанном столе: если в браузере остался
+       сохранённый выбор ОПЕРУ (например, до этой правки), стол показывает ОЗС.
+       Иначе посетитель попадал бы на стол без вкладки и без подсказки, как с
+       него уйти. Сама роль выставляется вызовом setRole — так её берут проверки. */
+    if (!OPERU_DESK_VISIBLE) parsed.role = "ozs";
     return parsed;
   } catch (e) {
     return defaultState();

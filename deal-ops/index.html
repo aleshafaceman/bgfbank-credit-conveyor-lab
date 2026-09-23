@@ -4,11 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-  <title>БЖФ · АРМ сделки (ОЗС / ОПЕРУ)</title>
+  <title>БЖФ · АРМ сделки (ОЗС)</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,700;1,400&family=Roboto+Condensed:wght@600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="deal-ops.css?v=21">
+  <link rel="stylesheet" href="deal-ops.css?v=22">
 </head>
 <body>
   <header class="header">
@@ -18,7 +18,10 @@
     </div>
     <div class="roles" role="tablist">
       <button type="button" class="role on" id="role-ozs" onclick="setRole('ozs')">ОЗС</button>
-      <button type="button" class="role" id="role-operu" onclick="setRole('operu')">ОПЕРУ</button>
+      <!-- Второй стол (ОПЕРУ) спрятан до отдельного разбора его процессов:
+           вкладки нет, сцена на нём не открывается. Логика ОПЕРУ в deal-ops.js
+           осталась и включается обратно флагом OPERU_DESK_VISIBLE. -->
+      <button type="button" class="role" id="role-operu" hidden aria-hidden="true" onclick="setRole('operu')">ОПЕРУ</button>
     </div>
     <div class="header-actions">
       <span id="officer-label"></span>
