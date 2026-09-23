@@ -9,9 +9,11 @@
   font-weight: 700;
   vertical-align: middle;
 }
+/* Три плитки анализа: как и .grid-4 в общем слое (deal-ops.css:255-272), число
+   столбцов падает на узком окне, а длинное значение переносится, а не вылезает. */
 .calc-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 8px;
   margin: 8px 0;
 }

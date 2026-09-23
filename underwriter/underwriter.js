@@ -213,13 +213,7 @@ function kkQuorum(s) {
   };
 }
 
-function kkPositionLabel(p) {
-  if (p === "yes") return "согласен";
-  if (p === "no") return "не согласен";
-  if (p === "abstain") return "воздержался";
-  if (p === "absent") return "отсутствует";
-  return "ждёт";
-}
+function kkPositionLabel(p) { return L.positionLabel(p); }
 
 function kkMember(id) {
   return (st().kk.members || []).filter(function (m) { return m.id === id; })[0] || null;
@@ -380,90 +374,21 @@ function st() {
   return state.apps[state.selectedId];
 }
 
-function fmtMoney(v) {
-  return Number(v).toLocaleString("ru-RU") + " ₽";
-}
+/* Слова и форматы — общий слой стола и АРМ участника комитета
+   (underwriter/labels.js). Здесь остаются короткие обёртки: код карточки зовёт
+   их по имени, а подписи живут в одном месте. */
+const L = window.UNDERWRITER_LABELS || {};
 
-function fmtPct(v) {
-  return (Number(v) * 100).toFixed(0) + "%";
-}
-
-function decisionTypeLabel(code) {
-  if (code === "auto") return "автоматическое";
-  if (code === "manual") return "ручное";
-  return code;
-}
-
-function purposeLabel(code) {
-  if (code === "mortgage") return "покупка";
-  if (code === "cash_on_pledge") return "залог";
-  if (code === "refinancing") return "рефинансирование";
-  return code;
-}
-
-/* Коды справочников приходят из данных, а на экран должны попадать словами:
-   «ndfl2» и «FLAT» сотруднику ничего не говорят. Незнакомый код отдаём как
-   есть, чтобы новый случай был виден, а не подменялся выдуманным текстом. */
-function incomeTypeLabel(code) {
-  var map = {
-    ndfl2: "справка 2-НДФЛ",
-    ndfl3: "декларация 3-НДФЛ",
-    bank_form: "справка по форме банка",
-    statement: "выписка по счёту",
-    szils: "сведения из ПФР",
-    esia: "данные из Госуслуг"
-  };
-  return map[code] || code;
-}
-
-function collateralTypeLabel(code) {
-  var map = {
-    FLAT: "квартира",
-    APARTMENT: "апартаменты",
-    HOUSE: "жилой дом",
-    TOWNHOUSE: "таунхаус",
-    LAND: "земельный участок",
-    GARAGE: "гараж",
-    COMMERCE: "коммерческая недвижимость",
-    SHARE: "доля"
-  };
-  return map[code] || code;
-}
-
-function packageLabel(code) {
-  var map = {
-    PKG_RECOMMENDED: "рекомендуемый",
-    PKG_NO_INSURANCE: "без страхования",
-    PKG_COMMISSION: "с комиссией"
-  };
-  return map[code] || code;
-}
-
-function expressStatusLabel(code) {
-  var map = {
-    accepted: "принята",
-    pending: "в работе",
-    rejected: "не принята",
-    failed: "ошибка"
-  };
-  return map[code] || code;
-}
-
-/* Категория кредитной истории: в данных код вида K3_2, на экране — «категория 3.2».
-   Лучшая К1 и очень плохая К5 называются словами, остальные — номером. */
-function kiLabel(code) {
-  if (!code) return "—";
-  if (code === "K1") return "категория 1 · лучшая";
-  if (code === "K5") return "категория 5 · очень плохая";
-  if (code === "NEGATIVE") return "негативная";
-  var m = /^K(\d)(?:_(\d))?$/.exec(code);
-  if (m) return "категория " + m[1] + (m[2] ? "." + m[2] : "");
-  return code;
-}
-
-function duTitle(x) {
-  return (MOCK.du_catalog || {})[x.elma_type] || ("вид " + x.elma_type);
-}
+function fmtMoney(v) { return L.fmtMoney(v); }
+function fmtPct(v) { return L.fmtPct(v); }
+function decisionTypeLabel(code) { return L.decisionTypeLabel(code); }
+function purposeLabel(code) { return L.purposeLabel(code); }
+function incomeTypeLabel(code) { return L.incomeTypeLabel(code); }
+function collateralTypeLabel(code) { return L.collateralTypeLabel(code); }
+function packageLabel(code) { return L.packageLabel(code); }
+function expressStatusLabel(code) { return L.expressStatusLabel(code); }
+function kiLabel(code) { return L.kiLabel(code); }
+function duTitle(x) { return L.duTitle(x.elma_type); }
 
 function skipPhone(a) {
   if (a.skip_phone_verify || a.scenario === "auto_approve") return true;

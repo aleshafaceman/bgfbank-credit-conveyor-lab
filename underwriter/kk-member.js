@@ -18,6 +18,9 @@
 
 const STORE = 'bgfbank_lab_underwriter';
 const MOCK = window.UNDERWRITER_MOCK || {};
+/* Слова и форматы — общий слой со столом (underwriter/labels.js): участник и
+   председатель должны называть одни и те же коды одними и теми же словами. */
+const L = window.UNDERWRITER_LABELS || {};
 
 /* Сцена стола: null означает «заседание ещё не назначено». */
 let state = loadState();
@@ -64,7 +67,7 @@ function frameTime() {
 }
 
 function fmtMoney(v) {
-  return Number(v).toLocaleString('ru-RU') + ' ₽';
+  return L.fmtMoney(v);
 }
 
 function appOf(deal) {
@@ -85,11 +88,7 @@ function slotText(slot) {
 }
 
 function positionLabel(p) {
-  if (p === 'yes') return 'согласен';
-  if (p === 'no') return 'не согласен';
-  if (p === 'abstain') return 'воздержался';
-  if (p === 'absent') return 'отсутствует';
-  return 'ждёт';
+  return L.positionLabel(p);
 }
 
 /* Приглашения: заседание подтверждено (приглашения разосланы), и у приглашённого
@@ -288,6 +287,86 @@ function renderList() {
   }).join('');
 }
 
+/* Что решает заседание. Без этого участник видит только «согласен / не
+   согласен» и не понимает, о чём именно речь: контекст собран из того же
+   снимка, что и карточка стола, — заявка, объект, признаки риска, что уже
+   проверено и о каких условиях говорят в решении «одобрить на условиях». */
+function contextHtml(inv) {
+  const a = inv.app || {};
+  const s = (state.apps || {})[inv.deal] || {};
+  const bus = s.bus || {};
+  const col = a.collateral || {};
+  const bor = a.borrower || {};
+  const log = a.loginom || {};
+  const inApzContour = a.track === 'and';
+
+  const tiles = [
+    ['Сумма', a.amount != null ? L.fmtMoney(a.amount) : '—'],
+    ['Срок', a.term_months ? a.term_months + ' мес.' : '—'],
+    ['Ставка', a.rate != null ? String(a.rate).replace('.', ',') + '%' : '—'],
+    ['Кредит к стоимости', a.ltv != null ? L.fmtPct(a.ltv) : '—'],
+    ['Цель кредита', L.purposeLabel(a.credit_purpose)],
+    ['Регион', a.region || '—'],
+    ['Категория КИ', L.kiLabel(log.ClientCategory || a.ki_prescore)],
+    ['Долговая нагрузка', a.pdn != null ? L.fmtPct(a.pdn) : '—'],
+    ['Доход в месяц', bor.income_monthly ? L.fmtMoney(bor.income_monthly) : '—'],
+    ['ФССП', a.fssp_debt > 100000 ? L.fmtMoney(a.fssp_debt) : 'нет']
+  ].map(function (t) {
+    return '<div class="param"><small>' + esc(t[0]) + '</small><b>' + esc(t[1]) + '</b></div>';
+  }).join('');
+
+  const objectTiles = [
+    ['Тип объекта', L.collateralTypeLabel(col.type)],
+    ['Оценка объекта', col.appraisal != null ? L.fmtMoney(col.appraisal) : '—'],
+    ['Кадастровый номер', col.cadastral || '—'],
+    ['Ликвидность', a.liquidity != null ? String(a.liquidity) : '—']
+  ].map(function (t) {
+    return '<div class="param"><small>' + esc(t[0]) + '</small><b>' + esc(t[1]) + '</b></div>';
+  }).join('');
+
+  /* tone: done — проверка пройдена, wait — ждём, none — к этой заявке не
+     относится (например, внутренний оценщик по квартире). */
+  const reviewed = [
+    ['Комплект документов', s.docsOk ? 'проверен' : 'не отмечен', s.docsOk ? 'done' : 'wait'],
+    ['Служба безопасности', bus.sb_done === 'ok' ? 'пройдена' : 'нет результата',
+      bus.sb_done === 'ok' ? 'done' : 'wait'],
+    ['Скоринг СПР', bus.getDecision === 'ok' ? 'решение получено' : 'ещё нет',
+      bus.getDecision === 'ok' ? 'done' : 'wait'],
+    ['Долговая нагрузка', bus.getPdn === 'ok' ? 'рассчитана' : 'ещё нет',
+      bus.getPdn === 'ok' ? 'done' : 'wait'],
+    ['Звонок верификации', bus.skorozvon === 'ok' ? 'проведён' : 'не проводился',
+      bus.skorozvon === 'ok' ? 'done' : 'none'],
+    ['Выписка ЕГРН', bus.egrn === 'ok' ? 'получена' : (inApzContour ? 'контур АПЗ' : 'ещё нет'),
+      bus.egrn === 'ok' ? 'done' : (inApzContour ? 'none' : 'wait')],
+    ['Оценка объекта', bus.getEval === 'ok' ? 'принята' : (inApzContour ? 'контур АПЗ' : 'ещё нет'),
+      bus.getEval === 'ok' ? 'done' : (inApzContour ? 'none' : 'wait')],
+    ['Правоустанавливающие документы', s.titleOk ? 'согласованы' : (inApzContour ? 'контур АПЗ' : 'не отмечены'),
+      s.titleOk ? 'done' : (inApzContour ? 'none' : 'wait')],
+    ['Внутренний оценщик банка', a.need_bank_appraiser ? (s.appraiserOk ? 'подтвердил' : 'ждём') : 'не требуется',
+      a.need_bank_appraiser ? (s.appraiserOk ? 'done' : 'wait') : 'none']
+  ].map(function (r) {
+    const cls = r[2] === 'done' ? 'chip chip--done' : r[2] === 'wait' ? 'chip chip--wait' : 'chip';
+    return '<span class="' + cls + '">' + esc(r[0]) + ': ' + esc(r[1]) + '</span>';
+  }).join('');
+
+  const du = (a.additional_conditions || []).map(function (x) {
+    const done = !!(s.du && s.du[x.id]);
+    return '<div class="int ' + (done ? 'ok' : 'pending') + '"><i class="dot-i"></i><div><b>' +
+      esc(L.duTitle(x.elma_type)) + '</b><span>' + (done ? 'снято' : (x.when === 'issue' ? 'на выдачу' : 'до подписи КОД')) +
+      (x.suggested ? ' · из решения СПР' : '') + '</span></div></div>';
+  }).join('') || '<p class="hint">Открытых дополнительных условий нет.</p>';
+
+  return '<div class="panel span-2"><div class="panel-head"><h2>О чём заседание</h2></div>' +
+    '<p class="lead">' + esc(a.kk_reason || 'Заявка вынесена на комитет: сумма, тип недвижимости или регион.') +
+    ' Комитет решает: одобрить на условиях, отказать или поднять заседание на уровень выше.</p>' +
+    '<div class="section"><h4>Заявка</h4><div class="grid-4">' + tiles + '</div></div>' +
+    '<div class="section"><h4>Объект залога</h4><div class="grid-4">' + objectTiles + '</div>' +
+    (col.address ? '<p class="lead" style="margin-top:8px">' + esc(col.address) + '</p>' : '') + '</div>' +
+    '<div class="section"><h4>Что уже рассмотрено</h4><div class="kk-level">' + reviewed + '</div></div>' +
+    '<div class="section"><h4>Дополнительные условия к решению</h4>' + du + '</div>' +
+    '</div>';
+}
+
 function renderCard() {
   const empty = document.getElementById('work-empty');
   const box = document.getElementById('invite-card');
@@ -343,6 +422,8 @@ function renderCard() {
     '<button type="button" class="btn btn-primary" onclick="accept()">Подтвердить участие</button>' +
     '<button type="button" class="btn" onclick="decline()">Не смогу</button>' +
     '</div>' + inviteStatus + '</div>' +
+
+    contextHtml(inv) +
 
     '<div class="panel span-2"><div class="panel-head"><h2>Позиция по заявке</h2></div>' +
     '<p class="lead">Позицию видит председатель. «Не согласен» и «Отсутствую» без причины не принимаются, ' +

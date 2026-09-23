@@ -201,6 +201,25 @@ module.exports = {
       'карточка приглашения показывает заявку, слот, роль участника и причину включения (сейчас: «' +
       card.slice(0, 220) + '…»)');
 
+    /* Контекст решения: участник должен видеть, о чём заседание, а не только
+       «согласен / не согласен». Проверяются обе половины блока — характеристики
+       заявки и то, что по ней уже рассмотрено. */
+    ok(card.indexOf('О чём заседание') !== -1 &&
+      card.indexOf('На кредитный комитет: тип недвижимости — коммерция') !== -1 &&
+      card.indexOf('12 000 000 ₽') !== -1 && card.indexOf('Кредит к стоимости') !== -1 &&
+      card.indexOf('42%') !== -1 && card.indexOf('категория 3.1') !== -1 &&
+      card.indexOf('коммерческая недвижимость') !== -1 && card.indexOf('77:05:0002011:88') !== -1,
+      'в карточке видно, что решает комитет: сумма, кредит к стоимости, категория КИ и объект залога (сейчас: «' +
+      card.slice(0, 240) + '…»)');
+    ok(card.indexOf('Что уже рассмотрено') !== -1 &&
+      card.indexOf('Служба безопасности: пройдена') !== -1 &&
+      card.indexOf('Скоринг СПР: решение получено') !== -1 &&
+      card.indexOf('Внутренний оценщик банка: ждём') !== -1 &&
+      card.indexOf('Дополнительные условия к решению') !== -1 &&
+      card.indexOf('Предоставить документ по объекту залога') !== -1,
+      'в карточке видно, что уже проверено и какие условия комитет решает (сейчас: «' +
+      card.slice(0, 300) + '…»)');
+
     const busText = await cardText('member-bus');
     ok(busText.indexOf('Уровень решения') !== -1 && busText.indexOf('Комитет') !== -1 &&
       busText.indexOf('Позиции обязательных участников: 0 из ' + REQUIRED) !== -1 &&
@@ -261,11 +280,13 @@ module.exports = {
     await s.navigate(base + '/underwriter/kk-member.html?member=m_appraiser&deal=' + DEAL);
     r = await s.waitFor('return __t.text("member-label").indexOf(' + JSON.stringify(APPRAISER) + ') !== -1', 8000);
     const appraiserCard = await cardText('invite-card');
+    /* Адрес ?member= выбирает участника: в карточке — его роль и причина
+       включения, а чужого приглашения в карточке нет. */
     ok(r.ok && appraiserCard.indexOf('Оценщик банка') !== -1 &&
       appraiserCard.indexOf('коммерческая недвижимость') !== -1 &&
-      appraiserCard.indexOf('обязателен') === -1,
-      'адрес ?member= открывает АРМ оценщика банка с его причиной включения (сейчас: «' +
-      appraiserCard.slice(0, 200) + '…»)' + why(r));
+      appraiserCard.indexOf(CHAIR) === -1,
+      'адрес ?member= открывает АРМ оценщика банка с его причиной включения и без чужого ' +
+      'приглашения (сейчас: «' + appraiserCard.slice(0, 200) + '…»)' + why(r));
 
     const declineNoCause = await clickExact('#invite-card button', 'Не смогу');
     let state = await memberState();
