@@ -279,6 +279,17 @@ h1 { font-size: 22px; color: var(--navy); margin-bottom: 6px; letter-spacing: -.
   font-weight: 700; font-size: 13px; cursor: pointer; margin-right: 8px; margin-top: 8px;
   transition: transform .12s ease, box-shadow .12s ease, opacity .12s ease;
 }
+/* Ссылка в виде кнопки. У <a> нет кнопочной коробки: браузер рисует строчный
+   бокс, высота 40 px у него не работает, а `min-width: 0` из .btn разрешает
+   флексу сжать ссылку уже её текста — надпись «АРМ участника комитета» вылезала
+   за границы своей плашки и была выше соседней кнопки. Коробка у ссылки теперь
+   та же, что у кнопки, и сжаться меньше текста она не может: в узкой колонке
+   она переносится на следующую строку целиком. */
+a.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  flex: 0 0 auto; height: auto; min-height: 40px; padding: 6px 16px;
+  line-height: 1.15; text-decoration: none; text-align: center;
+}
 .btn-primary { background: var(--navy); color: #fff; box-shadow: 0 6px 14px rgba(11, 70, 151, .22); }
 .btn-primary:hover:not(:disabled) { transform: translateY(-1px); }
 .btn-ghost { background: #fff; color: var(--navy); border: 1.5px solid var(--navy); }
