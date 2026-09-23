@@ -294,9 +294,12 @@ function renderApplicationPackageBlock(app) {
         : '<span class="pkg-status-badge pkg-status-badge--proposed"><i class="fas fa-info-circle"></i> Предварительное предложение</span>';
 
     const title = catalog ? catalog.title : app.selectedPackageLabel;
-    const description = catalog ? catalog.description : 'Пакет условий по результатам прескоринга. Подтвердите или измените вариант при оформлении заявки.';
+    /* Подпись под пакетом объясняет, ОТКУДА взялось предложение. Прескоринга на
+       этом шаге ещё не было — его запускает банк позже, поэтому источником
+       названы данные Госуслуг, по которым клиент и вошёл в кабинет. */
+    const description = catalog ? catalog.description : 'Пакет условий подобран по данным Госуслуг. Подтвердите или измените вариант при оформлении заявки.';
 
-    const rateStr = app.rate != null ? app.rate + '% годовых' : 'от 12,5% (после прескоринга)';
+    const rateStr = app.rate != null ? app.rate + '% годовых' : 'от 12,5% (ориентир)';
     const paymentStr = app.payment != null ? '~ ' + app.payment.toLocaleString('ru-RU') + ' ₽/мес' : '~ 54 000 ₽/мес (ориентир)';
     const insurance = app.packageInsurance || (catalog ? catalog.insurance : '—');
     const commission = app.packageCommission || (catalog ? catalog.commission : '—');

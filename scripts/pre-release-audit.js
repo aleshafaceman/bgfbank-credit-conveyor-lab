@@ -659,6 +659,25 @@ console.log('\n=== 7. HTML script order / critical refs ===');
     assert(badge.indexOf('Предварительное предложение') !== -1, 'client package badge names the state');
     assert(!/конвейер/i.test(badge), 'client package badge does not send the client to the conveyor');
   }());
+  /* Подпись под пакетом объясняет, откуда взялось предложение. Прескоринг на
+     этом шаге банк ещё не запускал, поэтому источник — данные Госуслуг, по
+     которым клиент вошёл в кабинет. Проверяем обе подписи: и справочник
+     пакетов, и запасной текст карточки, если пакета в справочнике нет. */
+  (function () {
+    const pkgs = fs.readFileSync(path.join(root, 'js/packages.js'), 'utf8');
+    const catalogDesc = ((pkgs.match(/PKG_RECOMMENDED:\s*\{[\s\S]*?description:\s*'([^']*)'/) || [])[1] || '');
+    const clientAppsSrc = fs.readFileSync(path.join(root, 'js/applications.js'), 'utf8');
+    const fallbackDesc = ((clientAppsSrc.match(/const description = catalog \? catalog\.description : '([^']*)'/) || [])[1] || '');
+    assert(catalogDesc.length > 0 && fallbackDesc.length > 0,
+      'client package copy is present in both catalog and fallback');
+    [catalogDesc, fallbackDesc].forEach(function (text, i) {
+      const where = i === 0 ? 'catalog' : 'fallback';
+      assert(/Госуслуг/.test(text), where + ' package copy names Gosuslugi as the source of the offer');
+      assert(!/прескоринг/i.test(text), where + ' package copy does not claim pre-scoring produced the offer');
+    });
+    assert(!/после прескоринга/.test(clientAppsSrc),
+      'client package rate placeholder does not wait for pre-scoring');
+  }());
   /* «Настройки» — это настройки. Кнопка «Новая заявка» в разделе «Безопасность»
      сбивала с толку: заявку подают из «Моих заявок» и с дашборда, а раздел про
      доступ отвечает за пароль, 2FA и сессии. */
