@@ -10,7 +10,7 @@
  * Что важно в разметке (проверено по underwriter/index.html, underwriter.js и
  * живой странице):
  *  - очередь лежит в #inbox-list карточками .card-deal, заголовок — #inbox-title
- *    (renderInbox(), underwriter.js:608). Карточка — <button> БЕЗ data-атрибута,
+ *    (renderInbox(), underwriter.js:1118). Карточка — <button> БЕЗ data-атрибута,
  *    номер заявки лежит внутри <b>, поэтому карточку ищем по вхождению номера, а
  *    фильтры (подписи «Все» / «Авто» / «Ручные» / «КК») — по ТОЧНОЙ подписи:
  *    «КК» как подстрока встречается в тексте карточки, а «Авто» — в «Автоодобрение».
@@ -19,7 +19,7 @@
  *    #officer-label, поэтому роль проверяется кликом, а не вызовом setRole().
  *  - #work-deal в разметке помечен class="hidden" (index.html:39), НО стол сам
  *    выбирает первую заявку очереди: defaultState() ставит selectedId =
- *    firstIdForRole("and") (underwriter.js:136), а renderWork() снимает hidden,
+ *    firstIdForRole("and") (underwriter.js:348), а renderWork() снимает hidden,
  *    как только в очереди есть подходящая заявка. Замер на живой странице
  *    подтверждает: сразу после штатного сброса сцены #work-deal видим и заполнен (~2,4 тыс.
  *    символов), #work-empty скрыт. Поэтому утверждения «после клика карточка
@@ -50,14 +50,14 @@
 /* Общие помощники поверхностей: why() и строгая проверка сбоев страницы. */
 const common = require('./common');
 
-/* Заявки мока underwriter/mock.js:28-268 и их треки. Порядок — порядок массива
+/* Заявки мока underwriter/mock.js:87-327 и их треки. Порядок — порядок массива
    MOCK.applications: renderInbox() идёт по нему, queue() фильтрует по треку. */
 const AND_IDS = ['25BGFB00990101', '25BGFB00990102'];
 const APZ_IDS = ['25BGFB00990103', '25BGFB00990104'];
 const ALL_IDS = AND_IDS.concat(APZ_IDS);
 
 /* Кто показан в карточке очереди: у трека АНД — заёмщик, у трека АПЗ — адрес
-   объекта (renderInbox(), underwriter.js:633). Значения из мока. */
+   объекта (renderInbox(), underwriter.js:1143). Значения из мока. */
 const CARD_WHO = {
   '25BGFB00990101': 'Кузнецов А.С. — заявка 101',
   '25BGFB00990102': 'Кузнецов А.С. — заявка 102',
@@ -65,17 +65,18 @@ const CARD_WHO = {
   '25BGFB00990104': 'г. Москва, ул. Вавилова, д. 7, пом. 3'
 };
 
-/* Подписи дежурных из мока (mock.js:2-5). */
-const OFFICER_AND = 'Чернов Г. Г. · АНД';
-const OFFICER_APZ = 'Ильина Е. С. · АПЗ';
+/* Подписи дежурных из мока (mock.js:3-6). ФИО вымышленные — в макете нет
+   настоящих сотрудников банка. */
+const OFFICER_AND = 'Лаптев С. В. · АНД';
+const OFFICER_APZ = 'Демидова О. К. · АПЗ';
 
-/* Ровно четыре фильтра очереди и их порядок (renderInbox(), underwriter.js:617-623). */
+/* Ровно четыре фильтра очереди и их порядок (renderInbox(), underwriter.js:1127-1135). */
 const FILTERS = ['Все', 'Авто', 'Ручные', 'КК'];
 
 /* Ожидаемая выборка каждого фильтра для каждой роли — посчитана по моку, а не
    снята со страницы. Иначе «фильтр не фильтрует» прошло бы зелёным: проверка
    считала бы по тому же коду, что и поверхность.
-   queue() (underwriter.js:244-253): role → track, auto → scenario === "auto_approve",
+   queue() (underwriter.js:517-526): role → track, auto → scenario === "auto_approve",
    manual → scenario !== "auto_approve", kk → need_kk || step === "kk". */
 const QUEUE_BY_ROLE = {
   and: {
@@ -92,7 +93,7 @@ const QUEUE_BY_ROLE = {
   }
 };
 
-/* Каталог «Хода обмена» (underwriter.js:5-15): подпись шага и его внешняя
+/* Каталог «Хода обмена» (underwriter.js:7-18): подпись шага и его внешняя
    система. Один список на все проверки шины — три копии этих строк разъехались
    бы при первой же правке каталога. */
 const BUS_CATALOG = [
@@ -103,6 +104,7 @@ const BUS_CATALOG = [
   { title: 'Экспресс-оценка объекта', system: 'сервис оценки недвижимости' },
   { title: 'Выписка ЕГРН', system: 'файл и распознавание, не запрос в Росреестр' },
   { title: 'Звонок верификации', system: 'роботизированный дозвон' },
+  { title: 'Приглашения на заседание', system: 'задачи и уведомления' },
   { title: 'СМС брокеру', system: 'сервис рассылок' },
   { title: 'Статус в кабинет', system: 'кабинет партнёра' }
 ];
@@ -123,6 +125,7 @@ const BUS_AND_101_LABELS = {
   'Экспресс-оценка объекта': 'контур АПЗ',
   'Выписка ЕГРН': 'контур АПЗ',
   'Звонок верификации': 'исключён',
+  'Приглашения на заседание': 'не требуется',
   'СМС брокеру': 'ожидание',
   'Статус в кабинет': 'ожидание'
 };
@@ -138,11 +141,44 @@ const BUS_APZ_103_LABELS = {
   'Экспресс-оценка объекта': 'ожидание',
   'Выписка ЕГРН': 'ожидание',
   'Звонок верификации': 'исключён',
+  'Приглашения на заседание': 'не требуется',
   'СМС брокеру': 'ожидание',
   'Статус в кабинет': 'ожидание'
 };
 
-/* Кнопка решения зависит от трека (renderWork(), underwriter.js:821). */
+/* То же для заявки 102 к моменту вынесения на комитет: заявку не считали
+   (скоринг прошёл только у 101), звонок нужен — LTV 62%, автоисключения нет. */
+const BUS_AND_102_LABELS = {
+  'СБ пройдена': 'успех',
+  'Решение по заёмщику': 'ожидание',
+  'Долговая нагрузка': 'ожидание',
+  'Оценка залога': 'контур АПЗ',
+  'Экспресс-оценка объекта': 'контур АПЗ',
+  'Выписка ЕГРН': 'контур АПЗ',
+  'Звонок верификации': 'ожидание',
+  'Приглашения на заседание': 'не требуется',
+  'СМС брокеру': 'ожидание',
+  'Статус в кабинет': 'ожидание'
+};
+
+/* Кредитный комитет: имена и составы из мока (mock.js, блок kk).
+   У 102 залог — квартира: оценщика в составе нет, он приходит только по
+   коммерческой недвижимости (when: "commerce" в справочнике состава).
+   Обязательные участники собирают кворум, поэтому их число сверяется отдельно. */
+const KK_CHAIR = 'Родионов А. Г.';
+const KK_UNDERWRITER_AND = 'Ситникова Е. А.';
+const KK_APPRAISER = 'Величко И. П.';
+const KK_SALES = 'Мещерякова Н. В.';
+const KK_BOARD_HEAD = 'Барсуков Ю. Л.';
+const KK_BOARD_FIN = 'Асланова Л. М.';
+const KK_SCENE_102 = { members: 5, required: 3 };
+const KK_SCENE_104 = { members: 6, required: 4 };
+const KK_SCENE_BOARD = { members: 3, required: 3 };
+
+/* Причины, которыми проверка закрывает «не согласен» и уводит заседание выше. */
+const KK_DISAGREE = 'Оценка ниже рыночной, требуется пересмотр отчёта';
+
+/* Кнопка решения зависит от трека (renderWork(), underwriter.js:1324). */
 const APPROVE_AND = 'Клиент одобрен';
 const APPROVE_APZ = 'Залог одобрен';
 
@@ -175,7 +211,7 @@ const ACTIVE_IDS = 'return Array.prototype.map.call(document.querySelectorAll(' 
   '"#inbox-list .card-deal.on"), function(c) { var t = c.textContent || "";' +
   ' return ' + JSON.stringify(ALL_IDS) + '.filter(function(id) { return t.indexOf(id) !== -1; })[0] || "?"; })';
 
-/* Значок шага у каждой карточки (badge(), underwriter.js:215-222). */
+/* Значок шага у каждой карточки (badge(), underwriter.js:488-495). */
 const BADGES = 'return Array.prototype.map.call(document.querySelectorAll("#inbox-list .card-deal"),' +
   ' function(c) { var t = c.textContent || "";' +
   ' var id = ' + JSON.stringify(ALL_IDS) + '.filter(function(x) { return t.indexOf(x) !== -1; })[0] || "?";' +
@@ -288,7 +324,7 @@ module.exports = {
 
        Это не украшение. runScoring()/runEgrn()/runEval() держат busy до конца
        модального окна, а любой клик в это время молча игнорируется
-       (approve(), underwriter.js:527; runEval(), underwriter.js:492). Ждать
+       (approve(), underwriter.js:937; runEval(), underwriter.js:902). Ждать
        только доступности кнопки НЕДОСТАТОЧНО: галочка комплекта или права
        вызывает toggleTitle()/toggleDocs(), который перерисовывает карточку
        синхронно, и кнопка становится доступной, пока busy ещё true — клик по
@@ -342,7 +378,7 @@ module.exports = {
     const busRows = function () { return s.eval(BUS_ROWS_EXPR); };
     const badges = function () { return s.eval(BADGES); };
     /* Баннеры исхода и барьера паспорта — оба класса .done-banner
-       (underwriter.js:775, 827-829), поэтому берём их списком: судьба заявки и
+       (underwriter.js:1275, 1331), поэтому берём их списком: судьба заявки и
        состояние барьера это два разных утверждения. */
     const banners = function () {
       return s.eval('return Array.prototype.map.call(document.querySelectorAll("#work-deal .done-banner"),' +
@@ -350,6 +386,100 @@ module.exports = {
     };
     const hasBanner = function (list, fragment) {
       return list.some(function (t) { return t.indexOf(fragment) !== -1; });
+    };
+
+    /* --- заседание кредитного комитета --- */
+
+    /* Сцена заседания из localStorage: читается то, что стол действительно
+       записал, а не то, что он держит в памяти. Участники разворачиваются в
+       плоский список — по нему видно и состав, и приглашения, и позиции. */
+    const storeKk = function (id) {
+      return s.eval('return (function() { try {' +
+        ' var p = JSON.parse(localStorage.getItem(' + JSON.stringify(STORE) + ') || "{}");' +
+        ' var kk = (((p.apps || {})[' + JSON.stringify(id) + '] || {}).kk) || null;' +
+        ' if (!kk) return null;' +
+        ' return { stage: kk.stage || null, level: kk.level || null, outcome: kk.outcome || "",' +
+        '   invited: !!kk.invitationsSentAt, slot: kk.slot || null,' +
+        '   members: (kk.members || []).map(function(m) { return { id: m.id, who: m.who,' +
+        '     role: m.role, required: !!m.required, invite: m.invite || "",' +
+        '     position: m.position || "", comment: m.comment || "" }; }),' +
+        '   history: (kk.history || []).map(function(h) { return { level: h.level,' +
+        '     title: h.level_title || "", reasons: h.reasons || [],' +
+        '     members: (h.members || []).map(function(m) { return { who: m.who,' +
+        '       position: m.position || "", comment: m.comment || "" }; }) }; }) };' +
+        ' } catch (e) { return { error: e.message }; } })()');
+    };
+
+    /* Ожидание условия на сцене заседания. Выражение получает kk и видит
+       страницу, поэтому годится и для проверки кнопки в окне. */
+    const waitKk = function (id, cond) {
+      return s.waitFor('return (function() { try {' +
+        ' var p = JSON.parse(localStorage.getItem(' + JSON.stringify(STORE) + ') || "{}");' +
+        ' var kk = (((p.apps || {})[' + JSON.stringify(id) + '] || {}).kk) || {};' +
+        ' return ' + cond + '; } catch (e) { return false; } })()', 8000);
+    };
+
+    /* Окно заседания: видимость, класс окна и ширина (в него влезает состав,
+       поэтому оно шире служебных окон стола). */
+    const sessionOpen = function () {
+      return s.eval('return (function() { var o = document.getElementById("overlay");' +
+        ' if (!o || o.classList.contains("hidden")) return null; var m = o.querySelector(".modal");' +
+        ' if (!m) return null; var r = m.getBoundingClientRect();' +
+        ' return { visible: r.width > 0 && r.height > 0,' +
+        '   session: o.classList.contains("overlay--session"), width: Math.round(r.width) }; })()');
+    };
+
+    const sessionText = function (id) { return s.eval('return __t.text(' + JSON.stringify(id) + ')'); };
+
+    const sessionButton = function (id) {
+      return s.eval('return (function() { var b = document.getElementById(' + JSON.stringify(id) + ');' +
+        ' if (!b) return null; var r = b.getBoundingClientRect();' +
+        ' return { disabled: b.disabled === true, visible: r.width > 0 && r.height > 0 }; })()');
+    };
+
+    const clickSessionButton = function (label) {
+      return s.eval('return (function() { var b = Array.prototype.slice.call(' +
+        'document.querySelectorAll("#modal-foot button")).filter(function(x) {' +
+        ' return (x.textContent || "").replace(/\\s+/g, " ").trim() === ' + JSON.stringify(label) + '; })[0];' +
+        ' if (!b) return false; b.click(); return true; })()');
+    };
+
+    /* Строка участника в окне ищется по имени: состав приходит из мока, поэтому
+       привязки к порядку строк нет — правка состава проверку не сломает. */
+    const sessionRow = function (who) {
+      return 'Array.prototype.slice.call(document.querySelectorAll("#modal-body .member"))' +
+        '.filter(function(r) { return (r.textContent || "").indexOf(' + JSON.stringify(who) + ') !== -1; })[0]';
+    };
+
+    const clickVote = function (who, label) {
+      return s.eval('return (function() { var row = ' + sessionRow(who) + ';' +
+        ' if (!row) return false; var b = Array.prototype.slice.call(row.querySelectorAll("button"))' +
+        '.filter(function(x) { return (x.textContent || "").trim() === ' + JSON.stringify(label) + '; })[0];' +
+        ' if (!b) return false; b.click(); return true; })()');
+    };
+
+    /* Причина вносится как ввод человека: нативное значение плюс событие input,
+       иначе обработчик oninput не увидит текст. */
+    const setVoteComment = function (who, text) {
+      return s.eval('return (function() { var row = ' + sessionRow(who) + ';' +
+        ' if (!row) return false; var t = row.querySelector("textarea"); if (!t) return false;' +
+        ' var set = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value").set;' +
+        ' set.call(t, ' + JSON.stringify(text) + ');' +
+        ' t.dispatchEvent(new Event("input", { bubbles: true })); return true; })()');
+    };
+
+    const commentNoteHidden = function (who) {
+      return s.eval('return (function() { var row = ' + sessionRow(who) + ';' +
+        ' if (!row) return null; var n = row.querySelector(".req-note");' +
+        ' return n ? n.style.display === "none" : null; })()');
+    };
+
+    /* Подпись поля причины читается из placeholder: __t.text() берёт textContent
+       и подсказку поля не видит. */
+    const reasonPlaceholder = function (who) {
+      return s.eval('return (function() { var row = ' + sessionRow(who) + ';' +
+        ' if (!row) return null; var t = row.querySelector("textarea");' +
+        ' return t ? (t.getAttribute("placeholder") || "") : null; })()');
     };
 
     /* Ожидаемая карта «шаг → система · состояние» из каталога и подписей
@@ -394,8 +524,8 @@ module.exports = {
     const storeBefore = await s.eval('return __t.labStore()');
 
     /* Свежая сцена стола. Раньше её давал ?demo=1, который стирал
-       bgfbank_lab_underwriter (underwriter.js:846-850); параметр удалён вместе с
-       демо-режимом, поэтому сцену готовит сам стол своим штатным сбросом —
+       bgfbank_lab_underwriter; параметр удалён вместе с демо-режимом, поэтому
+       сцену готовит сам стол своим штатным сбросом —
        ровно тем, что вызывает кнопка «Сбросить сцену» в шапке (resetDemo():
        удаляет ключ стола и кладёт defaultState()).
        Уникальный адрес `fresh` — не украшение: при переходе на УЖЕ открытый
@@ -552,7 +682,7 @@ module.exports = {
 
     /* «КК» в очереди АНД пуст. Это и проверка фильтра, и единственный честный
        способ увидеть скрытое состояние #work-deal: renderWork() при пустой
-       выборке прячет карточку и показывает #work-empty (underwriter.js:657-665). */
+       выборке прячет карточку и показывает #work-empty (underwriter.js:1164-1177). */
     const kkClicked = await clickFilter('КК');
     r = await waitQueue([]);
     const kkState = await s.eval('return { work: __t.visible("work-deal"),' +
@@ -690,40 +820,204 @@ module.exports = {
       'повторное одобрение заперто: кнопка «' + APPROVE_AND + '» снова недоступна');
 
     /* Второй трек решения того же стола: заявка уходит на кредитный комитет.
-       Проверяется вторая половина фильтра «КК» — step === "kk", а не только
-       признак need_kk из мока. */
+       Проверяется и вторая половина фильтра «КК» (step === "kk", а не только
+       признак need_kk из мока), и весь цикл заседания: проект от системы →
+       подтверждение человеком → приглашения → кворум → причина у «не согласен»
+       → эскалация → решение. */
     r = await selectCard(AND_IDS[1]);
     const kkButtonClicked = r.ok ? await clickButton('На кредитный комитет') : false;
     r = await waitStep(AND_IDS[1], 'kk');
+    const kkDraft = await storeKk(AND_IDS[1]);
     ok(kkButtonClicked === true && r.ok,
       'заявка ' + AND_IDS[1] + ' переведена на шаг kk' + why(r));
     ok((await s.eval(WORK_STAGE)) === STAGE_KK,
       'карточка показывает этап «' + STAGE_KK + '» (сейчас: «' + (await s.eval(WORK_STAGE)) + '»)');
+    ok(!!kkDraft && kkDraft.stage === 'draft' && kkDraft.members.length === KK_SCENE_102.members &&
+      kkDraft.members.filter(function (m) { return m.required; }).length === KK_SCENE_102.required &&
+      kkDraft.members.every(function (m) { return m.invite === ''; }) &&
+      !!kkDraft.slot,
+      'система собрала проект заседания: участников ' + KK_SCENE_102.members + ', обязательных ' +
+      KK_SCENE_102.required + ', слот предложен, приглашения ещё не разосланы (сейчас: ' +
+      JSON.stringify(kkDraft && { stage: kkDraft.stage, slot: kkDraft.slot,
+        members: kkDraft.members.map(function (m) { return (m.required ? '+' : '-') + m.who; }) }) + ')');
     const kkFilterClicked = await clickFilter('КК');
     r = await waitQueue([AND_IDS[1]]);
     const kkAfter = await cardIds();
     ok(kkFilterClicked === true && r.ok,
       'фильтр «КК» теперь показывает заявку, стоящую на шаге kk (сейчас: ' +
       JSON.stringify(kkAfter) + ')' + why(r));
-    const kkPanel = await workText();
-    const kkButtons = await s.eval('return {' +
-      ' approve: (function() { var b = Array.prototype.filter.call(document.querySelectorAll("#work-deal button"),' +
-      '   function(x) { return (x.textContent || "").trim() === "КК одобрил"; })[0];' +
-      '   return b ? { disabled: b.disabled === true } : null; })(),' +
-      ' reject: (function() { var b = Array.prototype.filter.call(document.querySelectorAll("#work-deal button"),' +
-      '   function(x) { return (x.textContent || "").trim() === "КК отказал"; })[0];' +
-      '   return b ? { disabled: b.disabled === true } : null; })() }');
-    ok(kkPanel.indexOf('Кредитный комитет') !== -1 && kkPanel.indexOf('КК одобрил') !== -1 &&
-      kkPanel.indexOf('КК отказал') !== -1 &&
-      !!kkButtons.approve && kkButtons.approve.disabled === false &&
-      !!kkButtons.reject && kkButtons.reject.disabled === false,
-      'в карточке появилась панель кредитного комитета, и оба её решения разблокированы (сейчас: ' +
-      JSON.stringify(kkButtons) + ')');
+
+    const kkPanelDraft = await workText();
+    ok(kkPanelDraft.indexOf('Проект заседания сформирован системой') !== -1 &&
+      kkPanelDraft.indexOf('Подтвердить заседание') !== -1 &&
+      kkPanelDraft.indexOf(KK_CHAIR) !== -1,
+      'в карточке проект заседания от системы и кнопка подтверждения с председателем КК ' +
+      KK_CHAIR + ' (сейчас: «' + kkPanelDraft.slice(-300) + '»)');
+    diff = busDiff(await busRows(), busExpected(Object.assign({}, BUS_AND_102_LABELS, {
+      'Приглашения на заседание': 'проект заседания'
+    })));
+    ok(diff.missing.length === 0 && diff.wrong.length === 0,
+      '«Ход обмена» показывает, что приглашения ещё проект заседания (расхождения: ' +
+      JSON.stringify(diff.wrong) + ')');
+
+    /* Подтверждение заседания — действие человека: после него приглашения
+       уходят участникам, и это видно и в сцене, и в шине, и на панели. */
+    const kkConfirmClicked = await clickButton('Подтвердить заседание');
+    r = await waitKk(AND_IDS[1], 'kk.stage === "invited"');
+    const kkInvited = await storeKk(AND_IDS[1]);
+    ok(kkConfirmClicked === true && r.ok,
+      'подтверждение заседания переводит его к приглашениям' + why(r));
+    ok(!!kkInvited && kkInvited.invited === true &&
+      kkInvited.members.every(function (m) { return m.invite === 'sent'; }) &&
+      kkInvited.members.every(function (m) { return m.position === ''; }),
+      'приглашение ушло всем участникам, а позиций пока нет (сейчас: ' +
+      JSON.stringify(kkInvited && kkInvited.members.map(function (m) { return m.who + ':' + m.invite; })) + ')');
+    diff = busDiff(await busRows(), busExpected(Object.assign({}, BUS_AND_102_LABELS, {
+      'Приглашения на заседание': 'разосланы · ' + KK_SCENE_102.members + ' участников'
+    })));
+    ok(diff.missing.length === 0 && diff.wrong.length === 0,
+      '«Ход обмена» показывает рассылку приглашений (расхождения: ' +
+      JSON.stringify(diff.wrong) + ')');
+    const kkPanelInvited = await workText();
+    const kkMemberLink = await s.eval('return (function() {' +
+      ' var a = document.querySelector("#work-deal a[href*=\'kk-member.html\']");' +
+      ' return a ? a.getAttribute("href") : null; })()');
+    ok(kkPanelInvited.indexOf('Открыть заседание') !== -1 &&
+      kkPanelInvited.indexOf('позиций 0 из ' + KK_SCENE_102.required) !== -1 &&
+      String(kkMemberLink).indexOf('kk-member.html?deal=' + AND_IDS[1]) !== -1,
+      'панель показывает приглашения, кворум и вход в АРМ участника комитета (сейчас: «' +
+      kkPanelInvited.slice(-300) + '», ссылка: ' + kkMemberLink + ')');
+
+    /* Окно заседания: уровень, состав и подвал с исходами. */
+    const sessionClicked = await clickButton('Открыть заседание');
+    r = await s.waitFor('return (function() { var o = document.getElementById("overlay");' +
+      ' return !!o && !o.classList.contains("hidden") && o.classList.contains("overlay--session"); })()', 6000);
+    const session = await sessionOpen();
+    ok(sessionClicked === true && r.ok && !!session && session.visible === true &&
+      session.session === true && session.width > 560,
+      'окно заседания открылось и оно шире служебных окон стола (сейчас: ' +
+      JSON.stringify(session) + ')' + why(r));
+    const sessionBody = await sessionText('modal-body');
+    const sessionFoot = await sessionText('modal-foot');
+    ok((await sessionText('modal-title')) === 'Заседание кредитного комитета' &&
+      sessionBody.indexOf('Уровень решения') !== -1 && sessionBody.indexOf('Комитет') !== -1 &&
+      sessionBody.indexOf('Правление') !== -1 && sessionBody.indexOf('Совет директоров') !== -1 &&
+      sessionBody.indexOf(KK_CHAIR) !== -1 && sessionBody.indexOf('обязателен') !== -1,
+      'в окне уровень решения с верхним уровнем и состав с пометкой обязательных (сейчас: «' +
+      sessionBody.slice(0, 220) + '…»)');
+    ok(sessionFoot.indexOf('Позиции обязательных участников: 0 из ' + KK_SCENE_102.required) !== -1 &&
+      sessionFoot.indexOf('Одобрить на условиях') !== -1 && sessionFoot.indexOf('Отказать') !== -1 &&
+      sessionFoot.indexOf('Эскалировать выше') !== -1,
+      'в подвале окна кворум и три исхода заседания (сейчас: «' + sessionFoot + '»)');
+    let approveState = await sessionButton('kk-approve');
+    let rejectState = await sessionButton('kk-reject');
+    ok(!!approveState && approveState.disabled === true && approveState.visible === true &&
+      !!rejectState && rejectState.disabled === true,
+      'без позиций обязательных участников ни одобрить, ни отказать нельзя (сейчас: ' +
+      JSON.stringify({ approve: approveState, reject: rejectState }) + ')');
+
+    /* Позиции. Двух из трёх обязательных мало — кворум проверяется по счётчику
+       и по живой кнопке, а не по тексту подсказки. */
+    const voteChair = await clickVote(KK_CHAIR, 'согласен');
+    const voteUnderwriter = await clickVote(KK_UNDERWRITER_AND, 'согласен');
+    r = await waitKk(AND_IDS[1], 'JSON.stringify((kk.members || []).filter(function(m) {' +
+      ' return m.position === "yes"; }).map(function(m) { return m.id; })) === ' +
+      JSON.stringify(JSON.stringify(['m_chair', 'm_underwriter'])));
+    const foot2 = await sessionText('modal-foot');
+    approveState = await sessionButton('kk-approve');
+    ok(voteChair === true && voteUnderwriter === true && r.ok,
+      'позиции председателя и андеррайтера заявки записаны в сцену заседания' + why(r));
+    ok(foot2.indexOf('Позиции обязательных участников: 2 из ' + KK_SCENE_102.required) !== -1 &&
+      !!approveState && approveState.disabled === true,
+      'двух позиций из трёх мало: кворум не собран, одобрение заперто (сейчас: «' + foot2 + '»)');
+    const voteSales = await clickVote(KK_SALES, 'согласен');
+    r = await waitKk(AND_IDS[1], 'document.getElementById("kk-approve").disabled === false');
+    approveState = await sessionButton('kk-approve');
+    ok(voteSales === true && r.ok && !!approveState && approveState.disabled === false,
+      'с позицией третьего обязательного участника кворум собран и одобрение разблокировано' + why(r));
+
+    /* «Не согласен» требует причину: без неё решение снова заперто. */
+    const voteNo = await clickVote(KK_SALES, 'не согласен');
+    r = await waitKk(AND_IDS[1], '((kk.members || []).filter(function(m) {' +
+      ' return m.id === "m_sales"; })[0] || {}).position === "no"');
+    const bodyAfterNo = await sessionText('modal-body');
+    const reasonField = await reasonPlaceholder(KK_SALES);
+    approveState = await sessionButton('kk-approve');
+    ok(voteNo === true && r.ok && !!bodyAfterNo && String(reasonField).indexOf('Причина несогласия — обязательна') !== -1,
+      '«не согласен» открывает поле причины (подпись поля: «' + reasonField + '»)' + why(r));
+    ok(!!approveState && approveState.disabled === true,
+      'без причины несогласия решение снова заперто, хотя все обязательные дали позицию');
+    const commentSet = await setVoteComment(KK_SALES, KK_DISAGREE);
+    r = await waitKk(AND_IDS[1], 'document.getElementById("kk-approve").disabled === false');
+    const noteHidden = await commentNoteHidden(KK_SALES);
+    approveState = await sessionButton('kk-approve');
+    ok(commentSet === true && r.ok && noteHidden === true &&
+      !!approveState && approveState.disabled === false,
+      'причина несогласия снимает блокировку и подсказку «без причины»' + why(r));
+
+    /* Эскалация: уровень выше, состав нового уровня, а след нижнего — с
+       причинами ухода. В AS-IS заявка возвращалась по тому же шагу по кругу. */
+    const escalateClicked = await clickSessionButton('Эскалировать выше');
+    r = await waitKk(AND_IDS[1], 'kk.level === "board" && (kk.history || []).length === 1');
+    const kkBoard = await storeKk(AND_IDS[1]);
+    const boardBody = await sessionText('modal-body');
+    const boardFoot = await sessionText('modal-foot');
+    approveState = await sessionButton('kk-approve');
+    ok(escalateClicked === true && r.ok && !!kkBoard && kkBoard.level === 'board',
+      'эскалация поднимает заседание на Правление (сейчас: ' +
+      JSON.stringify(kkBoard && kkBoard.level) + ')' + why(r));
+    ok(!!kkBoard && kkBoard.history.length === 1 && kkBoard.history[0].level === 'committee' &&
+      kkBoard.history[0].reasons.join(' ').indexOf(KK_DISAGREE) !== -1,
+      'след нижнего уровня сохранил причину ухода выше (сейчас: ' +
+      JSON.stringify(kkBoard && kkBoard.history) + ')');
+    ok(!!kkBoard && kkBoard.history[0].members.length === KK_SCENE_102.members &&
+      kkBoard.history[0].members.some(function (m) {
+        return m.who === KK_SALES && m.position === 'no';
+      }),
+      'состав нижнего уровня сохранён целиком: кто заседал и как голосовал (сейчас: ' +
+      JSON.stringify(kkBoard && kkBoard.history[0].members) + ')');
+    ok(!!kkBoard && kkBoard.members.length === KK_SCENE_BOARD.members &&
+      kkBoard.members.every(function (m) { return m.invite === 'sent'; }) &&
+      boardBody.indexOf(KK_BOARD_HEAD) !== -1 && boardBody.indexOf(KK_BOARD_FIN) !== -1 &&
+      boardBody.indexOf('След нижних уровней') !== -1 && boardBody.indexOf(KK_CHAIR) !== -1,
+      'на Правлении свой состав и свои приглашения, а нижний уровень остался в следе с позициями (сейчас: ' +
+      JSON.stringify(kkBoard && kkBoard.members.map(function (m) { return m.who + ':' + m.invite; })) +
+      ')');
+    ok(boardFoot.indexOf('Уровень: Правление') !== -1 &&
+      boardFoot.indexOf('Позиции обязательных участников: 0 из ' + KK_SCENE_BOARD.required) !== -1 &&
+      !!approveState && approveState.disabled === true,
+      'после эскалации кворум собирается заново на новом уровне (сейчас: «' + boardFoot + '»)');
+
+    for (const who of [KK_BOARD_HEAD, KK_SALES, KK_BOARD_FIN]) {
+      await clickVote(who, 'согласен');
+    }
+    r = await waitKk(AND_IDS[1], 'document.getElementById("kk-approve").disabled === false');
+    ok(r.ok, 'на Правлении кворум собирается позициями его обязательных участников' + why(r));
+    const decideClicked = await clickSessionButton('Одобрить на условиях');
+    r = await waitKk(AND_IDS[1], 'kk.outcome === "approve" && kk.stage === "decided"');
+    const sessionClosed = await sessionOpen();
+    const kkDecided = await storeKk(AND_IDS[1]);
+    ok(decideClicked === true && r.ok,
+      '«Одобрить на условиях» фиксирует решение заседания' + why(r));
+    ok(sessionClosed === null && !!kkDecided && kkDecided.outcome === 'approve' &&
+      kkDecided.level === 'board',
+      'после решения окно закрывается, а решение записано в сцену (сейчас: ' +
+      JSON.stringify(kkDecided && { outcome: kkDecided.outcome, level: kkDecided.level }) + ')');
+    const kkPanelDecided = await workText();
+    const approveAfterKk = await buttonState(APPROVE_AND);
+    ok(kkPanelDecided.indexOf('решение: одобрено') !== -1 &&
+      kkPanelDecided.indexOf('Эскалировано: Комитет → Правление') !== -1 &&
+      kkPanelDecided.indexOf('Открыть протокол') !== -1,
+      'панель показывает решение, след эскалации и вход в протокол (сейчас: «' +
+      kkPanelDecided.slice(-320) + '»)');
+    ok(!!approveAfterKk && approveAfterKk.disabled === false,
+      'решение комитета разблокировало итоговое решение стола «' + APPROVE_AND + '»');
+
     const backAllClicked = await clickFilter('Все');
     r = await waitQueue(AND_IDS);
     ok(backAllClicked === true && r.ok,
       'возврат к «Все» снова показывает обе заявки АНД' + why(r));
-    await noFailures('работа с решением АНД прошла без сбоев страницы');
+    await noFailures('работа с решением АНД и заседанием комитета прошла без сбоев страницы');
 
     check.section('АРМ андеррайтера — роль АПЗ: очередь и переключатель');
 
@@ -824,6 +1118,18 @@ module.exports = {
       work104.indexOf('Внутренний оценщик банка подтвердил коммерцию') !== -1,
       'у заявки коммерции показана причина вынесения на КК из мока и требование ' +
       'внутреннего оценщика');
+    /* Коммерция выносится системой сразу: пока стол работает с объектом, проект
+       заседания уже готов, а оценщик банка в нём обязательный участник. */
+    const kk104 = await storeKk(APZ_IDS[1]);
+    ok(!!kk104 && kk104.stage === 'draft' && kk104.members.length === KK_SCENE_104.members &&
+      kk104.members.filter(function (m) { return m.required; }).length === KK_SCENE_104.required &&
+      kk104.members.some(function (m) { return m.who === KK_APPRAISER && m.required === true; }),
+      'по коммерции система сама собрала проект заседания: участников ' + KK_SCENE_104.members +
+      ', обязательных ' + KK_SCENE_104.required + ', включая оценщика банка (сейчас: ' +
+      JSON.stringify(kk104 && kk104.members.map(function (m) { return (m.required ? '+' : '-') + m.who; })) + ')');
+    ok(work104.indexOf('Проект заседания сформирован системой') !== -1,
+      'в карточке коммерции виден проект заседания, хотя стол ещё работает с объектом (сейчас: «' +
+      work104.slice(-260) + '»)');
     ok(work104.indexOf('77:05:0002011:88') !== -1 && work104.indexOf('Предоставить документ ' +
       'по объекту залога') !== -1,
       'в карточке коммерции кадастровый номер её объекта и её собственное ДУ из мока');

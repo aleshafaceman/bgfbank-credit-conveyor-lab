@@ -1514,6 +1514,7 @@ console.log('\n=== 13. Demo hub (start.html) entry point ===');
     ['index.html', 'client cabinet card is linked'],
     ['manager/', 'manager card is linked'],
     ['underwriter/', 'bank underwriter ARM card is linked'],
+    ['underwriter/kk-member.html', 'credit committee member ARM card is linked'],
     ['deal-ops/', 'deal desk card is linked'],
     ['productolog/', 'productologist ARM card is linked'],
     ['form/', 'application form card is linked']
@@ -1542,7 +1543,7 @@ console.log('\n=== 13. Demo hub (start.html) entry point ===');
      поэтому заодно ловим и забытые переносы. */
   (function checkImages() {
     const pages = ['index.html', 'start.html', 'manager/index.html', 'deal-ops/index.html',
-      'underwriter/index.html', 'productolog/index.html',
+      'underwriter/index.html', 'underwriter/kk-member.html', 'productolog/index.html',
       'form/index.html', 'form-pledge/index.html'];
     const missing = [];
     pages.forEach(function(rel) {
@@ -1576,6 +1577,7 @@ console.log('\n=== 13. Demo hub (start.html) entry point ===');
     ['manager/index.html', '../start.html', 'manager header links to the demo hub'],
     ['deal-ops/index.html', '../start.html', 'deal desk links to the demo hub'],
     ['underwriter/index.html', '../start.html', 'underwriter desk links to the demo hub'],
+    ['underwriter/kk-member.html', '../start.html', 'committee member ARM links to the demo hub'],
     ['productolog/index.html', '../start.html', 'productolog desk links to the demo hub'],
     ['form/index.html', '../start.html', 'application form links to the demo hub']
   ].forEach(function(spec) {
@@ -1593,7 +1595,7 @@ console.log('\n=== 13. Demo hub (start.html) entry point ===');
   // Каждая содержательная поверхность обязана иметь возврат: иначе показ упирается
   // в страницу без выхода. start.html — сам хаб, ему ссылка не нужна.
   ['manager/index.html', 'deal-ops/index.html', 'underwriter/index.html',
-   'productolog/index.html', 'form/index.html'].forEach(function(rel) {
+   'underwriter/kk-member.html', 'productolog/index.html', 'form/index.html'].forEach(function(rel) {
     const src = fs.readFileSync(path.join(root, rel), 'utf8');
     assert(/href="(\.\.\/)?start\.html"/.test(src), rel + ' has a hub return link in markup');
   });
@@ -1661,8 +1663,8 @@ console.log('\n=== 13. Demo hub (start.html) entry point ===');
   // Целостность ссылок на самих поверхностях показа: битая ссылка — это тупик,
   // ради отсутствия которых хаб и делался. docs/ — архив источников, не поверхности.
   const surfaces = ['index.html', 'start.html', 'manager/index.html',
-    'deal-ops/index.html', 'underwriter/index.html', 'productolog/index.html',
-    'form/index.html', 'form-pledge/index.html'];
+    'deal-ops/index.html', 'underwriter/index.html', 'underwriter/kk-member.html',
+    'productolog/index.html', 'form/index.html', 'form-pledge/index.html'];
   const brokenRefs = [];
   surfaces.forEach(function(rel) {
     const abs = path.join(root, rel);

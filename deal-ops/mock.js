@@ -1,5 +1,6 @@
 window.DEAL_OPS_MOCK = {
-  officer: { name: "Оганесян М. А.", role: "ОЗС", initials: "ОМ" },
+  /* ФИО вымышленное: настоящих сотрудников банка в макете нет. */
+  officer: { name: "Гурьев Н. П.", role: "ОЗС", initials: "ГН" },
   /* ElmaAdditionalConditionTypeEnum 0–18 — не выдумывать виды вне справочника */
   du_catalog: {
     0: "Предоставить финансовый документ",

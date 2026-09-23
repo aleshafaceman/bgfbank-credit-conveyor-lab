@@ -41,3 +41,143 @@
 }
 .flag.warn { background: #fff4ec; color: #b34d08; }
 .flag.ok { background: #eef8f1; color: #0f7a2c; }
+
+/* --- кредитный комитет: панель на карточке и окно заседания ---------------
+   Классы те же, что в наброске макета, чтобы окно на карточке и в показе
+   читалось одинаково. Стили живут здесь, а не в deal-ops.css: комитет — только
+   этот стол. */
+
+.kk-level { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.chip {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: var(--sky);
+  color: var(--navy);
+}
+.chip--done { background: #e7f7ec; color: #0f7a2b; }
+.chip--wait { background: #fff2e6; color: #b45309; }
+
+.session-slot { font-size: 13px; color: var(--ink); margin: 8px 0 0; }
+.member-pick {
+  width: 100%;
+  font: inherit;
+  font-size: 13px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--ink);
+}
+.slot-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+  margin-right: 4px;
+}
+.slot-pick select {
+  font: inherit;
+  font-size: 12.5px;
+  padding: 7px 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--ink);
+  max-width: 100%;
+}
+
+/* Окно заседания шире служебных окон стола: состав и позиции не влезают в 560 px.
+   Подвал прилипает к низу окна, поэтому кнопки решения видны и при прокрутке. */
+.overlay--session .modal { width: min(640px, calc(100vw - 40px)); }
+.overlay--session .modal h3 { margin-bottom: 6px; }
+.modal-foot {
+  position: sticky;
+  bottom: -28px;
+  margin: 16px -28px -28px;
+  padding: 14px 28px 18px;
+  border-top: 1px solid var(--line);
+  background: #fbfdff;
+  border-radius: 0 0 20px 20px;
+}
+.modal-foot.hidden { display: none; }
+.foot-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.quorum { font-size: 12.5px; color: var(--muted); }
+.quorum b { color: var(--navy); }
+.modal-foot .actions { gap: 8px; row-gap: 8px; margin-bottom: 0; }
+
+.section { margin-bottom: 18px; }
+.section > h4 {
+  font-family: 'Roboto Condensed', sans-serif;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--navy);
+  margin: 0 0 8px;
+}
+.trace { font-size: 12.5px; color: var(--ink); margin: 0 0 6px; }
+.trace b { color: var(--navy); }
+.trace--people { color: var(--muted); font-size: 12px; }
+
+/* Цепочка уровней: пройденные — зелёные, текущий — синий, будущие — пунктиром. */
+.chain { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.chain-sep { border: 0; border-top: 1px solid var(--line); width: 14px; margin: 0; }
+.step {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  background: #fff;
+}
+.step--done { border-color: #b7e2c4; background: #e7f7ec; color: #0f7a2b; }
+.step--now { border-color: var(--navy); background: var(--navy); color: #fff; }
+.step--next { border-style: dashed; }
+
+/* Участник: имя и роль строкой, позиции — кнопками под ними. Кнопки переносятся
+   сами: четыре подписи в узкую колонку не влезают. */
+.member { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.member:last-child { border-bottom: 0; }
+.member .who { font-size: 13.5px; font-weight: 600; }
+.member .why { font-size: 11.5px; color: var(--muted); }
+.member .req {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--accent);
+  margin-left: 6px;
+}
+.vote { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.vote-btn {
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 5px 9px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--muted);
+  cursor: pointer;
+}
+.vote-btn:hover { background: var(--sky); }
+.vote-btn.on-yes { background: #e7f7ec; border-color: #b7e2c4; color: #0f7a2b; }
+.vote-btn.on-no { background: #fdecec; border-color: #f3bcbc; color: var(--danger); }
+.vote-btn.on-abstain,
+.vote-btn.on-absent { background: #fff2e6; border-color: #f6c9a5; color: #b45309; }
+
+.comment { margin-top: 6px; }
+.comment textarea {
+  width: 100%;
+  font: inherit;
+  font-size: 12.5px;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  resize: vertical;
+  min-height: 34px;
+}
+.comment .req-note { font-size: 11.5px; color: var(--danger); margin-top: 4px; }

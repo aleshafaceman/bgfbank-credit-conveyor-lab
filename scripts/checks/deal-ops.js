@@ -469,9 +469,9 @@ module.exports = {
     const title = await s.eval('return __t.text("inbox-title")');
     ok(title.indexOf('Очередь ОЗС') === 0,
       'заголовок очереди подписан «Очередь ОЗС» (сейчас: «' + title + '»)');
-    /* Шапка стола: дежурный ОЗС — из мока (mock.js:2, "Оганесян М. А."). */
+    /* Шапка стола: дежурный ОЗС — из мока (mock.js:2, "Гурьев Н. П."). */
     const officer = await s.eval('return __t.text("officer-label")');
-    ok(officer.indexOf('Оганесян М. А.') !== -1 && officer.indexOf('ОЗС') !== -1,
+    ok(officer.indexOf('Гурьев Н. П.') !== -1 && officer.indexOf('ОЗС') !== -1,
       'в шапке подписан дежурный ОЗС из мока (сейчас: «' + officer + '»)');
     const roleOn = await s.eval('return Array.prototype.filter.call(' +
       'document.querySelectorAll(".role"), function(b) { return b.classList.contains("on"); })' +

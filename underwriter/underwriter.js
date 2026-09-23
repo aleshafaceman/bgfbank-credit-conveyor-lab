@@ -1,5 +1,7 @@
 const STORE = "bgfbank_lab_underwriter";
-const STORE_VER = 1;
+/* Версия 2: у заявки появилось заседание кредитного комитета (kk) вместо
+   одной отметки kkDecision. Сцена версии 1 несовместима — стол стартует заново. */
+const STORE_VER = 2;
 const MOCK = window.UNDERWRITER_MOCK;
 
 const BUS_CATALOG = [
@@ -10,6 +12,7 @@ const BUS_CATALOG = [
   { id: "express", title: "Экспресс-оценка объекта", system: "сервис оценки недвижимости" },
   { id: "egrn", title: "Выписка ЕГРН", system: "файл и распознавание, не запрос в Росреестр" },
   { id: "skorozvon", title: "Звонок верификации", system: "роботизированный дозвон" },
+  { id: "kk_invite", title: "Приглашения на заседание", system: "задачи и уведомления" },
   { id: "broker_sms", title: "СМС брокеру", system: "сервис рассылок" },
   { id: "b2b", title: "Статус в кабинет", system: "кабинет партнёра" }
 ];
@@ -97,6 +100,208 @@ const HELP = {
   }
 };
 
+/* --- кредитный комитет -----------------------------------------------------
+   Заседание собирает система по регламенту: состав — по признакам заявки
+   (коммерция добавляет обязательного оценщика, контур заявки — своего
+   андеррайтера), слот — из графика заседаний. Человек подтверждает дату и
+   состав и рассылает приглашения. Пока обязательные участники не дали позицию,
+   решение не собрать (кворум), а «не согласен» требует причины. */
+
+function kkModel() {
+  return MOCK.kk || {};
+}
+
+function kkLevels() {
+  return kkModel().levels || ["committee"];
+}
+
+function kkLevelTitle(level) {
+  return (kkModel().level_titles || {})[level] || level;
+}
+
+/* Уровень выше: комитет → правление → совет директоров. Пустая строка —
+   выше идти некуда. */
+function kkNextLevel(level) {
+  const list = kkLevels();
+  const i = list.indexOf(level);
+  return i !== -1 && i < list.length - 1 ? list[i + 1] : "";
+}
+
+/* Состав уровня. Роль «андеррайтер по заявке» подставляется из контура: у АНД
+   и АПЗ это разные люди. when: "commerce" — участник только по коммерции. */
+function kkRoster(a, level) {
+  const roster = (kkModel().roster || {})[level] || [];
+  const track = (kkModel().underwriter_by_track || {})[a.track] || {};
+  return roster.filter(function (r) {
+    if (r.when === "commerce") return !!(a.collateral && a.collateral.commerce);
+    return true;
+  }).map(function (r) {
+    return {
+      id: r.id,
+      who: r.from_track ? (track.who || "—") : r.who,
+      role: r.from_track ? (track.role || "Андеррайтер") : r.role,
+      why: r.from_track ? (track.why || "") : r.why,
+      required: !!r.required,
+      invite: "",
+      position: "",
+      comment: "",
+      answeredAt: ""
+    };
+  });
+}
+
+function kkChairName() {
+  const chair = ((kkModel().roster || {}).committee || []).filter(function (r) {
+    return r.id === "m_chair";
+  })[0];
+  return (chair && chair.who) || "председатель КК";
+}
+
+function kkSlotText(slot) {
+  if (!slot) return "слот не выбран";
+  return slot.date + ", " + slot.time + " · " + slot.format;
+}
+
+function kkSlotIndex(slot) {
+  const slots = kkModel().slots || [];
+  for (let i = 0; i < slots.length; i++) {
+    if (slots[i] === slot) return i;
+  }
+  return 0;
+}
+
+function defaultKk() {
+  return {
+    stage: "idle",            /* idle → draft → invited → session → decided */
+    level: "committee",
+    slot: null,
+    invitationsSentAt: "",
+    members: [],
+    history: [],              /* след эскалаций: уровень, время, причины ухода */
+    outcome: ""               /* approve | reject */
+  };
+}
+
+/* Система вынесла заявку на комитет: проект заседания готов, приглашения ещё
+   не разосланы — их отправляет человек, подтвердив заседание. */
+function kkDraft(a) {
+  const slots = kkModel().slots || [];
+  const kk = defaultKk();
+  kk.stage = "draft";
+  kk.slot = slots[0] || null;
+  kk.members = kkRoster(a, "committee");
+  return kk;
+}
+
+function kkRequired(s) {
+  return (s.kk.members || []).filter(function (m) { return m.required; });
+}
+
+/* Кворум: все обязательные дали позицию, и у каждого «не согласен» /
+   «отсутствует» есть причина. */
+function kkQuorum(s) {
+  const req = kkRequired(s);
+  const answered = req.filter(function (m) { return m.position !== ""; });
+  const needComment = (s.kk.members || []).some(function (m) {
+    return (m.position === "no" || m.position === "absent") && !String(m.comment || "").trim();
+  });
+  return {
+    required: req.length,
+    answered: answered.length,
+    needComment: needComment,
+    ok: req.length > 0 && answered.length === req.length && !needComment
+  };
+}
+
+function kkPositionLabel(p) {
+  if (p === "yes") return "согласен";
+  if (p === "no") return "не согласен";
+  if (p === "abstain") return "воздержался";
+  if (p === "absent") return "отсутствует";
+  return "ждёт";
+}
+
+function kkMember(id) {
+  return (st().kk.members || []).filter(function (m) { return m.id === id; })[0] || null;
+}
+
+function esc(v) {
+  return String(v === undefined || v === null ? "" : v)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function kkNow() {
+  const d = new Date();
+  const two = function (n) { return (n < 10 ? "0" : "") + n; };
+  return two(d.getDate()) + "." + two(d.getMonth() + 1) + "." + d.getFullYear() + " " +
+    two(d.getHours()) + ":" + two(d.getMinutes());
+}
+
+/* Время событий заседания берётся из кадра макета: слот заседания — статичная
+   дата из мока, и подпись «разосланы сегодня» рядом с ним противоречила бы
+   самой себе. Если кадр не задан, работает обычное время. */
+function kkFrame(key) {
+  return (kkModel().frame || {})[key] || kkNow();
+}
+
+/* Панель комитета на карточке. Показывает состояние заседания, а не три кнопки:
+   проект от системы → приглашения и кворум → вход в окно заседания. */
+function kkPanelHtml(a, s) {
+  const kk = s.kk;
+  if (!a.need_kk && s.step !== "kk" && kk.stage === "idle") return "";
+  const q = kkQuorum(s);
+  const head = '<div class="panel span-2">' + panelHead("Кредитный комитет", "decision") +
+    '<p class="lead">' + esc(a.kk_reason || "Вынесено на КК: сумма, тип недвижимости или регион.") + "</p>";
+
+  if (kk.stage === "idle") {
+    return head + '<div class="actions">' +
+      '<button type="button" class="btn btn-ghost" onclick="sendToKk()">На кредитный комитет</button>' +
+      "</div></div>";
+  }
+
+  if (kk.stage === "draft") {
+    const slots = kkModel().slots || [];
+    return head +
+      '<p class="session-slot">Проект заседания сформирован системой: ' + esc(kkSlotText(kk.slot)) + "</p>" +
+      '<div class="actions">' +
+      (slots.length
+        ? '<label class="slot-pick">Слот<select id="kk-slot" onchange="chooseSlot(this.value)">' +
+          slots.map(function (slot, i) {
+            return '<option value="' + i + '"' + (kkSlotIndex(kk.slot) === i ? " selected" : "") + ">" +
+              esc(slot.date + ", " + slot.time + " · " + slot.format) + "</option>";
+          }).join("") + "</select></label>"
+        : "") +
+      '<button type="button" class="btn btn-primary" onclick="confirmMeeting()">Подтвердить заседание</button>' +
+      "</div>" +
+      '<p class="hint">Участников: ' + kk.members.length + ", обязательных: " + q.required +
+      ". Заседание подтверждает председатель КК — " + esc(kkChairName()) +
+      ". Состав подобран по признакам заявки; изменение — по запросу администратору.</p>" +
+      "</div>";
+  }
+
+  const escalated = (kk.history || []).map(function (h) { return h.level_title || kkLevelTitle(h.level); });
+  return head +
+    '<div class="kk-level">' +
+    '<span class="chip">уровень: ' + kkLevelTitle(kk.level) + "</span>" +
+    '<span class="chip ' + (q.ok ? "chip--done" : "chip--wait") + '">позиций ' + q.answered +
+    " из " + q.required + "</span>" +
+    (kk.outcome === "approve" ? '<span class="chip chip--done">решение: одобрено</span>' : "") +
+    (kk.outcome === "reject" ? '<span class="chip chip--wait">решение: отказ</span>' : "") +
+    "</div>" +
+    '<p class="session-slot">' + esc(kkSlotText(kk.slot)) +
+    (kk.invitationsSentAt ? " · приглашения разосланы " + esc(kk.invitationsSentAt) : "") + "</p>" +
+    (escalated.length
+      ? '<p class="hint">Эскалировано: ' + esc(escalated.join(" → ")) + " → " +
+        kkLevelTitle(kk.level) + "</p>"
+      : "") +
+    '<div class="actions">' +
+    '<button type="button" class="btn btn-primary" onclick="openSession()">' +
+    (kk.stage === "decided" ? "Открыть протокол" : "Открыть заседание") + "</button>" +
+    '<a class="btn btn-ghost" href="kk-member.html?deal=' + esc(a.deal_id) +
+    '" target="_blank" rel="noopener">АРМ участника комитета</a>' +
+    "</div></div>";
+}
+
 function defaultAppState(a) {
   const du = {};
   (a.additional_conditions || []).forEach((x) => { du[x.id] = false; });
@@ -118,7 +323,9 @@ function defaultAppState(a) {
     callDone: false,
     greenCorridor: !!a.green_corridor,
     comment: "",
-    kkDecision: "",
+    /* Заявку с признаком необходимости комитета система выносит сама: проект
+       заседания готов сразу, работа стола по объекту идёт параллельно. */
+    kk: a.need_kk ? kkDraft(a) : defaultKk(),
     smsId: "",
     bus: bus,
     du: du,
@@ -339,15 +546,28 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/* Одно окно на все шаги стола: сюда пишут и журнал шага (#modal-log), и окно
+   заседания (#modal-body + #modal-foot). Поэтому showModal/hideModal чистят всё
+   три места, а не только журнал. */
 function showModal(title, lead) {
-  document.getElementById("overlay").classList.remove("hidden");
+  const overlay = document.getElementById("overlay");
+  overlay.classList.remove("hidden");
+  overlay.classList.remove("overlay--session");
   document.getElementById("modal-title").textContent = title;
   document.getElementById("modal-lead").textContent = lead;
   document.getElementById("modal-log").innerHTML = "";
+  document.getElementById("modal-body").innerHTML = "";
+  document.getElementById("modal-foot").innerHTML = "";
+  document.getElementById("modal-foot").classList.add("hidden");
 }
 
 function hideModal() {
-  document.getElementById("overlay").classList.add("hidden");
+  const overlay = document.getElementById("overlay");
+  overlay.classList.add("hidden");
+  overlay.classList.remove("overlay--session");
+  document.getElementById("modal-body").innerHTML = "";
+  document.getElementById("modal-foot").innerHTML = "";
+  document.getElementById("modal-foot").classList.add("hidden");
 }
 
 function addModalLine(text, cls) {
@@ -362,6 +582,139 @@ function addModalLine(text, cls) {
   li.style.fontWeight = "600";
   li.style.color = cls === "ok" ? "#13A538" : cls === "fail" ? "#b91c1c" : "#0B4697";
   ul.appendChild(li);
+}
+
+/* --- окно заседания --------------------------------------------------------
+   Тело и подвал окна — те же, что в наброске макета: уровень решения, состав с
+   позициями, кворум и три исхода. Позиции обязательных участников собираются в
+   кворум: пока их нет, «Одобрить» и «Отказать» заперты. */
+
+function showSession() {
+  const a = app();
+  const s = st();
+  const overlay = document.getElementById("overlay");
+  overlay.classList.remove("hidden");
+  overlay.classList.add("overlay--session");
+  document.getElementById("modal-title").textContent = "Заседание кредитного комитета";
+  document.getElementById("modal-lead").textContent =
+    a.deal_id + " · " + a.product_name + " · " + fmtMoney(a.amount) + " · " + a.region;
+  document.getElementById("modal-log").innerHTML = "";
+  document.getElementById("modal-foot").classList.remove("hidden");
+  renderSession();
+}
+
+function sessionBodyHtml() {
+  const s = st();
+  const kk = s.kk;
+  const levels = kkLevels();
+  const nowIdx = levels.indexOf(kk.level);
+  const chain = levels.map(function (lv, i) {
+    const cls = i < nowIdx ? "step step--done" : i === nowIdx ? "step step--now" : "step step--next";
+    return '<span class="' + cls + '">' + kkLevelTitle(lv) + "</span>";
+  }).join('<hr class="chain-sep">');
+
+  const rows = (kk.members || []).map(function (m) {
+    const whyComment = m.position === "no" || m.position === "absent";
+    const voteBtns = ["yes", "no", "abstain", "absent"].map(function (p) {
+      return '<button type="button" class="vote-btn' + (m.position === p ? " on-" + p : "") +
+        '" onclick="sessionPosition(\'' + m.id + '\',\'' + p + '\')">' + kkPositionLabel(p) + "</button>";
+    }).join("");
+    return '<div class="member">' +
+      '<div><div class="who">' + esc(m.who) +
+      (m.required ? '<span class="req">обязателен</span>' : "") + "</div>" +
+      '<div class="why">' + esc(m.role) + " · " + esc(m.why) + "</div></div>" +
+      '<div class="vote">' + voteBtns + "</div>" +
+      (whyComment
+        ? '<div class="comment">' +
+          '<textarea rows="2" placeholder="' +
+          (m.position === "no" ? "Причина несогласия — обязательна" : "Причина отсутствия") +
+          '" oninput="sessionComment(\'' + m.id + '\', this)">' + esc(m.comment || "") + "</textarea>" +
+          '<div class="req-note"' + (String(m.comment || "").trim() ? ' style="display:none"' : "") +
+          ">Без причины «не согласен» решение не собрать.</div></div>"
+        : "") +
+      "</div>";
+  }).join("");
+  const membersBlock = rows || '<p class="hint">Состав не собран: участников нет.</p>';
+
+  const trace = (kk.history || []).length
+    ? '<div class="section"><h4>След нижних уровней</h4>' + kk.history.map(function (h) {
+      const people = (h.members || []).map(function (m) {
+        return esc(m.who) + " — " + kkPositionLabel(m.position) +
+          (String(m.comment || "").trim() ? " («" + esc(m.comment) + "»)" : "");
+      }).join("; ");
+      return '<p class="trace"><b>' + esc(h.level_title || kkLevelTitle(h.level)) + "</b> · " +
+        esc(h.at || "") + "</p>" +
+        (people ? '<p class="trace trace--people">' + people + "</p>" : "") +
+        (h.reasons && h.reasons.length
+          ? '<p class="trace">Причины ухода выше: ' + esc(h.reasons.join("; ")) + "</p>" : "");
+    }).join("") + "</div>"
+    : "";
+
+  return '<div class="section"><h4>Уровень решения</h4><div class="chain">' + chain + "</div>" +
+      '<p class="hint">Уровни меняются при эскалации. История нижнего уровня сохраняется.</p></div>' +
+    '<div class="section"><h4>Состав и позиции</h4>' + membersBlock + "</div>" +
+    '<div class="section"><h4>Заседание</h4><p class="session-slot">' + esc(kkSlotText(kk.slot)) +
+      (kk.invitationsSentAt ? " · приглашения разосланы " + esc(kk.invitationsSentAt) : "") + "</p>" +
+      '<p class="hint">Состав подобран системой по признакам заявки: коммерческая недвижимость ' +
+      "добавляет обязательного оценщика банка. Изменение состава — по запросу администратору.</p></div>" +
+    trace;
+}
+
+function sessionFootHtml() {
+  const s = st();
+  const q = kkQuorum(s);
+  const decided = s.kk.stage === "decided";
+  const up = kkNextLevel(s.kk.level);
+  return '<div class="foot-row">' +
+      '<span class="quorum" id="kk-quorum">Позиции обязательных участников: <b>' +
+      q.answered + " из " + q.required + "</b></span>" +
+      '<span class="quorum">Уровень: <b>' + kkLevelTitle(s.kk.level) + "</b></span></div>" +
+    '<div class="actions">' +
+      '<button type="button" class="btn btn-primary" id="kk-approve" ' +
+      (q.ok && !decided ? "" : "disabled") +
+      ' onclick="sessionDecide(\'approve\')">Одобрить на условиях</button>' +
+      '<button type="button" class="btn btn-danger" id="kk-reject" ' +
+      (q.ok && !decided ? "" : "disabled") +
+      ' onclick="sessionDecide(\'reject\')">Отказать</button>' +
+      '<button type="button" class="btn" id="kk-escalate" ' + (up && !decided ? "" : "disabled") +
+      ' onclick="sessionEscalate()">Эскалировать выше</button>' +
+      '<button type="button" class="btn btn-ghost" onclick="closeSession()">Закрыть</button>' +
+    "</div>" +
+    '<p class="hint" id="kk-blocked">' + (q.needComment
+      ? "Пока не указана причина несогласия, решение заблокировано."
+      : q.ok ? "" : "Решение станет доступно, когда обязательные участники дадут позицию.") + "</p>";
+}
+
+function renderSession() {
+  const body = document.getElementById("modal-body");
+  const foot = document.getElementById("modal-foot");
+  if (!body || !foot) return;
+  body.innerHTML = sessionBodyHtml();
+  foot.innerHTML = sessionFootHtml();
+}
+
+/* Перерисовка счётчика и кнопок без пересборки строк: во время ввода причины
+   нельзя перерисовывать textarea — фокус уедет вместе с узлом. */
+function refreshSessionControls() {
+  const body = document.getElementById("modal-body");
+  if (!body || !body.innerHTML) return;
+  const s = st();
+  const q = kkQuorum(s);
+  const decided = s.kk.stage === "decided";
+  const quorum = document.getElementById("kk-quorum");
+  if (quorum) {
+    quorum.innerHTML = "Позиции обязательных участников: <b>" + q.answered + " из " + q.required + "</b>";
+  }
+  ["kk-approve", "kk-reject"].forEach(function (id) {
+    const b = document.getElementById(id);
+    if (b) b.disabled = !(q.ok && !decided);
+  });
+  const blocked = document.getElementById("kk-blocked");
+  if (blocked) {
+    blocked.textContent = q.needComment
+      ? "Пока не указана причина несогласия, решение заблокировано."
+      : q.ok ? "" : "Решение станет доступно, когда обязательные участники дадут позицию.";
+  }
 }
 
 function helpBtn(id) {
@@ -577,13 +930,13 @@ async function runEval() {
 function canDecide(a, s) {
   if (a.track === "and") {
     if (a.scenario === "auto_approve") return s.bus.getDecision === "ok" && s.docsOk;
-    if (s.step === "kk") return s.kkDecision === "approve";
+    if (s.step === "kk") return s.kk.outcome === "approve";
     if (skipPhone(a)) return s.calcDone && s.docsOk;
     return s.calcDone && s.callDone && s.docsOk;
   }
   if (!s.docsOk || s.bus.egrn !== "ok" || s.bus.getEval !== "ok" || !s.titleOk) return false;
   if (a.need_bank_appraiser && !s.appraiserOk) return false;
-  if (a.need_kk && s.kkDecision !== "approve") return false;
+  if (a.need_kk && s.kk.outcome !== "approve") return false;
   return true;
 }
 
@@ -613,26 +966,123 @@ async function approve() {
   render();
 }
 
+/* Стол выносит заявку на комитет: система собирает проект заседания. У заявки
+   с признаком need_kk проект готов сразу (его собирает defaultAppState). */
 function sendToKk() {
   const s = st();
+  const a = app();
   if (s.step === "approved" || s.step === "refused") return;
+  if (s.kk.stage === "idle") s.kk = kkDraft(a);
   s.step = "kk";
   save();
   render();
 }
 
-function kkApprove() {
-  st().kkDecision = "approve";
+/* Заседание подтверждает человек: дата и состав зафиксированы, приглашения
+   уходят участникам (в макете — в их АРМ участника комитета). */
+function confirmMeeting() {
+  const s = st();
+  if (s.kk.stage !== "draft") return;
+  s.kk.members.forEach(function (m) { m.invite = "sent"; });
+  s.kk.stage = "invited";
+  s.kk.invitationsSentAt = kkFrame("invitations_at");
   save();
   render();
 }
 
-function kkReject() {
-  st().kkDecision = "reject";
-  st().step = "refused";
-  st().decision = "kk_refused";
+function chooseSlot(value) {
+  const slots = kkModel().slots || [];
+  const slot = slots[Number(value)] || null;
+  if (!slot || st().kk.stage !== "draft") return;
+  st().kk.slot = slot;
   save();
   render();
+}
+
+/* Окно заседания: председатель ведёт заседание, позиции участников приходят из
+   их АРМов (тот же ключ хранилища). В самом окне позицию тоже можно внести —
+   макет показывает и приглашение, и ход заседания. */
+function openSession() {
+  const s = st();
+  if (s.kk.stage === "draft" || s.kk.stage === "idle") return;
+  if (s.kk.stage === "invited") { s.kk.stage = "session"; save(); }
+  showSession();
+  render();
+}
+
+function closeSession() {
+  hideModal();
+  render();
+}
+
+function sessionPosition(id, position) {
+  const m = kkMember(id);
+  if (!m) return;
+  m.position = position;
+  m.answeredAt = kkFrame("answered_at");
+  save();
+  renderSession();
+  renderWork();
+  renderBus();
+}
+
+function sessionComment(id, el) {
+  const m = kkMember(id);
+  if (!m || !el) return;
+  m.comment = el.value;
+  save();
+  const note = el.parentNode ? el.parentNode.querySelector(".req-note") : null;
+  if (note) note.style.display = String(el.value || "").trim() ? "none" : "";
+  refreshSessionControls();
+}
+
+function sessionDecide(kind) {
+  const s = st();
+  if (!kkQuorum(s).ok) return;
+  s.kk.outcome = kind;
+  s.kk.stage = "decided";
+  if (kind === "reject") {
+    s.step = "refused";
+    s.decision = "kk_refused";
+  }
+  save();
+  hideModal();
+  render();
+}
+
+/* Эскалация: решение уходит на уровень выше, а след нижнего сохраняется —
+   в AS-IS заявка возвращалась по тому же шагу по кругу, без следа и лимита. */
+function sessionEscalate() {
+  const a = app();
+  const s = st();
+  const up = kkNextLevel(s.kk.level);
+  if (!up) return;
+  const reasons = (s.kk.members || []).filter(function (m) {
+    return m.position === "no" && String(m.comment || "").trim();
+  }).map(function (m) { return m.who + ": «" + String(m.comment).trim() + "»"; });
+  s.kk.history.push({
+    level: s.kk.level,
+    level_title: kkLevelTitle(s.kk.level),
+    at: kkFrame("answered_at"),
+    reasons: reasons,
+    /* Состав нижнего уровня сохраняется целиком: кто заседал и как голосовал.
+       Наверх уходит решение с причинами, но не теряется, кто его принял. */
+    members: (s.kk.members || []).map(function (m) {
+      return {
+        id: m.id, who: m.who, role: m.role, required: !!m.required,
+        position: m.position, comment: m.comment
+      };
+    })
+  });
+  s.kk.level = up;
+  s.kk.outcome = "";
+  s.kk.stage = "session";
+  s.kk.members = kkRoster(a, up);
+  /* Новый уровень — новое заседание: приглашения уходят и его участникам. */
+  s.kk.members.forEach(function (m) { m.invite = "sent"; });
+  save();
+  renderSession();
+  renderWork();
 }
 
 function rework() {
@@ -662,6 +1112,16 @@ function busRow(item, a, s) {
     return { cls: "ok", label: "успех" };
   }
   if (!a || !s) return { cls: "", label: "ожидание" };
+  /* Приглашения — единственный шаг шины, состояние которого живёт в заседании,
+     а не в статусе шага: «не требуется» до вынесения, «проект заседания» пока
+     человек не подтвердил, «разосланы» после подтверждения. */
+  if (item.id === "kk_invite") {
+    if (!s.kk || s.kk.stage === "idle") return { cls: "", label: "не требуется" };
+    if (s.kk.invitationsSentAt) {
+      return { cls: "ok", label: "разосланы · " + s.kk.members.length + " участников" };
+    }
+    return { cls: "pending", label: "проект заседания" };
+  }
   if (item.id === "getEval" && a.track === "and") return { cls: "ok", label: "контур АПЗ" };
   if (item.id === "express" && a.track === "and") return { cls: "ok", label: "контур АПЗ" };
   if (item.id === "egrn" && a.track === "and") return { cls: "ok", label: "контур АПЗ" };
@@ -825,19 +1285,7 @@ function renderWork() {
       : "<p class=\"hint\">Квартира / ликвидность 1 — внутренний оценщик не обязателен.</p>") +
     "</div>";
 
-  const kkBlock = (a.need_kk || s.step === "kk")
-    ? '<div class="panel span-2">' + panelHead("Кредитный комитет", "decision") +
-      "<p class=\"lead\">" + (a.kk_reason || "Вынесено на КК: сумма, тип недвижимости или регион.") + "</p>" +
-      '<div class="actions">' +
-      '<button type="button" class="btn btn-ghost" onclick="sendToKk()">На кредитный комитет</button>' +
-      '<button type="button" class="btn btn-primary" ' + (s.step === "kk" ? "" : "disabled") +
-      ' onclick="kkApprove()">КК одобрил</button>' +
-      '<button type="button" class="btn btn-danger" ' + (s.step === "kk" ? "" : "disabled") +
-      ' onclick="kkReject()">КК отказал</button>' +
-      "</div>" +
-      (s.kkDecision === "approve" ? '<p class="status-pill">Решение КК: одобрить</p>' : "") +
-      "</div>"
-    : "";
+  const kkBlock = kkPanelHtml(a, s);
 
   const barrierHtml = barrier.open
     ? '<div class="done-banner">Барьер снят: клиент одобрен и залог одобрен. Паспорт сделки и КОД — не этот АРМ (стол ОЗС / процессинг).</div>'
@@ -912,6 +1360,21 @@ function render() {
   renderInbox();
   renderWork();
   renderBus();
+}
+
+/* Соседняя вкладка той же сцены (АРМ участника комитета) пишет в тот же ключ:
+   стол обязан увидеть присланную позицию без перезагрузки страницы. */
+if (typeof window !== "undefined" && window.addEventListener) {
+  window.addEventListener("storage", function (e) {
+    if (e.key !== STORE) return;
+    state = load();
+    render();
+    const overlay = document.getElementById("overlay");
+    if (overlay && !overlay.classList.contains("hidden") &&
+      overlay.classList.contains("overlay--session")) {
+      renderSession();
+    }
+  });
 }
 
 if (typeof document !== "undefined" && document.getElementById("inbox-list")) {

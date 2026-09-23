@@ -3,7 +3,7 @@
 var MANAGER_CREDENTIALS = {
     login: 'admin',
     password: 'manager123',
-    name: 'Елена Смирнова',
+    name: 'Марина Одинцова',
     role: 'Кредитный менеджер'
 };
 

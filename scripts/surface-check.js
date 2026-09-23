@@ -1,15 +1,15 @@
 /**
  * Прогон поверхностей БЖФ в настоящем браузере.
  *
- * Кабинет клиента, АРМ менеджера, стол сделки, АРМ андеррайтера и стол
- * продуктолога проверяются по одной схеме: файл в scripts/checks/<ключ>.js
- * экспортирует run(s, base, check), раннер поднимает одну обвязку на все
- * поверхности и идёт по списку.
+ * Кабинет клиента, АРМ менеджера, стол сделки, АРМ андеррайтера, АРМ участника
+ * комитета и стол продуктолога проверяются по одной схеме: файл в
+ * scripts/checks/<ключ>.js экспортирует run(s, base, check), раннер поднимает
+ * одну обвязку на все поверхности и идёт по списку.
  *
  * Внешних зависимостей нет: сервер, Chrome, CDP-клиент, помощники страницы и
  * счётчик проверок живут в scripts/lib/browser-check.js.
  *
- * Запуск:  node scripts/surface-check.js                  пять поверхностей
+ * Запуск:  node scripts/surface-check.js                  шесть поверхностей
  *          node scripts/surface-check.js --only=forms     формы клиента
  *          node scripts/surface-check.js --only=cabinet   одна поверхность
  * Опции:   --only=<ключ[,ключ]>   --base=<url>   --chrome=<путь>
@@ -37,6 +37,7 @@ const SURFACES = {
   manager: './checks/manager',
   'deal-ops': './checks/deal-ops',
   underwriter: './checks/underwriter',
+  'kk-member': './checks/kk-member',
   productolog: './checks/productolog',
   forms: './checks/forms',
 };
@@ -45,7 +46,7 @@ const SURFACES = {
    у форм своя команда и свой шаг в scripts/run-all-checks.js, а в общем прогоне
    они считались бы дважды. Формы при этом остаются в карте, поэтому
    --only=forms (и --only=forms,cabinet) работают как у любой другой поверхности. */
-const DEFAULT_SURFACES = ['cabinet', 'manager', 'deal-ops', 'underwriter', 'productolog'];
+const DEFAULT_SURFACES = ['cabinet', 'manager', 'deal-ops', 'underwriter', 'kk-member', 'productolog'];
 
 function argValue(name) {
   return ((process.argv.find(function (a) { return a.startsWith('--' + name + '='); }) || '')

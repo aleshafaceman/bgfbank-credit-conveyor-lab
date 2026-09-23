@@ -544,7 +544,7 @@ function artifactPreviewHTML(art, app) {
             '<p class="muted">Сообщение партнёру о решении банка (SMSTraffic). Это не код входа в кабинет.</p>');
     }
     if (kind === 'review_started') {
-        row('Оператор', artEscape((art.payload && art.payload.operator) || 'Елена Смирнова'));
+        row('Оператор', artEscape((art.payload && art.payload.operator) || 'Марина Одинцова'));
         row('Статус', 'в обработке');
         row('Заявка', artEscape(art.appId));
         return artSheet(title, head + '<div class="box">' + rows + '</div>');
@@ -968,7 +968,7 @@ function recordReviewStarted(appId) {
     return recordArtifactForApp(appId, 'review_started', {
         actor: 'manager',
         fn: 'startReview',
-        payload: { operator: 'Елена Смирнова', status: 'processing' }
+        payload: { operator: 'Марина Одинцова', status: 'processing' }
     });
 }
 

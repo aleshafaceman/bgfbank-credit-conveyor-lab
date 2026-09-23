@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <title>БЖФ · АРМ участника кредитного комитета</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,700;1,400&family=Roboto+Condensed:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../deal-ops/deal-ops.css?v=19">
+  <link rel="stylesheet" href="underwriter.css?v=2">
+</head>
+<body>
+  <header class="header">
+    <div class="brand">
+      <img class="brand-logo" src="../deal-ops/brand/logo-on-dark.png" alt="БЖФ Банк">
+      <small>АРМ участника комитета · приглашения и позиции</small>
+    </div>
+    <div class="header-actions">
+      <span id="member-label"></span>
+      <a class="hub-link" href="index.html" title="АРМ андеррайтера">АРМ андеррайтера →</a>
+      <a class="hub-link" href="../start.html" title="Карта демо">← Карта демо</a>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="inbox">
+      <div class="aside-head"><h2>Кто смотрит</h2></div>
+      <select class="member-pick" id="member-pick" onchange="setMember(this.value)"></select>
+      <h2 style="margin-top:14px">Приглашения</h2>
+      <div id="invite-list"></div>
+    </aside>
+
+    <main class="work" id="work">
+      <p class="empty" id="work-empty">Приглашений нет. Заседание собирает система по регламенту, а подтверждает и рассылает приглашения председатель КК в АРМ андеррайтера.</p>
+      <div id="invite-card" class="hidden"></div>
+    </main>
+
+    <aside class="bus">
+      <div class="aside-head"><h2>Ход заседания</h2></div>
+      <p class="hint bus-hint">Позиции участников видит председатель. Обязательные участники собирают кворум — без них решение не собрать.</p>
+      <div id="member-bus"></div>
+    </aside>
+  </div>
+
+  <script src="mock.js?v=2"></script>
+  <script src="kk-member.js?v=1"></script>
+</body>
+</html>
