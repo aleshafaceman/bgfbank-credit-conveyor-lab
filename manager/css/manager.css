@@ -3,11 +3,11 @@ body { background: #f0f4f8; min-height: 100vh; }
 
 .manager-layout { display: flex; flex-direction: column; min-height: 100vh; }
 
-/* Верхнѝѝ панель */
-.m-header { background: #0B4697; color: white; padding: 20px 40px; display: flex; align-items: center; gap: 30px; box-shadow: inset 0 -3px 0 #EC660A; }
+/* Верхняя панель */
+.m-header { background: #0B4697; color: white; padding: 14px 40px 16px; display: flex; align-items: center; gap: 30px; box-shadow: inset 0 -3px 0 #EC660A; }
 .m-brand { display: flex; align-items: center; gap: 16px; }
-.m-brand-logo { height: 34px; width: auto; display: block; flex-shrink: 0; }
-.m-brand-divider { width: 1px; height: 30px; background: rgba(255,255,255,0.28); }
+.m-brand-logo { height: 36px; width: auto; display: block; flex-shrink: 0; }
+.m-brand-divider { width: 1px; height: 32px; background: rgba(255,255,255,0.28); }
 .m-logo { background: white; color: #0B4697; width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 22px; }
 .m-bank-name { font-size: 18px; font-weight: 800; letter-spacing: 0.5px; }
 .m-section-title { font-size: 12px; opacity: 0.7; }
@@ -32,7 +32,7 @@ body { background: #f0f4f8; min-height: 100vh; }
 .m-content { flex: 1; padding: 30px 40px; }
 .hidden { display: none; }
 
-/* Заѝвки */
+/* Заявки */
 .m-applications-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
 .m-app-list { background: white; border-radius: 20px; border: 1px solid #e1e9f1; padding: 24px; }
 .m-list-header { margin-bottom: 20px; }
@@ -87,7 +87,7 @@ body { background: #f0f4f8; min-height: 100vh; }
 .badge-approved { background: #d1fae5; color: #065f46; }
 .badge-rejected { background: #fee2e2; color: #991b1b; }
 
-/* Детали заѝвки */
+/* Детали заявки */
 .m-app-detail { background: white; border-radius: 20px; border: 1px solid #e1e9f1; padding: 32px; }
 .m-detail-empty { text-align: center; padding: 80px 20px; color: #94a3b8; }
 .m-detail-empty i { font-size: 48px; margin-bottom: 16px; color: #cbd5e1; }
@@ -220,7 +220,7 @@ body { background: #f0f4f8; min-height: 100vh; }
 .m-client-app-card .m-app-info { flex: 1; }
 .m-client-app-card .m-app-number { font-weight: 700; font-size: 13px; color: #0B4697; }
 .m-client-app-card .m-app-meta { font-size: 11px; color: #94a3b8; }
-/* ��������� ��������� ������ ��������� */
+/* Мобильная адаптация панели менеджера */
 @media (max-width: 960px) {
   .m-header { flex-wrap: wrap; padding: 14px 16px; gap: 12px; }
   .m-stats { flex-wrap: wrap; gap: 10px; width: 100%; order: 3; }

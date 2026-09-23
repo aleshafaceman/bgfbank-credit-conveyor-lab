@@ -15,7 +15,7 @@ body { background: linear-gradient(160deg, #e8f0f8 0%, #f0f4f8 45%, #f8fbff 100%
 .desktop-wrapper { width: min(1680px, calc(100vw - 32px)); max-width: 1680px; height: min(1040px, calc(100vh - 32px)); background: white; border-radius: 30px; display: flex; overflow: hidden; box-shadow: 0 40px 100px -20px rgba(0, 45, 80, 0.2); }
 .sidebar { width: 280px; background: #0B4697; color: white; padding: 40px 20px; display: flex; flex-direction: column; flex-shrink: 0; box-shadow: inset -4px 0 0 var(--bgf-accent); }
 .brand { display: flex; align-items: center; gap: 15px; margin-bottom: 50px; padding: 0 10px; }
-.brand-logo { height: 40px; width: auto; max-width: 100%; display: block; }
+.brand-logo { height: 36px; width: auto; max-width: 100%; display: block; }
 .logo-box { background: white; color: #0B4697; width: 45px; height: 45px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 24px; }
 .nav-group { flex: 1; }
 .nav-link { display: flex; align-items: center; gap: 15px; color: rgba(255,255,255,0.7); text-decoration: none; padding: 16px 20px; border-radius: 15px; margin-bottom: 8px; transition: 0.3s; cursor: pointer; }
