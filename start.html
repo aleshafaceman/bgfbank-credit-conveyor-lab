@@ -72,11 +72,6 @@
     .panel li { margin-bottom: 9px; }
     .panel li b { color: var(--bgf-navy); }
 
-    /* Схема архитектуры */
-    .arch { margin: 14px 0 8px; }
-    .arch img { display: block; width: 100%; height: auto; border: 1px solid var(--bgf-line); border-radius: 14px; background: #fff; }
-    .arch figcaption { margin-top: 10px; font-size: 12.5px; color: #64748b; }
-
     /* Схема пути сделки */
     .flow { background: #fff; border: 1px solid var(--bgf-line); border-radius: 14px; padding: 18px 20px; overflow-x: auto; }
     .flow-line { display: flex; align-items: stretch; gap: 8px; min-width: 820px; }
@@ -150,12 +145,6 @@
 </div>
 
 <div class="wrap">
-
-    <p class="lead">Клиент, сотрудник банка и администратор работают каждый в своём приложении. Между приложением и общими бизнес-сервисами стоит отдельный слой под каждую роль — он отдаёт клиенту ровно те данные, которые ему нужны, и не пускает его в чужие.</p>
-    <figure class="arch">
-        <img src="brand/bff-architecture.png" alt="Схема: три приложения, три BFF-сервиса, общие бизнес-сервисы и сервис прав доступа">
-        <figcaption>Каждое приложение общается только со своим BFF-сервисом; бизнес-сервисы общие, права доступа одни на всех.</figcaption>
-    </figure>
 
     <h2><span class="num">1.</span> Что не так сейчас и что предлагаем</h2>
     <p class="lead">ELMA одновременно и ведёт процесс, и служит рабочим местом сотрудников. Из-за этого каждое изменение требует доработки системы, а сам процесс теряет время на повторных операциях. Ниже — что в нём стоит дорого и что меняем.</p>
