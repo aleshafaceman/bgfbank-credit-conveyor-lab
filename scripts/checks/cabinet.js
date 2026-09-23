@@ -386,5 +386,87 @@ module.exports = {
       ' мс, ожидалось 1500–9000 мс)' + why(toastGone));
 
     await noFailures('действие, показывающее тост, прошло без сбоев страницы');
+
+    check.section('Кабинет клиента — правка профиля и объектов');
+
+    /* Раньше поля профиля только выглядели редактируемыми: значения никуда не
+       сохранялись, а данные из Госуслуг были жёстко read-only. Проверяется связка
+       «Изменить → поле стало доступным → Сохранить → значение в хранилище и после
+       перезагрузки». Объект недвижимости правится в той же форме, что и добавление. */
+    await s.eval('return __t.resetFailures()');
+
+    const personalEditing = await s.eval('return (function() {' +
+      ' var f = document.getElementById("profile-lastName");' +
+      ' var edit = document.getElementById("personal-edit");' +
+      ' if (!f || !edit) return null;' +
+      ' var was = f.readOnly; edit.click();' +
+      ' return { was: was, now: document.getElementById("profile-lastName").readOnly }; })()');
+    ok(!!personalEditing && personalEditing.was === true && personalEditing.now === false,
+      'кнопка «Изменить» снимает read-only у данных из Госуслуг (сейчас: ' +
+      JSON.stringify(personalEditing) + ')');
+    const cancelClicked = await s.eval('return __t.click("personal-cancel") === true');
+    const personalAfterCancel = await s.eval('return (function() {' +
+      ' var f = document.getElementById("profile-lastName"); return f ? f.readOnly : null; })()');
+    ok(cancelClicked === true && personalAfterCancel === true,
+      '«Отмена» возвращает поля в режим просмотра (read-only: ' + personalAfterCancel + ')');
+
+    ok(!!(await s.eval('return __t.clickText("#view-profile .profile-tab", "Доходы")')),
+      'вкладка «Доходы» (работа и занятость) найдена и нажата');
+    const workSaved = await s.eval('return (function() {' +
+      ' var field = document.getElementById("nazvanie-organizacii");' +
+      ' if (!field) return false;' +
+      ' var set = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;' +
+      ' set.call(field, "ООО «Проверка»");' +
+      ' field.dispatchEvent(new Event("input", { bubbles: true }));' +
+      ' var btn = Array.prototype.slice.call(document.querySelectorAll("#profile-tab-income button"))' +
+      '   .filter(function (b) { return (b.textContent || "").indexOf("Сохранить") !== -1; })[0];' +
+      ' if (!btn) return false; btn.click(); return true; })()');
+    r = await s.waitFor('return (function() { try {' +
+      ' var raw = JSON.parse(localStorage.getItem("bgfbank_lab_client_profile") || "null");' +
+      ' return !!raw && raw.work && raw.work["nazvanie-organizacii"] === "ООО «Проверка»";' +
+      ' } catch (e) { return false; } })()', 5000);
+    ok(workSaved === true && r.ok,
+      '«Сохранить» записывает работу и доход в хранилище профиля' + why(r));
+    await s.reload();
+    r = await s.waitFor('return (function() {' +
+      ' var f = document.getElementById("nazvanie-organizacii");' +
+      ' return !!f && f.value === "ООО «Проверка»"; })()', 8000);
+    ok(r.ok, 'после перезагрузки сохранённые данные профиля на месте' + why(r));
+
+    /* Объект: «Изменить» открывает ту же форму с заполненными полями, сохранение
+       обновляет объект, а не добавляет новый. */
+    ok(!!(await s.eval('return __t.clickText(".nav-link[data-page=\\"profile\\"]", "Профиль")')),
+      'возврат в «Профиль» перед правкой объекта');
+    await s.eval('return __t.clickText("#view-profile .profile-tab", "Моя недвижимость")');
+    r = await s.waitFor('return __t.count("#propertyGrid .property-card") >= 1', 5000);
+    const cardsBefore = await s.eval('return __t.count("#propertyGrid .property-card")');
+    const editProperty = await s.eval('return (function() {' +
+      ' var card = document.querySelector("#propertyGrid .property-card");' +
+      ' if (!card) return false;' +
+      ' var btn = Array.prototype.slice.call(card.querySelectorAll("button"))' +
+      '   .filter(function (b) { return (b.textContent || "").trim() === "Изменить"; })[0];' +
+      ' if (!btn) return false; btn.click(); return true; })()');
+    const modalState = await s.eval('return (function() {' +
+      ' var addr = document.getElementById("newPropAddress");' +
+      ' var overlay = document.getElementById("modalAddProperty");' +
+      ' if (!addr || !overlay) return null;' +
+      ' return { open: !overlay.classList.contains("hidden"), filled: !!addr.value,' +
+      '   submit: (document.getElementById("btnPropertySubmit") || {}).textContent }; })()');
+    ok(editProperty === true && !!modalState && modalState.open === true && modalState.filled === true &&
+      String(modalState.submit).indexOf('Сохранить') !== -1,
+      '«Изменить» у объекта открывает форму с заполненными полями и кнопкой «Сохранить» (сейчас: ' +
+      JSON.stringify(modalState) + ')');
+    const propertyRenamed = await s.eval('return (function() {' +
+      ' var addr = document.getElementById("newPropAddress"); if (!addr) return false;' +
+      ' var set = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;' +
+      ' set.call(addr, "г. Москва, ул. Проверочная, д. 1, кв. 2");' +
+      ' addr.dispatchEvent(new Event("input", { bubbles: true }));' +
+      ' document.getElementById("btnPropertySubmit").click(); return true; })()');
+    r = await s.waitFor('return __t.text("propertyGrid").indexOf("Проверочная") !== -1', 5000);
+    const cardsAfter = await s.eval('return __t.count("#propertyGrid .property-card")');
+    ok(propertyRenamed === true && r.ok && cardsAfter === cardsBefore,
+      'правка объекта меняет адрес, а не добавляет второй объект (карточек было ' +
+      cardsBefore + ', стало ' + cardsAfter + ')' + why(r));
+    await noFailures('правка профиля и объекта прошла без сбоев страницы');
   },
 };

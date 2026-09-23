@@ -362,6 +362,33 @@ module.exports = {
     ok(clientText.indexOf('+7 (999) 123-45-11') !== -1, 'в карточке клиента есть его телефон');
     const clientApps = await s.eval('return __t.count("#mClientDetail .m-client-app-card")');
     ok(clientApps >= 1, 'в карточке клиента перечислены его заявки (заявок: ' + clientApps + ')');
+
+    /* Правка данных клиента: раньше карточка была только для чтения — телефон с
+       опечаткой менеджер поправить не мог. Проверяется связка «Изменить данные →
+       поле телефона → Сохранить → новое значение в карточке и в данных клиентов». */
+    const editStarted = await s.eval('return (function() {' +
+      ' var btn = Array.prototype.slice.call(document.querySelectorAll("#mClientDetail button"))' +
+      '   .filter(function (b) { return (b.textContent || "").indexOf("Изменить данные") !== -1; })[0];' +
+      ' if (!btn) return false; btn.click(); return true; })()');
+    r = await s.waitFor('return !!document.getElementById("edit-client-phone")', 5000);
+    ok(editStarted === true && r.ok,
+      '«Изменить данные» открывает режим правки карточки клиента' + why(r));
+    const phoneSaved = await s.eval('return (function() {' +
+      ' var f = document.getElementById("edit-client-phone"); if (!f) return false;' +
+      ' var set = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;' +
+      ' set.call(f, "+7 (999) 123-45-99");' +
+      ' f.dispatchEvent(new Event("input", { bubbles: true }));' +
+      ' var btn = Array.prototype.slice.call(document.querySelectorAll("#mClientDetail button"))' +
+      '   .filter(function (b) { return (b.textContent || "").indexOf("Сохранить") !== -1; })[0];' +
+      ' if (!btn) return false; btn.click(); return true; })()');
+    r = await s.waitFor('return __t.text("mClientDetail").indexOf("+7 (999) 123-45-99") !== -1', 6000);
+    const storedPhone = await s.eval('return (function() {' +
+      ' var c = (typeof getAllClients === "function" ? getAllClients() : {})["Дмитрий Иванов"];' +
+      ' return c ? c.phone : null; })()');
+    ok(phoneSaved === true && r.ok && storedPhone === '+7 (999) 123-45-99',
+      'сохранённый телефон виден и в карточке, и в данных клиента (сейчас: ' +
+      JSON.stringify(storedPhone) + ')' + why(r));
+    await noFailures('правка данных клиента прошла без сбоев страницы');
     ok(await s.eval('return (function() { var e = document.querySelector("#mClientDetail .m-back-link");' +
       ' return !!e && e.textContent.trim() === "Вернуться к заявке"; })()'),
       'в карточке клиента есть ссылка возврата «Вернуться к заявке»');
