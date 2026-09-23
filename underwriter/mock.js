@@ -60,11 +60,11 @@ window.UNDERWRITER_MOCK = {
         MSG_DESC: "Автоодобрение по правилам Approval"
       },
       borrower: {
-        full_name: "Лебедев Павел Андреевич",
+        full_name: "Кузнецов А.С. — заявка 101",
         birth_date: "1986-04-21",
         inn: "770334455667",
         snils: "118-224-336 70",
-        phone: "+7 916 200-11-22",
+        phone: "+7 (999) 123-45-61",
         income_type: "ndfl2",
         income_monthly: 210000,
         work_status: "найм",
@@ -120,11 +120,11 @@ window.UNDERWRITER_MOCK = {
         MSG_DESC: "Задолженность ФССП свыше 100 000 ₽ (Москва/МО). Надбавка SURCH_FSSP +2 п.п., не автоотказ."
       },
       borrower: {
-        full_name: "Новикова Анна Сергеевна",
+        full_name: "Кузнецов А.С. — заявка 102",
         birth_date: "1990-09-03",
         inn: "504812223344",
         snils: "145-667-889 12",
-        phone: "+7 903 440-55-66",
+        phone: "+7 (999) 123-45-62",
         income_type: "bank_form",
         income_monthly: 165000,
         work_status: "ИП",
@@ -178,11 +178,11 @@ window.UNDERWRITER_MOCK = {
         EVAL_STATUS: "accepted"
       },
       borrower: {
-        full_name: "Морозов Игорь Викторович",
+        full_name: "Кузнецов А.С. — заявка 103",
         birth_date: "1982-12-14",
         inn: "770998877665",
         snils: "102-304-506 18",
-        phone: "+7 926 111-00-44",
+        phone: "+7 (999) 123-45-64",
         income_type: "ndfl2",
         income_monthly: 240000,
         work_status: "найм",
@@ -236,11 +236,11 @@ window.UNDERWRITER_MOCK = {
         EVAL_STATUS: "accepted"
       },
       borrower: {
-        full_name: "Савельев Роман Олегович",
+        full_name: "Кузнецов А.С. — заявка 104",
         birth_date: "1979-06-02",
         inn: "770112233445",
         snils: "211-322-433 09",
-        phone: "+7 495 200-30-40",
+        phone: "+7 (999) 123-45-66",
         income_type: "ndfl2",
         income_monthly: 420000,
         work_status: "владение бизнесом",

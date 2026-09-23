@@ -129,7 +129,7 @@ window.DEAL_OPS_MOCK = {
           birth_date: "1984-07-19",
           inn: "770555111222",
           snils: "222-333-444 55",
-          phone: "+7 903 111-22-33",
+          phone: "+7 (999) 123-45-63",
           email: "d.orlov@example.com",
           id_client_cft: "CFT-100770",
           passport: {
@@ -196,7 +196,7 @@ window.DEAL_OPS_MOCK = {
           birth_date: "1991-11-04",
           inn: "770987654321",
           snils: "001-002-003 00",
-          phone: "+7 916 555-01-02",
+          phone: "+7 (999) 123-45-65",
           email: "m.sokolova@example.com",
           id_client_cft: "CFT-100882",
           passport: {
@@ -265,7 +265,7 @@ window.DEAL_OPS_MOCK = {
           birth_date: "1986-09-21",
           inn: "770321098765",
           snils: "334-455-667 12",
-          phone: "+7 905 222-33-44",
+          phone: "+7 (999) 123-45-67",
           email: "p.belov@example.com",
           id_client_cft: "CFT-100904",
           passport: {
