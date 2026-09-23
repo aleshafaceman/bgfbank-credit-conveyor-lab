@@ -1514,13 +1514,18 @@ console.log('\n=== 13. Demo hub (start.html) entry point ===');
     ['index.html', 'client cabinet card is linked'],
     ['manager/', 'manager card is linked'],
     ['underwriter/', 'bank underwriter ARM card is linked'],
-    ['underwriter/kk-member.html', 'credit committee member ARM card is linked'],
     ['deal-ops/', 'deal desk card is linked'],
     ['productolog/', 'productologist ARM card is linked'],
     ['form/', 'application form card is linked']
   ].forEach(function(pair) {
     assert(hub.indexOf('href="' + pair[0] + '"') !== -1, pair[1]);
   });
+  /* АРМ участника комитета на карте не значится сознательно: он не вход в
+     процесс. Приглашать некого, пока заседание не подтверждено в столе, поэтому
+     ссылка на участника живёт в панели комитета на карточке заявки. */
+  assert(hub.indexOf('underwriter/kk-member.html') === -1 &&
+    /href="underwriter\/"/.test(hub),
+    'hub links the underwriter desk, not the committee member ARM');
   /* Карта для руководства. Страницу переписали человеческим языком, поэтому
      проверяем то, на чём она теперь держится: подписи «было / стало», понятный
      язык в шапке и главную кнопку. Разбор «что выбирать на каждом столе» и
