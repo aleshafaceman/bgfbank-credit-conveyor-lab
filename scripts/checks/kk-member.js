@@ -132,7 +132,16 @@ module.exports = {
     const sendState = function () {
       return s.eval('return (function() { var b = document.getElementById("send-position");' +
         ' if (!b) return null; var r = b.getBoundingClientRect();' +
-        ' return { disabled: b.disabled === true, visible: r.width > 0 && r.height > 0 }; })()');
+        ' return { disabled: b.disabled === true, visible: r.width > 0 && r.height > 0,' +
+        '   label: (b.textContent || "").replace(/\\s+/g, " ").trim() }; })()');
+    };
+
+    /* Кнопки первого блока карточки — блока приглашения: по ним видно, убран ли
+       ответ, когда ответ уже дан. */
+    const inviteButtons = function () {
+      return s.eval('return (function() { var p = document.querySelector("#invite-card .panel");' +
+        ' if (!p) return null; return Array.prototype.map.call(p.querySelectorAll("button"), function (b) {' +
+        '   return (b.textContent || "").replace(/\\s+/g, " ").trim(); }); })()');
     };
 
     const positionNote = function () {
@@ -236,10 +245,15 @@ module.exports = {
     const afterAccept = await memberState();
     const chair = memberById(afterAccept, 'm_chair');
     const cardAfterAccept = await cardText('invite-card');
+    /* Ответ дан — кнопки ответа обязаны уйти вместе со статусом: иначе
+       «Подтвердить участие» висит активной уже после подтверждения. */
+    const acceptButtons = await inviteButtons();
     ok(accepted === true && r.ok && !!chair && chair.invite === 'accepted' &&
-      cardAfterAccept.indexOf('Участие подтверждено') !== -1,
-      'подтверждение участия записано в сцену заседания и видно на карточке (сейчас: ' +
-      JSON.stringify(chair && chair.invite) + ')' + why(r));
+      cardAfterAccept.indexOf('Участие подтверждено') !== -1 &&
+      JSON.stringify(acceptButtons) === JSON.stringify(['Изменить ответ']),
+      'подтверждение участия записано в сцену, видно на карточке, а кнопки ответа убраны — ' +
+      'вместо них только «Изменить ответ» (кнопки: ' + JSON.stringify(acceptButtons) +
+      ', invite: ' + JSON.stringify(chair && chair.invite) + ')' + why(r));
 
     /* «Не согласен» без причины не отправляется — это то же правило, что в окне
        заседания стола. */
@@ -272,6 +286,20 @@ module.exports = {
     ok(busAfterSend.indexOf('Позиции обязательных участников: 1 из ' + REQUIRED) !== -1,
       'ход заседания пересчитал кворум после позиции участника (сейчас: «' +
       busAfterSend.slice(0, 200) + '…»)');
+
+    /* После отправки кнопка не остаётся активной «на всякий случай»: отправлять
+       больше нечего, и она это говорит. Как только участник меняет решение,
+       кнопка снова доступна — но уже как «Обновить позицию». */
+    const sendAfter = await sendState();
+    ok(!!sendAfter && sendAfter.disabled === true && sendAfter.label === 'Позиция отправлена',
+      'после отправки кнопка позиции заперта и подписана «Позиция отправлена» (сейчас: ' +
+      JSON.stringify(sendAfter) + ')');
+    await setComment(REASON + ' — повторно проверено');
+    r = await s.waitFor('return document.getElementById("send-position").disabled === false', 4000);
+    const sendEdited = await sendState();
+    ok(r.ok && !!sendEdited && sendEdited.label === 'Обновить позицию',
+      'изменённая причина снова открывает отправку и подписывает её «Обновить позицию» (сейчас: ' +
+      JSON.stringify(sendEdited) + ')' + why(r));
     await noFailures('работа с приглашением и позицией прошла без сбоев страницы');
 
     /* --- другой участник: адрес и отказ --- */
@@ -384,10 +412,16 @@ module.exports = {
     ok(hubClicked === true && r.ok,
       'ссылку можно нажать и попасть на карту демо (адрес: «' +
       (await s.eval('return window.location.pathname')) + '»)' + why(r));
+    /* После перехода по ссылке документ только начинает разбираться: заголовок
+       карты дожидаемся. Без ожидания проверка ловила пустой h1 — это была гонка
+       перехода, а не поломка поверхности. */
+    const hubReady = await s.waitFor('return (function() {' +
+      ' var h = document.querySelector("h1");' +
+      ' return !!h && (h.textContent || "").indexOf("Новый кредитный конвейер БЖФ") !== -1; })()', 8000);
     const onHub = await s.eval('return { desk: document.getElementById("invite-list") === null,' +
       ' title: (document.querySelector("h1") || {}).textContent || "" }');
-    ok(onHub.desk === true && onHub.title.indexOf('Новый кредитный конвейер БЖФ') !== -1,
+    ok(onHub.desk === true && hubReady.ok,
       'на карте демо нет рабочей области участника, зато есть её заголовок (сейчас: «' +
-      onHub.title.slice(0, 40) + '…»)');
+      onHub.title.slice(0, 40) + '…»)' + why(hubReady));
   },
 };

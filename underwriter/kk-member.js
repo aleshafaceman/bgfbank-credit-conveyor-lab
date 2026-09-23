@@ -30,6 +30,9 @@ let pendingPosition = ''; /* выбранная, но ещё не отправл
 let commentText = '';     /* причина: несогласие, отсутствие, отказ от участия */
 let note = '';            /* красная подсказка под кнопками */
 let sentNote = '';        /* что показать после отправки позиции */
+/* Ответ по участию дан — кнопки ответа прячутся, но ответ можно переменить,
+   пока заседание не состоялось: тогда кнопки возвращаются по «Изменить ответ». */
+let editingInvite = false;
 
 function loadState() {
   try {
@@ -160,6 +163,22 @@ function syncFromMember() {
   commentText = inv ? (inv.member.comment || '') : '';
   note = '';
   sentNote = '';
+  editingInvite = false;
+}
+
+/* Ответ по участию уже дан — «Подтвердить участие» и «Не смогу» больше не висят
+   активными: они прячутся за статусом. Ответ можно переменить, пока заседание не
+   состоялось, поэтому рядом со статусом остаётся «Изменить ответ». */
+function editInvite() {
+  editingInvite = true;
+  note = '';
+  render();
+}
+
+function cancelEditInvite() {
+  editingInvite = false;
+  note = '';
+  render();
 }
 
 function accept() {
@@ -205,15 +224,38 @@ function needsComment() {
   return pendingPosition === 'no' || pendingPosition === 'absent';
 }
 
+/* Выбор или причина отличаются от того, что уже отправлено. Пока не отличаются,
+   отправлять нечего: кнопка подписана «Позиция отправлена» и заперта. Как только
+   участник меняет решение, она снова доступна и называется «Обновить позицию». */
+function dirtied() {
+  const inv = openedInvite();
+  if (!inv) return false;
+  return pendingPosition !== (inv.member.position || '') ||
+    commentText !== (inv.member.comment || '');
+}
+
+function positionSent() {
+  const inv = openedInvite();
+  return !!(inv && (inv.member.position || inv.member.answeredAt));
+}
+
+function sendLabel() {
+  if (!positionSent()) return 'Отправить позицию';
+  return dirtied() ? 'Обновить позицию' : 'Позиция отправлена';
+}
+
 function canSend() {
   if (!pendingPosition) return false;
   if (needsComment() && !commentText.trim()) return false;
-  return true;
+  return dirtied();
 }
 
 function refreshSendState() {
   const btn = document.getElementById('send-position');
-  if (btn) btn.disabled = !canSend();
+  if (btn) {
+    btn.disabled = !canSend();
+    btn.textContent = sendLabel();
+  }
   const hint = document.getElementById('position-note');
   if (hint) hint.style.display = needsComment() && !commentText.trim() ? '' : 'none';
 }
@@ -394,6 +436,19 @@ function renderCard() {
     : m.invite === 'declined'
       ? '<p class="status-pill" style="background:#fee2e2;color:#991b1b">Участвовать не сможет</p>'
       : '<p class="hint">Ответ по участию ещё не дан.</p>';
+  /* Ответ дан — кнопки ответа прячутся за статусом, иначе «Подтвердить участие»
+     висит активной уже после подтверждения. Вернуть кнопки можно, пока заседание
+     не состоялось: «Изменить ответ». */
+  const inviteAnswered = m.invite === 'accepted' || m.invite === 'declined';
+  const inviteActions = (inviteAnswered && !editingInvite)
+    ? '<div class="actions">' +
+      '<button type="button" class="btn btn-ghost" onclick="editInvite()">Изменить ответ</button></div>'
+    : '<div class="actions">' +
+      '<button type="button" class="btn btn-primary" onclick="accept()">Подтвердить участие</button>' +
+      '<button type="button" class="btn" onclick="decline()">Не смогу</button>' +
+      (inviteAnswered
+        ? '<button type="button" class="btn btn-ghost" onclick="cancelEditInvite()">Отмена</button>' : '') +
+      '</div>';
   const answered = m.position
     ? '<p class="status-pill">Позиция отправлена: <b>' + positionLabel(m.position) + '</b>' +
       (m.answeredAt ? ' · ' + esc(m.answeredAt) : '') + '</p>'
@@ -418,10 +473,7 @@ function renderCard() {
     '<div class="param"><small>Обязательный</small><b>' + (m.required ? 'да' : 'нет') + '</b></div>' +
     '</div>' +
     '<p class="lead">' + esc(m.why || '') + '</p>' +
-    '<div class="actions">' +
-    '<button type="button" class="btn btn-primary" onclick="accept()">Подтвердить участие</button>' +
-    '<button type="button" class="btn" onclick="decline()">Не смогу</button>' +
-    '</div>' + inviteStatus + '</div>' +
+    inviteActions + inviteStatus + '</div>' +
 
     contextHtml(inv) +
 
@@ -439,7 +491,7 @@ function renderCard() {
     '</div>' +
     '<div class="actions">' +
     '<button type="button" class="btn btn-primary" id="send-position" ' +
-    (canSend() ? '' : 'disabled') + ' onclick="sendPosition()">Отправить позицию</button>' +
+    (canSend() ? '' : 'disabled') + ' onclick="sendPosition()">' + sendLabel() + '</button>' +
     '</div>' +
     (note ? '<p class="req-note">' + esc(note) + '</p>' : '') +
     (sentNote ? '<p class="status-pill">' + esc(sentNote) + '</p>' : '') +

@@ -1282,10 +1282,15 @@ module.exports = {
     /* Карта демо открылась в том же окне: рабочей области стола на ней больше
        нет, а на месте заголовок самой карты. Помощники __t сюда не внедрены —
        после перехода страница другая, поэтому спрашиваем сам DOM. */
+    /* После перехода по ссылке документ только начинает разбираться: заголовок
+       карты дожидаемся — иначе проверка ловит пустой h1 (гонка перехода). */
+    const hubReady = await s.waitFor('return (function() {' +
+      ' var h = document.querySelector("h1");' +
+      ' return !!h && (h.textContent || "").indexOf("Новый кредитный конвейер БЖФ") !== -1; })()', 8000);
     const leftDesk = await s.eval('return { desk: document.getElementById("inbox-list") === null,' +
       ' title: (document.querySelector("h1") || {}).textContent || "" }');
-    ok(leftDesk.desk === true && leftDesk.title.indexOf('Новый кредитный конвейер БЖФ') !== -1,
+    ok(leftDesk.desk === true && hubReady.ok,
       'на карте демо нет рабочей области стола, зато есть её заголовок (сейчас: «' +
-      leftDesk.title.slice(0, 40) + '…»)');
+      leftDesk.title.slice(0, 40) + '…»)' + why(hubReady));
   },
 };
