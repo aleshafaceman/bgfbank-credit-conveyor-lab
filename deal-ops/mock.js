@@ -266,7 +266,7 @@ window.DEAL_OPS_MOCK = {
           birth_date: "1986-09-21",
           inn: "770321098765",
           snils: "334-455-667 12",
-          phone: "+7 (999) 123-45-67",
+          phone: "+7 (999) 123-45-73",
           email: "p.belov@example.com",
           id_client_cft: "CFT-100904",
           passport: {

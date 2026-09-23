@@ -359,7 +359,7 @@ module.exports = {
       .filter(function(t) { return clientText.indexOf(t) === -1; });
     ok(clientBlocks.length === 0,
       'карточка клиента заполнена разделами (нет: ' + JSON.stringify(clientBlocks) + ')');
-    ok(clientText.indexOf('+7 (999) 123-45-67') !== -1, 'в карточке клиента есть телефон');
+    ok(clientText.indexOf('+7 (999) 123-45-11') !== -1, 'в карточке клиента есть его телефон');
     const clientApps = await s.eval('return __t.count("#mClientDetail .m-client-app-card")');
     ok(clientApps >= 1, 'в карточке клиента перечислены его заявки (заявок: ' + clientApps + ')');
     ok(await s.eval('return (function() { var e = document.querySelector("#mClientDetail .m-back-link");' +

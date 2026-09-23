@@ -21,7 +21,7 @@ var TRUSTGATE_PERSON = {
     inn: '770123456789',
     snils: '112-233-445 95',
     cell_phone: '79991234567',
-    email: 'aleksandr@mail.ru',
+    email: 'aleksandr@example.com',
     registration_address: 'г. Москва, ул. Крылатская, д. 15, кв. 42',
     employer_name: 'ООО «ТехноСофт»',
     employer_inn: '7707083893',
@@ -342,7 +342,7 @@ function applyTrustGateToApplication(lk, profileId) {
                 type: 0,
                 title: 'Справка о доходе или 2-НДФЛ',
                 source: 'client',
-                reason: 'ЦП не вернул INCOME_REFERENCE'
+                reason: 'цифровой профиль не вернул справку о доходе'
             }]);
         }
     }
@@ -363,9 +363,9 @@ function applyTrustGateToApplication(lk, profileId) {
             szi6: hasSzi6
                 ? trustGateScope('ok', { type: 'PENSION_REFERENCE' })
                 : trustGateScope('missing', { note: 'редко приходит, не стоп' }),
-            family: trustGateScope('missing', { note: 'ЦП семью не отдаёт' }),
-            realty: trustGateScope('missing', { note: 'квартиры из ЦП не берём, нужен кадастр' }),
-            credit_report: trustGateScope('consent_only', { note: 'согласие есть, отчёт тянет Loginom / CREDIT Registry' })
+            family: trustGateScope('missing', { note: 'цифровой профиль не передаёт состав семьи' }),
+            realty: trustGateScope('missing', { note: 'квартиры из цифрового профиля не берём, нужен кадастр' }),
+            credit_report: trustGateScope('consent_only', { note: 'согласие есть, отчёт запрашивает скоринг банка' })
         }
     };
     lk.updated = lkNowIso();
@@ -400,11 +400,11 @@ function documentsFromCp(lk) {
         return { name: name, status: 'missing', statusLabel: missLabel };
     }
     return [
-        doc('Паспорт (разворот)', scopes.passport, 'Из ЦП (TrustGate)', 'Нет в ЦП'),
-        doc('ИНН / СНИЛС', scopes.inn, 'Из ЦП (TrustGate)', 'Нет в ЦП'),
-        doc('Данные о доходе (2-НДФЛ)', scopes.ndfl, 'INCOME_REFERENCE из ЦП', 'ЦП не вернул — нужна справка о доходе'),
-        doc('СЗИ-6', scopes.szi6, 'Из ЦП (редко)', 'Не пришёл — это норма', 'Не пришёл — это норма'),
-        { name: 'Выписка ЕГРН', status: 'missing', statusLabel: 'Нужен кадастр, не ЦП' }
+        doc('Паспорт (разворот)', scopes.passport, 'Из цифрового профиля', 'Нет в цифровом профиле'),
+        doc('ИНН / СНИЛС', scopes.inn, 'Из цифрового профиля', 'Нет в цифровом профиле'),
+        doc('Данные о доходе (2-НДФЛ)', scopes.ndfl, 'Справка о доходе из цифрового профиля', 'Цифровой профиль не вернул — нужна справка о доходе'),
+        doc('СЗИ-6', scopes.szi6, 'Из цифрового профиля (редко)', 'Не пришёл — это норма', 'Не пришёл — это норма'),
+        { name: 'Выписка ЕГРН', status: 'missing', statusLabel: 'Нужен кадастр, из цифрового профиля не берём' }
     ];
 }
 
@@ -498,7 +498,7 @@ function flattenLkToLabApp(lk) {
                 date: LK_LAB_DATE,
                 current: true
             },
-            { text: 'Заявка создана в ЛК (CASHONBAIL / FLAT)', date: LK_LAB_DATE, current: false }
+            { text: 'Заявка создана в личном кабинете: кредит под залог квартиры', date: LK_LAB_DATE, current: false }
         ],
         lk: lk,
         source: patched ? 'esia' : 'lk_fill_in'
@@ -532,7 +532,7 @@ function cpActionItems(cp) {
     } else {
         items.push({ kind: 'skip', text: 'СЗИ-6 нет — это норма, не стоп.' });
     }
-    items.push({ kind: 'wait', text: 'БКИ: согласие есть, отчёт тянет Loginom / CREDIT Registry.' });
+    items.push({ kind: 'wait', text: 'БКИ: согласие есть, отчёт запрашивает скоринг банка.' });
     return items;
 }
 
@@ -587,7 +587,7 @@ function renderCpCoverageHTML(appOrLk) {
     }).join('');
     return '<div class="cp-coverage">' +
         '<div class="cp-coverage-head">Цифровой профиль · ' + (cp.gateway || 'TrustGate') + '</div>' +
-        '<div class="cp-coverage-sub">Срез покрытия TrustGate · не клиентский экран</div>' +
+        '<div class="cp-coverage-sub">Срез покрытия цифрового профиля · не клиентский экран</div>' +
         '<div class="cp-coverage-purposes">' + (cp.purposes || []).join(' · ') + '</div>' +
         (typeof isLkLabApplication === 'function' && isLkLabApplication(appOrLk)
             ? ('<div class="cp-profiles">' +

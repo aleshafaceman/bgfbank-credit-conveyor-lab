@@ -309,8 +309,8 @@ function renderPackages() {
   const years = state.term;
   const price = state.object.price;
   $("pkg-hero").innerHTML =
-    '<div class="row"><span>Оценка МО</span><b>' + F.fmtMoney(price) + "</b></div>" +
-    '<div class="row"><span>Лимит LTV 60%</span><b>' + F.fmtMoney(maxLoan()) + "</b></div>" +
+    '<div class="row"><span>Оценка объекта</span><b>' + F.fmtMoney(price) + "</b></div>" +
+    '<div class="row"><span>Лимит: кредит к стоимости 60%</span><b>' + F.fmtMoney(maxLoan()) + "</b></div>" +
     '<div class="row"><span>Запросили</span><b>' + F.fmtMoney(state.amount) + "</b></div>" +
     '<div class="row"><span>Срок</span><b>' + F.yearsLabel(years) + "</b></div>";
 

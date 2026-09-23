@@ -40,10 +40,10 @@ function attemptManagerLogin() {
 }
 
 function managerLogout() {
-    if (confirm('Выйти из панели менеджера?')) {
-        document.getElementById('managerMainScreen').classList.add('hidden');
-        document.getElementById('managerAuthScreen').classList.remove('hidden');
-        document.getElementById('managerPassword').value = '';
-        document.getElementById('managerLoginError').style.display = 'none';
-    }
+    /* Без окна подтверждения: выход — обратимое действие, о нём сообщает плашка. */
+    document.getElementById('managerMainScreen').classList.add('hidden');
+    document.getElementById('managerAuthScreen').classList.remove('hidden');
+    document.getElementById('managerPassword').value = '';
+    document.getElementById('managerLoginError').style.display = 'none';
+    if (typeof showToast === 'function') showToast('Вы вышли из панели менеджера');
 }

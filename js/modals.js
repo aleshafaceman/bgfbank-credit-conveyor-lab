@@ -78,7 +78,7 @@ function applyHigherAmount() {
     const l = document.getElementById('chkLTV').checked;
     const c = document.getElementById('chkCoBorrower').checked;
 
-    if (!l && !c) { alert('Выберите хотя бы один способ'); return; }
+    if (!l && !c) { clientNotify('Выберите хотя бы один способ'); return; }
 
     state.packageModifiers = state.packageModifiers || {};
     state.packageModifiers.ltvBoost = l;

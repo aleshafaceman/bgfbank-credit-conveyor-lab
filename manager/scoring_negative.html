@@ -138,8 +138,8 @@
                 <button class="btn btn-outline" onclick="resetScoring()"><i class="fas fa-redo"></i> Сброс</button>
             </div>
             <div class="btn-row" style="margin-top:8px;">
-                <button class="btn btn-outline" onclick="alert('Открывается ручная корректировка...')"><i class="fas fa-edit"></i> Ручная корректировка</button>
-                <button class="btn btn-outline" onclick="alert('Открывается чат с клиентом...')"><i class="fas fa-comment-dots"></i> Чат с клиентом</button>
+                <button class="btn btn-outline" onclick="pageNotify('Ручная корректировка открывается в карточке заявки')"><i class="fas fa-edit"></i> Ручная корректировка</button>
+                <button class="btn btn-outline" onclick="pageNotify('Чат с клиентом открывается в карточке заявки')"><i class="fas fa-comment-dots"></i> Чат с клиентом</button>
             </div>
         </div>
     </div>
@@ -175,7 +175,7 @@ var steps = [
         detail_ok: 'Доход: 180 000 ₽/мес. Подтверждён.',
         issues: [
             { type: 'error', title: 'Доход не подтверждён', desc: 'ФНС не подтвердила заявленный доход. Возможно, работодатель не подал сведения.', detail: 'Заявленный доход: 180 000 ₽/мес\nПодтверждённый доход: отсутствует\nРасхождение: 100%', actions: ['Запросить 2-НДФЛ у клиента', 'Отклонить'], prob: 15 },
-            { type: 'warning', title: 'Доход ниже заявленного', desc: 'ФНС подтвердила доход ниже заявленного клиентом.', detail: 'Заявленный доход: 180 000 ₽/мес\nПодтверждённый доход: 120 000 ₽/мес\nРасхождение: 33%\n\nЭто повлияет на максимальный лимит (-30%) и PTI.', actions: ['Продолжить с фактическим доходом', 'Запросить 2-НДФЛ', 'Отклонить'], prob: 20 }
+            { type: 'warning', title: 'Доход ниже заявленного', desc: 'ФНС подтвердила доход ниже заявленного клиентом.', detail: 'Заявленный доход: 180 000 ₽/мес\nПодтверждённый доход: 120 000 ₽/мес\nРасхождение: 33%\n\nЭто повлияет на максимальный лимит (-30%) и платёж к доходу.', actions: ['Продолжить с фактическим доходом', 'Запросить 2-НДФЛ', 'Отклонить'], prob: 20 }
         ]
     },
     { 
@@ -187,19 +187,19 @@ var steps = [
         ]
     },
     { 
-        name: 'Оценка недвижимости', source: 'Ocenka.mobi', time: '2.8 сек',
+        name: 'Оценка недвижимости', source: 'Мобильный оценщик', time: '2.8 сек',
         detail_ok: 'Стоимость: 8 500 000 ₽. Ликвидность: высокая.',
         issues: [
-            { type: 'error', title: 'Сервис Ocenka.mobi недоступен', desc: 'Не удалось получить ответ от сервиса оценки. Таймаут запроса.', detail: 'Предыдущая оценка: 8 500 000 ₽ (от 10.06.2026).\nМожно использовать предыдущую или повторить запрос.', actions: ['Использовать предыдущую', 'Повторить запрос'], prob: 10 },
-            { type: 'error', title: 'Объект не найден по адресу', desc: 'Ocenka.mobi не смог определить объект по указанному адресу.', detail: 'Адрес: г. Москва, ул. Крылатская, д. 15, кв. 42\nВозможно, опечатка или новый адрес.', actions: ['Уточнить адрес у клиента', 'Ввести адрес вручную'], prob: 10 }
+            { type: 'error', title: 'Сервис оценки недоступен', desc: 'Не удалось получить ответ от сервиса оценки. Таймаут запроса.', detail: 'Предыдущая оценка: 8 500 000 ₽ (от 10.06.2026).\nМожно использовать предыдущую или повторить запрос.', actions: ['Использовать предыдущую', 'Повторить запрос'], prob: 10 },
+            { type: 'error', title: 'Объект не найден по адресу', desc: 'Сервис оценки не смог определить объект по указанному адресу.', detail: 'Адрес: г. Москва, ул. Крылатская, д. 15, кв. 42\nВозможно, опечатка или новый адрес.', actions: ['Уточнить адрес у клиента', 'Ввести адрес вручную'], prob: 10 }
         ]
     },
     { 
         name: 'Андеррайтинг', source: 'Loginom', time: '3.2 сек',
-        detail_ok: 'PTI: 38%. DTI: 42%. Стоп-факторы: нет.',
+        detail_ok: 'Платёж к доходу: 38%. Долговая нагрузка: 42%. Стоп-факторы: нет.',
         issues: [
-            { type: 'error', title: 'PTI превышает 50%', desc: 'Показатель PTI (отношение платежа к доходу) превышает допустимый порог.', detail: 'PTI: 52% при максимуме 50%\nПлатёж: 54 000 ₽/мес\nДоход: 120 000 ₽/мес\n\nРекомендация: уменьшить сумму или увеличить срок.', actions: ['Предложить изменить параметры', 'Отклонить'], prob: 15 },
-            { type: 'warning', title: 'DTI выше рекомендуемого', desc: 'Показатель DTI (долговая нагрузка) выше рекомендуемого уровня.', detail: 'DTI: 58% при рекомендуемом максимуме 50%\nПовышенный риск, но не стоп-фактор.', actions: ['Продолжить', 'Запросить доп. информацию'], prob: 15 }
+            { type: 'error', title: 'Платёж к доходу превышает 50%', desc: 'Платёж к доходу превышает допустимый порог.', detail: 'Платёж к доходу: 52% при максимуме 50%\nПлатёж: 54 000 ₽/мес\nДоход: 120 000 ₽/мес\n\nРекомендация: уменьшить сумму или увеличить срок.', actions: ['Предложить изменить параметры', 'Отклонить'], prob: 15 },
+            { type: 'warning', title: 'Долговая нагрузка выше рекомендуемой', desc: 'Долговая нагрузка выше рекомендуемого уровня.', detail: 'Долговая нагрузка: 58% при рекомендуемом максимуме 50%\nПовышенный риск, но не стоп-фактор.', actions: ['Продолжить', 'Запросить доп. информацию'], prob: 15 }
         ]
     },
     { 
@@ -373,12 +373,12 @@ function showFinalResult(outcome) {
         h += '<div class="param-item"><div class="param-label">Срок</div><div class="param-value">15 лет</div></div>';
         h += '<div class="param-item"><div class="param-label">Платёж</div><div class="param-value">~ 54 000 ₽</div></div>';
         h += '</div>';
-        h += '<div class="btn-row"><button class="btn btn-success" onclick="alert(\'Заявка одобрена\')"><i class="fas fa-check"></i> Одобрить</button><button class="btn btn-outline" onclick="alert(\'Чат открыт\')"><i class="fas fa-comment-dots"></i> Чат</button></div>';
+        h += '<div class="btn-row"><button class="btn btn-success" onclick="pageNotify(\'Заявка одобрена\')"><i class="fas fa-check"></i> Одобрить</button><button class="btn btn-outline" onclick="pageNotify(\'Чат открыт\')"><i class="fas fa-comment-dots"></i> Чат</button></div>';
     } else if (outcome === 'rejected') {
         document.getElementById('resultSubtitle').textContent = 'Заявка отклонена';
         h += '<div class="result-badge rejected"><i class="fas fa-times-circle"></i> В кредите отказано</div>';
         h += '<div style="font-size:12px;color:#64748b;margin-bottom:12px;">Обнаружены стоп-факторы при проверке.</div>';
-        h += '<div class="btn-row"><button class="btn btn-danger" onclick="alert(\'Заявка отклонена\')"><i class="fas fa-times"></i> Отклонить</button><button class="btn btn-outline" onclick="alert(\'Чат открыт\')"><i class="fas fa-comment-dots"></i> Чат</button></div>';
+        h += '<div class="btn-row"><button class="btn btn-danger" onclick="pageNotify(\'Заявка отклонена\')"><i class="fas fa-times"></i> Отклонить</button><button class="btn btn-outline" onclick="pageNotify(\'Чат открыт\')"><i class="fas fa-comment-dots"></i> Чат</button></div>';
     }
     
     document.getElementById('resultArea').innerHTML = h;
@@ -477,5 +477,21 @@ function resetScoring() {
 renderSteps();
 </script>
 
+<script>
+/* Плашка вместо окон браузера: на показе alert() и confirm() выглядят как сбой
+   страницы, а не как ответ банка. Стиль у плашки свой, страница автономная. */
+function pageNotify(message) {
+    var old = document.getElementById('pageToast');
+    if (old) old.remove();
+    var t = document.createElement('div');
+    t.id = 'pageToast';
+    t.textContent = message;
+    t.setAttribute('style', 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);' +
+        'background:#1e3a5f;color:#fff;font:600 13px Roboto,system-ui,sans-serif;padding:12px 18px;' +
+        'border-radius:10px;box-shadow:0 10px 24px rgba(0,45,80,.28);z-index:9999;max-width:90vw;text-align:center;');
+    document.body.appendChild(t);
+    setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 4000);
+}
+</script>
 </body>
 </html>

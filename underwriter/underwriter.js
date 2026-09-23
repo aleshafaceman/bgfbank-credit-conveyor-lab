@@ -896,7 +896,7 @@ async function approve() {
   if (client) {
     s.smsId = "sms_" + a.deal_id.slice(-4);
     setBus("broker_sms", "ok");
-    addModalLine("СМС отправлено брокеру · номер " + s.smsId, "ok");
+    addModalLine("СМС отправлено брокеру", "ok");
   }
   setBus("b2b", "ok");
   addModalLine("Статус отправлен в кабинет партнёра", "ok");
@@ -1051,7 +1051,7 @@ function busRow(item, a, s) {
   if (raw === "pending") return { cls: "pending", label: "запрос…" };
   if (raw === "fail") return { cls: "fail", label: "ошибка" };
   if (raw === "ok") {
-    if (item.id === "broker_sms" && s.smsId) return { cls: "ok", label: s.smsId };
+    if (item.id === "broker_sms" && s.smsId) return { cls: "ok", label: "отправлено" };
     return { cls: "ok", label: "успех" };
   }
   if (!a || !s) return { cls: "", label: "ожидание" };
@@ -1309,7 +1309,7 @@ function renderWork() {
     "</div>" +
     (s.step === "approved"
       ? '<div class="done-banner">' + (a.track === "and" ? "Клиент одобрен." : "Залог одобрен.") +
-        (s.smsId ? " СМС брокеру " + s.smsId + "." : "") + "</div>"
+        (s.smsId ? " СМС брокеру отправлено." : "") + "</div>"
       : s.step === "rework"
         ? '<div class="stop-banner" style="background:#fff4ec;border-color:#fdba74;color:#9a3412">Возврат процессору / продавцу. Повторный АНД или АПЗ после доработки.</div>'
         : s.step === "refused"

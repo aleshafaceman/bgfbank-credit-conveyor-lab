@@ -824,7 +824,7 @@ module.exports = {
       JSON.stringify(approved && { decision: approved.decision, smsId: approved.smsId }) + ')');
     r = await s.waitFor('return __t.count("#work-deal .done-banner") >= 1', 5000);
     const bannersAnd = await banners();
-    ok(r.ok && hasBanner(bannersAnd, 'Клиент одобрен.') && hasBanner(bannersAnd, 'sms_0101'),
+    ok(r.ok && hasBanner(bannersAnd, 'Клиент одобрен.') && hasBanner(bannersAnd, 'СМС брокеру отправлено'),
       'карточка сообщает об одобрении клиента и об отправленной СМС (баннеры: ' +
       JSON.stringify(bannersAnd) + ')');
     ok(hasBanner(bannersAnd, BANNER_BARRIER),
@@ -832,7 +832,7 @@ module.exports = {
     const busAfterApprove = busDiff(await busRows(), busExpected(Object.assign({}, BUS_AND_101_LABELS, {
       'Решение по заёмщику': 'успех',
       'Долговая нагрузка': 'успех',
-      'СМС брокеру': 'sms_0101',
+      'СМС брокеру': 'отправлено',
       'Статус в кабинет': 'успех'
     })));
     ok(busAfterApprove.missing.length === 0 && busAfterApprove.wrong.length === 0,

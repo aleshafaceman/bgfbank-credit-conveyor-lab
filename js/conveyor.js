@@ -38,8 +38,8 @@ function onCollateralSelect(v) {
     if (pr) pr.classList.add('visible');
     if (pt) {
         pt.textContent = p.valuation
-            ? 'Ocenka.mobi: ' + p.valuation.toLocaleString('ru-RU') + ' ₽ (от ' + p.valuationDate + ')'
-            : 'Ocenka.mobi: ожидает оценки';
+            ? 'Оценка объекта: ' + p.valuation.toLocaleString('ru-RU') + ' ₽ (от ' + p.valuationDate + ')'
+            : 'Оценка объекта: ожидает оценки';
     }
     if (be) be.disabled = false;
     if (bm) bm.disabled = false;
@@ -53,7 +53,7 @@ function onCollateralSelect(v) {
             '<div class="collateral-hero-address">' + (p.address || '') + '</div>' +
             '<div class="collateral-hero-metrics">' +
             '<div><span>Оценка</span><b>' + p.valuation.toLocaleString('ru-RU') + ' ₽</b></div>' +
-            '<div><span>LTV</span><b>' + Math.round(ltv * 100) + '%</b></div>' +
+            '<div><span>Доля кредита</span><b>' + Math.round(ltv * 100) + '%</b></div>' +
             '<div><span>Лимит до</span><b>' + limit.toLocaleString('ru-RU') + ' ₽</b></div>' +
             '</div>' +
             '<div class="collateral-hero-gauge"><div class="collateral-hero-gauge-fill" style="width:' + Math.round(ltv * 100) + '%"></div></div>';
@@ -190,13 +190,13 @@ function openConveyorFromApplications() {
     try {
         const appId = ensureConveyorApplication();
         if (!appId) {
-            alert('Не удалось определить заявку для оформления');
+            clientNotify('Не удалось определить заявку для оформления');
             return;
         }
         openConveyorForApp(appId);
     } catch (err) {
         console.error('openConveyorFromApplications failed', err);
-        alert('Не удалось открыть оформление заявки. Обновите страницу (Ctrl+F5) и попробуйте снова.');
+        clientNotify('Не удалось открыть оформление заявки. Обновите страницу и попробуйте снова.');
     }
 }
 
@@ -346,5 +346,5 @@ function updateResultCards() {
         term.textContent = t + ' ' + (typeof getTermLabel === 'function' ? getTermLabel(t) : 'лет');
     }
     if (pay) pay.textContent = '~ ' + (state.currentPayment != null ? state.currentPayment : 0).toLocaleString('ru-RU') + ' ₽';
-    if (ltv) ltv.textContent = 'до ' + Math.round((state.currentLTV || 0) * 100) + '% от оценки Ocenka.mobi';
+    if (ltv) ltv.textContent = 'до ' + Math.round((state.currentLTV || 0) * 100) + '% от оценки объекта';
 }

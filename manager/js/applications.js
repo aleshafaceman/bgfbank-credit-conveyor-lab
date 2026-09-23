@@ -194,7 +194,7 @@ function renderApplicationDetail(appId) {
         <div class="m-section">
             <h4><i class="fas fa-home"></i> Объект залога</h4>
             <div class="m-detail-param"><div class="m-param-label">Адрес</div><div class="m-param-value" style="font-size:13px;">${app.collateralAddress || '—'}</div></div>
-            <div class="m-detail-param" style="margin-top:8px;"><div class="m-param-label">Оценка Ocenka.mobi</div><div class="m-param-value">${collateralValue.toLocaleString('ru-RU')} ₽</div></div>
+            <div class="m-detail-param" style="margin-top:8px;"><div class="m-param-label">Оценка объекта</div><div class="m-param-value">${collateralValue.toLocaleString('ru-RU')} ₽</div></div>
         </div>
         
         <div class="m-section">
@@ -359,11 +359,14 @@ function mActionsHint(text, extraClass) {
     return '<div class="m-actions-hint' + (extraClass ? ' ' + extraClass : '') + '">' + text + '</div>';
 }
 
+/* Сообщение менеджеру — плашкой. Нативных окон браузера в макете нет: на показе
+   они выглядят как сбой страницы, а не как ответ банка. Если плашки почему-то
+   нет, сообщение уходит в консоль, а не в модальное окно браузера. */
 function managerNotify(message) {
     if (typeof showToast === 'function') {
         try { showToast(String(message || '')); return; } catch (e) {}
     }
-    try { alert(String(message || '')); } catch (e2) {}
+    try { console.log(String(message || '')); } catch (e2) {}
 }
 
 var ORIGINAL_DU_IDS = { du00: true, du01: true, du04: true, du19: true };

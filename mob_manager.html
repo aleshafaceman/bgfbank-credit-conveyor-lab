@@ -142,10 +142,10 @@
 // ========== ДАННЫЕ ==========
 var apps = [
     { id:'4421-И', client:'Александр Кузнецов', phone:'+7 (999) 123-45-67', amount:5000000, term:15, status:'valuation', slabel:'На оценке', date:'15.06.2026', cadr:'Крылатская, 15', cval:8500000, rate:null, pay:null, docs:[{n:'2-НДФЛ',ok:true},{n:'Паспорт',ok:true},{n:'ЕГРН',ok:false}] },
-    { id:'4450-И', client:'Мария Петрова', phone:'+7 (999) 123-45-67', amount:8000000, term:20, status:'new', slabel:'Новая', date:'16.06.2026', cadr:'Тверская, 20', cval:14200000, rate:null, pay:null, docs:[{n:'2-НДФЛ',ok:false},{n:'Паспорт',ok:true},{n:'ЕГРН',ok:false}] },
+    { id:'4450-И', client:'Мария Петрова', phone:'+7 (999) 123-45-45', amount:8000000, term:20, status:'new', slabel:'Новая', date:'16.06.2026', cadr:'Тверская, 20', cval:14200000, rate:null, pay:null, docs:[{n:'2-НДФЛ',ok:false},{n:'Паспорт',ok:true},{n:'ЕГРН',ok:false}] },
     { id:'3890-И', client:'Александр Кузнецов', phone:'+7 (999) 123-45-67', amount:4200000, term:15, status:'approved', slabel:'Одобрено', date:'03.02.2026', cadr:'Крылатская, 15', cval:8500000, rate:12.8, pay:48300, docs:[{n:'2-НДФЛ',ok:true},{n:'Паспорт',ok:true},{n:'ЕГРН',ok:true}] },
-    { id:'4460-И', client:'Сергей Волков', phone:'+7 (999) 123-45-67', amount:3500000, term:7, status:'processing', slabel:'В обработке', date:'16.06.2026', cadr:'Химки, Маяковского, 8', cval:5100000, rate:null, pay:null, docs:[{n:'2-НДФЛ',ok:true},{n:'Паспорт',ok:true},{n:'ЕГРН',ok:true}] },
-    { id:'3701-И', client:'Дмитрий Иванов', phone:'+7 (999) 123-45-67', amount:6000000, term:10, status:'rejected', slabel:'Отказ', date:'12.11.2025', cadr:'Ленина, 30', cval:7800000, rate:null, pay:null, docs:[{n:'2-НДФЛ',ok:true},{n:'Паспорт',ok:true},{n:'ЕГРН',ok:true}] }
+    { id:'4460-И', client:'Сергей Волков', phone:'+7 (999) 123-45-90', amount:3500000, term:7, status:'processing', slabel:'В обработке', date:'16.06.2026', cadr:'Химки, Маяковского, 8', cval:5100000, rate:null, pay:null, docs:[{n:'2-НДФЛ',ok:true},{n:'Паспорт',ok:true},{n:'ЕГРН',ok:true}] },
+    { id:'3701-И', client:'Дмитрий Иванов', phone:'+7 (999) 123-45-11', amount:6000000, term:10, status:'rejected', slabel:'Отказ', date:'12.11.2025', cadr:'Ленина, 30', cval:7800000, rate:null, pay:null, docs:[{n:'2-НДФЛ',ok:true},{n:'Паспорт',ok:true},{n:'ЕГРН',ok:true}] }
 ];
 var bc = { new:'m-badge-new', processing:'m-badge-processing', valuation:'m-badge-valuation', decision:'m-badge-decision', approved:'m-badge-approved', rejected:'m-badge-rejected' };
 
@@ -212,19 +212,19 @@ function getBtns(a) {
         processing: '<button class="m-btn m-btn-warning" onclick="act(\''+a.id+'\',\'scoring\')">Запустить прескоринг</button>',
         valuation: '<button class="m-btn m-btn-warning" onclick="act(\''+a.id+'\',\'val\')">Запросить оценку</button>',
         decision: '<button class="m-btn m-btn-success" onclick="act(\''+a.id+'\',\'approve\')">Одобрить</button><button class="m-btn m-btn-danger" onclick="act(\''+a.id+'\',\'reject\')">Отклонить</button>',
-        approved: '<button class="m-btn m-btn-outline" onclick="alert(\'Договор отправлен\')">Отправить договор</button>',
-        rejected: '<button class="m-btn m-btn-outline" onclick="alert(\'Клиент уведомлён\')">Предложить изменения</button>'
+        approved: '<button class="m-btn m-btn-outline" onclick="pageNotify(\'Договор отправлен\')">Отправить договор</button>',
+        rejected: '<button class="m-btn m-btn-outline" onclick="pageNotify(\'Клиент уведомлён\')">Предложить изменения</button>'
     };
     return btns[a.status] || '';
 }
 function act(id, action) {
     var a = apps.find(function(x){return x.id===id;}); if (!a) return;
     if (action==='review') { a.status='processing'; a.slabel='В обработке'; }
-    if (action==='docs') { alert('Клиенту отправлен запрос документов'); }
+    if (action==='docs') { pageNotify('Клиенту отправлен запрос документов'); }
     if (action==='scoring') { a.status='valuation'; a.slabel='На оценке'; renderList(); updateStats(); setTimeout(function(){ a.status='decision'; a.slabel='Решение'; a.rate=12.5; a.pay=Math.round(a.amount*(12.5/100)/12/(1-Math.pow(1+(12.5/100)/12,-a.term*12))); renderList(); updateStats(); },2000); }
-    if (action==='val') { var nv=Math.round(a.cval*(0.93+Math.random()*0.14)); alert('Оценка: '+nv.toLocaleString('ru-RU')+' ₽'); a.cval=nv; }
-    if (action==='approve') { a.status='approved'; a.slabel='Одобрено'; if(!a.rate){a.rate=12.5;a.pay=Math.round(a.amount*(12.5/100)/12/(1-Math.pow(1+(12.5/100)/12,-a.term*12)));} alert('Заявка одобрена!'); }
-    if (action==='reject') { var r=prompt('Причина:'); if(r){a.status='rejected';a.slabel='Отказ';alert('Заявка отклонена');} }
+    if (action==='val') { var nv=Math.round(a.cval*(0.93+Math.random()*0.14)); pageNotify('Оценка: '+nv.toLocaleString('ru-RU')+' ₽'); a.cval=nv; }
+    if (action==='approve') { a.status='approved'; a.slabel='Одобрено'; if(!a.rate){a.rate=12.5;a.pay=Math.round(a.amount*(12.5/100)/12/(1-Math.pow(1+(12.5/100)/12,-a.term*12)));} pageNotify('Заявка одобрена'); }
+    if (action==='reject') { var r='Недостаточный уровень подтверждённого дохода'; a.status='rejected'; a.slabel='Отказ'; pageNotify('Заявка отклонена · причина: '+r); }
     renderList(); updateStats(); openDetail(id);
 }
 function updateStats() {
@@ -314,5 +314,21 @@ renderList();
 updateStats();
 </script>
 
+<script>
+/* Плашка вместо окон браузера: на показе alert() и prompt() выглядят как сбой
+   страницы, а не как ответ банка. Стиль у плашки свой, страница автономная. */
+function pageNotify(message) {
+    var old = document.getElementById('pageToast');
+    if (old) old.remove();
+    var t = document.createElement('div');
+    t.id = 'pageToast';
+    t.textContent = message;
+    t.setAttribute('style', 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);' +
+        'background:#1e3a5f;color:#fff;font:600 12px Roboto,system-ui,sans-serif;padding:10px 16px;' +
+        'border-radius:10px;box-shadow:0 10px 24px rgba(0,45,80,.28);z-index:9999;max-width:88vw;text-align:center;');
+    document.body.appendChild(t);
+    setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 3500);
+}
+</script>
 </body>
 </html>

@@ -34,6 +34,16 @@ function showToast(message, opts) {
     }, opts.duration || 4500);
 }
 
+/* Сообщение клиенту — плашкой. Нативных окон браузера в макете нет: на показе
+   alert() и confirm() выглядят как сбой страницы. Если плашки почему-то нет,
+   сообщение уходит в консоль, а не в модальное окно браузера. */
+function clientNotify(message, opts) {
+    if (typeof showToast === 'function') {
+        try { showToast(String(message || ''), opts); return; } catch (e) {}
+    }
+    try { console.log(String(message || '')); } catch (e2) {}
+}
+
 function snapshotAppStatuses() {
     if (typeof getAllApplications !== 'function') return {};
     var map = {};

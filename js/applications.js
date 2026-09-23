@@ -102,7 +102,7 @@ function pickPreferredClientAppId(preferredAppId) {
 function createNewClientApplication(opts) {
     opts = opts || {};
     if (typeof addApplication !== 'function') {
-        alert('Не удалось создать заявку: общая база недоступна');
+        clientNotify('Не удалось создать заявку: общая база недоступна');
         return null;
     }
 
@@ -313,7 +313,7 @@ function renderApplicationPackageBlock(app) {
 
     const rateCompose = isAccepted && app.rate != null
         ? '<p class="pkg-rate-compose detail-rate-compose">Турбо 2.0 → база − ЕСИА − опции = <b>' + app.rate + '%</b>' +
-          (app.collateralValue ? ' · LTV до ' + Math.round((app.amount / app.collateralValue) * 100) + '%' : '') + '</p>'
+          (app.collateralValue ? ' · кредит к стоимости до ' + Math.round((app.amount / app.collateralValue) * 100) + '%' : '') + '</p>'
         : '';
 
     return `<div class="detail-package-block">
@@ -391,7 +391,7 @@ function bindApplicationDetailActions() {
             e.preventDefault();
             e.stopPropagation();
             if (typeof openConveyorFromApplications === 'function') openConveyorFromApplications();
-            else alert('Конвейер оформления недоступен. Обновите страницу.');
+            else clientNotify('Конвейер оформления недоступен. Обновите страницу.');
             return;
         }
         if (action === 'upload-doc') {
@@ -400,7 +400,7 @@ function bindApplicationDetailActions() {
             const duId = btn.getAttribute('data-du-id') || '';
             const appId = btn.getAttribute('data-app-id') || undefined;
             if (typeof uploadMissingDocDemo === 'function') uploadMissingDocDemo(name, appId, { duId: duId });
-            else alert('Открывается форма загрузки: ' + name);
+            else clientNotify('Открывается форма загрузки: ' + name);
             return;
         }
         if (action === 'upload-any-doc') {

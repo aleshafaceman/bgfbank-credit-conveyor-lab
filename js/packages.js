@@ -15,13 +15,13 @@ const PACKAGE_CATALOG = {
     },
     PKG_SPEC_4_0: {
         title: 'Спец. опция 4.0',
-        description: 'Сниженная ставка в обмен на разовую комиссию 0,99% от суммы кредита. Максимальный LTV по залогу — до 50% от оценки Ocenka.mobi.',
+        description: 'Сниженная ставка в обмен на разовую комиссию 0,99% от суммы кредита. Максимальный кредит к стоимости — до 50% от оценки объекта.',
         insurance: 'ККС, программы 1–2',
         commission: '0,99% от суммы кредита',
         highlights: [
             'Ниже платёж в первые периоды',
             'Подходит при готовности оплатить комиссию',
-            'Ограничение по сумме залога (LTV)'
+            'Ограничение по сумме залога (кредит к стоимости)'
         ]
     },
     PKG_NO_INSURANCE: {
@@ -216,9 +216,9 @@ function renderPackageCards() {
         const warn = pkg.warning ? '<div class="pkg-warning"><i class="fas fa-exclamation-triangle"></i> ' + pkg.warning + '</div>' : '';
         const badge = pkg.badge ? '<span class="pkg-badge">' + pkg.badge + '</span>' : '';
         const recDelta = pkg.recommended
-            ? '<div class="pkg-rate-compose">Турбо 2.0 · база ' + base.toFixed(1) + '%' +
-              (esiaDisc ? ' − ЕСИА ' + esiaDisc.toFixed(1) + '%' : '') +
-              ' = <b>' + applied.rate.toFixed(1) + '%</b> · LTV ' + Math.round(applied.ltv * 100) + '%</div>'
+            ? '<div class="pkg-rate-compose">Турбо 2.0: базовая ставка ' + base.toFixed(1) + '%' +
+              (esiaDisc ? ' − скидка за Госуслуги ' + esiaDisc.toFixed(1) + '%' : '') +
+              ' = <b>' + applied.rate.toFixed(1) + '%</b> · кредит к стоимости ' + Math.round(applied.ltv * 100) + '%</div>'
             : '';
 
         return '<label class="pkg-card' + (selected ? ' selected' : '') + (pkg.recommended ? ' featured' : '') + '" data-pkg="' + pkg.id + '">' +
@@ -229,7 +229,7 @@ function renderPackageCards() {
             '<span><b>' + applied.rate.toFixed(1) + '%</b> ставка' + (pkg.rateNote ? '<small>' + pkg.rateNote + '</small>' : '') + '</span>' +
             '<span><b>~' + formatRub(applied.payment) + '</b>/мес</span>' +
             '<span>до <b>' + formatRub(applied.limit) + '</b></span>' +
-            '<span>LTV <b>' + Math.round(applied.ltv * 100) + '%</b></span>' +
+            '<span>кредит к стоимости <b>' + Math.round(applied.ltv * 100) + '%</b></span>' +
             '</div>' +
             '<ul class="pkg-features">' + features + '</ul>' +
             warn +
@@ -281,7 +281,7 @@ function togglePackageExtra(key, checked) {
     // Проверка совместимости с пакетом «Без страхования»
     const pkg = (state.eligiblePackages || []).find(p => p.id === state.selectedPackageId);
     if (checked && pkg && pkg.id === 'PKG_NO_INSURANCE' && (key === 'ltvBoost' || key === 'coBorrower')) {
-        alert('Опция «' + (key === 'ltvBoost' ? 'Больше сумма (LTV Boost)' : 'Созаёмщик') + '» недоступна для пакета «Без страхования жизни».\n\nЭти опции требуют наличия комплексного страхования (ККС). Выберите пакет со страхованием.');
+        clientNotify('Опция «' + (key === 'ltvBoost' ? 'Больше сумма' : 'Созаёмщик') + '» недоступна для пакета «Без страхования жизни». Эти опции требуют комплексного страхования (ККС) — выберите пакет со страхованием.');
         const map = { ltvBoost: 'extraLtvBoost', coBorrower: 'extraCoBorrower', fixedRate: 'extraFixedRate' };
         const el = document.getElementById(map[key]);
         if (el) el.checked = false;
@@ -290,7 +290,7 @@ function togglePackageExtra(key, checked) {
     
     // Проверка конфликта типов ставки
     if (checked && key === 'fixedRate' && pkg && pkg.rateSubsequent) {
-        alert('Пакет «' + pkg.title + '» уже использует переменную ставку. Фиксированная ставка недоступна.');
+        clientNotify('Пакет «' + pkg.title + '» уже использует переменную ставку. Фиксированная ставка недоступна.');
         const el = document.getElementById('extraFixedRate');
         if (el) el.checked = false;
         return;

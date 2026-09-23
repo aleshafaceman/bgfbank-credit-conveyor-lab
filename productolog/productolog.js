@@ -10,7 +10,7 @@ const BUS_CATALOG = [
   { id: "score_get", title: "Балл шкалы", system: "калькулятор предложений · шкалы риска" },
   { id: "matrix_get", title: "Ячейка доли кредита и оценки риска", system: "калькулятор предложений · матрица" },
   { id: "options_get", title: "Опции", system: "справочник продуктолога · опции" },
-  { id: "excel", title: "Таблица", system: "только файл .xlsx" },
+  { id: "excel", title: "Таблица", system: "только файл Excel" },
   { id: "action_log", title: "Журнал изменений", system: "запись действий продуктолога" },
   { id: "loginom", title: "СПР банка", system: "не вызываем из этого АРМ" }
 ];
@@ -1413,7 +1413,7 @@ function onExcelFile(el) {
   if (!f) return;
   const name = String(f.name || "").toLowerCase();
   if (!/\.xlsx$/.test(name)) {
-    flashConflict("Файлы другого типа не перетаскиваются", "Ошибка при загрузке · нужен XLSX");
+    flashConflict("Файлы другого типа не перетаскиваются", "Ошибка при загрузке · нужен файл Excel");
     state.bus.excel = "fail";
     logAction("POST", "/product_slices.xlsx", "rejected " + name);
     save();
@@ -1720,8 +1720,8 @@ function solverPanel() {
     '<button type="button" class="btn btn-primary" onclick="previewSolver()">Как это увидит калькулятор</button>' +
     '<button type="button" class="btn btn-ghost" onclick="exportExcel()">Выгрузить таблицу</button>' +
     '<label class="file-pick"><input type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onchange="onExcelFile(this)">' +
-    '<span class="file-pick-btn">Загрузить таблицу .xlsx</span></label>' +
-    '<p class="hint">Только файл .xlsx. Файлы другого типа не перетаскиваются.</p>' +
+    '<span class="file-pick-btn">Загрузить таблицу Excel</span></label>' +
+    '<p class="hint">Только файл Excel (.xlsx). Файлы другого типа не перетаскиваются.</p>' +
     logHtml() + "</div>";
 }
 

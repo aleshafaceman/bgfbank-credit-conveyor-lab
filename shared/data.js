@@ -153,7 +153,7 @@ function loadSharedData() {
                 ]
             },
             {
-                id: '3701-И', client: 'Дмитрий Иванов', phone: '+7 (999) 123-45-67',
+                id: '3701-И', client: 'Дмитрий Иванов', phone: '+7 (999) 123-45-11',
                 product: 'Кредит под залог недвижимости', amount: 6000000, term: 10, rate: null, payment: null,
                 collateralAddress: 'г. Москва, ул. Ленина, д. 30, кв. 12', collateralValue: 7800000,
                 status: 'rejected', statusLabel: 'Отказ', date: '12.11.2025',
@@ -169,7 +169,7 @@ function loadSharedData() {
                 ]
             },
             {
-                id: '4460-И', client: 'Сергей Волков', phone: '+7 (999) 123-45-67',
+                id: '4460-И', client: 'Сергей Волков', phone: '+7 (999) 123-45-90',
                 product: 'Кредит под залог недвижимости', amount: 3500000, term: 7, rate: null, payment: null,
                 collateralAddress: 'Московская обл., г. Химки, ул. Маяковского, д. 8, кв. 90', collateralValue: 5100000,
                 status: 'processing', statusLabel: 'В обработке', date: '16.06.2026',

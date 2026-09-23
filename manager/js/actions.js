@@ -14,7 +14,7 @@ function managerAction(appId, action) {
                 updateApplicationStatus(appId, app.status, app.statusLabel, 'Менеджер запросил документы');
                 sendChatMessage('manager', app.client, 'Пожалуйста, загрузите недостающие документы по заявке №' + appId + '.', app.client);
                 if (typeof managerNotify === 'function') managerNotify('Клиенту ' + app.client + ' отправлен запрос документов.');
-                else alert('Клиенту ' + app.client + ' отправлен запрос документов.');
+                else console.log('Клиенту ' + app.client + ' отправлен запрос документов.');
                 break;
 
             case 'startReview':
@@ -79,7 +79,7 @@ function managerAction(appId, action) {
                     : (Number(app.collateralValue) || 0);
                 const nv = Math.round(ov * 1.02);
                 updateApplication(appId, { collateralValue: nv });
-                updateApplicationStatus(appId, app.status, app.statusLabel, `Оценка Ocenka.mobi: ${nv.toLocaleString('ru-RU')} ₽`);
+                updateApplicationStatus(appId, app.status, app.statusLabel, `Оценка объекта: ${nv.toLocaleString('ru-RU')} ₽`);
                 sendChatMessage('manager', app.client, 'Обновлена оценка недвижимости: ' + nv.toLocaleString('ru-RU') + ' ₽.', app.client);
                 if (typeof recordExpressEvalFromCollateral === 'function') {
                     try {
@@ -94,7 +94,7 @@ function managerAction(appId, action) {
                 if (typeof managerNotify === 'function') {
                     managerNotify('Оценка обновлена: ' + nv.toLocaleString('ru-RU') + ' ₽');
                 } else {
-                    alert('Оценка обновлена:\n' + (app.collateralAddress || '—') + '\n' + ov.toLocaleString('ru-RU') + ' → ' + nv.toLocaleString('ru-RU') + ' ₽');
+                    console.log('Оценка обновлена: ' + ov.toLocaleString('ru-RU') + ' → ' + nv.toLocaleString('ru-RU') + ' ₽');
                 }
                 break;
 
@@ -112,17 +112,18 @@ function managerAction(appId, action) {
                     try { recordDealPassport(appId); } catch (ePass) {}
                 }
                 if (typeof managerNotify === 'function') managerNotify('Заявка №' + app.id + ' одобрена');
-                else alert('Заявка №' + app.id + ' одобрена!\n\nКлиент: ' + app.client);
+                else console.log('Заявка №' + app.id + ' одобрена');
                 break;
 
             case 'reject':
-                const reason = prompt('Укажите причину отказа:', 'Недостаточный уровень подтверждённого дохода');
-                if (reason) {
-                    updateApplicationStatus(appId, 'rejected', 'Отказ', 'Заявка отклонена: ' + reason);
-                    sendChatMessage('manager', app.client, 'По заявке №' + appId + ' принято отрицательное решение. Причина: ' + reason, app.client);
-                    if (typeof managerNotify === 'function') managerNotify('Заявка №' + app.id + ' отклонена');
-                    else alert('Заявка №' + app.id + ' отклонена.\n\nПричина: ' + reason);
-                }
+                /* Причина отказа в макете одна и та же: нативное окно ввода на показе
+                   выглядит как сбой браузера. В системе причина выбирается из списка
+                   в карточке заявки, и её видно в истории. */
+                const reason = 'Недостаточный уровень подтверждённого дохода';
+                updateApplicationStatus(appId, 'rejected', 'Отказ', 'Заявка отклонена: ' + reason);
+                sendChatMessage('manager', app.client, 'По заявке №' + appId + ' принято отрицательное решение. Причина: ' + reason, app.client);
+                if (typeof managerNotify === 'function') managerNotify('Заявка №' + app.id + ' отклонена · причина: ' + reason);
+                else console.log('Заявка №' + app.id + ' отклонена · ' + reason);
                 break;
 
             case 'sendContract':
@@ -155,7 +156,7 @@ function managerAction(appId, action) {
         console.error('managerAction', appId, action, err);
         try {
             if (typeof managerNotify === 'function') managerNotify('Не удалось выполнить действие. Сбросьте демо и попробуйте снова.');
-            else alert('Не удалось выполнить действие. Сбросьте демо и попробуйте снова.');
+            else console.log('Не удалось выполнить действие. Сбросьте демо и попробуйте снова.');
         } catch (eAlert) {}
     } finally {
         try { saveSharedData(); } catch (eSave) {}

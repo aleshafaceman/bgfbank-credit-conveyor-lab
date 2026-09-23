@@ -102,8 +102,8 @@
             <div class="detail-row"><span>Срок</span><b>15 лет</b></div>
             <div class="detail-row"><span>Доход (подтв.)</span><b>180 000 ₽/мес</b></div>
             <div class="detail-row"><span>Объект залога</span><b>Крылатская, 15</b></div>
-            <div class="detail-row"><span>Оценка Ocenka.mobi</span><b>8 500 000 ₽</b></div>
-            <div class="detail-row"><span>LTV (предв.)</span><b>60%</b></div>
+            <div class="detail-row"><span>Оценка объекта</span><b>8 500 000 ₽</b></div>
+            <div class="detail-row"><span>Кредит к стоимости (предв.)</span><b>60%</b></div>
             <div class="detail-row"><span>ЕСИА</span><b style="color:#1e40af;">Подключён ✓</b></div>
         </div>
         
@@ -119,9 +119,9 @@
 var prescoreSteps = [
     { name: 'Верификация цифрового профиля (ЕСИА)', source: 'Госуслуги', time: '1.1 сек', detail: 'ФИО, паспорт, ИНН, СНИЛС, адрес регистрации, семейное положение.', result: 'Профиль подтверждён. Данные актуальны на 14.06.2026.' },
     { name: 'Запрос кредитной истории (НБКИ)', source: 'НБКИ', time: '1.4 сек', detail: 'Кредитный рейтинг, текущие обязательства, просрочки.', result: 'Рейтинг: 720. Просрочек нет. Нагрузка: умеренная.' },
-    { name: 'Экспресс-оценка недвижимости', source: 'Ocenka.mobi', time: '1.8 сек', detail: 'Быстрая оценка по адресу и кадастровому номеру.', result: 'Ориентировочная стоимость: 8 500 000 ₽. LTV: 60%.' },
+    { name: 'Экспресс-оценка недвижимости', source: 'Мобильный оценщик', time: '1.8 сек', detail: 'Быстрая оценка по адресу и кадастровому номеру.', result: 'Ориентировочная стоимость: 8 500 000 ₽. Кредит к стоимости: 60%.' },
     { name: 'Проверка дохода', source: 'ФНС / ЕСИА', time: '1.6 сек', detail: 'Сверка дохода по 2-НДФЛ с данными ЕСИА.', result: 'Доход подтверждён: 180 000 ₽/мес. Совпадение 100%.' },
-    { name: 'Анализ долговой нагрузки (PTI/DTI)', source: 'Loginom', time: '0.9 сек', detail: 'Расчёт PTI и DTI на основе подтверждённого дохода.', result: 'PTI: 38%. DTI: 42%. В пределах нормы.' },
+    { name: 'Анализ платежа к доходу и долговой нагрузки', source: 'Система скоринга банка', time: '0.9 сек', detail: 'Расчёт платежа к доходу и долговой нагрузки по подтверждённому доходу.', result: 'Платёж к доходу: 38%. Долговая нагрузка: 42%. В пределах нормы.' },
     { name: 'Формирование предварительного решения', source: 'Внутренний', time: '0.6 сек', detail: 'Анализ всех факторов. Расчёт предварительных условий.', result: 'Предварительное решение сформировано.' }
 ];
 
@@ -183,25 +183,25 @@ function showResult(outcome) {
         resultHTML += '<div class="result-params">';
         resultHTML += '<div class="result-param"><div class="rlabel">Предв. лимит</div><div class="rvalue" style="color:#0B4697;">5 400 000 ₽</div></div>';
         resultHTML += '<div class="result-param"><div class="rlabel">Предв. ставка</div><div class="rvalue" style="color:#13A538;">12.5%</div></div>';
-        resultHTML += '<div class="result-param"><div class="rlabel">PTI</div><div class="rvalue" style="color:#13A538;">38%</div></div>';
-        resultHTML += '<div class="result-param"><div class="rlabel">LTV</div><div class="rvalue" style="color:#13A538;">60%</div></div>';
+        resultHTML += '<div class="result-param"><div class="rlabel">Платёж к доходу</div><div class="rvalue" style="color:#13A538;">38%</div></div>';
+        resultHTML += '<div class="result-param"><div class="rlabel">Кредит к стоимости</div><div class="rvalue" style="color:#13A538;">60%</div></div>';
         resultHTML += '</div></div>';
         
-        actionHTML = '<button class="btn btn-success" onclick="alert(\'Заявка направлена на полный скоринг\')"><i class="fas fa-robot"></i> Запустить полный скоринг</button>';
-        actionHTML += '<button class="btn btn-outline" onclick="alert(\'Открывается чат с клиентом\')"><i class="fas fa-comment-dots"></i> Сообщить клиенту</button>';
+        actionHTML = '<button class="btn btn-success" onclick="pageNotify(\'Заявка направлена на полный скоринг\')"><i class="fas fa-robot"></i> Запустить полный скоринг</button>';
+        actionHTML += '<button class="btn btn-outline" onclick="pageNotify(\'Чат с клиентом открывается в карточке заявки\')"><i class="fas fa-comment-dots"></i> Сообщить клиенту</button>';
     } else if (outcome === 'declined') {
         resultHTML = '<div class="result-card declined">';
         resultHTML += '<div class="result-icon">❌</div>';
         resultHTML += '<div class="result-title" style="color:#991b1b;">Прескоринг не пройден</div>';
         resultHTML += '<div class="result-subtitle">Выявлены стоп-факторы, требующие внимания</div>';
         resultHTML += '<div class="result-params">';
-        resultHTML += '<div class="result-param"><div class="rlabel">Проблема</div><div class="rvalue" style="font-size:13px;color:#991b1b;">PTI > 50%</div></div>';
+        resultHTML += '<div class="result-param"><div class="rlabel">Проблема</div><div class="rvalue" style="font-size:13px;color:#991b1b;">Платёж к доходу > 50%</div></div>';
         resultHTML += '<div class="result-param"><div class="rlabel">Макс. сумма</div><div class="rvalue" style="color:#f59e0b;">4 200 000 ₽</div></div>';
         resultHTML += '</div></div>';
         
-        actionHTML = '<button class="btn btn-warning" onclick="alert(\'Открывается форма изменения параметров\')"><i class="fas fa-edit"></i> Предложить изменить параметры</button>';
-        actionHTML += '<button class="btn btn-danger" onclick="alert(\'Заявка отклонена\')"><i class="fas fa-times"></i> Отклонить заявку</button>';
-        actionHTML += '<button class="btn btn-outline" onclick="alert(\'Открывается чат с клиентом\')"><i class="fas fa-comment-dots"></i> Связаться с клиентом</button>';
+        actionHTML = '<button class="btn btn-warning" onclick="pageNotify(\'Форма изменения параметров открывается в карточке заявки\')"><i class="fas fa-edit"></i> Предложить изменить параметры</button>';
+        actionHTML += '<button class="btn btn-danger" onclick="pageNotify(\'Заявка отклонена\')"><i class="fas fa-times"></i> Отклонить заявку</button>';
+        actionHTML += '<button class="btn btn-outline" onclick="pageNotify(\'Чат с клиентом открывается в карточке заявки\')"><i class="fas fa-comment-dots"></i> Связаться с клиентом</button>';
     } else {
         resultHTML = '<div class="result-card review">';
         resultHTML += '<div class="result-icon">⚠️</div>';
@@ -212,8 +212,8 @@ function showResult(outcome) {
         resultHTML += '<div class="result-param"><div class="rlabel">Источник</div><div class="rvalue" style="font-size:13px;">ФНС vs ЕСИА</div></div>';
         resultHTML += '</div></div>';
         
-        actionHTML = '<button class="btn btn-primary" onclick="alert(\'Запрос отправлен\')"><i class="fas fa-file-upload"></i> Запросить документы</button>';
-        actionHTML += '<button class="btn btn-outline" onclick="alert(\'Открывается чат с клиентом\')"><i class="fas fa-comment-dots"></i> Уточнить у клиента</button>';
+        actionHTML = '<button class="btn btn-primary" onclick="pageNotify(\'Запрос документов отправлен\')"><i class="fas fa-file-upload"></i> Запросить документы</button>';
+        actionHTML += '<button class="btn btn-outline" onclick="pageNotify(\'Чат с клиентом открывается в карточке заявки\')"><i class="fas fa-comment-dots"></i> Уточнить у клиента</button>';
     }
     
     document.getElementById('resultBlock').innerHTML = resultHTML;
@@ -265,5 +265,21 @@ function resetPrescoring() {
 runPrescoring();
 </script>
 
+<script>
+/* Плашка вместо окон браузера: на показе alert() и confirm() выглядят как сбой
+   страницы, а не как ответ банка. Стиль у плашки свой, страница автономная. */
+function pageNotify(message) {
+    var old = document.getElementById('pageToast');
+    if (old) old.remove();
+    var t = document.createElement('div');
+    t.id = 'pageToast';
+    t.textContent = message;
+    t.setAttribute('style', 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);' +
+        'background:#1e3a5f;color:#fff;font:600 13px Roboto,system-ui,sans-serif;padding:12px 18px;' +
+        'border-radius:10px;box-shadow:0 10px 24px rgba(0,45,80,.28);z-index:9999;max-width:90vw;text-align:center;');
+    document.body.appendChild(t);
+    setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 4000);
+}
+</script>
 </body>
 </html>

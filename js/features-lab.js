@@ -102,7 +102,7 @@ function printOfferPackage() {
     var title = app.selectedPackageLabel || 'Предварительное предложение';
     var w = window.open('', '_blank', 'width=800,height=900');
     if (!w) {
-        alert('Разрешите всплывающие окна для печати оффера');
+        clientNotify('Разрешите всплывающие окна для печати оффера');
         return;
     }
     w.document.write('<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8"><title>Оффер №' + appId + '</title>');

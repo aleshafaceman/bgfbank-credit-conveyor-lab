@@ -11,12 +11,12 @@ var sStepCatalog = [
     { name: 'Проверка работодателя', source: 'ЕГРЮЛ', time: '1.5 сек', detail_ok: 'ООО «ТехноСофт» действует.',
         issues: [{ type:'warning', title:'Не найден в ЕГРЮЛ', desc:'Организация не найдена.', actions:['Продолжить','Запросить трудовую'], prob:8 },
                  { type:'error', title:'Банкротство', desc:'Организация в стадии банкротства.', actions:['Отклонить','Запросить пояснения'], prob:5 }] },
-    { name: 'Оценка недвижимости', source: 'Ocenka.mobi', time: '2.8 сек', detail_ok: 'Стоимость: 8 500 000 ₽.',
-        issues: [{ type:'error', title:'Сервис недоступен', desc:'Таймаут Ocenka.mobi.', detail:'Предыдущая оценка: 8 500 000 ₽', actions:['Использовать предыдущую','Повторить'], prob:8 },
+    { name: 'Оценка недвижимости', source: 'Мобильный оценщик', time: '2.8 сек', detail_ok: 'Стоимость: 8 500 000 ₽.',
+        issues: [{ type:'error', title:'Сервис недоступен', desc:'Таймаут сервиса оценки.', detail:'Предыдущая оценка: 8 500 000 ₽', actions:['Использовать предыдущую','Повторить'], prob:8 },
                  { type:'error', title:'Объект не найден', desc:'Не определён по адресу.', actions:['Уточнить адрес','Ввести вручную'], prob:8 }] },
-    { name: 'Андеррайтинг', source: 'Loginom', time: '3.2 сек', detail_ok: 'PTI: 38%. DTI: 42%.',
-        issues: [{ type:'error', title:'PTI > 50%', desc:'Превышен порог PTI.', detail:'PTI: 52%. Максимум: 50%.', actions:['Изменить параметры','Отклонить'], prob:12 },
-                 { type:'warning', title:'DTI повышен', desc:'DTI: 58%.', actions:['Продолжить','Запросить доп. информацию'], prob:12 }] },
+    { name: 'Андеррайтинг', source: 'Система скоринга банка', time: '3.2 сек', detail_ok: 'Платёж к доходу: 38%. Долговая нагрузка: 42%.',
+        issues: [{ type:'error', title:'Платёж к доходу выше 50%', desc:'Превышен порог платежа к доходу.', detail:'Платёж к доходу: 52%. Максимум: 50%.', actions:['Изменить параметры','Отклонить'], prob:12 },
+                 { type:'warning', title:'Долговая нагрузка повышена', desc:'Долговая нагрузка: 58%.', actions:['Продолжить','Запросить доп. информацию'], prob:12 }] },
     { name: 'Расчёт условий', source: 'Внутренний', time: '1.0 сек', detail_ok: 'Ставка: 12.5%. Лимит: 5 400 000 ₽.',
         issues: [{ type:'warning', title:'Ставка повышена', desc:'+0.5% из-за рисков.', detail:'Базовая: 12.0%\nИтоговая: 12.5%', actions:['Принять','Пересмотреть'], prob:15 }] },
     { name: 'Финальное решение', source: 'Внутренний', time: '0.8 сек', detail_ok: 'Решение сформировано.', issues:[] }
@@ -70,7 +70,7 @@ function scoringStepsForApp(app, mode) {
             var bki = cp && cp.scopes && cp.scopes.credit_report;
             steps[1].detail_ok = (bki && bki.status === 'ok')
                 ? 'Отчёт БКИ получен.'
-                : 'Согласие на БКИ есть, отчёт тянет Loginom / CREDIT Registry.';
+                : 'Согласие на БКИ есть, отчёт запрашивает скоринг банка.';
         }
         if (steps[2]) {
             steps[2].detail_ok = 'Клиент предварительно подходит. Условия ниже — не финальные.';
@@ -185,9 +185,12 @@ function openManagerScoring(force) {
         var apps = typeof getAllApplications === 'function' ? getAllApplications() : (typeof managerApplications !== 'undefined' ? managerApplications : []);
         var app = (apps || []).find(function(a) { return a && a.id === appId; }) || null;
         var missing = (typeof missingOriginals === 'function') ? missingOriginals(app || { id: appId, documents: [] }) : [];
-        if (!force && missing.length && typeof confirm === 'function') {
-            var ok = confirm('Нет полного комплекта оригиналов:\n• ' + missing.join('\n• ') + '\n\nЗапустить полный скоринг без комплекта?');
-            if (!ok) return;
+        if (!force && missing.length) {
+            /* Комплект оригиналов неполный: предупреждаем плашкой и продолжаем.
+               Нативное окно подтверждения на показе выглядит как сбой браузера. */
+            if (typeof managerNotify === 'function') {
+                managerNotify('Комплект оригиналов неполный: ' + missing.join(', ') + ' — скоринг запущен');
+            }
         }
         startScoringRun('full');
     } finally {
@@ -388,7 +391,7 @@ function confirmManagerScoringDecision(outcome) {
         ? ('Заявка №' + selectedAppId + ' одобрена')
         : ('Заявка №' + selectedAppId + ' отклонена');
     if (typeof managerNotify === 'function') managerNotify(msg);
-    else alert(msg);
+    else console.log(msg);
     closeManagerScoring();
 }
 

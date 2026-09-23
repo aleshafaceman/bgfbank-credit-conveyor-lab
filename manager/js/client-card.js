@@ -9,7 +9,8 @@ function openClientCard(clientName) {
     clients = getAllClients();
     const client = clients[clientName];
     if (!client) {
-        alert('Клиент «' + clientName + '» не найден в базе');
+        if (typeof managerNotify === 'function') managerNotify('Клиент «' + clientName + '» не найден в базе');
+        else console.log('Клиент «' + clientName + '» не найден в базе');
         return;
     }
 

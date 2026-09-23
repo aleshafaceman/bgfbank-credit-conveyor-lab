@@ -47,7 +47,7 @@ function renderReportsTab() {
                 <div class="m-app-detail" style="text-align:center;"><div style="font-size:28px;font-weight:800;color:#0B4697;">${arts.length}</div><div style="font-size:13px;color:#7e9bb6;">Артефактов в реестре</div></div>
             </div>
             <h3 style="font-size:16px;color:#0B4697;margin:28px 0 8px;"><i class="fas fa-folder-open"></i> Агрегат документов</h3>
-            <p style="font-size:13px;color:#7e9bb6;margin-bottom:12px;">Счётчики по видам из «Документов» (express_eval, ЕГРН, протоколы, паспорт сделки, КОД). Не отдельный файл.</p>
+            <p style="font-size:13px;color:#7e9bb6;margin-bottom:12px;">Счётчики по видам из «Документов» (экспресс-оценка, ЕГРН, протоколы, паспорт сделки, КОД). Не отдельный файл.</p>
             <div class="m-funnel">${kindRows.join('') || '<p style="color:#94a3b8;font-size:13px;">Пока нет артефактов — они появятся по шагам конвейера.</p>'}</div>
         </div>
     `;

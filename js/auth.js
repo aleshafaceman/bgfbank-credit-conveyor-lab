@@ -87,7 +87,7 @@ function loginWithPassword() {
 // ========== ВХОД ПО SMS ==========
 function sendAuthCode() {
     const phone = document.getElementById('authPhone').value.trim();
-    if (!phone || phone.length < 10) { alert('Введите корректный номер телефона'); return; }
+    if (!phone || phone.length < 10) { clientNotify('Введите корректный номер телефона'); return; }
     switchAuthView('sms');
 }
 
@@ -109,10 +109,10 @@ function verify2FACode() {
 // ========== РЕГИСТРАЦИЯ ==========
 function sendRegCode() {
     const phone = document.getElementById('regPhone').value.trim();
-    if (!phone || phone.length < 10) { alert('Введите корректный номер телефона'); return; }
+    if (!phone || phone.length < 10) { clientNotify('Введите корректный номер телефона'); return; }
     
     if (isUserRegistered() && getUserCredentials().phone === phone) {
-        alert('Этот номер уже зарегистрирован. Войдите в личный кабинет.');
+        clientNotify('Этот номер уже зарегистрирован. Войдите в личный кабинет.');
         showLoginScreen();
         return;
     }
@@ -151,7 +151,7 @@ function completeRegistration() {
 
 // ========== ВХОД ЧЕРЕЗ ГОСУСЛУГИ ==========
 function loginViaESIA() {
-    alert('Перенаправление на Госуслуги (ЕСИА)...');
+    clientNotify('Вход через Госуслуги выполнен');
     const user = getUserCredentials();
     document.getElementById('authWelcomeName').textContent = user.name;
     switchAuthView('success');
@@ -203,28 +203,28 @@ function enterApp() {
 
 // ========== ВЫХОД ==========
 function logout() {
-    if (confirm('Выйти из личного кабинета?')) {
-        ['view-dashboard','view-applications','view-conveyor','view-profile','view-settings','view-mortgage']
-            .forEach(id => document.getElementById(id).classList.add('hidden'));
-        
-        if (typeof closeMobileSidebar === 'function') closeMobileSidebar();
-        const shell = document.getElementById('appShell');
-        if (shell) shell.classList.remove('app-logged-in');
-        const sidebar = document.getElementById('appSidebar');
-        if (sidebar) sidebar.setAttribute('aria-hidden', 'true');
-        document.getElementById('authFullscreen').classList.remove('hidden');
-        
-        ['view-auth-login','view-auth-sms','view-auth-2fa','view-auth-success',
-         'view-auth-register','view-auth-regcode','view-auth-createpassword','view-auth-regsuccess']
-            .forEach(id => document.getElementById(id).classList.add('hidden'));
-        
-        document.getElementById('view-auth-login').classList.remove('hidden');
-        document.getElementById('authPassword').value = '';
-        document.getElementById('authError').style.display = 'none';
-        
-        document.getElementById('pageTitle').innerText = 'БЖФ Банк';
-        document.getElementById('pageSubtitle').innerText = 'Кредитный конвейер';
-    }
+    /* Без окна подтверждения: выход — обратимое действие, о нём сообщает плашка. */
+    ['view-dashboard','view-applications','view-conveyor','view-profile','view-settings','view-mortgage']
+        .forEach(id => document.getElementById(id).classList.add('hidden'));
+    
+    if (typeof closeMobileSidebar === 'function') closeMobileSidebar();
+    const shell = document.getElementById('appShell');
+    if (shell) shell.classList.remove('app-logged-in');
+    const sidebar = document.getElementById('appSidebar');
+    if (sidebar) sidebar.setAttribute('aria-hidden', 'true');
+    document.getElementById('authFullscreen').classList.remove('hidden');
+    
+    ['view-auth-login','view-auth-sms','view-auth-2fa','view-auth-success',
+     'view-auth-register','view-auth-regcode','view-auth-createpassword','view-auth-regsuccess']
+        .forEach(id => document.getElementById(id).classList.add('hidden'));
+    
+    document.getElementById('view-auth-login').classList.remove('hidden');
+    document.getElementById('authPassword').value = '';
+    document.getElementById('authError').style.display = 'none';
+    
+    document.getElementById('pageTitle').innerText = 'БЖФ Банк';
+    document.getElementById('pageSubtitle').innerText = 'Кредитный конвейер';
+    clientNotify('Вы вышли из личного кабинета');
 }
 
 // ========== ТАЙМЕР И OTP ==========
@@ -245,7 +245,7 @@ function startAuthTimer(elId) {
 }
 
 function resendCode() {
-    alert('Новый код отправлен на ваш номер.');
+    clientNotify('Новый код отправлен на ваш номер.');
     if (!document.getElementById('view-auth-sms').classList.contains('hidden')) {
         startAuthTimer('authTimer');
     } else if (!document.getElementById('view-auth-2fa').classList.contains('hidden')) {
@@ -278,13 +278,13 @@ function changePasswordInSettings() {
     const newPassword = document.getElementById('newPasswordSettings').value;
     const confirmPassword = document.getElementById('confirmPasswordSettings').value;
     
-    if (!oldPassword) { alert('Введите текущий пароль'); return; }
-    if (newPassword !== confirmPassword) { alert('Пароли не совпадают'); return; }
+    if (!oldPassword) { clientNotify('Введите текущий пароль'); return; }
+    if (newPassword !== confirmPassword) { clientNotify('Пароли не совпадают'); return; }
     
     const result = changePassword(oldPassword, newPassword);
-    if (!result.success) { alert(result.error); return; }
+    if (!result.success) { clientNotify(result.error); return; }
     
-    alert('Пароль успешно изменён!');
+    clientNotify('Пароль успешно изменён');
     document.getElementById('oldPassword').value = '';
     document.getElementById('newPasswordSettings').value = '';
     document.getElementById('confirmPasswordSettings').value = '';
@@ -293,7 +293,7 @@ function changePasswordInSettings() {
 function toggleTwoFactor() {
     const enabled = document.getElementById('toggle2FA').checked;
     setTwoFactorEnabled(enabled);
-    alert('Двухфакторная аутентификация ' + (enabled ? 'включена' : 'отключена') + '.');
+    clientNotify('Двухфакторная аутентификация ' + (enabled ? 'включена' : 'отключена'));
 }
 
 function init2FAToggle() {

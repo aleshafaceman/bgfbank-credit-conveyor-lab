@@ -520,10 +520,12 @@ console.log('\n=== 6. Manager client card ===');
     'openClientCard renders Kuznetsov');
   assert(ctx._els.mClientDetail.innerHTML.includes('data-select-app='), 'client card apps use data-select-app');
 
-  // Missing client
+  // Missing client: карточка не трогается, окна браузера нет — о нём сообщает плашка
   ctx._alerts = [];
+  const cardBeforeMissing = ctx._els.mClientDetail.innerHTML;
   ctx.openClientCard('Неизвестный Человек');
-  assert(ctx._alerts.length >= 1, 'missing client shows alert');
+  assert(ctx._alerts.length === 0 && ctx._els.mClientDetail.innerHTML === cardBeforeMissing,
+    'missing client leaves the card untouched and shows no browser alert');
 
   // Sparse client applications without documents
   ctx.clients['Sparse User'] = {
@@ -1040,14 +1042,13 @@ console.log('\n=== 8. TrustGate lab app is manager-only ===');
   ctx.updateApplication('4636-И', { documents: labDocsSnapshot.map(d => Object.assign({}, d)) });
   const runs = [];
   ctx.startScoringRun = function(mode) { runs.push(mode); };
-  ctx._confirms = [];
-  ctx.confirm = function(msg) { ctx._confirms.push(String(msg)); return false; };
+  ctx._alerts = [];
   ctx.selectedAppId = '4636-И';
   ctx.openManagerScoring();
-  assert(ctx._confirms.length === 1, 'full scoring confirms when originals are missing');
-  assert(runs.length === 0, 'cancelled confirm does not start full scoring');
+  assert(runs[0] === 'full', 'full scoring starts even when originals are missing');
+  assert(ctx._alerts.length === 0, 'missing originals are announced without a browser dialog');
   ctx.openManagerScoring(true);
-  assert(runs[0] === 'full', 'forced full scoring skips confirm');
+  assert(runs[1] === 'full', 'forced full scoring starts the run again');
 
   const approvedBtns = ctx.getActionButtons({ id: '3890-И', status: 'approved' });
   assert(approvedBtns.indexOf('sendContract') !== -1 && approvedBtns.indexOf("alert(") === -1,
@@ -1071,7 +1072,8 @@ console.log('\n=== 9. L3 artifacts registry ===');
   assert(egrn && egrn.file && egrn.file.name === 'egrn.pdf', 'C8 stores file metadata without bytes');
   assert(!JSON.stringify(ctx.loadArtifactStore()).includes('JVBERi0'), 'artifact store has no PDF base64');
   const html = ctx.artifactPreviewHTML(egrn, ctx.getAllApplications().find(a => a.id === '4421-И'));
-  assert(/ЕГРН/.test(html) && /OCR/.test(html) && !/cp-profile-btn/.test(html), 'EGRN preview is file+OCR, no CP lab buttons');
+  assert(/ЕГРН/.test(html) && /Распознавание/.test(html) && !/cp-profile-btn/.test(html),
+    'EGRN preview is file+recognition, no CP lab buttons');
   ctx.recordExpressEvalFromCollateral('4421-И', {
     valuation: 8500000, address: 'г. Москва, ул. Крылатская, д. 15, кв. 42',
     cadastral: '77:07:0001075:1234', year: 2015
@@ -1082,8 +1084,8 @@ console.log('\n=== 9. L3 artifacts registry ===');
   ctx.recordDecisionAndApproval('4421-И');
   const sms = ctx.getArtifact(ctx.artStableId('4421-И', 'broker_sms'));
   const smsHtml = ctx.artifactPreviewHTML(sms, afterEval);
-  assert(/SMSTraffic/.test(smsHtml) && /smsId/.test(smsHtml) && /Delivered/.test(smsHtml),
-    'M10 preview is SMSTraffic smsId/Delivered');
+  assert(/Идентификатор сообщения/.test(smsHtml) && /доставлено/.test(smsHtml) && !/SMSTraffic|smsId|Delivered/.test(smsHtml),
+    'M10 preview names the message in Russian, without vendor codes');
   assert(!/MFMS|DboSms|SMPP/.test(smsHtml), 'M10 preview does not name OTP/CFT channels');
   const vis = ctx.clientVisibleArtifacts(ctx.listArtifacts());
   assert(!vis.some(a => String(a.appId).indexOf('4636') >= 0), 'clientVisibleArtifacts hides 4636');
@@ -1135,7 +1137,7 @@ console.log('\n=== 9. L3 artifacts registry ===');
   assert(ctx.listArtifacts('4421-И').some(a => a.kind === 'review_started'), 'M1 review card recorded');
   ctx.recordBkiRequest('4421-И');
   const bkiHtml = ctx.artifactPreviewHTML(ctx.getArtifact(ctx.artStableId('4421-И', 'bki_request')), {});
-  assert(/CREDIT Registry|Loginom/.test(bkiHtml) && !/JVBERi0/.test(bkiHtml), 'C17 BKI request has no XML bytes');
+  assert(/скоринга банка|Loginom/.test(bkiHtml) && !/JVBERi0/.test(bkiHtml), 'C17 BKI request has no XML bytes');
   ctx.persistPackageModifiers('4421-И', { ltvBoost: true, coBorrower: false, fixedRate: false });
   const withMods = ctx.getAllApplications().find(a => a.id === '4421-И');
   assert(withMods.packageModifiers && withMods.packageModifiers.ltvBoost, 'C12 packageModifiers persist on app');

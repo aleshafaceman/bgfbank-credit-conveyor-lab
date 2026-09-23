@@ -325,7 +325,7 @@ function renderKodInventoryListHTML(art) {
         var st = typeof it === 'string' ? 'in_kit' : (it.status || 'prepared');
         return '<div class="row"><span>' + artEscape(title) + '</span><b>' + artEscape(kodStatusLabel(st)) + '</b></div>';
     }).join('') + '</div>' +
-        '<p class="muted">Опись кодов электронной сделки (канон deal-ops + СПР). Не стол ОЗС, не SmartDeal, не сырые файлы.</p>';
+        '<p class="muted">Опись документов электронной сделки: что входит в комплект и в каком оно состоянии. Это не стол сделки и не сырые файлы систем.</p>';
 }
 
 function renderSharedPassportKodHTML(app, art, activeKind) {
@@ -409,8 +409,8 @@ function artifactPreviewHTML(art, app) {
     }
     if (kind === 'sopd') {
         row('Субъект', artEscape(app.client || [b.last_name, b.first_name, b.second_name].filter(Boolean).join(' ')));
-        row('Канал', 'form / кабинет');
-        row('Форма / версия', 'full');
+        row('Канал', 'форма на сайте / кабинет');
+        row('Форма / версия', artEscape((art.payload && art.payload.formMode) === 'short' ? 'короткая' : 'полная'));
         row('Дата акцепта', artEscape((art.payload && art.payload.acceptedAt) || (art.createdAt || '').slice(0, 10)));
         return artSheet(title, head + '<div class="box">' + rows + '</div>' +
             '<p>Прошу Банк БЖФ обрабатывать мои персональные данные в целях рассмотрения заявки.</p>' +
@@ -464,9 +464,9 @@ function artifactPreviewHTML(art, app) {
         row('Адрес', artEscape(app.collateralAddress || '—'));
         row('Кадастр', artEscape(app.cadastral_number || (lk.product && lk.product.cadastral_number) || '—'));
         row('Файл', artEscape(file.name || '—') + (file.size ? ' · ' + file.size + ' байт' : ''));
-        row('OCR', 'Basis · файл принят, не СМЭВ');
+        row('Распознавание', 'файл принят, запрос в Росреестр не идёт');
         return artSheet(title, head + '<div class="box">' + rows + '</div>' +
-            '<p class="muted">ЕГРН AS-IS = файл + OCR. Payload Росреестра не выдуман.</p>');
+            '<p class="muted">Выписка приходит файлом и распознаётся. Структура ответа Росреестра взята из реального обмена, данные вымышленные.</p>');
     }
     if (kind === 'package_compare') {
         var pkgs = app.eligiblePackages || (art.payload && art.payload.packages) || [];
@@ -535,13 +535,13 @@ function artifactPreviewHTML(art, app) {
     }
     if (kind === 'broker_sms') {
         var sms = (art.payload) || {};
-        row('Сервис', 'SMSTraffic');
-        row('Адрес', 'https://api.smstraffic.ru');
-        row('Идентификатор smsId', artEscape(sms.smsId || '—'));
-        row('Статус', artEscape(sms.status === 'Delivered' || !sms.status ? 'Доставлено (Delivered)' : sms.status));
+        row('Канал', 'СМС');
+        row('Отправитель', 'БЖФ Банк');
+        row('Идентификатор сообщения', artEscape(sms.smsId || '—'));
+        row('Статус', artEscape(sms.status === 'Delivered' || !sms.status ? 'доставлено' : artEscape(sms.status)));
         row('Заявка', artEscape(sms.trackingData || art.appId));
         return artSheet(title, head + '<div class="box">' + rows + '</div>' +
-            '<p class="muted">Сообщение партнёру о решении банка (SMSTraffic). Это не код входа в кабинет.</p>');
+            '<p class="muted">Сообщение партнёру о решении банка. Это не код входа в кабинет.</p>');
     }
     if (kind === 'review_started') {
         row('Оператор', artEscape((art.payload && art.payload.operator) || 'Марина Одинцова'));
@@ -565,7 +565,7 @@ function artifactPreviewHTML(art, app) {
         row('Кредитный отчёт', 'согласие есть, сам отчёт в кабинете не кладём');
         row('Статус', 'запрос отправлен');
         return artSheet(title, head + '<div class="box">' + rows + '</div>' +
-            '<p class="muted">Отчёт тянет скоринг банка (Loginom / CREDIT Registry). XML в кабинет не кладём.</p>');
+            '<p class="muted">Отчёт запрашивает система скоринга банка. Сам отчёт в кабинете не храним.</p>');
     }
     if (kind === 'originals_inventory') {
         var docs = app.documents || [];
@@ -644,7 +644,7 @@ function openArtifact(id) {
     if (!art) {
         if (typeof showToast === 'function') showToast('Документ не найден', { icon: 'fa-file', duration: 2000 });
         else if (typeof managerNotify === 'function') managerNotify('Документ не найден');
-        else alert('Документ не найден');
+        else clientNotify('Документ не найден');
         return;
     }
     var app = findAppById(art.appId) || {};
@@ -1397,8 +1397,8 @@ function attachEsiaProfileToConveyorApp(appId) {
             ndfl: { status: 'ok', years: [2025], type: 'INCOME_REFERENCE' },
             szi6: { status: 'missing', note: 'редко приходит, не стоп' },
             family: { status: 'missing', note: 'ЦП семью не отдаёт' },
-            realty: { status: 'missing', note: 'квартиры из ЦП не берём, нужен кадастр' },
-            credit_report: { status: 'consent_only', note: 'согласие есть, отчёт тянет Loginom / CREDIT Registry' }
+            realty: { status: 'missing', note: 'квартиры из цифрового профиля не берём, нужен кадастр' },
+            credit_report: { status: 'consent_only', note: 'согласие есть, отчёт запрашивает скоринг банка' }
         }
     };
     if (typeof updateApplication === 'function') {
