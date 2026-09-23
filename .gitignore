@@ -1,4 +1,3 @@
-```
 # Dependencies
 node_modules/
 
@@ -36,4 +35,10 @@ htmlcov/
 # OS
 .DS_Store
 Thumbs.db
-```
+
+# Служебные материалы работы: реестры, отчёты, выгрузки.
+# Содержат номера реальных сделок, суммы и данные заёмщиков — в публичный
+# репозиторий не попадают.
+.superpowers/
+docs/optimization-registry.md
+*.xlsx
