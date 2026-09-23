@@ -649,6 +649,17 @@ console.log('\n=== 7. HTML script order / critical refs ===');
     fs.readFileSync(path.join(root, 'shared/lk-application.js'), 'utf8');
   assert(!/ДУ тип 0/.test(duNameSrc),
     'cabinet copy does not show ДУ тип 0');
+  /* «Настройки» — это настройки. Кнопка «Новая заявка» в разделе «Безопасность»
+     сбивала с толку: заявку подают из «Моих заявок» и с дашборда, а раздел про
+     доступ отвечает за пароль, 2FA и сессии. */
+  (function () {
+    const sec = (index.match(/<div id="settings-tab-security"[\s\S]*?\n                <\/div>/) || [''])[0];
+    assert(sec.length > 0, 'cabinet keeps a security settings tab');
+    assert(sec.indexOf('startNewApplicationDemo') === -1 && !/Новая заявка/.test(sec),
+      'security settings tab does not offer to create an application');
+    assert(/Смена пароля/.test(sec) && /Двухфакторная аутентификация/.test(sec) && /Активные сессии/.test(sec),
+      'security settings tab is about password, 2FA and sessions');
+  }());
   assert(/for="authPhone"/.test(index) && /name="authPhone"/.test(index),
     'login phone field has associated label and name');
   (function () {
