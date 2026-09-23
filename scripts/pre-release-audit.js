@@ -649,6 +649,16 @@ console.log('\n=== 7. HTML script order / critical refs ===');
     fs.readFileSync(path.join(root, 'shared/lk-application.js'), 'utf8');
   assert(!/ДУ тип 0/.test(duNameSrc),
     'cabinet copy does not show ДУ тип 0');
+  /* Плашка статуса пакета в кабинете — подпись состояния, а не инструкция.
+     «Предварительное предложение · выберите в конвейере» звало клиента в
+     служебный конвейер банка: в кабинете клиента этого слова быть не должно. */
+  (function () {
+    const clientApps = fs.readFileSync(path.join(root, 'js/applications.js'), 'utf8');
+    const badge = (clientApps.match(/pkg-status-badge--proposed[\s\S]{0,240}?<\/span>/) || [''])[0];
+    assert(badge.length > 0, 'client package status badge is rendered');
+    assert(badge.indexOf('Предварительное предложение') !== -1, 'client package badge names the state');
+    assert(!/конвейер/i.test(badge), 'client package badge does not send the client to the conveyor');
+  }());
   /* «Настройки» — это настройки. Кнопка «Новая заявка» в разделе «Безопасность»
      сбивала с толку: заявку подают из «Моих заявок» и с дашборда, а раздел про
      доступ отвечает за пароль, 2FA и сессии. */

@@ -291,7 +291,7 @@ function renderApplicationPackageBlock(app) {
     const isAccepted = app.packageStatus === 'accepted' || (app.selectedPackageId && app.rate != null && app.payment != null);
     const statusBadge = isAccepted
         ? '<span class="pkg-status-badge pkg-status-badge--accepted"><i class="fas fa-check-circle"></i></span>'
-        : '<span class="pkg-status-badge pkg-status-badge--proposed"><i class="fas fa-info-circle"></i> Предварительное предложение · выберите в конвейере</span>';
+        : '<span class="pkg-status-badge pkg-status-badge--proposed"><i class="fas fa-info-circle"></i> Предварительное предложение</span>';
 
     const title = catalog ? catalog.title : app.selectedPackageLabel;
     const description = catalog ? catalog.description : 'Пакет условий по результатам прескоринга. Подтвердите или измените вариант при оформлении заявки.';
