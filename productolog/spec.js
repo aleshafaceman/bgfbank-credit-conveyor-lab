@@ -3198,7 +3198,7 @@ window.ARM_SPEC = {
       "source": {
         "system": "ARM_PRODUCTOLOG",
         "environment": "draft",
-        "publishedBy": "productolog@bgf",
+        "publishedBy": "productolog.demo@example.test",
         "changeSetId": "CS-2026-11-01-TURBO20-RATEBELOW"
       },
       "changeSet": {

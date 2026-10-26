@@ -21,7 +21,7 @@ window.L2_DATA = {
     { no: 9, title: 'Паспорт', what: 'документ по версии; не сущность каталога' },
     { no: 10, title: 'Набор изменений', what: 'черновые версии, общая дата, атомарная публикация' },
     { no: 11, title: 'Запись лога действий', what: 'кто, что и когда изменил — черновые и опубликованные версии' },
-    { no: 12, title: 'Роли и полномочия', what: 'кому видно и что разрешено менять (границы открыты)' },
+    { no: 12, title: 'Роли и полномочия', what: 'кому видно и что разрешено менять (границы ролей пока не заданы)' },
   ],
 
   // Статусы покрытия блоков по умолчанию для записи-опции.
@@ -49,12 +49,12 @@ window.L2_DATA = {
       product: 'KPZN',
       status: 'active',
       summary: 'Базовая программа КПЗН: залог имеющейся недвижимости, срок до 302 месяцев, сумма до 30 млн ₽.',
-      commission: { value: 11.0, unit: 'п.п.', basis: null, oq: 'OQ-M-01' },
       versions: [
         {
           number: 11, status: 'replaced', statusTitle: 'Заменена',
           effectiveFrom: '2026-03-01', effectiveTo: '2026-08-31',
           approvedAt: '2026-02-12', approvedBy: 'Продуктолог', decisionRef: 'КО-11/2026',
+          commission: { value: 11.0, unit: 'п.п.', basis: null },
           terms: {
             base1: 25.99, base2: 26.99, refusal: 27.49,
             amountMin: 450000, amountMax: 30000000, termMin: 86, termMax: 302,
@@ -68,6 +68,7 @@ window.L2_DATA = {
           number: 12, status: 'active', statusTitle: 'Действует',
           effectiveFrom: '2026-09-01', effectiveTo: null,
           approvedAt: '2026-08-12', approvedBy: 'Продуктолог', decisionRef: 'КО-14/2026',
+          commission: { value: 11.0, unit: 'п.п.', basis: null },
           terms: {
             base1: 24.99, base2: 25.99, refusal: 26.49,
             amountMin: 450000, amountMax: 30000000, termMin: 86, termMax: 302,
@@ -81,6 +82,7 @@ window.L2_DATA = {
           number: 13, status: 'draft', statusTitle: 'Черновик',
           effectiveFrom: '2026-12-01', effectiveTo: null,
           approvedAt: null, approvedBy: null, decisionRef: null,
+          commission: { value: 12.0, unit: 'п.п.', basis: null },
           terms: {
             base1: 24.49, base2: 25.49, refusal: 25.99,
             amountMin: 450000, amountMax: 30000000, termMin: 86, termMax: 302,
@@ -109,12 +111,12 @@ window.L2_DATA = {
       product: 'KPZN',
       status: 'active',
       summary: 'Программа для КИ1–КИ3: предельный LTV по продукту 60 %, ПДН не выше 50 %, сумма до 20 млн ₽.',
-      commission: { value: 14.0, unit: 'п.п.', basis: null, oq: 'OQ-M-01' },
       versions: [
         {
           number: 9, status: 'active', statusTitle: 'Действует',
           effectiveFrom: '2026-07-01', effectiveTo: null,
           approvedAt: '2026-06-18', approvedBy: 'Продуктолог', decisionRef: 'КО-09/2026',
+          commission: { value: 14.0, unit: 'п.п.', basis: null },
           terms: {
             base1: 27.49, base2: 28.49, refusal: 28.99,
             amountMin: 450000, amountMax: 20000000, termMin: 86, termMax: 302,
@@ -144,12 +146,12 @@ window.L2_DATA = {
       product: 'KPZN',
       status: 'active',
       summary: 'Опция КПЗН: снижает ставку за комиссию; максимальная сумма зависит от региона.',
-      commission: { value: 14.0, unit: 'п.п.', basis: null, oq: 'OQ-M-01' },
       versions: [
         {
           number: 2, status: 'active', statusTitle: 'Действует',
           effectiveFrom: '2026-03-01', effectiveTo: null,
           approvedAt: '2026-02-20', approvedBy: 'Продуктолог', decisionRef: 'КО-04/2026',
+          commission: { value: 14.0, unit: 'п.п.', basis: null },
           terms: {
             base1: 23.99, base2: 24.99, refusal: 25.49,
             amountMin: 450000, amountMax: 20000000, termMin: 86, termMax: 302,
@@ -180,12 +182,12 @@ window.L2_DATA = {
       product: 'KPZN',
       status: 'active',
       summary: 'Опция КПЗН: отдельная запись, не вложена в «Спец. опцию 4.0» — вложенность из заголовка не выводится.',
-      commission: { value: 10.5, unit: 'п.п.', basis: null, oq: 'OQ-M-01' },
       versions: [
         {
           number: 1, status: 'active', statusTitle: 'Действует',
           effectiveFrom: '2025-12-01', effectiveTo: null,
           approvedAt: '2025-11-14', approvedBy: 'Продуктолог', decisionRef: 'КО-21/2025',
+          commission: { value: 10.5, unit: 'п.п.', basis: null },
           terms: {
             base1: 24.49, base2: 25.49, refusal: 25.99,
             amountMin: 450000, amountMax: 30000000, termMin: 86, termMax: 302,
@@ -212,12 +214,12 @@ window.L2_DATA = {
       product: 'KPZN',
       status: 'active',
       summary: 'Опция основных продуктов: входит в объём MVP-1, привязки по продуктам подтверждаются отдельно.',
-      commission: { value: 2.49, unit: 'п.п.', basis: null, oq: 'OQ-M-01' },
       versions: [
         {
           number: 3, status: 'active', statusTitle: 'Действует',
           effectiveFrom: '2026-04-01', effectiveTo: null,
           approvedAt: '2026-03-19', approvedBy: 'Продуктолог', decisionRef: 'КО-06/2026',
+          commission: { value: 2.49, unit: 'п.п.', basis: null },
           terms: {
             base1: 24.19, base2: 25.19, refusal: 25.69,
             amountMin: 1000000, amountMax: 30000000, termMin: 86, termMax: 302,
