@@ -140,4 +140,3 @@
 }
 .l2-log div { padding: 5px 0; border-bottom: 1px solid var(--line); font-size: 12px; }
 .l2-log b { color: var(--navy); }
-.l2-view { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; color: var(--ink); }

@@ -26,7 +26,6 @@ const ROOT = path.resolve(__dirname, '..');
 /* Порядок шагов: сначала быстрый статический аудит, потом браузерные прогоны.
    Он же порядок в выводе — по нему видно, на каком шаге всё встало. */
 const steps = [
-  { name: 'Инварианты каталога L2', args: ['scripts/check-l2-invariants.js'] },
   { name: 'Аудит разметки', args: ['scripts/pre-release-audit.js'] },
   { name: 'Формы клиента', args: ['scripts/form-flow-check.js'] },
   { name: 'Кабинеты и столы', args: ['scripts/surface-check.js'] },

@@ -16,14 +16,11 @@
     deferred: { title: 'отложено', cls: 'out' },
   };
 
-  // Роли, известные модели: «Продуктолог» и «Администратор». Порядок согласования
-  // и право публикации пока не заданы, поэтому в демо публикует любая из двух ролей.
-  // Показ read-only — не роль, а отдельный демонстрационный режим просмотра.
   const ROLE = {
     productolog: { title: 'Продуктолог', canEdit: true, canPublish: true },
     admin: { title: 'Администратор', canEdit: true, canPublish: true },
+    observer: { title: 'Наблюдатель', canEdit: false, canPublish: false },
   };
-  const VIEW_MODE_TITLE = 'Демонстрационный режим просмотра';
 
   const VERSION_STATUS = {
     draft: { title: 'Черновик', cls: 'open' },
@@ -41,13 +38,6 @@
 
   const clone = (v) => JSON.parse(JSON.stringify(v));
 
-  // Комиссия — изменяемый коммерческий параметр блока 6, поэтому живёт в версии,
-  // а не в карточке опции: карточка показывает действующую версию, вкладка версии и
-  // сообщение в СПР — выбранную. Решение владельца: блок 6 версионируется целиком.
-  const commissionOf = (version) => (version && version.commission) || null;
-  const commissionText = (commission) =>
-    (commission ? fmtPct(commission.value).replace(' %', ' ' + commission.unit) : '—');
-
   function defaultState() {
     return {
       ver: STORE_VER,
@@ -55,7 +45,6 @@
       tab: 'card',
       version: 13,
       role: 'productolog',
-      viewMode: false,
       published: {},
       logs: [],
       fbFilter: 'all',
@@ -153,22 +142,17 @@
     return ('00000000' + (h >>> 0).toString(16)).slice(-8);
   }
 
-  // Блокеров нет: правила публикации, порядок согласования и право публикации
-  // в модели пока не заданы, поэтому выдавать проверки за утверждённые правила нельзя.
-  function blockers() {
-    return [];
+  function blockers(option, version) {
+    const list = [];
+    if (!version.decisionRef) list.push('Нет ссылки на решение коллегиального органа (блок 10: основание публикации).');
+    if (state.role === 'observer') list.push('Роль «Наблюдатель» не публикует изменения (блок 12).');
+    return list;
   }
 
-  // Предупреждения — демонстрационные гипотезы и открытые вопросы, а не запреты.
-  // Открытая база комиссии (OQ-M-01) публикацию не блокирует.
   function warnings(option, version) {
     const list = [];
-    if (!version.decisionRef) {
-      list.push('Решение коллегиального органа не указано — демонстрационная гипотеза: порядок согласования и право публикации пока не заданы.');
-    }
-    const commission = commissionOf(version);
-    if (commission && !commission.basis) {
-      list.push('База комиссии за снижение ставки не подтверждена источниками (OQ-M-01) — открытый вопрос, публикацию не блокирует; в сообщении единица «' + commission.unit + '», поле basis = null.');
+    if (option.commission && !option.commission.basis) {
+      list.push('База комиссии за снижение ставки не подтверждена источниками (OQ-M-01): в сообщении передаётся единица «п.п.», поле basis = null.');
     }
     (option.oq || []).forEach((code) => {
       const q = (SPEC.questions || []).find((item) => item.code === code);
@@ -209,10 +193,7 @@
             creditHistory: t.ki,
             regions: t.regions,
           },
-          commission: (function () {
-            const c = commissionOf(version) || {};
-            return { code: 'RATE_REDUCTION', value: c.value == null ? null : c.value, unit: c.unit || null, basis: c.basis == null ? null : c.basis };
-          }()),
+          commission: { code: 'RATE_REDUCTION', value: option.commission.value, unit: option.commission.unit, basis: option.commission.basis },
           eligibility: { note: 'Правила применимости задаются в блоке 5 и проверяются отдельно (OQ-M-26, OQ-M-27)' },
           openQuestions: (option.oq || []).filter((code) => ((SPEC.questions || []).find((q) => q.code === code) || {}).state === 'open'),
         },
@@ -289,8 +270,8 @@
       + '<dt>Вид</dt><dd>' + esc(option.kindTitle) + '</dd>'
       + '<dt>Продукт-владелец</dt><dd>' + esc(productTitle(option.product)) + ' <span class="l2-meta">(блок 1: ' + esc(option.product) + ')</span></dd>'
       + '<dt>Действующая версия</dt><dd>' + (active ? '№ ' + active.number + ' с ' + esc(active.effectiveFrom || '—') : 'нет') + '</dd>'
-      + '<dt>Комиссия за снижение ставки <span class="l2-meta">(действующая версия)</span></dt><dd>' + esc(commissionText(commissionOf(active)))
-      + (commissionOf(active) && !commissionOf(active).basis ? ' <span class="l2-chip l2-chip--open">база не подтверждена</span>' : '') + '</dd>'
+      + '<dt>Комиссия за снижение ставки</dt><dd>' + (option.commission ? fmtPct(option.commission.value).replace(' %', ' ' + option.commission.unit) : '—')
+      + (option.commission && !option.commission.basis ? ' <span class="l2-chip l2-chip--open">база не подтверждена</span>' : '') + '</dd>'
       + '<dt>Версий в записи</dt><dd>' + option.versions.length + '</dd>'
       + '</dl>'
       + chipsFor(option)
@@ -362,7 +343,7 @@
       + '<dl class="l2-kv">'
       + '<dt>Действует с</dt><dd>' + esc(version.effectiveFrom || 'дата не задана') + (version.effectiveTo ? ' по ' + esc(version.effectiveTo) : '') + '</dd>'
       + '<dt>Утверждено</dt><dd>' + (version.approvedAt ? esc(version.approvedAt) + ' · ' + esc(version.approvedBy || '—') : 'не утверждено') + '</dd>'
-      + '<dt>Основание (решение КО)</dt><dd>' + esc(version.decisionRef || 'не указано — демонстрационные данные') + ' <span class="l2-meta">порядок согласования не задан</span></dd>'
+      + '<dt>Основание (решение КО)</dt><dd>' + esc(version.decisionRef || 'нет — публикация заблокирована') + '</dd>'
       + '<dt>Ставка БС1 (с 2 по 37 месяц)</dt><dd>' + fmtPct(t.base1) + '</dd>'
       + '<dt>Ставка БС2 (с 38 месяца)</dt><dd>' + fmtPct(t.base2) + '</dd>'
       + '<dt>Ставка при отказе от комиссии</dt><dd>' + fmtPct(t.refusal) + ' <span class="l2-meta">(OnePage B20 — значение требует сверки, OQ-M-14)</span></dd>'
@@ -373,9 +354,8 @@
       + '<dt>Подтверждение дохода</dt><dd>' + esc(t.incomeProof) + '</dd>'
       + '<dt>Страхование</dt><dd>' + esc(t.insurance) + '</dd>'
       + '<dt>Условия применимости</dt><dd>' + esc(t.regions) + '</dd>'
-      + '<dt>Комиссия за снижение ставки <span class="l2-meta">(выбранная версия)</span></dt><dd>' + esc(commissionText(commissionOf(version)))
-      + (commissionOf(version) && !commissionOf(version).basis ? ' <span class="l2-chip l2-chip--open">база не подтверждена</span>' : '')
-      + ' <span class="l2-meta">единица закрыта решением владельца; база — OQ-M-01 (открытый вопрос, не блокер)</span></dd>'
+      + '<dt>Комиссия за снижение ставки</dt><dd>' + (option.commission ? fmtPct(option.commission.value).replace(' %', ' ' + option.commission.unit) : '—')
+      + ' <span class="l2-meta">единица закрыта решением владельца; база — OQ-M-01</span></dd>'
       + '</dl>'
       + '<h3>Что изменилось к предыдущей версии</h3>'
       + '<ul class="l2-list">' + (changes || '<li>' + (prev ? 'Изменений нет' : 'Первая версия записи') + '</li>') + '</ul>'
@@ -387,49 +367,39 @@
     const version = currentVersion();
     const blocked = blockers(option, version);
     const warned = warnings(option, version);
-    const viewMode = Boolean(state.viewMode);
-    const canPublish = !viewMode && !blocked.length && ROLE[state.role].canPublish;
+    const canPublish = !blocked.length && ROLE[state.role].canPublish;
     const message = buildMessage(option, version);
-    const commission = commissionOf(version);
 
     const roleOptions = Object.keys(ROLE).map((key) => '<option value="' + key + '"'
       + (state.role === key ? ' selected' : '') + '>' + esc(ROLE[key].title) + '</option>').join('');
 
-    // Проверки ниже — демонстрационные гипотезы, а не утверждённые правила публикации.
     const checks = [
-      ['Условия версии заполнены', true, ''],
-      ['Решение коллегиального органа указано', Boolean(version.decisionRef),
-        'демонстрационная гипотеза: порядок согласования пока не задан'],
-      ['База комиссии подтверждена источниками', Boolean(commission && commission.basis),
-        'открытый вопрос OQ-M-01 — публикацию не блокирует'],
+      ['Условия версии заполнены', true],
+      ['Есть основание: решение коллегиального органа', Boolean(version.decisionRef)],
+      ['Комиссия: единица задана (п.п.)', Boolean(option.commission && option.commission.unit)],
+      ['База комиссии подтверждена источниками', Boolean(option.commission && option.commission.basis)],
     ];
 
     return headHtml(option)
       + '<div class="l2-split">'
       + '<div class="panel"><div class="panel-head"><h2>Проверка перед запуском</h2>'
-      + '<span class="l2-chip l2-chip--' + (warned.length ? 'open' : 'ok') + '">'
-      + (warned.length ? 'предупреждений: ' + warned.length : 'предупреждений нет') + '</span></div>'
+      + '<span class="l2-chip l2-chip--' + (blocked.length ? 'stop' : 'ok') + '">' + (blocked.length ? 'есть блокеры' : 'можно публиковать') + '</span></div>'
       + '<div class="l2-role"><label for="l2-role">Роль</label><select id="l2-role" onchange="L2.setRole(this.value)">' + roleOptions + '</select>'
-      + '<label class="l2-meta l2-view"><input type="checkbox" ' + (viewMode ? 'checked' : '')
-      + ' onchange="L2.setViewMode(this.checked)"> ' + esc(VIEW_MODE_TITLE) + '</label>'
-      + '<span class="l2-meta">Роли в модели: «Продуктолог» и «Администратор». Порядок согласования и право публикации пока не заданы; режим просмотра — не роль.</span></div>'
-      + '<table class="l2-table"><thead><tr><th>Проверка (демонстрационная гипотеза)</th><th>Результат</th></tr></thead><tbody>'
-      + checks.map((check) => '<tr><td>' + esc(check[0]) + (check[2] ? '<div class="l2-meta">' + esc(check[2]) + '</div>' : '') + '</td><td>'
-        + (check[1] ? '<span class="l2-chip l2-chip--ok">ок</span>' : '<span class="l2-chip l2-chip--open">предупреждение</span>') + '</td></tr>').join('')
+      + '<span class="l2-meta">Права: ' + (ROLE[state.role].canEdit ? 'правит значения' : 'только смотрит') + ', ' + (ROLE[state.role].canPublish ? 'публикует' : 'не публикует') + '</span></div>'
+      + '<table class="l2-table"><thead><tr><th>Проверка</th><th>Результат</th></tr></thead><tbody>'
+      + checks.map((check) => '<tr><td>' + esc(check[0]) + '</td><td>'
+        + (check[1] ? '<span class="l2-chip l2-chip--ok">ок</span>' : '<span class="l2-chip l2-chip--stop">нет</span>') + '</td></tr>').join('')
       + '</tbody></table>'
-      + '<div class="l2-warn">Проверки выше — демонстрационные гипотезы, а не утверждённые правила публикации: порядок согласования, право публикации и база комиссии пока не заданы.'
-      + ' Открытая база комиссии (OQ-M-01) публикацию не блокирует.</div>'
+      + (blocked.length ? blocked.map((line) => '<div class="l2-stop">' + esc(line) + '</div>').join('') : '<div class="l2-ok">Блокеров нет: версия № ' + version.number + ' может быть опубликована.</div>')
       + (warned.length ? warned.slice(0, 4).map((line) => '<div class="l2-warn">' + esc(line) + '</div>').join('') : '')
       + '<div class="l2-actions">'
       + '<button type="button" class="btn btn-primary" ' + (canPublish ? '' : 'disabled') + ' onclick="L2.publish()">Опубликовать версию № ' + version.number + '</button>'
       + '<button type="button" class="btn btn-ghost" onclick="L2.sendSpr()">Отправить в СПР</button>'
       + '<button type="button" class="btn btn-ghost" onclick="L2.reset()">Сбросить сцену</button>'
       + '</div>'
-      + (viewMode ? '<p class="hint">Включён ' + esc(VIEW_MODE_TITLE) + ': публикация выключена. Это демонстрационный режим, а не утверждённая роль.</p>' : '')
-      + '<p class="hint">Публикация в демо не ходит в сеть и не изображает утверждённое согласование: обмен с СПР — демонстрационная гипотеза, контракт и транспорт не согласованы.</p>'
+      + '<p class="hint">Публикация в демо не ходит в сеть: сообщение формируется по контракту arm.product-options/v1, подтверждение СПР имитируется.</p>'
       + '</div>'
       + '<div class="panel"><div class="panel-head"><h2>Сообщение в СПР</h2></div>'
-      + '<p class="l2-warn">Демонстрационная гипотеза, контракт и транспорт не согласованы. Значения взяты из версии № ' + version.number + ', включая комиссию за снижение ставки.</p>'
       + '<pre class="l2-json" id="l2-json">' + esc(JSON.stringify(message, null, 2)) + '</pre>'
       + '</div></div>';
   }
@@ -539,11 +509,6 @@
       save();
       render();
     },
-    setViewMode(on) {
-      state.viewMode = Boolean(on);
-      save();
-      render();
-    },
     setFbFilter(code) {
       state.fbFilter = code;
       save();
@@ -556,7 +521,7 @@
       const option = currentOption();
       const version = currentVersion();
       const blocked = blockers(option, version);
-      if (blocked.length || state.viewMode) return;
+      if (blocked.length) return;
       state.published[option.code] = version.number;
       logBus('POST', '/arm/options/' + option.code + '/versions/' + version.number + '/publish', 'принято · версия № ' + version.number + ' опубликована', 'ok');
       save();
@@ -584,7 +549,6 @@
       state.published = {};
       state.logs = [];
       state.role = 'productolog';
-      state.viewMode = false;
       state.tab = 'card';
       state.fbFilter = 'all';
       save();
