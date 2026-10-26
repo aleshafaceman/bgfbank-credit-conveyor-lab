@@ -1,0 +1,142 @@
+/* Страница «Каталог L2»: дополнения к deal-ops.css. */
+.l2-work-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+.l2-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 16px;
+}
+.l2-tab {
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--navy);
+  border-radius: 999px;
+  padding: 7px 14px;
+  font: 700 12px Roboto, sans-serif;
+  cursor: pointer;
+}
+.l2-tab.on {
+  background: var(--navy);
+  border-color: var(--navy);
+  color: #fff;
+}
+.l2-blocks {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 10px;
+}
+.l2-block {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 118px;
+}
+.l2-block__head {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.l2-block__no {
+  font: 700 11px Roboto, sans-serif;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.l2-block__title {
+  font: 700 13px Roboto, sans-serif;
+  color: var(--navy);
+  line-height: 1.3;
+}
+.l2-block__what {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+.l2-block__note {
+  font-size: 11px;
+  color: #8a5a00;
+  line-height: 1.35;
+}
+.l2-block--outside {
+  background: #f8fafc;
+  border-style: dashed;
+}
+.l2-chip {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 3px 9px;
+  font: 700 10px Roboto, sans-serif;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  white-space: nowrap;
+}
+.l2-chip--ok { background: #eef8f1; color: #0f7a2c; }
+.l2-chip--open { background: #fff4ec; color: #b34d08; }
+.l2-chip--out { background: #f1f5f9; color: #475569; }
+.l2-chip--stop { background: #fee2e2; color: #991b1b; }
+.l2-kv {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 6px 12px;
+  font-size: 13px;
+  margin: 8px 0;
+}
+.l2-kv dt { color: var(--muted); font-weight: 700; }
+.l2-kv dd { margin: 0; color: var(--navy); }
+.l2-json {
+  background: #0b1b2b;
+  color: #d7e6f5;
+  border-radius: 10px;
+  padding: 12px;
+  font: 500 11.5px/1.5 Consolas, Menlo, monospace;
+  overflow: auto;
+  max-height: 420px;
+  white-space: pre;
+}
+.l2-list { margin: 6px 0 0; padding-left: 18px; font-size: 13px; line-height: 1.45; }
+.l2-list li { margin-bottom: 4px; }
+.l2-warn { border-left: 3px solid #d97706; background: #fffbeb; padding: 8px 10px; border-radius: 8px; font-size: 12.5px; margin: 8px 0; }
+.l2-stop { border-left: 3px solid #b91c1c; background: #fef2f2; padding: 8px 10px; border-radius: 8px; font-size: 12.5px; margin: 8px 0; }
+.l2-ok { border-left: 3px solid #0f7a2c; background: #f0fdf4; padding: 8px 10px; border-radius: 8px; font-size: 12.5px; margin: 8px 0; }
+.l2-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.l2-table th {
+  text-align: left;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--navy);
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--line);
+}
+.l2-table td { padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.l2-table tr.is-on td { background: #eef4fb; }
+.l2-table .num { text-align: right; white-space: nowrap; }
+.l2-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 4px; }
+.l2-role { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 12px; }
+.l2-role select {
+  height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 8px;
+  font: 700 12px Roboto, sans-serif;
+  color: var(--navy);
+}
+.l2-meta { font-size: 11.5px; color: var(--muted); line-height: 1.5; }
+.l2-split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
+@media (max-width: 1100px) {
+  .l2-split { grid-template-columns: 1fr; }
+  .l2-kv { grid-template-columns: 1fr; }
+}
+.l2-log div { padding: 5px 0; border-bottom: 1px solid var(--line); font-size: 12px; }
+.l2-log b { color: var(--navy); }
