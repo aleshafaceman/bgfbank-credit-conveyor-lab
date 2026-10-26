@@ -24,7 +24,6 @@ LAB Pages: https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/
 АРМ андеррайтера (АНД / АПЗ, мок): https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/underwriter/  
 АРМ участника кредитного комитета (мок): https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/underwriter/kk-member.html  
 АРМ продуктолога / риск-менеджера (конфиг Solver, мок): https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/productolog/  
-Каталог L2: модель, версии и публикация (АРМ продуктолога): https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/productolog/l2.html  
 Электронное заявление на счёт (клиент по SMS): https://aleshafaceman.github.io/bgfbank-credit-conveyor-lab/deal-ops/account-app.html?t=25BGFB00990001  
 
 Вход только по логину и паролю: клиент `+7 (999) 123-45-67` / `password123`, менеджер
